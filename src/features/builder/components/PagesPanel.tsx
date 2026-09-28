@@ -1,0 +1,190 @@
+'use client';
+
+import { Box, Button, ButtonBase, Chip, Divider, IconButton, ListItemIcon, Menu, MenuItem, Stack, Tooltip, Typography } from '@mui/material';
+import { Copy, Eye, EyeOff, Home, MoreHorizontal, Plus, Settings2, Trash2, X } from 'lucide-react';
+import { useState } from 'react';
+import { useConfirm } from '@/components/feedback/ConfirmProvider';
+import { SortableList } from '@/components/ui/SortableList';
+import { newPage } from '@/lib/site/pages';
+import { SECTION_GROUPS, SECTION_META } from '@/lib/site/section-registry';
+import { createSection, SECTION_TYPES, type SectionType } from '@/lib/site/section-schemas';
+import { PAGE_BLUEPRINTS } from '@/lib/site/starter';
+import { Icon } from '@/site-renderer/Icon';
+import { useBuilder, useSelectedPage } from '../state';
+
+/** Lista de páginas + secciones de la página seleccionada. */
+export function PagesPanel() {
+  const { state, dispatch } = useBuilder();
+  const page = useSelectedPage();
+  const confirm = useConfirm();
+  const [menu, setMenu] = useState<{ anchor: HTMLElement; pageId: string } | null>(null);
+  const [adding, setAdding] = useState<'page' | 'section' | null>(null);
+  const navVisible = (pageId: string) => state.navigation.items.some((i) => i.kind === 'page' && i.pageId === pageId && i.visible);
+
+  const removePage = async (pageId: string) => {
+    setMenu(null);
+    const target = state.pages.find((p) => p.id === pageId);
+    const ok = await confirm({ title: `¿Eliminar la página "${target?.title}"?`, description: 'Se quitará también del menú. Se aplica al guardar.', confirmLabel: 'Eliminar', destructive: true });
+    if (ok) dispatch({ type: 'removePage', pageId });
+  };
+
+  return (
+    <Box sx={{ pt: 1.5 }}>
+      <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+        <Typography variant="overline" color="text.secondary">Páginas</Typography>
+        <Button size="small" startIcon={<Plus size={14} />} onClick={() => setAdding(adding === 'page' ? null : 'page')}>Nueva página</Button>
+      </Stack>
+
+      {adding === 'page' && (
+        <Box sx={{ mb: 1.5, p: 1, border: 1, borderColor: 'divider', borderRadius: 1.5 }}>
+          <Stack direction="row" sx={{ alignItems: 'center', mb: 0.5 }}>
+            <Typography variant="caption" sx={{ fontWeight: 600, flex: 1 }}>Elige un punto de partida</Typography>
+            <IconButton size="small" onClick={() => setAdding(null)} aria-label="Cerrar"><X size={14} /></IconButton>
+          </Stack>
+          {PAGE_BLUEPRINTS.map((bp) => (
+            <ButtonBase
+              key={bp.template + bp.title}
+              onClick={() => {
+                dispatch({ type: 'addPage', page: newPage(bp.title, bp.slug, bp.sections(), bp.template), showInNav: true });
+                setAdding(null);
+              }}
+              sx={{ display: 'block', width: '100%', textAlign: 'left', p: 1, borderRadius: 1, '&:hover': { bgcolor: 'action.hover' } }}
+            >
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>{bp.title}</Typography>
+              <Typography variant="caption" color="text.secondary">{bp.description}</Typography>
+            </ButtonBase>
+          ))}
+        </Box>
+      )}
+
+      <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 1.5, overflow: 'hidden' }}>
+        <SortableList
+          items={state.pages}
+          getId={(p) => p.id}
+          onReorder={(next) => dispatch({ type: 'reorderPages', ids: next.map((p) => p.id) })}
+          renderItem={(p) => (
+            <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+              <ButtonBase
+                onClick={() => dispatch({ type: 'selectPage', pageId: p.id })}
+                sx={{ flex: 1, minWidth: 0, justifyContent: 'flex-start', gap: 1, py: 0.5, px: 0.5, borderRadius: 1, bgcolor: p.id === page.id ? 'primary.light' : 'transparent' }}
+              >
+                {p.isHome ? <Home size={14} /> : <Box sx={{ width: 14 }} />}
+                <Box sx={{ minWidth: 0, textAlign: 'left' }}>
+                  <Typography variant="body2" noWrap sx={{ fontWeight: p.id === page.id ? 700 : 500, color: p.isPublished ? 'text.primary' : 'text.disabled' }}>{p.title}</Typography>
+                  <Typography variant="caption" color="text.secondary" noWrap component="p">
+                    /{p.isHome ? '' : p.slug}
+                    {!p.isPublished && ' · oculta'}
+                    {p.isPublished && !navVisible(p.id) && ' · fuera del menú'}
+                  </Typography>
+                </Box>
+              </ButtonBase>
+              <IconButton size="small" onClick={(e) => setMenu({ anchor: e.currentTarget, pageId: p.id })} aria-label={`Opciones de ${p.title}`}>
+                <MoreHorizontal size={15} />
+              </IconButton>
+            </Stack>
+          )}
+        />
+      </Box>
+
+      <Menu anchorEl={menu?.anchor} open={Boolean(menu)} onClose={() => setMenu(null)}>
+        {menu && [
+          <MenuItem key="settings" onClick={() => { dispatch({ type: 'selectPage', pageId: menu.pageId }); dispatch({ type: 'editPageSettings', open: true }); setMenu(null); }}>
+            <ListItemIcon><Settings2 size={15} /></ListItemIcon>Configurar página
+          </MenuItem>,
+          <MenuItem key="home" disabled={state.pages.find((p) => p.id === menu.pageId)?.isHome} onClick={() => { dispatch({ type: 'setHome', pageId: menu.pageId }); setMenu(null); }}>
+            <ListItemIcon><Home size={15} /></ListItemIcon>Usar como inicio
+          </MenuItem>,
+          <MenuItem key="pub" disabled={state.pages.find((p) => p.id === menu.pageId)?.isHome} onClick={() => { const p = state.pages.find((x) => x.id === menu.pageId)!; dispatch({ type: 'updatePage', pageId: p.id, patch: { isPublished: !p.isPublished } }); setMenu(null); }}>
+            <ListItemIcon>{state.pages.find((p) => p.id === menu.pageId)?.isPublished ? <EyeOff size={15} /> : <Eye size={15} />}</ListItemIcon>
+            {state.pages.find((p) => p.id === menu.pageId)?.isPublished ? 'Ocultar página' : 'Activar página'}
+          </MenuItem>,
+          <MenuItem key="dup" onClick={() => { dispatch({ type: 'duplicatePage', pageId: menu.pageId }); setMenu(null); }}>
+            <ListItemIcon><Copy size={15} /></ListItemIcon>Duplicar
+          </MenuItem>,
+          <MenuItem key="del" disabled={state.pages.length <= 1} onClick={() => void removePage(menu.pageId)} sx={{ color: 'error.main' }}>
+            <ListItemIcon sx={{ color: 'inherit' }}><Trash2 size={15} /></ListItemIcon>Eliminar
+          </MenuItem>,
+        ]}
+      </Menu>
+
+      <Divider sx={{ my: 2 }} />
+
+      <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="overline" color="text.secondary">Secciones</Typography>
+          <Typography variant="caption" color="text.secondary" component="p" noWrap>de «{page.title}»</Typography>
+        </Box>
+        <Stack direction="row">
+          <Tooltip title="Configurar página (URL, fondo, SEO)">
+            <IconButton onClick={() => dispatch({ type: 'editPageSettings', open: true })} aria-label="Configurar página"><Settings2 size={16} /></IconButton>
+          </Tooltip>
+          <Button size="small" variant="contained" startIcon={<Plus size={14} />} onClick={() => setAdding(adding === 'section' ? null : 'section')}>Sección</Button>
+        </Stack>
+      </Stack>
+
+      {adding === 'section' && <SectionPicker onPick={(type) => { dispatch({ type: 'addSection', section: createSection(type) }); setAdding(null); }} onClose={() => setAdding(null)} />}
+
+      {page.sections.length === 0 ? (
+        <Typography variant="body2" color="text.secondary" sx={{ p: 2, textAlign: 'center', border: 1, borderStyle: 'dashed', borderColor: 'divider', borderRadius: 1.5 }}>
+          Esta página está vacía. Agrega tu primera sección.
+        </Typography>
+      ) : (
+        <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 1.5, overflow: 'hidden' }}>
+          <SortableList
+            items={page.sections}
+            getId={(s) => s.id}
+            onReorder={(next) => dispatch({ type: 'reorderSections', ids: next.map((s) => s.id) })}
+            renderItem={(section) => {
+              const meta = SECTION_META[section.type];
+              const title = section.name || ('title' in section.content && section.content.title) || meta.label;
+              return (
+                <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+                  <ButtonBase onClick={() => dispatch({ type: 'selectSection', sectionId: section.id })} sx={{ flex: 1, minWidth: 0, justifyContent: 'flex-start', gap: 1, py: 0.5, px: 0.5, borderRadius: 1, opacity: section.visible ? 1 : 0.45 }}>
+                    <Box sx={{ color: 'primary.main', display: 'flex' }}><Icon id={meta.icon} size={16} /></Box>
+                    <Box sx={{ minWidth: 0, textAlign: 'left' }}>
+                      <Typography variant="body2" noWrap sx={{ fontWeight: 500 }}>{title}</Typography>
+                      <Typography variant="caption" color="text.secondary" noWrap component="p">{meta.label}{section.style.background.type !== 'inherit' ? ' · fondo propio' : ''}</Typography>
+                    </Box>
+                  </ButtonBase>
+                  <Tooltip title={section.visible ? 'Ocultar' : 'Mostrar'}>
+                    <IconButton size="small" onClick={() => dispatch({ type: 'updateSection', section: { ...section, visible: !section.visible } })} aria-label="Visibilidad">
+                      {section.visible ? <Eye size={14} /> : <EyeOff size={14} />}
+                    </IconButton>
+                  </Tooltip>
+                </Stack>
+              );
+            }}
+          />
+        </Box>
+      )}
+      {page.sections.some((s) => !s.visible) && (
+        <Chip size="small" label="Las secciones ocultas no se publican" sx={{ mt: 1 }} />
+      )}
+    </Box>
+  );
+}
+
+function SectionPicker({ onPick, onClose }: { onPick: (type: SectionType) => void; onClose: () => void }) {
+  return (
+    <Box sx={{ mb: 1.5, p: 1, border: 1, borderColor: 'divider', borderRadius: 1.5 }}>
+      <Stack direction="row" sx={{ alignItems: 'center' }}>
+        <Typography variant="caption" sx={{ fontWeight: 600, flex: 1 }}>Agregar sección</Typography>
+        <IconButton size="small" onClick={onClose} aria-label="Cerrar"><X size={14} /></IconButton>
+      </Stack>
+      {SECTION_GROUPS.map((group) => (
+        <Box key={group} sx={{ mt: 1 }}>
+          <Typography variant="overline" color="text.secondary" sx={{ px: 1 }}>{group}</Typography>
+          {SECTION_TYPES.filter((t) => SECTION_META[t].group === group).map((type) => (
+            <ButtonBase key={type} onClick={() => onPick(type)} sx={{ display: 'flex', gap: 1.25, width: '100%', textAlign: 'left', alignItems: 'flex-start', p: 1, borderRadius: 1, '&:hover': { bgcolor: 'action.hover' } }}>
+              <Box sx={{ color: 'primary.main', mt: 0.25, display: 'flex' }}><Icon id={SECTION_META[type].icon} size={18} /></Box>
+              <Box>
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>{SECTION_META[type].label}</Typography>
+                <Typography variant="caption" color="text.secondary">{SECTION_META[type].description}</Typography>
+              </Box>
+            </ButtonBase>
+          ))}
+        </Box>
+      ))}
+    </Box>
+  );
+}

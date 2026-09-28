@@ -1,0 +1,197 @@
+/**
+ * Tipos de la base de datos en el formato de `supabase gen types typescript`.
+ * Mantener sincronizado con supabase/migrations. Para regenerarlos desde un
+ * proyecto real: `npm run db:types` (requiere Supabase CLI y SUPABASE_PROJECT_ID).
+ */
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
+
+type Timestamps = {
+  created_at: string;
+  updated_at: string;
+};
+
+type BusinessRow = Timestamps & {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  slogan: string | null;
+  logo_path: string | null;
+  plan_id: string;
+  contact: Json;
+  social_links: Json;
+  created_by: string | null;
+  deleted_at: string | null;
+};
+
+type CatalogRow = Timestamps & {
+  id: string;
+  business_id: string;
+  name: string;
+  slug: string;
+  status: CatalogStatus;
+  is_default: boolean;
+  theme: Json;
+  settings: Json;
+  seo: Json;
+  navigation: Json;
+  pdf: Json;
+  cover_path: string | null;
+  favicon_path: string | null;
+  published_at: string | null;
+  deleted_at: string | null;
+};
+
+type CategoryRow = Timestamps & {
+  id: string;
+  business_id: string;
+  catalog_id: string;
+  name: string;
+  description: string | null;
+  image_path: string | null;
+  position: number;
+  is_active: boolean;
+  deleted_at: string | null;
+};
+
+type CatalogItemRow = Timestamps & {
+  id: string;
+  business_id: string;
+  catalog_id: string;
+  category_id: string | null;
+  type: ItemType;
+  name: string;
+  slug: string;
+  short_description: string | null;
+  description: string | null;
+  price: number | null;
+  compare_at_price: number | null;
+  currency: string;
+  price_note: string | null;
+  sku: string | null;
+  is_available: boolean;
+  is_featured: boolean;
+  is_visible: boolean;
+  position: number;
+  tags: string[];
+  attributes: Json;
+  deleted_at: string | null;
+};
+
+type CatalogItemImageRow = Timestamps & {
+  id: string;
+  business_id: string;
+  item_id: string;
+  storage_path: string;
+  thumb_path: string | null;
+  width: number | null;
+  height: number | null;
+  size_bytes: number | null;
+  mime_type: string | null;
+  alt: string | null;
+  position: number;
+};
+
+type CatalogPageRow = Timestamps & {
+  id: string;
+  business_id: string;
+  catalog_id: string;
+  title: string;
+  slug: string;
+  template: string;
+  is_home: boolean;
+  is_published: boolean;
+  position: number;
+  sections: Json;
+  style: Json;
+  seo: Json;
+  deleted_at: string | null;
+};
+
+type PlanRow = Timestamps & {
+  id: string;
+  name: string;
+  sort_order: number;
+  limits: Json;
+  features: Json;
+  is_public: boolean;
+};
+
+type ProfileRow = Timestamps & {
+  id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+};
+
+type BusinessMemberRow = Timestamps & {
+  business_id: string;
+  user_id: string;
+  role: MemberRole;
+};
+
+/** Inserción: columnas con default son opcionales. */
+type InsertOf<Row, Required extends keyof Row> = Pick<Row, Required> & Partial<Omit<Row, Required>>;
+
+type Table<Row, Required extends keyof Row> = {
+  Row: Row;
+  Insert: InsertOf<Row, Required>;
+  Update: Partial<Row>;
+  Relationships: [];
+};
+
+export type CatalogStatus = 'draft' | 'published' | 'unpublished';
+export type ItemType = 'product' | 'service';
+export type MemberRole = 'owner' | 'admin' | 'editor';
+
+export type Database = {
+  __InternalSupabase: { PostgrestVersion: '12' };
+  public: {
+    Tables: {
+      plans: Table<PlanRow, 'id' | 'name'>;
+      profiles: Table<ProfileRow, 'id'>;
+      businesses: Table<BusinessRow, 'name' | 'slug'>;
+      business_members: Table<BusinessMemberRow, 'business_id' | 'user_id'>;
+      catalogs: Table<CatalogRow, 'business_id' | 'name' | 'slug'>;
+      categories: Table<CategoryRow, 'business_id' | 'catalog_id' | 'name'>;
+      catalog_items: Table<CatalogItemRow, 'business_id' | 'catalog_id' | 'name' | 'slug'>;
+      catalog_item_images: Table<CatalogItemImageRow, 'business_id' | 'item_id' | 'storage_path'>;
+      catalog_pages: Table<CatalogPageRow, 'business_id' | 'catalog_id' | 'title' | 'slug'>;
+    };
+    Views: { [_ in never]: never };
+    Functions: {
+      create_business: {
+        Args: {
+          p_name: string;
+          p_slug: string;
+          p_contact?: Json;
+          p_catalog_theme?: Json;
+          p_catalog_settings?: Json;
+        };
+        Returns: string;
+      };
+      is_business_slug_available: { Args: { p_slug: string }; Returns: boolean };
+      reorder_rows: {
+        Args: { p_table: 'categories' | 'catalog_items' | 'catalog_item_images'; p_ids: string[] };
+        Returns: undefined;
+      };
+      get_public_catalog: { Args: { p_business_slug: string }; Returns: Json };
+      save_site: {
+        Args: {
+          p_catalog_id: string;
+          p_theme?: Json | null;
+          p_navigation?: Json | null;
+          p_pages?: Json | null;
+          p_deleted_page_ids?: string[];
+        };
+        Returns: undefined;
+      };
+    };
+    Enums: { [_ in never]: never };
+    CompositeTypes: { [_ in never]: never };
+  };
+};
+
+type PublicTables = Database['public']['Tables'];
+export type Tables<T extends keyof PublicTables> = PublicTables[T]['Row'];
+export type TablesInsert<T extends keyof PublicTables> = PublicTables[T]['Insert'];
+export type TablesUpdate<T extends keyof PublicTables> = PublicTables[T]['Update'];

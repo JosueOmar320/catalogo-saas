@@ -1,0 +1,52 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  background: #f7f7f8;
+  font-family: system-ui, -apple-system, sans-serif;
+  color: #18181b;
+}
+
+.card {
+  max-width: 440px;
+  text-align: center;
+}
+
+.eyebrow {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #71717a;
+  margin: 0 0 8px;
+}
+
+.title {
+  font-size: 24px;
+  line-height: 1.25;
+  margin: 0 0 12px;
+}
+
+.text {
+  color: #52525b;
+  margin: 0 0 24px;
+  line-height: 1.5;
+}
+
+.link {
+  display: inline-block;
+  padding: 10px 16px;
+  border-radius: 6px;
+  background: #18181b;
+  color: #fff;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.button {
+  border: 0;
+  cursor: pointer;
+  font-family: inherit;
+}

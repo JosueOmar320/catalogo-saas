@@ -1,0 +1,144 @@
+'use client';
+
+import { Menu, X } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
+import { SocialIcon } from '@/components/SocialIcon';
+import { SOCIAL_NETWORKS } from '@/lib/social/networks';
+import { BackgroundLayers } from './Background';
+import type { HeaderProps } from './chrome';
+import { Icon } from './Icon';
+import { SiteImage } from './SiteImage';
+import styles from './site.module.css';
+
+/**
+ * Header del sitio con 7 estilos (data-style), logo a la izquierda o al
+ * centro, menú a la izquierda/centro/derecha, sticky, transparente sobre el
+ * hero (se vuelve sólido al hacer scroll) y menú móvil.
+ */
+export function SiteHeader(props: HeaderProps) {
+  const { header, brand, items, cta, social, overlayPaths, homePath } = props;
+  const pathname = usePathname();
+  const current = (props.currentPath ?? pathname ?? '').replace(/\/$/, '') || '/';
+  const overlay = overlayPaths.some((p) => (p.replace(/\/$/, '') || '/') === current);
+  const [open, setOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const sentinel = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    const el = sentinel.current;
+    if (!el || !overlay) return;
+    const observer = new IntersectionObserver(([entry]) => setScrolled(!entry.isIntersecting));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [overlay]);
+
+  const isActive = (href: string) => (href.split('?')[0].replace(/\/$/, '') || '/') === current;
+  const centered = header.logoPosition === 'center';
+  const customBg = header.background.type !== 'inherit';
+
+  const brandNode = (header.showLogo || header.showName) && (
+    <a href={homePath} className={styles.brand} data-page-id={items.find((i) => i.href === homePath)?.pageId}>
+      {header.showLogo && (
+        <span className={styles.brandLogo}>
+          {brand.logoUrl ? <SiteImage src={brand.logoUrl} alt={brand.name} sizes="64px" priority /> : <span className={styles.brandInitial}>{brand.name.charAt(0).toUpperCase()}</span>}
+        </span>
+      )}
+      {header.showName && <span className={styles.brandName}>{brand.name}</span>}
+    </a>
+  );
+
+  const navLinks = (className = styles.navLink) =>
+    items.map((item) =>
+      item.style === 'button' ? (
+        <a key={item.id} href={item.href} className={`${styles.btn} ${styles.btnSmall}`} data-variant="solid" data-page-id={item.pageId ?? undefined} target={item.external ? '_blank' : undefined} rel={item.external ? 'noopener noreferrer' : undefined} onClick={() => setOpen(false)}>
+          {item.label}
+        </a>
+      ) : (
+        <a key={item.id} href={item.href} className={className} aria-current={isActive(item.href) ? 'page' : undefined} data-page-id={item.pageId ?? undefined} target={item.external ? '_blank' : undefined} rel={item.external ? 'noopener noreferrer' : undefined} onClick={() => setOpen(false)}>
+          {item.label}
+        </a>
+      ),
+    );
+
+  const socialNode = social.length > 0 && (
+    <div className={styles.headerSocial}>
+      {social.slice(0, 4).map((link) => (
+        <a key={link.url} href={link.url} target="_blank" rel="noopener noreferrer" className={styles.iconButton} aria-label={SOCIAL_NETWORKS[link.network].label}>
+          <SocialIcon network={link.network} size={16} />
+        </a>
+      ))}
+    </div>
+  );
+
+  const ctaNode = cta && (
+    <a href={cta.href} className={`${styles.btn} ${styles.btnSmall} ${styles.headerCta}`} data-variant="solid" data-page-id={cta.pageId} target={cta.external ? '_blank' : undefined} rel={cta.external ? 'noopener noreferrer' : undefined}>
+      {header.cta === 'whatsapp' && <Icon id="message-circle" size={15} />}
+      {cta.label}
+    </a>
+  );
+
+  const toggle = items.length > 0 && (
+    <button type="button" className={styles.menuToggle} aria-expanded={open} aria-label={open ? 'Cerrar menú' : 'Abrir menú'} onClick={() => setOpen((o) => !o)}>
+      {open ? <X size={18} /> : <Menu size={18} />}
+    </button>
+  );
+
+  return (
+    <>
+      <span ref={sentinel} aria-hidden />
+      <header
+        className={`${styles.header} ${centered ? styles.headerTwoRows : ''}`}
+        data-style={header.style}
+        data-sticky={header.sticky}
+        data-overlay={overlay}
+        data-scrolled={scrolled}
+        data-custom-bg={customBg && !(overlay && !scrolled)}
+      >
+        <div className={styles.headerInner}>
+          <div className={styles.headerSurface}>{customBg && !(overlay && !scrolled) && <BackgroundLayers background={header.background} />}</div>
+          <div className={styles.container}>
+            {centered ? (
+              <div className={styles.headerBar}>
+                <div className={styles.headerLeft}>
+                  {toggle}
+                  {socialNode}
+                </div>
+                {brandNode}
+                <div className={styles.headerActions}>{ctaNode}</div>
+              </div>
+            ) : (
+              <div className={styles.headerBar}>
+                {brandNode}
+                {header.menuPosition === 'left' && <nav className={`${styles.nav} ${styles.navLeft}`} aria-label="Principal">{navLinks()}</nav>}
+                <span className={styles.headerSpacer} />
+                {header.menuPosition === 'center' && <nav className={`${styles.nav} ${styles.navCenter}`} aria-label="Principal">{navLinks()}</nav>}
+                {header.menuPosition === 'right' && <nav className={styles.nav} aria-label="Principal">{navLinks()}</nav>}
+                <div className={styles.headerActions}>
+                  {socialNode}
+                  {ctaNode}
+                  {toggle}
+                </div>
+              </div>
+            )}
+            {centered && items.length > 0 && (
+              <nav className={styles.headerNavRow} aria-label="Principal">
+                <div className={styles.nav}>{navLinks()}</div>
+              </nav>
+            )}
+          </div>
+          {open && (
+            <nav className={styles.mobilePanel} aria-label="Menú móvil">
+              {navLinks()}
+              {cta && (
+                <a href={cta.href} className={styles.btn} data-variant="solid" target={cta.external ? '_blank' : undefined} rel="noopener noreferrer">
+                  {cta.label}
+                </a>
+              )}
+            </nav>
+          )}
+        </div>
+      </header>
+    </>
+  );
+}
