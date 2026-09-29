@@ -3,8 +3,8 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { env, isSupabaseConfigured } from '@/lib/env';
 import type { Database } from '@/types/database';
 
-const PROTECTED_PREFIXES = ['/dashboard', '/onboarding', '/preview', '/reset-password'];
-const AUTH_PAGES = ['/login', '/signup'];
+const PROTECTED_PREFIXES = ['/dashboard', '/admin', '/cuenta', '/sin-acceso', '/preview'];
+const AUTH_PAGES = ['/login'];
 
 /** Refresca la sesión (cookies) y aplica redirecciones básicas de acceso. */
 export async function updateSession(request: NextRequest) {

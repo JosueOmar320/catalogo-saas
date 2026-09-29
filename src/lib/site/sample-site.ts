@@ -37,18 +37,19 @@ type SampleItem = {
   available?: boolean;
   sku?: string;
   badges?: CatalogItemView['badges'];
+  attrs?: CatalogItemView['attributes'];
 };
 
 const ITEMS: SampleItem[] = [
-  { name: 'Espresso doble', category: 0, short: 'Intenso, con notas a cacao y frutos rojos.', price: 45, photo: '1510591509098-f4fdc6d0ff04', featured: true, sku: 'CAF-001', badges: ['popular'] },
-  { name: 'Latte de avena', category: 0, short: 'Espresso con bebida de avena texturizada.', price: 68, photo: '1461023058943-07fcbe16d735', sku: 'CAF-002', badges: ['new'] },
-  { name: 'Cold brew', category: 0, short: 'Extracción en frío por 18 horas. Suave y dulce.', price: 72, compareAt: 85, photo: '1517701604599-bb29b565090c', featured: true, sku: 'CAF-003' },
-  { name: 'Café en grano 340 g', category: 0, short: 'Chiapas, lavado. Ideal para filtrado.', price: 290, photo: '1559056199-641a0ac8b55e', sku: 'CAF-010', note: 'bolsa', featured: true },
+  { name: 'Espresso doble', category: 0, short: 'Intenso, con notas a cacao y frutos rojos.', price: 45, photo: '1510591509098-f4fdc6d0ff04', featured: true, sku: 'CAF-001', badges: ['popular'], attrs: { origen: 'Chiapas', tamano: '2 oz' } },
+  { name: 'Latte de avena', category: 0, short: 'Espresso con bebida de avena texturizada.', price: 68, photo: '1461023058943-07fcbe16d735', sku: 'CAF-002', badges: ['new'], attrs: { origen: 'Veracruz', tamano: '12 oz' } },
+  { name: 'Cold brew', category: 0, short: 'Extracción en frío por 18 horas. Suave y dulce.', price: 72, compareAt: 85, photo: '1517701604599-bb29b565090c', featured: true, sku: 'CAF-003', attrs: { origen: 'Chiapas', tamano: '16 oz' } },
+  { name: 'Café en grano 340 g', category: 0, short: 'Chiapas, lavado. Ideal para filtrado.', price: 290, photo: '1559056199-641a0ac8b55e', sku: 'CAF-010', note: 'bolsa', featured: true, attrs: { origen: 'Chiapas', tamano: '340 g', incluye: ['Molienda a elección', 'Fecha de tueste en la bolsa'] } },
   { name: 'Croissant de mantequilla', category: 1, short: 'Hojaldre francés con 27 capas.', price: 48, photo: '1555507036-ab1f4038808a', featured: true, sku: 'PAN-001', badges: ['popular'] },
   { name: 'Pan de masa madre', category: 1, short: 'Fermentación lenta de 36 horas.', price: 120, photo: '1509440159596-0249088772ff', sku: 'PAN-002' },
   { name: 'Rol de canela', category: 1, short: 'Con glaseado de queso crema.', price: 55, photo: '1509365465985-25d11c17e812', available: false, sku: 'PAN-003' },
-  { name: 'Catering para eventos', type: 'service', category: 2, short: 'Barra de café móvil con barista para tu evento.', price: 4500, note: 'desde', photo: '1511920170033-f8396924c348' },
-  { name: 'Taller de barismo', type: 'service', category: 2, short: 'Aprende extracción y arte latte en 3 horas.', price: 950, note: 'por persona', photo: '1442512595331-e89e73853f31', badges: ['new'] },
+  { name: 'Catering para eventos', type: 'service', category: 2, short: 'Barra de café móvil con barista para tu evento.', price: 4500, note: 'desde', photo: '1511920170033-f8396924c348', attrs: { duracion: 4, incluye: ['Barista profesional', 'Máquina de espresso', '100 bebidas'] } },
+  { name: 'Taller de barismo', type: 'service', category: 2, short: 'Aprende extracción y arte latte en 3 horas.', price: 950, note: 'por persona', photo: '1442512595331-e89e73853f31', badges: ['new'], attrs: { duracion: 3, incluye: ['Materiales', 'Certificado'] } },
   { name: 'Café para oficinas', type: 'service', category: 2, short: 'Suscripción mensual con entrega y mantenimiento.', price: null },
 ];
 
@@ -74,6 +75,7 @@ function sampleItems(currency: string, url: string): CatalogItemView[] {
     images: item.photo ? [{ url: photo(item.photo), thumbUrl: photo(item.photo, 480), width: 1200, height: 1200, alt: item.name }] : [],
     badges: item.badges ?? [],
     customBadge: null,
+    attributes: item.attrs ?? {},
     createdAt: new Date(2026, 0, 30 - index).toISOString(),
     url,
   }));
@@ -84,12 +86,12 @@ const pid = (n: number) => `00000000-0000-4000-8000-0000000a000${n}`;
 
 export function buildSamplePages(): SitePage[] {
 
-  const menu = newPage('Menú', 'menu', [createSection('catalog', { title: 'Nuestro menú', subtitle: 'Todo se prepara al momento.' })], 'products', pid(2));
+  const menu = newPage('Menú', 'menu', [createSection('catalog', { title: 'Nuestro menú', subtitle: 'Todo se prepara al momento.', filters: { price: true, badges: true }, pagination: { mode: 'loadMore', perPage: 12 } })], 'products', pid(2));
   const events = newPage(
     'Eventos',
     'eventos',
     [
-      createSection('services', { title: 'Eventos y cursos', subtitle: 'Cotiza sin compromiso.', source: 'all' }),
+      createSection('services', { title: 'Eventos y cursos', subtitle: 'Cotiza sin compromiso.', collection: { source: 'all', itemType: 'service' }, presentation: { layout: 'zigzag', imagePosition: 'alternate', shape: 'arch', frame: true, fields: { attributes: 'all' } } }),
       createSection('testimonials', {
         title: 'Lo que dicen nuestros clientes',
         layout: 'single',
@@ -150,8 +152,8 @@ export function buildSamplePages(): SitePage[] {
         createSection('products', {
           eyebrow: 'Favoritos',
           title: 'Lo más pedido',
-          source: 'featured',
-          limit: 4,
+          collection: { source: 'featured', limit: 4 },
+          presentation: { layout: 'grid', columns: { desktop: 4, tablet: 2, mobile: 2 } },
           button: { label: 'Ver todo el menú', variant: 'secondary', link: { kind: 'page', pageId: menu.id } },
         }),
         createSection('categories', { title: 'Explora', display: 'imageText', columns: { desktop: 3, tablet: 3, mobile: 1 }, linkPageId: menu.id }),
@@ -230,6 +232,12 @@ export function buildSampleSite(options: SampleOptions = {}): SiteViewModel {
     faviconUrl: null,
     categories: CATEGORIES,
     items: sampleItems(settings.currency, url),
+    attributeDefs: [
+      { id: 'origen', name: 'Origen', type: 'select', unit: '', options: ['Chiapas', 'Veracruz', 'Oaxaca'], filterable: true, showInCard: true, showInDetail: true, showInPdf: true },
+      { id: 'tamano', name: 'Tamaño', type: 'text', unit: '', options: [], filterable: false, showInCard: true, showInDetail: true, showInPdf: true },
+      { id: 'duracion', name: 'Duración', type: 'number', unit: 'h', options: [], filterable: false, showInCard: true, showInDetail: true, showInPdf: true },
+      { id: 'incluye', name: 'Incluye', type: 'list', unit: '', options: [], filterable: false, showInCard: false, showInDetail: true, showInPdf: true },
+    ],
     pages,
     navigation: navigationFromPages(pages),
     showBranding: true,

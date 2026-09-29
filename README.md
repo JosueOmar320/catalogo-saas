@@ -6,6 +6,9 @@ SaaS multi-tenant para construir un pequeño sitio comercial (páginas, seccione
 
 - Arquitectura, modelo de datos y decisiones: [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md)
 - Auditoría de la v1 y plan de la v2: [`docs/AUDITORIA-V2.md`](docs/AUDITORIA-V2.md)
+- Análisis de catálogos PDF de referencia y arquitectura v3: [`docs/ANALISIS-CATALOGOS-PDF.md`](docs/ANALISIS-CATALOGOS-PDF.md)
+- Garfield AI (asistente del editor): [`docs/GARFIELD-AI.md`](docs/GARFIELD-AI.md)
+- Auditoría v4 (acceso controlado, administración, herramientas de Garfield, personalización): [`docs/AUDITORIA-V4.md`](docs/AUDITORIA-V4.md)
 - Funcionalidades pendientes y recomendaciones: [`docs/ROADMAP.md`](docs/ROADMAP.md)
 
 ---
@@ -15,16 +18,25 @@ SaaS multi-tenant para construir un pequeño sitio comercial (páginas, seccione
 | Área | Qué incluye |
 | --- | --- |
 | Sitio web | Páginas ilimitadas (crear, editar, duplicar, eliminar, reordenar, activar/desactivar, página de inicio, slug y SEO por página). URLs `/catalogo/negocio/<pagina>` generadas desde las páginas del usuario. |
-| Secciones | 13 tipos: Hero (imagen, video, botones, altura, overlay), Texto (con formato e imagen), Productos (destacados, recientes, categoría, elegidos; grilla, carrusel o lista), Servicios, Catálogo completo (buscador y filtros), Categorías (4 estilos), Banner, Galería (grilla, mosaico, carrusel), Beneficios con íconos, Testimonios, Contacto (con mapa), Redes sociales y Separador. Agregar, reordenar, duplicar, ocultar y eliminar. |
-| Estilo por sección | Fondo (color, degradado, imagen, patrón), color de texto automático, espaciado, ancho, ocultar en móvil/escritorio, ancla, columnas por dispositivo, estilo de tarjeta. |
+| Secciones | 20 tipos: Hero (imagen, video, botones, altura, overlay), Texto (con formato e imagen), Productos (destacados, recientes, categoría, elegidos; grilla, carrusel o lista), Servicios, Catálogo completo (buscador y filtros), Categorías (4 estilos), Banner / llamado a la acción, Galería (grilla, mosaico, carrusel), Beneficios con íconos, Testimonios, Contacto (con mapa), Redes sociales, Separador, **Imagen** (proporción, pie de foto, enlace), **Video** (YouTube, Vimeo o .mp4, a lo ancho o junto a un texto), **Preguntas frecuentes** (acordeón, lista o dos columnas, con datos estructurados para Google), **Planes y precios**, **Equipo**, **Cifras** y **Logos**. Agregar, reordenar, duplicar, ocultar y eliminar. Todas tienen versión PDF. |
+| Estilo por sección | Organizado en Fondo · Diseño · Espaciado · Apariencia · Avanzado. Fondo (color, degradado, imagen con posición/tamaño/parallax, patrón, video) con overlay y color de texto automático; ancho (angosto, normal, ancho, completo), altura mínima, alineación vertical y del texto; espaciado arriba/abajo, margen y superposición con la sección anterior; sección como caja, borde, radio y sombra; divisores decorativos arriba y abajo (ola, curva, diagonal, zigzag, triángulo) con color, altura e inversión; ocultar en móvil/escritorio, ancla, columnas por dispositivo. |
 | Navegación | Menú ordenable con páginas, enlaces externos, WhatsApp, teléfono y email, como enlace o botón. 7 estilos de header (Minimal, Clásico, Centrado, Moderno, Transparente, Oscuro, Elegante), logo y menú posicionables, sticky, altura, botón destacado, fondo con imagen. 4 estilos de footer. |
-| Diseño | 10 temas iniciales (Minimal, Elegante, Restaurante, Moda, Corporativo, Moderno, Oscuro, Lujo, Colorido, Industrial). 12 colores, 11 fuentes (títulos, texto y precios), tamaño, peso, interlineado, espaciado de letras, mayúsculas; espaciado, ancho máximo, radios, bordes, sombras; botones (estilo, forma, tamaño, hover, sombra). |
-| Fondos | Color, degradado lineal o radial, imagen (posición, tamaño, repetición, opacidad, overlay) y 10 patrones o texturas. Se definen de forma global, por página y por sección. |
+| Diseño | 10 temas iniciales (Minimal, Elegante, Restaurante, Moda, Corporativo, Moderno, Oscuro, Lujo, Colorido, Industrial). 15 colores (incluye éxito, advertencia y error), 11 fuentes (títulos, texto y precios); **jerarquía tipográfica** por nivel (H1, H2, H3, texto, pequeño, etiqueta, botón) con tamaño en escritorio y móvil, peso, interlineado, espaciado de letras, mayúsculas y fuente; espaciado, ancho máximo, radios, bordes, sombras; botones (estilo, forma, tamaño, hover, sombra). |
+| Fondos | Color, degradado lineal o radial, imagen (9 posiciones, tamaño, repetición, opacidad, overlay, parallax), 10 patrones o texturas y video (.mp4/.webm, en secciones). Se definen de forma global, por página y por sección. |
 | Tarjetas y badges | 7 estilos de tarjeta, imagen arriba/lateral/con texto encima/circular, proporción, alineación, hover y botón. Badges Nuevo, Destacado, Oferta, Popular, Agotado y uno personalizado, con texto, color, forma, estilo y posición editables. |
+| Garfield AI | Asistente conversacional dentro del editor (mascota: gato naranja). Crea páginas completas, agrega, edita, mueve, duplica y elimina secciones, cambia diseño, fondos, presentación de productos y menú a partir de pedidos en lenguaje natural. **Herramientas controladas:** busca productos, categorías e imágenes de la biblioteca; busca fotos libres (CC0) y las importa; usa imágenes adjuntadas en el chat como fondo, imagen o galería; crea, edita, reordena y elimina productos y categorías (con las mismas validaciones y permisos que los formularios). Encadena pasos ("crea la categoría Postres, agrega 3 productos y una sección con ellos"). Entiende "esta sección", "la anterior", "la de productos". Propone acciones validadas que se ejecutan con la misma lógica del editor; los cambios grandes se ven en vista previa y los destructivos piden confirmación; siempre se puede deshacer. Nada se guarda hasta pulsar "Guardar cambios". Usa Gemini gratis (o Claude, u Ollama local); sin clave, o si se agota la cuota del día, sigue funcionando en modo básico. |
 | Builder | Panel Páginas / Navegación / Diseño con preview en vivo en escritorio, tablet y móvil. Navegación entre páginas dentro de la preview y edición de una sección con un clic sobre ella. Guardado atómico. |
-| PDF | 6 plantillas con composiciones distintas (Clásico, Moderno, Editorial, Minimal, Lujo, Menú). Usa colores, fuentes, logo y fondo del sitio. A4, Carta o A5; vertical u horizontal; márgenes; portada editable; encabezado y pie configurables; qué incluir y en qué orden (portada, catálogo, cualquier página, contacto); columnas e imágenes; ahorro de tinta. Preview real antes de descargar. |
+| Presentación de productos | 12 layouts compartidos por web y PDF: Cuadrícula (o carrusel), Cuadrícula compacta, Tarjetas grandes, Lista compacta, Minimalista, Editorial, Imagen protagonista, Lista de precios, Zigzag, Ficha de detalle, Revista y Comparación (tabla con precio y atributos). Cada uno muestra sólo sus opciones: columnas por dispositivo y para PDF, separación, tamaño y forma de imagen (recta, redondeada, círculo, arco) con marco, proporción, posición de la imagen, separadores, alineación, estilo de tarjeta, galería y qué campos mostrar (imagen, descripción, precio, precio anterior tachado, porcentaje de descuento, aviso de no disponible, código, categoría, badges, atributos, botón). Cada sección tiene su propio layout, orden y límite. |
+| Colecciones | Fuente de ítems de cualquier sección o bloque PDF: todos, destacados, nuevos, en oferta, populares, recientes, una categoría, un atributo (marca = X) o elegidos a mano; con orden y límite. |
+| Catálogo web | Buscador (nombre, código, etiquetas y atributos), categorías, tipo, rango de precio, destacados/nuevos/ofertas, disponibilidad y filtros por atributo; orden por defecto y elegible por el visitante (nombre, precio, recientes, destacados); paginación por páginas, "Ver más" o scroll infinito. |
+| Atributos personalizados | El negocio define sus propios atributos (texto, número con unidad, opciones, sí/no, lista) y decide si se filtran y si aparecen en tarjetas, ficha y PDF. Se completan en cada ítem. |
+| PDF | Constructor por bloques: portada, índice automático (con números de página y enlaces), catálogo por categorías, colecciones, tabla comparativa, página de información, galería (incluso hexagonal), cualquier página del sitio, contacto con notas y saltos de página. 9 plantillas como presets (Comercial, Catálogo de productos, Editorial, Minimal, Folleto de servicios, Ficha técnica, Menú, Moderno, Lujo). Portada con 7 composiciones, textos (antetítulo, fecha, versión, texto adicional), imagen con forma, fondo, overlay y decoración. Categorías como título, banda con imagen, portada de página completa o capítulo numerado. N ítems por página, categoría en página nueva. Encabezado y pie en 3–4 estilos (línea, título, banda con @redes). Esquinas decorativas, destellos y marco. A4/Carta/A5, orientación, márgenes, fondo, ahorro de tinta. Vista previa real con selector de página. |
+| Formato de precio | Texto previo ("VALOR:"), símbolo o código de moneda, antes o después ("365 C$"), decimales. |
 | Negocio | Nombre, logo, slogan, descripción, contacto, horarios, información adicional y redes: se reutilizan en navbar, footer, secciones, PDF y SEO. |
-| Todo lo de la v1 | Cuenta, onboarding, productos y servicios, categorías, imágenes, publicación, SEO, seguridad (RLS) y límites de plan. |
+| Acceso controlado | Sin registro público: las cuentas las crea un administrador. Inicio de sesión con **usuario y contraseña** (el email es opcional y no se pide). Roles ADMIN / USER guardados en la base de datos y validados en RLS, funciones SQL y Server Actions; nadie puede darse ADMIN desde el navegador. Cuentas y negocios se pueden suspender. |
+| Administración (`/admin`) | Panel con métricas, usuarios (crear, editar, cambiar rol, suspender, restablecer contraseña, asignar negocios con rol), negocios (crear con dueño, plan, estado, catálogos), catálogos (activar/desactivar, principal), biblioteca de medios de todos los negocios, configuración y **registro de auditoría** (quién hizo qué y cuándo, con filtros). Preparado para planes, límites y funciones por negocio. |
+| Biblioteca de medios | Cada imagen subida queda registrada (medidas, alt, origen). Se reutiliza desde cualquier campo de imagen con el botón "Biblioteca" y desde Garfield. |
+| Todo lo de la v1 | Productos y servicios, categorías, imágenes, publicación, SEO, seguridad (RLS) y límites de plan. |
 
 ## Variables de entorno
 
@@ -37,9 +49,15 @@ Copia `.env.example` a `.env.local`.
 | `NEXT_PUBLIC_SITE_URL` | En producción | URL pública sin `/` final. Se usa en emails, canonical, Open Graph y enlaces del PDF. En Vercel, si falta, se usa el dominio de producción. |
 | `NEXT_PUBLIC_APP_NAME` | No | Nombre comercial (por defecto "Vitrina"). |
 | `NEXT_PUBLIC_IMAGE_OPTIMIZATION` | No | `false` desactiva el optimizador de imágenes de Vercel (las imágenes ya se suben optimizadas). |
+| `GEMINI_API_KEY` | No | **Recomendada (gratis).** Activa la conversación completa de Garfield AI con Google Gemini. Se crea en [aistudio.google.com/apikey](https://aistudio.google.com/apikey). Sólo servidor. |
+| `ANTHROPIC_API_KEY` | No | Alternativa de pago: Garfield con Claude. |
+| `ASSISTANT_MODEL` | No | Modelos separados por coma, en orden de preferencia (por defecto Gemini: `gemini-3.8-flash,gemini-3.5-flash-lite`; Claude: `claude-sonnet-5-5`). |
+| `ASSISTANT_PROVIDER`, `ASSISTANT_BASE_URL`, `ASSISTANT_API_KEY` | No | Para usar cualquier API compatible con OpenAI (Ollama local, Mistral, Groq…). Ver `.env.example`. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Sí (para iniciar sesión con usuario y para `/admin`) | Service role / secret key (Project Settings → API). **Sólo servidor.** Se usa únicamente para: convertir el nombre de usuario en la cuenta de Auth al iniciar sesión, y crear/editar cuentas desde el panel de administración (API de Auth Admin). Todo lo demás corre con la sesión del usuario y RLS. También acepta `SUPABASE_SECRET_KEY`. |
+| `AUTH_USERNAME_DOMAIN` | No | Dominio de los emails internos que Supabase Auth necesita (`usuario@usuarios.invalid` por defecto). Nunca se envían correos a esas direcciones. Si lo cambias, hazlo antes de crear usuarios. |
 | `SUPABASE_PROJECT_ID` | No | Solo para `npm run db:types`. |
 
-> La app **no usa la service role key**: todas las operaciones corren con la sesión del usuario y RLS.
+> La service role key **nunca** llega al navegador (módulo `server-only`) y no se usa para leer ni escribir datos de negocio: esas operaciones siguen pasando por RLS con la sesión del usuario.
 
 ---
 
@@ -50,19 +68,22 @@ Copia `.env.example` a `.env.local`.
    - Desde el panel: *SQL Editor* → ejecuta **en orden** cada archivo de `supabase/migrations/`:
      1. `20260927000000_init.sql` (tablas, RLS, Storage, planes)
      2. `20260928000000_site_builder.sql` (páginas, navegación, PDF, slogan y migración de datos)
+     3. `20260929000000_catalog_engine.sql` (atributos personalizados)
+     4. `20260930000000_admin_access.sql` (usuarios con nombre de usuario, roles, estados, administración, auditoría y biblioteca de medios)
    - Con la CLI: `npx supabase link --project-ref <ref>` y luego `npx supabase db push` (aplica sólo las que falten).
 
-   **Si ya tenías la v1 funcionando**, ejecuta sólo el segundo archivo: convierte cada catálogo existente en un sitio con página "Inicio" (hero, catálogo completo y contacto). No se pierde nada.
-3. **Auth → URL Configuration**
-   - *Site URL*: tu `NEXT_PUBLIC_SITE_URL`.
-   - *Redirect URLs*: `http://localhost:3000/auth/confirm`, `https://tu-dominio.com/auth/confirm` y, para previews de Vercel, `https://*-tu-equipo.vercel.app/**`.
-4. **Plantillas de email (recomendado).** Con estas, los enlaces funcionan aunque se abran en otro dispositivo. En *Auth → Email Templates*:
-   - *Confirm signup*: `<a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/onboarding">Confirmar cuenta</a>`
-   - *Reset password*: `<a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/reset-password">Crear nueva contraseña</a>`
+   **Si ya tenías una versión anterior funcionando**, ejecuta sólo los archivos que falten. El segundo convierte cada catálogo v1 en un sitio con página "Inicio"; el tercero sólo agrega la columna de atributos; el cuarto **no borra nada**: agrega columnas y tablas, asigna a cada cuenta existente un nombre de usuario (la parte del email antes de la @; si se repite, con un sufijo), deja las cuentas y negocios activos y registra las imágenes que ya estaban en Storage en la biblioteca. Las secciones de productos y la configuración del PDF de versiones anteriores se convierten al nuevo formato al leerlas. No se pierde nada.
+3. **Desactivar el registro público:** *Authentication → Sign In / Providers → "Allow new users to sign up"* → apagado. (Aunque se dejara encendido, las cuentas creadas fuera del panel nacen **deshabilitadas** y no pueden entrar: lo decide la base de datos, no la interfaz.) También puedes apagar *Confirm email*: las cuentas creadas por el administrador ya vienen confirmadas.
+4. **Copiar las claves** (Project Settings → API) a `.env.local`, incluida la **service role key** (`SUPABASE_SERVICE_ROLE_KEY`).
+5. **Crear el primer administrador** (ver abajo). No hay administradores escritos en el código.
 
-   Con las plantillas por defecto también funciona (flujo PKCE), pero el enlace debe abrirse en el mismo navegador.
-5. **Emails en producción.** El servidor de email incluido en Supabase tiene un límite muy bajo por hora. Configura SMTP propio (Resend, Postmark, SES) en *Auth → SMTP Settings*. Para desarrollo puedes desactivar *Confirm email*.
-6. **Copiar las claves** (Project Settings → API) a `.env.local`.
+### Primer administrador
+
+```bash
+npm run admin:create -- --username admin --password "una-clave-larga" --name "Tu nombre"
+```
+
+Crea la cuenta (o, si el usuario ya existe, lo promueve) con la service role. Después, desde `/admin` se crean los demás usuarios y negocios. Un administrador no puede quitarse el rol a sí mismo ni dejar la plataforma sin administradores. Si ya tenías cuentas antes de la migración 4, sus nombres de usuario aparecen en *Table Editor → profiles* (o promueve una con el comando anterior usando su usuario).
 
 ---
 
@@ -82,7 +103,7 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Abre http://localhost:3000. La landing, `/demo` y `/demo/pdf` funcionan incluso sin Supabase configurado.
+Abre http://localhost:3000. La landing, `/demo` y `/demo/pdf` funcionan incluso sin Supabase configurado. Para entrar al panel (`/login`) necesitas Supabase, la service role key y un usuario creado con `npm run admin:create`.
 
 **Opción 100% local con Supabase CLI** (requiere Docker):
 
@@ -103,8 +124,10 @@ Aplica la migración automáticamente. Usa la *API URL* y la *Publishable key* q
 | `npm run dev` / `build` / `start` | Desarrollo, build y servidor de producción. |
 | `npm run typecheck` | TypeScript estricto. |
 | `npm run lint` | ESLint (reglas de Next.js y React Compiler). |
-| `npm run test:db` | Pruebas de RLS y aislamiento multi-tenant sobre PGlite (sin Docker). |
-| `npm run check` | Las tres verificaciones anteriores. |
+| `npm run test:unit` | Pruebas unitarias (Garfield: acciones, modo básico, proveedores, herramientas seguras; secciones y layouts). |
+| `npm run test:db` | Pruebas de RLS, roles, auditoría y aislamiento multi-tenant sobre PGlite (sin Docker). |
+| `npm run check` | Todas las verificaciones anteriores. |
+| `npm run admin:create` | Crea o promueve el administrador de la plataforma (usa `.env.local`). |
 | `npm run db:types` | Regenera tipos desde Supabase en `src/types/database.generated.ts`. |
 
 ---
@@ -113,8 +136,8 @@ Aplica la migración automáticamente. Usa la *API URL* y la *Publishable key* q
 
 1. Sube el repositorio a GitHub, GitLab o Bitbucket.
 2. En Vercel: *Add New → Project* → importa el repo (framework: Next.js, sin cambios de build).
-3. En *Environment Variables* agrega `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` y `NEXT_PUBLIC_SITE_URL` (tu dominio final).
-4. Deploy. Después agrega el dominio en Supabase (*Site URL* y *Redirect URLs*).
+3. En *Environment Variables* agrega `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (sin prefijo `NEXT_PUBLIC_`), `NEXT_PUBLIC_SITE_URL` (tu dominio final) y, si usas Garfield completo, `GEMINI_API_KEY`.
+4. Deploy. Después pon el dominio como *Site URL* en Supabase (*Auth → URL Configuration*).
 5. Opcional: dominio propio en *Settings → Domains*.
 
 Notas de costo en el plan gratuito:
@@ -128,25 +151,38 @@ Notas de costo en el plan gratuito:
 
 ```
 supabase/
-  migrations/                  v1 (esquema, RLS, Storage) + v2 (páginas, navegación, PDF)
-  tests/rls.test.mjs           59 pruebas de aislamiento y migración (PGlite)
+  migrations/                  v1 (esquema, RLS, Storage) + v2 (páginas, navegación, PDF) + v3 (atributos) + v4 (acceso, roles, auditoría, medios)
+  tests/rls.test.mjs           108 pruebas de aislamiento, roles, auditoría y migración (PGlite)
+scripts/create-admin.mjs       Crea o promueve el administrador (npm run admin:create)
+tests/assistant/               57 pruebas unitarias (ejecutor, modo básico, proveedores, herramientas, secciones): npm run test:unit
 src/
   proxy.ts                     Sesión de Supabase + protección de rutas
   app/
+    (auth)/login/              Inicio de sesión con usuario y contraseña (no hay registro público)
+    admin/                     Panel de administración: usuarios, negocios, catálogos, medios, auditoría, configuración
+    (account)/cuenta/          Mi cuenta (datos y contraseña) · sin-acceso/
     catalogo/[slug]/           Sitio público: layout (header/footer) + [pageSlug] + p/[itemSlug]
     dashboard/sitio/           Builder (páginas, secciones, navegación, diseño)
-    dashboard/export/pdf/      Estudio de PDF (configuración + preview + descarga)
+    dashboard/export/pdf/      Estudio de PDF (bloques + preview por página + descarga)
+    dashboard/catalog/attributes/ Atributos personalizados
     api/catalogs/[id]/pdf/     GET descarga · POST vista previa
+    api/assistant/             Garfield AI: interpreta el pedido y devuelve acciones (no escribe en la base)
     preview/[[...slug]]/       Vista previa privada navegable
     demo/[[...slug]]/          Sitio de ejemplo (+ /demo/pdf)
-  site-renderer/               Motor web: shell, header, footer, páginas, 13 secciones, tarjetas
+  site-renderer/               Motor web: shell, header, footer, páginas, 20 secciones, tarjetas, ProductCollection (12 layouts)
   features/
-    builder/                   Estado, acciones y editores del builder
-    pdf/                       Motor PDF: tokens, primitivas, 6 plantillas, documento
-    items · categories · catalog · business · settings · media · auth
+    builder/                   Estado (reducer), acciones y editores del builder
+    assistant/                 Garfield AI: ejecutor de acciones, panel, mascota, acciones de catálogo, proveedores y herramientas controladas (server/)
+    admin/                     Server Actions, consultas y componentes del panel de administración
+    pdf/                       Motor PDF: tokens, primitivas, portada, encabezado/pie/decoración, layouts de producto, bloques, skins, documento
+    items · categories · catalog · business · settings · media (biblioteca) · auth
   lib/
     design/                    Sistema de diseño: tema v2, tokens, fondos, patrones, presets, fuentes, íconos, texto enriquecido
-    site/                      Secciones, páginas, navegación, enlaces, view model, sitio inicial y de ejemplo
-    pdf/                       Configuración del PDF
-    catalog · business · contact · plans · auth · supabase · utils
+    site/                      Secciones, páginas, blueprints, navegación, enlaces, view model, sitio inicial y de ejemplo
+    assistant/                 Catálogo de acciones (Zod), contexto del editor, guía de capacidades generada, identidad
+    pdf/                       Configuración del PDF v2 (bloques, plantillas como presets, migración desde v1)
+    catalog/                   presentation (layouts), collections (fuentes y orden), attributes, settings (formato de precio)
+    auth/                      Sesión, perfil, contexto del negocio, requirePlatformAdmin, nombre de usuario
+    supabase/                  Clientes: navegador, servidor (sesión) y admin (service role, sólo servidor)
+    business · contact · plans · utils
 ```

@@ -58,8 +58,8 @@ export function pdfTokens(theme: ThemeConfig, settings: PdfSettings, fonts: PdfF
     pageHeight,
     margin,
     contentWidth: pageWidth - margin * 2,
-    headerSpace: settings.header.enabled ? 30 : 0,
-    footerSpace: settings.footer.enabled ? 26 : 0,
+    headerSpace: { none: 0, line: 30, title: 30, band: 38 }[settings.header.style],
+    footerSpace: { none: 0, line: 26, band: 34 }[settings.footer.style],
     colors: {
       ...colors,
       paper,

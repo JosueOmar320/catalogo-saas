@@ -33,6 +33,7 @@ export default async function SettingsPage({ params }: PageProps<'/dashboard/set
         <BusinessProfileForm
           defaultValues={{ name: ctx.business.name, slug: ctx.business.slug, slogan: ctx.business.slogan ?? '', description: ctx.business.description ?? '' }}
           currency={settings.currency}
+          priceFormat={settings.priceFormat}
         />
       );
       break;

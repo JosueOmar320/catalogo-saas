@@ -5,6 +5,25 @@ import { FONT_IDS, type FontId } from './fonts';
 import { fieldFactory, hexColor } from './schema-utils';
 import { CARD_STYLES, FOOTER_STYLES, HEADER_STYLES } from './styles-registry';
 
+/** Jerarquía tipográfica: cada rol puede ajustarse sin romper la escala del tema. */
+export const TYPE_ROLES = ['h1', 'h2', 'h3', 'body', 'small', 'label', 'button'] as const;
+export type TypeRole = (typeof TYPE_ROLES)[number];
+export const TYPE_ROLE_LABELS: Record<TypeRole, string> = { h1: 'Título H1', h2: 'Título H2', h3: 'Título H3', body: 'Texto', small: 'Pequeño', label: 'Etiqueta', button: 'Botón' };
+
+function typeRole(f: ReturnType<typeof fieldFactory>) {
+  return z
+    .object({
+      size: f(z.number().int().min(0).max(120), 0),
+      mobileSize: f(z.number().int().min(0).max(96), 0),
+      weight: f(z.enum(['auto', '300', '400', '500', '600', '700', '800']), 'auto'),
+      lineHeight: f(z.number().min(0).max(2.5), 0),
+      letterSpacing: f(z.number().min(-0.1).max(0.4).nullable(), null),
+      transform: f(z.enum(['auto', 'none', 'uppercase', 'capitalize']), 'auto'),
+      font: f(z.enum(['auto', 'heading', 'body']), 'auto'),
+    })
+    .prefault({});
+}
+
 /**
  * Sistema de diseño del sitio (columna catalogs.theme, versión 2).
  *
@@ -35,6 +54,9 @@ function buildThemeSchema(lenient: boolean) {
         button: f(hexColor, '#1A1A1A'),
         buttonText: f(hexColor, '#FFFFFF'),
         price: f(hexColor, '#1A1A1A'),
+        success: f(hexColor, '#1F8A4C'),
+        warning: f(hexColor, '#B45309'),
+        error: f(hexColor, '#C62828'),
       })
       .prefault({}),
     typography: z
@@ -48,6 +70,10 @@ function buildThemeSchema(lenient: boolean) {
         lineHeight: f(z.number().min(1.2).max(2), 1.55),
         headingLetterSpacing: f(z.number().min(-0.05).max(0.2), -0.01),
         headingCase: f(z.enum(['none', 'uppercase']), 'none'),
+        /** Ajustes por rol tipográfico. 0 / "auto" = derivado de la escala y de las opciones generales. */
+        roles: z
+          .object(Object.fromEntries(TYPE_ROLES.map((role) => [role, typeRole(f)])) as Record<TypeRole, ReturnType<typeof typeRole>>)
+          .prefault({}),
       })
       .prefault({}),
     spacing: z

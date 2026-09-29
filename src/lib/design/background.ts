@@ -7,7 +7,8 @@ import { fieldFactory, hexColor } from './schema-utils';
  * Fondo reutilizable: global (tema), por página, por sección, header y PDF.
  * `type: 'inherit'` significa "usar el fondo del nivel superior".
  */
-export const BACKGROUND_TYPES = ['inherit', 'color', 'gradient', 'image', 'pattern'] as const;
+export const BACKGROUND_TYPES = ['inherit', 'color', 'gradient', 'image', 'pattern', 'video'] as const;
+export const IMAGE_POSITIONS = ['center', 'top', 'bottom', 'left', 'right', 'top left', 'top right', 'bottom left', 'bottom right'] as const;
 export type BackgroundType = (typeof BACKGROUND_TYPES)[number];
 
 export function buildBackgroundSchema(lenient: boolean, defaults: { type?: BackgroundType; color?: string } = {}) {
@@ -26,10 +27,18 @@ export function buildBackgroundSchema(lenient: boolean, defaults: { type?: Backg
     image: z
       .object({
         path: f(z.string().max(300).nullable(), null),
-        position: f(z.enum(['center', 'top', 'bottom', 'left', 'right']), 'center'),
+        position: f(z.enum(IMAGE_POSITIONS), 'center'),
         size: f(z.enum(['cover', 'contain', 'auto']), 'cover'),
         repeat: f(z.boolean(), false),
         opacity: f(z.number().min(0).max(100), 100),
+        /** Imagen fija al hacer scroll (efecto parallax). */
+        fixed: f(z.boolean(), false),
+      })
+      .prefault({}),
+    /** Video de fondo (web). En el PDF se usa el color base. */
+    video: z
+      .object({
+        url: f(z.union([z.literal(''), z.url({ protocol: /^https$/ }).max(500).regex(/\.(mp4|webm)(\?.*)?$/i, 'Usa un enlace directo .mp4 o .webm')]), ''),
       })
       .prefault({}),
     pattern: z
@@ -79,6 +88,7 @@ export function backgroundTone(bg: Background): string | null {
       base = mix(bg.gradient.from, bg.gradient.to, 0.5);
       break;
     case 'image':
+    case 'video':
       base = overlay >= 0.35 ? bg.overlay.color : null;
       break;
     default:

@@ -12,6 +12,7 @@ import { isPathOwnedBy } from '@/lib/utils/storage';
 import { parseInput, uuidSchema } from '@/lib/utils/validation';
 import type { Json, TablesUpdate } from '@/types/database';
 import { removeStorageObjects } from '@/features/media/server';
+import { parseAttributeDefs, parseAttributeValues } from '@/lib/catalog/attributes';
 import { itemFormSchema, itemFormToAttributes, itemFormToRow, type ItemFormValues } from './schema';
 
 function afterChange(ctx: BusinessContext) {
@@ -66,7 +67,9 @@ export async function saveItem(itemId: string | null, input: ItemFormValues): Pr
     const { data } = await ctx.supabase.from('catalog_items').select('attributes').eq('id', itemId).eq('catalog_id', ctx.catalog.id).maybeSingle();
     if (data?.attributes && typeof data.attributes === 'object' && !Array.isArray(data.attributes)) existingAttributes = data.attributes as Record<string, unknown>;
   }
-  const row = { ...itemFormToRow(values), attributes: { ...existingAttributes, ...itemFormToAttributes(values) } as Json };
+  const defs = parseAttributeDefs(ctx.catalog.attribute_defs);
+  const attributes = { ...existingAttributes, ...itemFormToAttributes(values), values: parseAttributeValues(values.attributeValues, defs) };
+  const row = { ...itemFormToRow(values), attributes: attributes as Json };
   if (!(await categoryBelongsToCatalog(ctx, row.category_id))) return fail('La categoría ya no existe.');
 
   let id = itemId;

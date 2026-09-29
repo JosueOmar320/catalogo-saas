@@ -30,8 +30,10 @@ async function respond(ctx: BusinessContext, settings: PdfSettings, { download, 
   }
   const site = await getSiteForAdmin(ctx);
   const pdf = await renderSitePdf(site, settings, { maxItems: preview ? PREVIEW_MAX_ITEMS : undefined });
-  return new NextResponse(new Uint8Array(pdf), {
+  return new NextResponse(new Uint8Array(pdf.buffer), {
     headers: {
+      'X-Pdf-Pages': String(pdf.pages),
+      'X-Pdf-Marks': JSON.stringify(pdf.marks),
       'Content-Type': 'application/pdf',
       'Content-Disposition': `${download ? 'attachment' : 'inline'}; filename="${ctx.business.slug}-catalogo.pdf"`,
       'Cache-Control': 'private, no-store',

@@ -3,6 +3,7 @@
 import { env } from '@/lib/env';
 import { createClient } from '@/lib/supabase/client';
 import type { MediaKind } from '@/lib/utils/storage';
+import { registerMedia } from './actions';
 import { ACCEPTED_IMAGE_TYPES, MAX_SOURCE_BYTES, MAX_UPLOAD_BYTES, type UploadedImage } from './schema';
 
 /** Tamaños por tipo de imagen: [lado mayor, miniatura | null, conservar transparencia]. */
@@ -49,7 +50,7 @@ async function encode(bitmap: ImageBitmap, maxSide: number, type: 'image/jpeg' |
  * (sin pasar por el servidor: evita el límite de body de Vercel).
  * Salida JPEG (o PNG si hay transparencia), compatible con el PDF.
  */
-export async function uploadImage(file: File, businessId: string, kind: MediaKind): Promise<UploadedImage> {
+export async function uploadImage(file: File, businessId: string, kind: MediaKind, upload: { source?: 'upload' | 'chat' } = {}): Promise<UploadedImage> {
   const invalid = validateImageFile(file);
   if (invalid) throw new UploadError(invalid);
 
@@ -81,15 +82,18 @@ export async function uploadImage(file: File, businessId: string, kind: MediaKin
       }
     }
 
-    return {
+    const uploaded: UploadedImage = {
       path,
       thumbPath,
       width: full.width,
       height: full.height,
       sizeBytes: full.blob.size,
       mimeType: type,
-      alt: '',
+      alt: file.name.replace(/\.[a-z0-9]+$/i, '').replace(/[-_]+/g, ' ').slice(0, 120),
     };
+    // Biblioteca de medios (para reutilizarla en el editor y que Garfield la encuentre). Si falla, la imagen igual sirve.
+    await registerMedia({ ...uploaded, kind, source: upload.source }).catch(() => null);
+    return uploaded;
   } finally {
     bitmap.close();
   }

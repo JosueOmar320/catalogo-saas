@@ -4,7 +4,7 @@ import {
   Handshake, Headphones, Heart, House, Info, Laptop, Leaf, Lightbulb, Mail, Map, MapPin, MessageCircle, Music, Package,
   Paintbrush, Percent, Phone, Pizza, Plane, Quote, Recycle, Rocket, Scissors, Shirt, ShieldCheck, ShoppingBag, ShoppingCart,
   Smartphone, Smile, Sparkles, Star, Stethoscope, Store, Sun, Tag, Target, ThumbsUp, Timer, Truck, User, Users, Utensils,
-  Wallet, Wifi, Wrench, Zap,
+  Wallet, Wifi, Wrench, Zap, Play, CircleHelp, ChartColumn, Image as ImageIcon, Megaphone, TrendingUp,
 } from 'lucide';
 
 /**
@@ -33,6 +33,8 @@ const ICON_LIST = [
   ['gem', 'Joya', Gem], ['crown', 'Premium', Crown], ['handshake', 'Acuerdo', Handshake], ['headphones', 'Soporte', Headphones],
   ['laptop', 'Computadora', Laptop], ['smartphone', 'Celular', Smartphone], ['clipboard-list', 'Lista', ClipboardList], ['timer', 'Tiempo', Timer],
   ['arrow-right', 'Flecha', ArrowRight], ['info', 'Información', Info], ['quote', 'Cita', Quote],
+  ['play', 'Video', Play], ['circle-help', 'Pregunta', CircleHelp], ['chart', 'Estadística', ChartColumn], ['image', 'Imagen', ImageIcon],
+  ['megaphone', 'Anuncio', Megaphone], ['trending-up', 'Crecimiento', TrendingUp],
 ] as const;
 
 export type IconId = (typeof ICON_LIST)[number][0];

@@ -9,6 +9,7 @@ import {
   contactActionsSchema,
   parseCatalogSettings,
   pdfOptionsSchema,
+  priceFormatSchema,
   seoSchema,
   CURRENCIES,
 } from '@/lib/catalog/settings';
@@ -49,6 +50,7 @@ const settingsPatchSchema = z.object({
   currency: z.enum(CURRENCIES).optional(),
   contactActions: contactActionsSchema.optional(),
   pdf: pdfOptionsSchema.optional(),
+  priceFormat: priceFormatSchema.optional(),
 });
 
 /** Actualiza parcialmente catalogs.settings, validando el resultado completo. */

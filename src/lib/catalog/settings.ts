@@ -42,9 +42,22 @@ export const pdfOptionsSchema = z.object({
   pageBreakPerCategory: z.boolean().default(false),
 });
 
+/**
+ * Formato de precio (web y PDF): "VALOR: $30", "365 C$", "$1,200.00", "desde 950 MXN".
+ */
+export const priceFormatSchema = z.object({
+  prefix: z.string().trim().max(20).default(''),
+  currencyDisplay: z.enum(['symbol', 'code', 'none']).default('symbol'),
+  position: z.enum(['before', 'after']).default('before'),
+  decimals: z.enum(['auto', '0', '2']).default('auto'),
+});
+
+export type PriceFormat = z.output<typeof priceFormatSchema>;
+
 export const catalogSettingsSchema = z.object({
   currency: z.enum(CURRENCIES).default('USD'),
   locale: z.string().max(10).default('es-419'),
+  priceFormat: priceFormatSchema.prefault({}),
   contactActions: contactActionsSchema.prefault({}),
   pdf: pdfOptionsSchema.prefault({}),
 });

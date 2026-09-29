@@ -1,3 +1,4 @@
+import { resolveCollection } from '@/lib/catalog/collections';
 import type { CatalogItemView } from '@/lib/catalog/view-model';
 import { backgroundTone, resolveBackground, type Background } from '@/lib/design/background';
 import { isDark } from '@/lib/design/color';
@@ -11,32 +12,9 @@ import type { SiteViewModel } from './view-model';
  */
 type ItemSourceContent = SectionOf<'products'>['content'] | SectionOf<'services'>['content'];
 
-export function resolveSectionItems(
-  content: ItemSourceContent,
-  items: CatalogItemView[],
-  { ignoreLimit = false }: { ignoreLimit?: boolean } = {},
-): CatalogItemView[] {
-  const pool = content.itemType === 'any' ? items : items.filter((i) => i.type === content.itemType);
-  let result: CatalogItemView[];
-  switch (content.source) {
-    case 'featured':
-      result = pool.filter((i) => i.isFeatured);
-      break;
-    case 'latest':
-      result = [...pool].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-      break;
-    case 'category':
-      result = pool.filter((i) => i.categoryId === content.categoryId);
-      break;
-    case 'manual': {
-      const byId = new Map(pool.map((i) => [i.id, i]));
-      result = content.itemIds.flatMap((id) => (byId.has(id) ? [byId.get(id)!] : []));
-      break;
-    }
-    default:
-      result = pool;
-  }
-  return ignoreLimit || content.source === 'manual' ? result : result.slice(0, content.limit);
+/** Ítems de una sección de productos o servicios (colección dinámica). */
+export function resolveSectionItems(content: ItemSourceContent, items: CatalogItemView[], options: { ignoreLimit?: boolean } = {}): CatalogItemView[] {
+  return resolveCollection(content.collection, items, options);
 }
 
 export type ResolvedBadge = { key: string; label: string; color: string };

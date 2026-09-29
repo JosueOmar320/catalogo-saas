@@ -1,4 +1,5 @@
 import { Clock, Mail, MapPin, MessageCircle, Phone } from 'lucide-react';
+import { mapEmbedSrc } from '@/lib/business/maps';
 import { digitsOnly } from '@/lib/business/profile';
 import { ContactActions } from '../ContactActions';
 import { SectionFrame, SectionHead } from '../SectionFrame';
@@ -18,10 +19,10 @@ export function ContactSection({ section, site, env }: SectionProps<'contact'>) 
     content.showHours && contact.hours && { key: 'hours', icon: Clock, label: 'Horarios', value: contact.hours, href: undefined },
   ].filter(Boolean) as { key: string; icon: typeof Phone; label: string; value: string; href?: string }[];
 
-  const hasAnything = rows.length > 0 || (content.showSocial && site.business.socialLinks.length > 0);
+  const mapSrc = content.showMap ? mapEmbedSrc(contact) : null;
+  const hasAnything = rows.length > 0 || Boolean(mapSrc) || (content.showSocial && site.business.socialLinks.length > 0);
   if (!hasAnything && env.mode === 'public') return null;
   const center = content.layout === 'centered';
-  const mapSrc = content.showMap && address ? `https://www.google.com/maps?q=${encodeURIComponent(address)}&output=embed` : null;
 
   const info = (
     <div>

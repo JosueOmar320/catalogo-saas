@@ -34,7 +34,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
             businessMenu={{
               current: { id: ctx.business.id, name: ctx.business.name, logoUrl: publicStorageUrl(ctx.business.logo_path) },
               businesses: ctx.businesses,
-              email: ctx.email,
+              username: ctx.profile.username,
+              isAdmin: ctx.isPlatformAdmin,
               planName: ctx.entitlements.planName,
             }}
           >

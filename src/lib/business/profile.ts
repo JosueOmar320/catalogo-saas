@@ -14,6 +14,8 @@ export const contactSchema = z.object({
   city: optionalText(80),
   website: z.union([z.literal(''), z.url('URL inválida')]).default(''),
   mapsUrl: z.union([z.literal(''), z.url('URL inválida')]).default(''),
+  /** Ubicación para el mapa ("lat,lng" o nombre), sacada de `mapsUrl` en el servidor al guardar. */
+  mapsLocation: optionalText(120),
   hours: optionalText(400),
   /** Información adicional: formas de pago, envíos, estacionamiento… */
   additionalInfo: optionalText(500),

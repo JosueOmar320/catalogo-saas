@@ -12,8 +12,9 @@ import styles from './site.module.css';
  */
 export function BackgroundLayers({ background, priority = false, videoUrl }: { background: Background; priority?: boolean; videoUrl?: string }) {
   if (background.type === 'inherit' && !videoUrl) return null;
+  const video = videoUrl || (background.type === 'video' && background.video.url) || '';
   const base: CSSProperties = {};
-  if (background.type === 'color' || background.type === 'pattern' || background.type === 'image') base.backgroundColor = background.color;
+  if (background.type === 'color' || background.type === 'pattern' || background.type === 'image' || background.type === 'video') base.backgroundColor = background.color;
   if (background.type === 'gradient') base.backgroundImage = gradientCss(background);
   if (background.type === 'pattern') {
     const pattern = patternCss(background.pattern.id, background.pattern.color, background.pattern.opacity, background.pattern.scale);
@@ -23,8 +24,8 @@ export function BackgroundLayers({ background, priority = false, videoUrl }: { b
 
   const imageUrl = background.type === 'image' ? mediaUrl(background.image.path) : null;
   const { image, overlay } = background;
-  // cover sin repetición → next/image (optimizado); el resto → CSS background.
-  const useNextImage = imageUrl && image.size === 'cover' && !image.repeat;
+  // cover sin repetición → next/image (optimizado); el resto (y la imagen fija) → CSS background.
+  const useNextImage = imageUrl && image.size === 'cover' && !image.repeat && !image.fixed;
 
   return (
     <div className={styles.bgLayers} aria-hidden>
@@ -51,10 +52,11 @@ export function BackgroundLayers({ background, priority = false, videoUrl }: { b
             backgroundSize: image.size,
             backgroundRepeat: image.repeat ? 'repeat' : 'no-repeat',
             backgroundPosition: image.position,
+            backgroundAttachment: image.fixed ? 'fixed' : undefined,
           }}
         />
       )}
-      {videoUrl && <video className={styles.bgLayer} src={videoUrl} autoPlay muted loop playsInline style={{ objectFit: 'cover', width: '100%', height: '100%' }} />}
+      {video && <video className={styles.bgLayer} src={video} autoPlay muted loop playsInline preload="metadata" style={{ objectFit: 'cover', width: '100%', height: '100%' }} />}
       {overlay.opacity > 0 && background.type !== 'color' && <div className={styles.bgLayer} style={{ backgroundColor: alpha(overlay.color, overlay.opacity / 100) }} />}
     </div>
   );

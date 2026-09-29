@@ -7,6 +7,8 @@ import type { Section, SectionType } from '@/lib/site/section-schemas';
 import { SECTION_META } from '@/lib/site/section-registry';
 import type { SiteViewModel } from '@/lib/site/view-model';
 import { Icon } from '@/site-renderer/Icon';
+import { GarfieldAvatar } from '@/features/assistant/components/GarfieldAvatar';
+import { useOptionalGarfield } from '@/features/assistant/components/GarfieldProvider';
 import { useBuilder, useSelectedPage } from '../state';
 import { CONTENT_EDITORS, type EditorProps } from './editors/content-editors';
 import { StyleEditor } from './editors/StyleEditor';
@@ -16,6 +18,7 @@ export function SectionEditor({ site }: { site: SiteViewModel }) {
   const { state, dispatch } = useBuilder();
   const page = useSelectedPage();
   const [tab, setTab] = useState<'content' | 'style'>('content');
+  const garfield = useOptionalGarfield();
   const section = page.sections.find((s) => s.id === state.selectedSectionId);
   if (!section) return null;
   const meta = SECTION_META[section.type];
@@ -37,6 +40,13 @@ export function SectionEditor({ site }: { site: SiteViewModel }) {
             {section.visible ? <Eye size={16} /> : <EyeOff size={16} />}
           </IconButton>
         </Tooltip>
+        {garfield && (
+          <Tooltip title="Pedir cambios a Garfield">
+            <IconButton onClick={() => garfield.setOpen(true)} aria-label="Pedir cambios a Garfield" sx={{ p: 0.5 }}>
+              <GarfieldAvatar size={24} ring={false} />
+            </IconButton>
+          </Tooltip>
+        )}
         <Tooltip title="Duplicar">
           <IconButton onClick={() => dispatch({ type: 'duplicateSection', sectionId: section.id })} aria-label="Duplicar"><Copy size={16} /></IconButton>
         </Tooltip>

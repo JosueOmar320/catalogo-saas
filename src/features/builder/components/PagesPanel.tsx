@@ -10,6 +10,8 @@ import { SECTION_GROUPS, SECTION_META } from '@/lib/site/section-registry';
 import { createSection, SECTION_TYPES, type SectionType } from '@/lib/site/section-schemas';
 import { PAGE_BLUEPRINTS } from '@/lib/site/starter';
 import { Icon } from '@/site-renderer/Icon';
+import { useOptionalGarfield } from '@/features/assistant/components/GarfieldProvider';
+import { GarfieldHint } from '@/features/assistant/components/GarfieldPanel';
 import { useBuilder, useSelectedPage } from '../state';
 
 /** Lista de páginas + secciones de la página seleccionada. */
@@ -19,6 +21,7 @@ export function PagesPanel() {
   const confirm = useConfirm();
   const [menu, setMenu] = useState<{ anchor: HTMLElement; pageId: string } | null>(null);
   const [adding, setAdding] = useState<'page' | 'section' | null>(null);
+  const garfield = useOptionalGarfield();
   const navVisible = (pageId: string) => state.navigation.items.some((i) => i.kind === 'page' && i.pageId === pageId && i.visible);
 
   const removePage = async (pageId: string) => {
@@ -37,6 +40,11 @@ export function PagesPanel() {
 
       {adding === 'page' && (
         <Box sx={{ mb: 1.5, p: 1, border: 1, borderColor: 'divider', borderRadius: 1.5 }}>
+          {garfield && (
+            <Box sx={{ mb: 1 }}>
+              <GarfieldHint text="O descríbela y Garfield la crea completa: «una página de servicios para mi empresa de limpieza»." prompt="Créame una página nueva para mi negocio" action="Crear con Garfield" />
+            </Box>
+          )}
           <Stack direction="row" sx={{ alignItems: 'center', mb: 0.5 }}>
             <Typography variant="caption" sx={{ fontWeight: 600, flex: 1 }}>Elige un punto de partida</Typography>
             <IconButton size="small" onClick={() => setAdding(null)} aria-label="Cerrar"><X size={14} /></IconButton>
@@ -125,9 +133,12 @@ export function PagesPanel() {
       {adding === 'section' && <SectionPicker onPick={(type) => { dispatch({ type: 'addSection', section: createSection(type) }); setAdding(null); }} onClose={() => setAdding(null)} />}
 
       {page.sections.length === 0 ? (
-        <Typography variant="body2" color="text.secondary" sx={{ p: 2, textAlign: 'center', border: 1, borderStyle: 'dashed', borderColor: 'divider', borderRadius: 1.5 }}>
-          Esta página está vacía. Agrega tu primera sección.
-        </Typography>
+        <Stack spacing={1}>
+          <Typography variant="body2" color="text.secondary" sx={{ p: 2, textAlign: 'center', border: 1, borderStyle: 'dashed', borderColor: 'divider', borderRadius: 1.5 }}>
+            Esta página está vacía. Agrega tu primera sección.
+          </Typography>
+          {garfield && <GarfieldHint text="¿La armo por ti? Dime de qué trata o déjame proponer una estructura." prompt={`Arma la página «${page.title}» completa con las secciones adecuadas para mi negocio`} action="Pedirle a Garfield que la arme" />}
+        </Stack>
       ) : (
         <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 1.5, overflow: 'hidden' }}>
           <SortableList

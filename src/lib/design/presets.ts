@@ -1,3 +1,4 @@
+import { deepMerge, type PlainObject } from '@/lib/utils/object';
 import { themeSchema, type ThemeConfig, type ThemeInput } from './theme';
 
 /**
@@ -198,25 +199,11 @@ export const THEME_PRESETS: ThemePreset[] = [
   },
 ];
 
-type Plain = Record<string, unknown>;
-
-function deepMerge(base: Plain, patch: Plain): Plain {
-  const out: Plain = { ...base };
-  for (const [key, value] of Object.entries(patch)) {
-    const current = out[key];
-    out[key] =
-      value && typeof value === 'object' && !Array.isArray(value) && current && typeof current === 'object'
-        ? deepMerge(current as Plain, value as Plain)
-        : value;
-  }
-  return out;
-}
-
 /** Aplica un preset sobre el tema actual conservando las preferencias de contenido. */
 export function applyPreset(theme: ThemeConfig, preset: ThemePreset): ThemeConfig {
   // Al cambiar de preset se resetea el fondo completo (evita mezclar patrón de uno con imagen de otro).
   const base: ThemeConfig = { ...theme, background: themeSchema.shape.background.parse({ type: 'color', color: '#FFFFFF' }) };
-  const merged = deepMerge(base as unknown as Plain, { ...(preset.theme as Plain), preset: preset.id });
+  const merged = deepMerge(base as unknown as PlainObject, { ...(preset.theme as PlainObject), preset: preset.id });
   return themeSchema.parse(merged);
 }
 

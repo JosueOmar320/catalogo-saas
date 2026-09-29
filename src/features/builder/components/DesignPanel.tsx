@@ -1,6 +1,6 @@
 'use client';
 
-import { Alert, Box, ButtonBase, Grid, MenuItem, Stack, Tab, Tabs, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, ButtonBase, Chip, Grid, MenuItem, Stack, Tab, Tabs, TextField, Typography } from '@mui/material';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { ImageField } from '@/components/form/ImageField';
@@ -10,11 +10,12 @@ import { contrastRatio, MIN_READABLE_CONTRAST } from '@/lib/design/color';
 import { FONT_IDS, FONTS, type FontId } from '@/lib/design/fonts';
 import { applyPreset, THEME_PRESETS } from '@/lib/design/presets';
 import { BADGE_KEYS, CARD_STYLE_META, CARD_STYLES } from '@/lib/design/styles-registry';
-import type { ThemeConfig } from '@/lib/design/theme';
+import { TYPE_ROLE_LABELS, TYPE_ROLES, type ThemeConfig, type TypeRole } from '@/lib/design/theme';
+import { resolveTokens } from '@/lib/design/tokens';
 import { useAction } from '@/lib/hooks/use-action';
 import { FONT_FAMILIES } from '@/site-renderer/fonts';
 import { useBuilder } from '../state';
-import { BackgroundEditor, ColorInput, Group, Segmented, SliderInput, SwitchRow, TextInput } from './controls';
+import { BackgroundEditor, ColorInput, Group, Segmented, SelectInput, SliderInput, SwitchRow, TextInput } from './controls';
 
 type DesignTab = 'theme' | 'colors' | 'type' | 'style' | 'background' | 'cards';
 
@@ -126,6 +127,14 @@ const COLOR_GROUPS: { title: string; fields: { key: keyof ThemeConfig['colors'];
       { key: 'price', label: 'Precios' },
     ],
   },
+  {
+    title: 'Estados',
+    fields: [
+      { key: 'success', label: 'Éxito', description: 'Disponible, confirmaciones.' },
+      { key: 'warning', label: 'Aviso', description: 'Últimas unidades, recordatorios.' },
+      { key: 'error', label: 'Error', description: 'Agotado, no disponible.' },
+    ],
+  },
 ];
 
 function ColorsTab({ theme, patch }: TabProps) {
@@ -178,9 +187,55 @@ function TypographyTab({ theme, patch }: TabProps) {
         <SliderInput label="Espaciado de letras (títulos)" value={t.headingLetterSpacing} min={-0.05} max={0.2} step={0.01} format={(v) => `${v.toFixed(2)}em`} onChange={(headingLetterSpacing) => patch('typography', { headingLetterSpacing })} />
         <Segmented label="Títulos en" value={t.headingCase} onChange={(headingCase) => patch('typography', { headingCase })} options={[{ value: 'none', label: 'Normal' }, { value: 'uppercase', label: 'MAYÚSCULAS' }]} />
       </Group>
+      <TypeRolesEditor theme={theme} patch={patch} />
     </>
   );
 }
+
+/** Ajuste fino por rol (H1…Botón). Todo en "Auto" sigue la escala de arriba. */
+function TypeRolesEditor({ theme, patch }: TabProps) {
+  const [role, setRole] = useState<TypeRole>('h1');
+  const roles = theme.typography.roles;
+  const r = roles[role];
+  const resolved = resolveTokens(theme).roles[role];
+  const set = (value: Partial<typeof r>) => patch('typography', { roles: { ...roles, [role]: { ...r, ...value } } });
+  const touched = TYPE_ROLES.filter((k) => JSON.stringify(roles[k]) !== JSON.stringify(DEFAULT_ROLE));
+  return (
+    <Group title="Jerarquía tipográfica" description="Ajusta cada nivel por separado. «Auto» sigue la escala del tema.">
+      <Stack direction="row" sx={{ gap: 0.5, flexWrap: 'wrap' }}>
+        {TYPE_ROLES.map((k) => (
+          <Chip key={k} size="small" label={`${TYPE_ROLE_LABELS[k]}${touched.includes(k) ? ' •' : ''}`} color={k === role ? 'primary' : 'default'} variant={k === role ? 'filled' : 'outlined'} onClick={() => setRole(k)} />
+        ))}
+      </Stack>
+      <Box sx={{ p: 1.5, borderRadius: 1.5, bgcolor: 'action.hover', overflow: 'hidden' }}>
+        <Typography
+          sx={{
+            fontFamily: FONT_FAMILIES[resolved.font === 'heading' ? theme.typography.headingFont : theme.typography.bodyFont],
+            fontSize: Math.min(resolved.size, 44),
+            fontWeight: resolved.weight,
+            lineHeight: resolved.lineHeight,
+            letterSpacing: `${resolved.letterSpacing}em`,
+            textTransform: resolved.transform as 'none',
+          }}
+          noWrap
+        >
+          {role === 'button' ? 'Ver catálogo' : role === 'label' ? 'Novedades' : role === 'body' || role === 'small' ? 'Texto de ejemplo para tu sitio.' : 'Título de ejemplo'}
+        </Typography>
+        <Typography variant="caption" color="text.secondary">{resolved.size}px · móvil {resolved.mobileSize}px · peso {resolved.weight}</Typography>
+      </Box>
+      <SliderInput label="Tamaño (escritorio)" value={r.size} min={0} max={role === 'h1' ? 120 : 72} format={(v) => (v ? `${v}px` : 'Auto')} onChange={(size) => set({ size })} />
+      <SliderInput label="Tamaño (móvil)" value={r.mobileSize} min={0} max={role === 'h1' ? 72 : 48} format={(v) => (v ? `${v}px` : 'Auto')} onChange={(mobileSize) => set({ mobileSize })} />
+      <SelectInput label="Peso" value={r.weight} onChange={(weight) => set({ weight })} options={[{ value: 'auto', label: 'Auto' }, ...['300', '400', '500', '600', '700', '800'].map((w) => ({ value: w as typeof r.weight, label: w }))]} />
+      <SliderInput label="Interlineado" value={r.lineHeight} min={0} max={2.5} step={0.05} format={(v) => (v ? v.toFixed(2) : 'Auto')} onChange={(lineHeight) => set({ lineHeight })} />
+      <SliderInput label="Espaciado de letras" value={r.letterSpacing ?? 0} min={-0.1} max={0.4} step={0.01} format={(v) => (r.letterSpacing === null ? 'Auto' : `${v.toFixed(2)}em`)} onChange={(letterSpacing) => set({ letterSpacing })} />
+      <Segmented label="Mayúsculas" value={r.transform} onChange={(transform) => set({ transform })} options={[{ value: 'auto', label: 'Auto' }, { value: 'none', label: 'Normal' }, { value: 'uppercase', label: 'AA' }, { value: 'capitalize', label: 'Aa' }]} />
+      <Segmented label="Fuente" value={r.font} onChange={(font) => set({ font })} options={[{ value: 'auto', label: 'Auto' }, { value: 'heading', label: 'Títulos' }, { value: 'body', label: 'Texto' }]} />
+      {touched.includes(role) && <Button size="small" color="inherit" onClick={() => set(DEFAULT_ROLE)} sx={{ alignSelf: 'flex-start' }}>Restablecer {TYPE_ROLE_LABELS[role]}</Button>}
+    </Group>
+  );
+}
+
+const DEFAULT_ROLE = { size: 0, mobileSize: 0, weight: 'auto', lineHeight: 0, letterSpacing: null, transform: 'auto', font: 'auto' } as const;
 
 function StyleTab({ theme, patch }: TabProps) {
   return (

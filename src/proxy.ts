@@ -7,5 +7,5 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   // Sólo rutas que necesitan sesión. El catálogo público queda fuera para que sea cacheable.
-  matcher: ['/dashboard/:path*', '/onboarding/:path*', '/preview', '/preview/:path*', '/reset-password', '/login', '/signup', '/api/:path*'],
+  matcher: ['/dashboard/:path*', '/admin/:path*', '/cuenta', '/sin-acceso', '/preview', '/preview/:path*', '/login', '/api/:path*'],
 };

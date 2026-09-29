@@ -29,8 +29,7 @@ export default function Home() {
           <span className={styles.logo}>{env.appName}</span>
           <nav className={styles.navLinks}>
             <Link href="/demo">Ver demo</Link>
-            <Link href="/login">Entrar</Link>
-            <Link href="/signup" className={styles.buttonSmall}>Crear cuenta</Link>
+            <Link href="/login" className={styles.buttonSmall}>Iniciar sesión</Link>
           </nav>
         </div>
       </header>
@@ -43,8 +42,8 @@ export default function Home() {
             Publica tus productos y servicios con tu marca, recibe consultas por WhatsApp y descarga un PDF para imprimir. Todo sin escribir código.
           </p>
           <div className={styles.ctas}>
-            <Link href="/signup" className={styles.button}>
-              Crear mi catálogo gratis <ArrowRight size={16} aria-hidden />
+            <Link href="/login" className={styles.button}>
+              Iniciar sesión <ArrowRight size={16} aria-hidden />
             </Link>
             <Link href="/demo" className={styles.buttonGhost}>Ver un ejemplo</Link>
           </div>
@@ -91,10 +90,10 @@ export default function Home() {
         </section>
 
         <section className={`${styles.container} ${styles.cta}`}>
-          <h2>Empieza gratis hoy</h2>
-          <p>Para restaurantes, tiendas, profesionales y cualquier negocio que quiera mostrar lo que ofrece.</p>
-          <Link href="/signup" className={styles.button}>
-            Crear mi catálogo <ArrowRight size={16} aria-hidden />
+          <h2>¿Quieres tu catálogo?</h2>
+          <p>El acceso es por invitación. Pide tu cuenta al administrador y te la entregamos lista para usar.</p>
+          <Link href="/login" className={styles.button}>
+            Ya tengo acceso <ArrowRight size={16} aria-hidden />
           </Link>
         </section>
       </main>

@@ -1,23 +1,23 @@
 import { z } from 'zod';
 
 export const signInSchema = z.object({
-  email: z.email('Email inválido'),
-  password: z.string().min(1, 'Escribe tu contraseña'),
+  // Usuario (o email, para cuentas creadas antes de la v4).
+  username: z.string().trim().toLowerCase().min(3, 'Escribe tu usuario').max(254),
+  password: z.string().min(1, 'Escribe tu contraseña').max(72),
 });
 
-export const signUpSchema = z.object({
-  fullName: z.string().trim().min(2, 'Escribe tu nombre').max(80),
-  email: z.email('Email inválido'),
-  password: z.string().min(8, 'Mínimo 8 caracteres').max(72),
-});
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, 'Escribe tu contraseña actual'),
+    password: z.string().min(8, 'Mínimo 8 caracteres').max(72),
+    confirm: z.string(),
+  })
+  .refine((v) => v.password === v.confirm, { path: ['confirm'], message: 'Las contraseñas no coinciden' });
 
-export const forgotPasswordSchema = z.object({ email: z.email('Email inválido') });
-
-export const resetPasswordSchema = z.object({
-  password: z.string().min(8, 'Mínimo 8 caracteres').max(72),
+export const accountSchema = z.object({
+  fullName: z.string().trim().max(80),
 });
 
 export type SignInValues = z.input<typeof signInSchema>;
-export type SignUpValues = z.input<typeof signUpSchema>;
-export type ForgotPasswordValues = z.input<typeof forgotPasswordSchema>;
-export type ResetPasswordValues = z.input<typeof resetPasswordSchema>;
+export type ChangePasswordValues = z.input<typeof changePasswordSchema>;
+export type AccountValues = z.input<typeof accountSchema>;

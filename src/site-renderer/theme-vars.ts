@@ -27,6 +27,9 @@ export function themeToVars(theme: ThemeConfig): CSSProperties {
     '--c-button': c.button,
     '--c-button-text': c.buttonText,
     '--c-price': c.price,
+    '--c-success': c.success,
+    '--c-warning': c.warning,
+    '--c-error': c.error,
     '--c-primary-soft': c.primarySoft,
     '--c-accent-soft': c.accentSoft,
     '--c-on-primary': c.onPrimary,
@@ -53,6 +56,8 @@ export function themeToVars(theme: ThemeConfig): CSSProperties {
     '--sp-section': `${t.space.section}px`,
     '--sp-section-m': `${t.space.sectionMobile}px`,
     '--gap': `${t.space.gap}px`,
+    // Copia del gap del tema: las colecciones redefinen --gap y no pueden referenciarse a sí mismas.
+    '--gap-theme': `${t.space.gap}px`,
     '--maxw': t.space.maxWidth ? `${t.space.maxWidth}px` : '100%',
     '--sp-title': `${t.space.title}px`,
     '--radius': `${t.shape.radius}px`,
@@ -66,9 +71,25 @@ export function themeToVars(theme: ThemeConfig): CSSProperties {
     '--btn-tt': t.button.uppercase ? 'uppercase' : 'none',
     '--btn-ls': t.button.uppercase ? '0.06em' : '0',
     '--header-h': `${HEADER_HEIGHT[theme.header.height]}px`,
+    ...roleVars(t.roles),
     '--card-ratio': RATIOS[theme.cards.imageRatio],
   };
   return vars as CSSProperties;
 }
 
 export const CARD_RATIOS = RATIOS;
+
+/** Variables por rol tipográfico: --ty-h1-size, --ty-h1-size-m, --ty-h1-weight… */
+function roleVars(roles: ReturnType<typeof resolveTokens>['roles']): Record<string, string | number> {
+  const out: Record<string, string | number> = {};
+  for (const [role, r] of Object.entries(roles)) {
+    out[`--ty-${role}-size`] = `${r.size}px`;
+    out[`--ty-${role}-size-m`] = `${r.mobileSize}px`;
+    out[`--ty-${role}-weight`] = r.weight;
+    out[`--ty-${role}-lh`] = r.lineHeight;
+    out[`--ty-${role}-ls`] = `${r.letterSpacing}em`;
+    out[`--ty-${role}-tt`] = r.transform;
+    out[`--ty-${role}-font`] = r.font === 'heading' ? 'var(--f-heading), var(--f-body)' : 'var(--f-body)';
+  }
+  return out;
+}

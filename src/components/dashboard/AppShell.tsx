@@ -7,19 +7,22 @@ import { usePathname, useSearchParams } from 'next/navigation';
 import { useState, type ComponentProps, type ReactNode } from 'react';
 import { env } from '@/lib/env';
 import { BusinessMenu } from './BusinessMenu';
-import { NAVIGATION } from './navigation';
+import { AccountMenu } from './AccountMenu';
+import { ADMIN_NAVIGATION, NAVIGATION } from './navigation';
 import { PublishControl } from './PublishControl';
 
 const DRAWER_WIDTH = 248;
 
 type Props = {
   children: ReactNode;
-  businessMenu: ComponentProps<typeof BusinessMenu>;
-};
+} & (
+  | { variant?: 'dashboard'; businessMenu: ComponentProps<typeof BusinessMenu> }
+  | { variant: 'admin'; account: ComponentProps<typeof AccountMenu> }
+);
 
 function isActive(pathname: string, search: string, href: string) {
   const [path, query] = href.split('?');
-  if (path === '/dashboard') return pathname === path;
+  if (path === '/dashboard' || path === '/admin') return pathname === path;
   if (pathname !== path && !pathname.startsWith(`${path}/`)) return false;
   // Enlaces al mismo editor con distinto panel (?panel=...).
   const panel = new URLSearchParams(query ?? '').get('panel');
@@ -30,14 +33,14 @@ function isActive(pathname: string, search: string, href: string) {
 /** Pantallas de trabajo a lo ancho (editor del sitio, estudio de PDF). */
 const FULL_WIDTH = ['/dashboard/sitio', '/dashboard/export/pdf'];
 
-function SideNav({ onNavigate }: { onNavigate?: () => void }) {
+function SideNav({ onNavigate, admin }: { onNavigate?: () => void; admin?: boolean }) {
   const pathname = usePathname();
   const search = useSearchParams().toString();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   return (
     <List dense sx={{ px: 1.25, py: 1 }}>
-      {NAVIGATION.map((entry) => {
+      {(admin ? ADMIN_NAVIGATION : NAVIGATION).map((entry) => {
         const Icon = entry.icon;
         if (entry.href) {
           return (
@@ -78,7 +81,9 @@ function SideNav({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
-export function AppShell({ children, businessMenu }: Props) {
+export function AppShell(props: Props) {
+  const { children } = props;
+  const admin = props.variant === 'admin';
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
   const fullWidth = FULL_WIDTH.some((p) => pathname.startsWith(p));
@@ -86,15 +91,16 @@ export function AppShell({ children, businessMenu }: Props) {
   const drawer = (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <Toolbar sx={{ px: 2.5, minHeight: '56px !important' }}>
-        <Typography component={Link} href="/dashboard" sx={{ fontWeight: 750, fontSize: 17, letterSpacing: '-0.02em', color: 'text.primary', textDecoration: 'none' }}>
+        <Typography component={Link} href={admin ? '/admin' : '/dashboard'} sx={{ fontWeight: 750, fontSize: 17, letterSpacing: '-0.02em', color: 'text.primary', textDecoration: 'none' }}>
           {env.appName}
         </Typography>
+        {admin && <Typography component="span" sx={{ ml: 1, px: 0.75, py: 0.1, borderRadius: 1, fontSize: 11, fontWeight: 700, bgcolor: 'secondary.main', color: 'secondary.contrastText' }}>ADMIN</Typography>}
       </Toolbar>
       <Box sx={{ flex: 1, overflowY: 'auto' }}>
-        <SideNav onNavigate={() => setMobileOpen(false)} />
+        <SideNav onNavigate={() => setMobileOpen(false)} admin={admin} />
       </Box>
       <Box sx={{ p: 1.25, borderTop: 1, borderColor: 'divider' }}>
-        <BusinessMenu {...businessMenu} />
+        {props.variant === 'admin' ? <AccountMenu {...props.account} /> : <BusinessMenu {...props.businessMenu} />}
       </Box>
     </Box>
   );
@@ -127,7 +133,7 @@ export function AppShell({ children, businessMenu }: Props) {
               <MenuIcon size={18} />
             </IconButton>
             <Box sx={{ flex: 1 }} />
-            <PublishControl />
+            {!admin && <PublishControl />}
           </Toolbar>
         </AppBar>
         <Box component="main" sx={{ flex: 1, p: fullWidth ? 2 : { xs: 2, sm: 3 }, pb: fullWidth ? 2 : 12, width: '100%', maxWidth: fullWidth ? 'none' : 1240, mx: 'auto' }}>

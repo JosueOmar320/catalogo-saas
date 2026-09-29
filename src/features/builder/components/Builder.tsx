@@ -8,6 +8,8 @@ import { useAction } from '@/lib/hooks/use-action';
 import { slugify } from '@/lib/utils/slug';
 import { useUnsavedChangesWarning } from '@/lib/hooks/use-unsaved-changes';
 import type { SiteViewModel } from '@/lib/site/view-model';
+import { GarfieldProvider } from '@/features/assistant/components/GarfieldProvider';
+import { GarfieldLauncher, GarfieldPanel, GarfieldPreviewBanner } from '@/features/assistant/components/GarfieldPanel';
 import { saveSite } from '../actions';
 import { BuilderContext, builderReducer, type BuilderPanel, type BuilderState } from '../state';
 import { BuilderPreview, type Device } from './BuilderPreview';
@@ -26,6 +28,8 @@ type Props = {
   initialPanel: BuilderPanel;
   initialDesignTab?: 'theme' | 'colors' | 'type' | 'style' | 'background' | 'cards';
   canManage: boolean;
+  /** Endpoint de Garfield AI (por defecto /api/assistant). */
+  assistantEndpoint?: string;
 };
 
 function initialState(props: Props): BuilderState {
@@ -54,6 +58,9 @@ export function Builder(props: Props) {
   const [state, dispatch] = useReducer(builderReducer, props, initialState);
   const [device, setDevice] = useState<Device>('desktop');
   const [mobileView, setMobileView] = useState<'edit' | 'preview'>('edit');
+  // Vista previa de un plan de Garfield: se muestra en lugar del borrador sin modificarlo.
+  const [assistantPreview, setAssistantPreview] = useState<BuilderState | null>(null);
+  const shown = assistantPreview ?? state;
   const router = useRouter();
   const confirm = useConfirm();
   const { run, pending } = useAction();
@@ -66,8 +73,12 @@ export function Builder(props: Props) {
     () => ({ ...props.site, theme: state.theme, navigation: state.navigation, pages: state.pages }),
     [props.site, state.theme, state.navigation, state.pages],
   );
+  const shownSite = useMemo<SiteViewModel>(
+    () => (assistantPreview ? { ...props.site, theme: assistantPreview.theme, navigation: assistantPreview.navigation, pages: assistantPreview.pages } : draftSite),
+    [assistantPreview, draftSite, props.site],
+  );
   // La preview se actualiza con prioridad baja: los controles nunca se traban.
-  const previewSite = useDeferredValue(draftSite);
+  const previewSite = useDeferredValue(shownSite);
 
   const save = () =>
     run(
@@ -114,46 +125,55 @@ export function Builder(props: Props) {
   const preview = (
     <BuilderPreview
       site={previewSite}
-      pageId={state.selectedPageId}
-      selectedSectionId={state.selectedSectionId}
+      pageId={shown.selectedPageId}
+      selectedSectionId={shown.selectedSectionId}
       device={device}
       onDevice={setDevice}
       onNavigate={(pageId) => dispatch({ type: 'selectPage', pageId })}
-      onSelectSection={(sectionId) => dispatch({ type: 'selectSection', sectionId })}
+      onSelectSection={(sectionId) => !assistantPreview && dispatch({ type: 'selectSection', sectionId })}
       notice={notice}
+      banner={<GarfieldPreviewBanner />}
     />
   );
 
   return (
     <BuilderContext.Provider value={{ state, dispatch }}>
-      <Box sx={{ display: 'flex', flexDirection: 'column', height: { lg: 'calc(100vh - 56px - 32px)' } }}>
-        <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', mb: 2 }}>
-          <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography variant="h1">Editor del sitio</Typography>
-            <Typography variant="body2" color="text.secondary" noWrap>Páginas, secciones, navegación y diseño. Los cambios se ven al instante.</Typography>
-          </Box>
-          {dirty && <Chip label="Cambios sin guardar" color="warning" variant="outlined" sx={{ display: { xs: 'none', sm: 'inline-flex' } }} />}
-          <Button color="inherit" onClick={discard} disabled={!dirty || pending}>Descartar</Button>
-          <Button variant="contained" onClick={save} disabled={!dirty || pending || !props.canManage}>
-            {pending ? 'Guardando…' : 'Guardar cambios'}
-          </Button>
-        </Stack>
+      <GarfieldProvider state={state} dispatch={dispatch} site={props.site} onPreview={setAssistantPreview} endpoint={props.assistantEndpoint}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', height: { lg: 'calc(100vh - 56px - 32px)' } }}>
+          <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', mb: 2 }}>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography variant="h1">Editor del sitio</Typography>
+              <Typography variant="body2" color="text.secondary" noWrap>Páginas, secciones, navegación y diseño. Los cambios se ven al instante.</Typography>
+            </Box>
+            {dirty && <Chip label="Cambios sin guardar" color="warning" variant="outlined" sx={{ display: { xs: 'none', sm: 'inline-flex' } }} />}
+            <Button color="inherit" onClick={discard} disabled={!dirty || pending}>Descartar</Button>
+            <Button variant="contained" onClick={save} disabled={!dirty || pending || !props.canManage}>
+              {pending ? 'Guardando…' : 'Guardar cambios'}
+            </Button>
+          </Stack>
 
-        {wide ? (
-          <Box sx={{ display: 'grid', gridTemplateColumns: '380px minmax(0, 1fr)', gap: 2, flex: 1, minHeight: 0 }}>
-            {left}
-            {preview}
-          </Box>
-        ) : (
+          {wide ? (
+            <Box sx={{ display: 'grid', gridTemplateColumns: '380px minmax(0, 1fr)', gap: 2, flex: 1, minHeight: 0 }}>
+              {left}
+              {preview}
+            </Box>
+          ) : (
+            <>
+              <Tabs value={mobileView} onChange={(_, v) => setMobileView(v)} sx={{ mb: 1.5 }}>
+                <Tab value="edit" label="Editar" />
+                <Tab value="preview" label="Vista previa" />
+              </Tabs>
+              {mobileView === 'edit' ? left : <Box sx={{ height: '78vh' }}>{preview}</Box>}
+            </>
+          )}
+        </Box>
+        {props.canManage && (
           <>
-            <Tabs value={mobileView} onChange={(_, v) => setMobileView(v)} sx={{ mb: 1.5 }}>
-              <Tab value="edit" label="Editar" />
-              <Tab value="preview" label="Vista previa" />
-            </Tabs>
-            {mobileView === 'edit' ? left : <Box sx={{ height: '78vh' }}>{preview}</Box>}
+            <GarfieldLauncher />
+            <GarfieldPanel />
           </>
         )}
-      </Box>
+      </GarfieldProvider>
     </BuilderContext.Provider>
   );
 }

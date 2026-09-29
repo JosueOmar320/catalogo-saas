@@ -20,10 +20,25 @@ export async function requireUser() {
   return user;
 }
 
+export type Profile = Pick<Tables<'profiles'>, 'id' | 'username' | 'full_name' | 'email' | 'platform_role' | 'status'>;
+
+/** Perfil del usuario con sesión (RLS: cada usuario lee el suyo). */
+export const getProfile = cache(async (): Promise<Profile | null> => {
+  const user = await getUser();
+  if (!user) return null;
+  const supabase = await createClient();
+  const { data } = await supabase.from('profiles').select('id, username, full_name, email, platform_role, status').eq('id', user.id).single();
+  return data ?? null;
+});
+
+export const isPlatformAdmin = (profile: Profile | null) => profile?.platform_role === 'admin' && profile.status === 'active';
+
 export type BusinessContext = {
   supabase: ServerSupabase;
   userId: string;
   email: string | null;
+  profile: Profile;
+  isPlatformAdmin: boolean;
   role: MemberRole;
   business: Tables<'businesses'>;
   catalog: Tables<'catalogs'>;
@@ -32,43 +47,51 @@ export type BusinessContext = {
 };
 
 /**
- * Resuelve en el SERVIDOR qué negocio puede operar el usuario. La cookie sólo
- * expresa una preferencia: si apunta a un negocio ajeno, RLS no lo devuelve y
- * se usa el primero propio. Nunca se confía en un business_id del cliente.
+ * Resuelve en el SERVIDOR qué negocio puede operar el usuario: sus negocios
+ * asignados (RLS ya excluye negocios suspendidos y usuarios desactivados).
+ * La cookie sólo expresa una preferencia; un administrador puede abrir
+ * cualquier negocio desde el panel de administración.
  */
 export const getBusinessContext = cache(async (): Promise<BusinessContext | null> => {
   const supabase = await createClient();
   const user = await getUser();
   if (!user) return null;
+  const profile = await getProfile();
+  if (!profile || profile.status !== 'active') return null;
+  const admin = isPlatformAdmin(profile);
+
+  const { data: memberships } = await supabase.from('business_members').select('business_id, role').eq('user_id', user.id);
+  const preferred = (await cookies()).get(ACTIVE_BUSINESS_COOKIE)?.value;
+  const ids = new Set((memberships ?? []).map((m) => m.business_id));
+  if (admin && preferred && /^[0-9a-f-]{36}$/.test(preferred)) ids.add(preferred);
+  if (ids.size === 0) return null;
 
   const { data: businesses } = await supabase
     .from('businesses')
     .select('*')
+    .in('id', [...ids])
     .is('deleted_at', null)
     .order('created_at', { ascending: true });
   if (!businesses || businesses.length === 0) return null;
-
-  const preferred = (await cookies()).get(ACTIVE_BUSINESS_COOKIE)?.value;
   const business = businesses.find((b) => b.id === preferred) ?? businesses[0];
+  const membership = memberships?.find((m) => m.business_id === business.id);
+  // Un administrador que abre un negocio ajeno opera con permisos de dueño (RLS lo permite).
+  const role: MemberRole | null = membership?.role ?? (admin ? 'owner' : null);
+  if (!role) return null;
 
-  const [membership, plan, catalog] = await Promise.all([
-    supabase.from('business_members').select('role').eq('business_id', business.id).eq('user_id', user.id).single(),
+  const [plan, catalog] = await Promise.all([
     supabase.from('plans').select('*').eq('id', business.plan_id).single(),
-    supabase
-      .from('catalogs')
-      .select('*')
-      .eq('business_id', business.id)
-      .eq('is_default', true)
-      .is('deleted_at', null)
-      .single(),
+    supabase.from('catalogs').select('*').eq('business_id', business.id).eq('is_default', true).is('deleted_at', null).single(),
   ]);
-  if (!membership.data || !catalog.data) return null;
+  if (!catalog.data) return null;
 
   return {
     supabase,
     userId: user.id,
-    email: user.email ?? null,
-    role: membership.data.role,
+    email: profile.email,
+    profile,
+    isPlatformAdmin: admin,
+    role,
     business,
     catalog: catalog.data,
     businesses: businesses.map(({ id, name, slug }) => ({ id, name, slug })),
@@ -80,8 +103,19 @@ export const getBusinessContext = cache(async (): Promise<BusinessContext | null
 export async function requireBusinessContext(): Promise<BusinessContext> {
   await requireUser();
   const ctx = await getBusinessContext();
-  if (!ctx) redirect('/onboarding');
-  return ctx;
+  if (ctx) return ctx;
+  const profile = await getProfile();
+  if (!profile || profile.status !== 'active') redirect('/login?error=disabled');
+  // Sin negocios asignados: el admin va a su panel; el usuario ve cómo pedir acceso.
+  redirect(isPlatformAdmin(profile) ? '/admin' : '/sin-acceso');
+}
+
+/** Panel de administración. La base valida además cada operación (is_platform_admin). */
+export async function requirePlatformAdmin(): Promise<{ supabase: ServerSupabase; profile: Profile; userId: string }> {
+  const user = await requireUser();
+  const profile = await getProfile();
+  if (!isPlatformAdmin(profile)) redirect(profile?.status === 'active' ? '/dashboard' : '/login?error=disabled');
+  return { supabase: await createClient(), profile: profile!, userId: user.id };
 }
 
 export function canManageCatalog(ctx: BusinessContext): boolean {

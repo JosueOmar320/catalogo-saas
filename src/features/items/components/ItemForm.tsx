@@ -33,6 +33,7 @@ import { useAction } from '@/lib/hooks/use-action';
 import { useUnsavedChangesWarning } from '@/lib/hooks/use-unsaved-changes';
 import { saveItem } from '../actions';
 import { ITEM_TYPE_LABELS, itemFormSchema, type ItemFormValues } from '../schema';
+import { ItemAttributesFields } from './ItemAttributesFields';
 import { ItemCardPreview } from './ItemCardPreview';
 
 type Props = {
@@ -159,6 +160,20 @@ export function ItemForm({ itemId, defaultValues, categories, previewSite }: Pro
                   />
                 </Grid>
               </Grid>
+            </SectionCard>
+
+            <SectionCard
+              title="Atributos"
+              description={previewSite.attributeDefs.length ? 'Datos propios de tu catálogo. Se muestran en tarjetas, ficha y PDF según cada atributo.' : undefined}
+            >
+              {previewSite.attributeDefs.length ? (
+                <Controller control={control} name="attributeValues" render={({ field }) => <ItemAttributesFields defs={previewSite.attributeDefs} value={field.value} onChange={field.onChange} />} />
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  Define atributos como Marca, Material, Tamaño o Duración en{' '}
+                  <Link href="/dashboard/catalog/attributes">Catálogo › Atributos</Link> para completarlos aquí, filtrar por ellos y compararlos en el PDF.
+                </Typography>
+              )}
             </SectionCard>
 
             <Accordion variant="outlined" disableGutters defaultExpanded={Boolean(defaultValues.description || defaultValues.sku || defaultValues.tags.length)} sx={{ '&:before': { display: 'none' }, borderRadius: 1.5 }}>
