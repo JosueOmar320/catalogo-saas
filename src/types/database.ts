@@ -21,6 +21,7 @@ type BusinessRow = Timestamps & {
   contact: Json;
   social_links: Json;
   created_by: string | null;
+  status: BusinessStatus;
   deleted_at: string | null;
 };
 
@@ -31,11 +32,13 @@ type CatalogRow = Timestamps & {
   slug: string;
   status: CatalogStatus;
   is_default: boolean;
+  is_active: boolean;
   theme: Json;
   settings: Json;
   seo: Json;
   navigation: Json;
   pdf: Json;
+  attribute_defs: Json;
   cover_path: string | null;
   favicon_path: string | null;
   published_at: string | null;
@@ -119,8 +122,50 @@ type PlanRow = Timestamps & {
 
 type ProfileRow = Timestamps & {
   id: string;
+  username: string;
   full_name: string | null;
   avatar_url: string | null;
+  email: string | null;
+  platform_role: PlatformRole;
+  status: UserStatus;
+  last_login_at: string | null;
+  max_businesses: number | null;
+  created_by: string | null;
+};
+
+type AuditLogRow = {
+  id: number;
+  actor_id: string | null;
+  action: string;
+  entity_type: string;
+  entity_id: string | null;
+  business_id: string | null;
+  metadata: Json;
+  created_at: string;
+};
+
+type MediaAssetRow = Timestamps & {
+  id: string;
+  business_id: string;
+  path: string;
+  thumb_path: string | null;
+  kind: string;
+  mime_type: string | null;
+  width: number | null;
+  height: number | null;
+  size_bytes: number | null;
+  alt: string;
+  tags: string[];
+  source: MediaSource;
+  source_url: string | null;
+  attribution: string | null;
+  created_by: string | null;
+  deleted_at: string | null;
+  name: string;
+  original_name: string | null;
+  folder: MediaFolder;
+  storage_provider: StorageProviderId;
+  public_url: string | null;
 };
 
 type BusinessMemberRow = Timestamps & {
@@ -142,6 +187,12 @@ type Table<Row, Required extends keyof Row> = {
 export type CatalogStatus = 'draft' | 'published' | 'unpublished';
 export type ItemType = 'product' | 'service';
 export type MemberRole = 'owner' | 'admin' | 'editor';
+export type PlatformRole = 'admin' | 'user';
+export type UserStatus = 'active' | 'disabled';
+export type BusinessStatus = 'active' | 'suspended';
+export type MediaSource = 'upload' | 'import' | 'stock' | 'chat';
+export type MediaFolder = 'images' | 'logos' | 'products' | 'backgrounds' | 'banners' | 'other';
+export type StorageProviderId = 'supabase' | 'external';
 
 export type Database = {
   __InternalSupabase: { PostgrestVersion: '12' };
@@ -156,6 +207,8 @@ export type Database = {
       catalog_items: Table<CatalogItemRow, 'business_id' | 'catalog_id' | 'name' | 'slug'>;
       catalog_item_images: Table<CatalogItemImageRow, 'business_id' | 'item_id' | 'storage_path'>;
       catalog_pages: Table<CatalogPageRow, 'business_id' | 'catalog_id' | 'title' | 'slug'>;
+      audit_log: Table<AuditLogRow, 'action' | 'entity_type'>;
+      media_assets: Table<MediaAssetRow, 'business_id' | 'path'>;
     };
     Views: { [_ in never]: never };
     Functions: {
@@ -170,11 +223,30 @@ export type Database = {
         Returns: string;
       };
       is_business_slug_available: { Args: { p_slug: string }; Returns: boolean };
+      is_platform_admin: { Args: Record<string, never>; Returns: boolean };
+      admin_create_business: {
+        Args: { p_name: string; p_slug: string; p_owner?: string | null; p_plan_id?: string; p_contact?: Json; p_catalog_theme?: Json; p_catalog_settings?: Json };
+        Returns: string;
+      };
+      admin_update_business: { Args: { p_business: string; p_name: string; p_slug: string; p_plan_id: string; p_status: BusinessStatus }; Returns: undefined };
+      admin_set_business_member: { Args: { p_business: string; p_user: string; p_role: MemberRole }; Returns: undefined };
+      admin_remove_business_member: { Args: { p_business: string; p_user: string }; Returns: undefined };
+      admin_update_profile: {
+        Args: { p_user: string; p_full_name: string; p_email: string | null; p_role: PlatformRole; p_status: UserStatus; p_max_businesses: number | null };
+        Returns: undefined;
+      };
+      admin_create_catalog: { Args: { p_business: string; p_name: string }; Returns: string };
+      admin_update_catalog: { Args: { p_catalog: string; p_name: string; p_is_active: boolean; p_make_default: boolean }; Returns: undefined };
+      log_audit: { Args: { p_action: string; p_entity_type: string; p_entity_id: string | null; p_business_id?: string | null; p_metadata?: Json }; Returns: undefined };
       reorder_rows: {
         Args: { p_table: 'categories' | 'catalog_items' | 'catalog_item_images'; p_ids: string[] };
         Returns: undefined;
       };
       get_public_catalog: { Args: { p_business_slug: string }; Returns: Json };
+      admin_catalog_counts: { Args: Record<string, never>; Returns: { catalog_id: string; pages: number; items: number }[] };
+      admin_stats: { Args: Record<string, never>; Returns: Json };
+      media_references: { Args: { p_business: string; p_path: string }; Returns: { place: string; ref_id: string; label: string }[] };
+      replace_media_references: { Args: { p_business: string; p_old: string; p_new: string; p_new_thumb?: string | null }; Returns: number };
       save_site: {
         Args: {
           p_catalog_id: string;

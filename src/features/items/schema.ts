@@ -33,6 +33,8 @@ export const itemFormSchema = z
     badges: z.array(z.enum(MANUAL_BADGES)).max(3),
     customBadgeLabel: z.string().trim().max(20),
     customBadgeColor: hexColor,
+    /** Valores de atributos personalizados (se validan contra las definiciones en el servidor). */
+    attributeValues: z.record(z.string().max(40), z.union([z.string().max(200), z.number(), z.boolean(), z.array(z.string().max(120)).max(20)])),
   })
   .refine(
     (v) => {
@@ -70,5 +72,6 @@ export function itemFormToAttributes(values: z.output<typeof itemFormSchema>) {
   return {
     badges: values.badges.filter((b) => b !== 'featured' || values.isFeatured),
     customBadge: values.customBadgeLabel ? { label: values.customBadgeLabel, color: values.customBadgeColor } : null,
+    values: values.attributeValues,
   };
 }

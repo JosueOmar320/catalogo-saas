@@ -3,17 +3,36 @@
 import { env } from '@/lib/env';
 import { createClient } from '@/lib/supabase/client';
 import type { MediaKind } from '@/lib/utils/storage';
+import type { MediaFolder } from '@/types/database';
+import { registerMedia } from './actions';
 import { ACCEPTED_IMAGE_TYPES, MAX_SOURCE_BYTES, MAX_UPLOAD_BYTES, type UploadedImage } from './schema';
 
-/** Tamaños por tipo de imagen: [lado mayor, miniatura | null, conservar transparencia]. */
-const PROFILES: Record<MediaKind, { max: number; thumb: number | null; keepAlpha: boolean }> = {
-  items: { max: 1600, thumb: 480, keepAlpha: false },
-  category: { max: 1200, thumb: null, keepAlpha: false },
-  cover: { max: 2000, thumb: null, keepAlpha: false },
-  og: { max: 1200, thumb: null, keepAlpha: false },
-  site: { max: 2000, thumb: null, keepAlpha: true },
-  logo: { max: 512, thumb: null, keepAlpha: true },
-  favicon: { max: 256, thumb: null, keepAlpha: true },
+/**
+ * Tamaños por uso: lado mayor de la imagen principal y si conserva
+ * transparencia. Todas generan miniatura (480 px) para la biblioteca y el PDF.
+ */
+const PROFILES: Record<MediaKind, { max: number; keepAlpha: boolean }> = {
+  items: { max: 1600, keepAlpha: false },
+  category: { max: 1600, keepAlpha: false },
+  cover: { max: 2000, keepAlpha: false },
+  og: { max: 1200, keepAlpha: false },
+  site: { max: 2000, keepAlpha: true },
+  media: { max: 2000, keepAlpha: true },
+  logo: { max: 1024, keepAlpha: true },
+  favicon: { max: 512, keepAlpha: true },
+};
+const THUMB_SIDE = 480;
+
+/** Carpeta de la biblioteca según desde dónde se subió. */
+export const FOLDER_FOR_KIND: Record<MediaKind, MediaFolder> = {
+  items: 'products',
+  category: 'products',
+  cover: 'banners',
+  og: 'other',
+  site: 'images',
+  media: 'images',
+  logo: 'logos',
+  favicon: 'logos',
 };
 
 export class UploadError extends Error {}
@@ -45,11 +64,13 @@ async function encode(bitmap: ImageBitmap, maxSide: number, type: 'image/jpeg' |
 }
 
 /**
- * Redimensiona y comprime en el navegador, y sube directo a Supabase Storage
- * (sin pasar por el servidor: evita el límite de body de Vercel).
- * Salida JPEG (o PNG si hay transparencia), compatible con el PDF.
+ * Redimensiona y comprime en el navegador, y sube directo a Storage (sin
+ * pasar por el servidor: evita el límite de body de Vercel). Salida JPEG (o
+ * PNG si hay transparencia), compatible con el PDF. Todo queda en
+ * `{negocio}/media/` y se registra en la biblioteca: se reutiliza en
+ * cualquier lugar sin copiar el archivo.
  */
-export async function uploadImage(file: File, businessId: string, kind: MediaKind): Promise<UploadedImage> {
+export async function uploadImage(file: File, businessId: string, kind: MediaKind, upload: { source?: 'upload' | 'chat'; folder?: MediaFolder; register?: boolean } = {}): Promise<UploadedImage & { mediaId: string | null }> {
   const invalid = validateImageFile(file);
   if (invalid) throw new UploadError(invalid);
 
@@ -63,12 +84,12 @@ export async function uploadImage(file: File, businessId: string, kind: MediaKin
   try {
     const full = await encode(bitmap, profile.max, type);
     if (full.blob.size > MAX_UPLOAD_BYTES) throw new UploadError('La imagen sigue siendo muy pesada tras comprimirla.');
-    const thumb = profile.thumb ? await encode(bitmap, profile.thumb, type) : null;
+    const thumb = Math.max(full.width, full.height) > THUMB_SIDE * 1.2 ? await encode(bitmap, THUMB_SIDE, type) : null;
 
     const bucket = createClient().storage.from(env.storageBucket);
     const id = crypto.randomUUID();
-    const path = `${businessId}/${kind}/${id}.${extension}`;
-    const thumbPath = thumb ? `${businessId}/${kind}/${id}-thumb.${extension}` : null;
+    const path = `${businessId}/media/${id}.${extension}`;
+    const thumbPath = thumb ? `${businessId}/media/${id}-thumb.${extension}` : null;
     const options = { contentType: type, cacheControl: '31536000', upsert: false };
 
     const { error } = await bucket.upload(path, full.blob, options);
@@ -81,15 +102,20 @@ export async function uploadImage(file: File, businessId: string, kind: MediaKin
       }
     }
 
-    return {
+    const uploaded: UploadedImage = {
       path,
       thumbPath,
       width: full.width,
       height: full.height,
       sizeBytes: full.blob.size,
       mimeType: type,
-      alt: '',
+      alt: file.name.replace(/\.[a-z0-9]+$/i, '').replace(/[-_]+/g, ' ').slice(0, 120),
     };
+    // Biblioteca de medios (para reutilizarla y que Garfield la encuentre). Si falla, la imagen igual sirve.
+    // Al reemplazar una imagen no se registra (el registro existente pasa a apuntar al archivo nuevo).
+    if (upload.register === false) return { ...uploaded, mediaId: null };
+    const registered = await registerMedia({ ...uploaded, kind, source: upload.source, folder: upload.folder ?? FOLDER_FOR_KIND[kind], originalName: file.name.slice(0, 255) }).catch(() => null);
+    return { ...uploaded, mediaId: registered?.ok ? registered.data.id : null };
   } finally {
     bitmap.close();
   }

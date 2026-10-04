@@ -27,7 +27,14 @@ export function dbErrorMessage(error: PgError, fallback = 'No se pudo guardar. I
     return 'Alcanzaste el límite de imágenes por ítem de tu plan.';
   }
   if (message.includes('slug_unavailable')) return 'Esa dirección ya está en uso. Prueba con otra.';
-  if (message.includes('business_limit_reached')) return 'Alcanzaste el máximo de negocios por cuenta.';
+  if (message.includes('business_limit_reached')) return 'Ese usuario alcanzó su máximo de negocios asignados.';
+  if (message.includes('cannot_demote_self')) return 'No puedes quitarte el rol de administrador ni desactivar tu propia cuenta.';
+  if (message.includes('last_admin')) return 'Debe quedar al menos un administrador activo.';
+  if (message.includes('user_not_found')) return 'El usuario no existe.';
+  if (message.includes('business_not_found')) return 'El negocio no existe.';
+  if (message.includes('catalog_not_found')) return 'El catálogo no existe.';
+  if (message.includes('plan_not_found')) return 'El plan no existe.';
+  if (message.includes('forbidden')) return 'Esta acción es sólo para administradores.';
   if (error.code === '23505') return 'Ya existe un registro con ese identificador.';
   if (error.code === '42501') return 'No tienes permisos para realizar esta acción.';
   return fallback;

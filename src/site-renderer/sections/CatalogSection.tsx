@@ -1,17 +1,38 @@
 'use client';
 
-import { PackageSearch, Search } from 'lucide-react';
-import { useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { EMPTY_FILTERS, filterItems, groupByCategory, type CatalogFilters } from '../filter';
-import { ItemCard, ItemRow } from '../ItemCard';
+import { ChevronLeft, ChevronRight, PackageSearch, Search, SlidersHorizontal } from 'lucide-react';
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { SORT_LABELS, SORT_OPTIONS, sortItems, type SortOption } from '@/lib/catalog/collections-core';
+import { attributeFilterOptions, EMPTY_FILTERS, filterItems, groupByCategory, type BadgeFilter, type CatalogFilters } from '../filter';
+import { ItemCard } from '../ItemCard';
+import { ProductCollection } from '../ProductCollection';
 import { gridVars, SectionFrame, SectionHead } from '../SectionFrame';
 import styles from '../site.module.css';
 import type { SectionProps } from './types';
 
-/** Catálogo completo con buscador, categorías y filtros (la experiencia de la v1). */
+const PUBLIC_SORT_LABELS: Record<SortOption, string> = { ...SORT_LABELS, custom: 'Recomendados' };
+const BADGE_FILTERS: { value: BadgeFilter; label: string }[] = [
+  { value: 'all', label: 'Todos' },
+  { value: 'featured', label: 'Destacados' },
+  { value: 'new', label: 'Nuevos' },
+  { value: 'sale', label: 'En oferta' },
+  { value: 'popular', label: 'Populares' },
+];
+
+/**
+ * Catálogo completo: búsqueda (nombre, código, etiquetas y atributos),
+ * categorías, filtros (tipo, precio, estado, atributos), orden y paginación.
+ */
 export function CatalogSection({ section, site, env }: SectionProps<'catalog'>) {
   const { content } = section;
+  const { filters: cfg, pagination } = content;
   const [filters, setFilters] = useState<CatalogFilters>(EMPTY_FILTERS);
+  // null = orden por defecto de la sección (así la preview refleja cambios del editor).
+  const [userSort, setUserSort] = useState<SortOption | null>(null);
+  const sort = userSort ?? content.sort.default;
+  // Páginas (modo "pages") o bloques cargados (modos "loadMore" / "infinite").
+  const [page, setPage] = useState(1);
+  const [panelOpen, setPanelOpen] = useState(false);
   const query = useDeferredValue(filters.query);
   const items = useMemo(() => (content.itemType === 'any' ? site.items : site.items.filter((i) => i.type === content.itemType)), [site.items, content.itemType]);
 
@@ -30,51 +51,74 @@ export function CatalogSection({ section, site, env }: SectionProps<'catalog'>) 
     const used = new Set(items.map((i) => i.categoryId));
     return site.categories.filter((c) => used.has(c.id));
   }, [site.categories, items]);
-  const hasBothTypes = items.some((i) => i.type === 'product') && items.some((i) => i.type === 'service');
-  const filtered = useMemo(() => filterItems(items, { ...filters, query }), [items, filters, query]);
-  const isSearching = query.trim() !== '' || filters.type !== 'all' || filters.onlyAvailable;
-  const featured = content.showFeatured && !isSearching && filters.categoryId === 'all' ? items.filter((i) => i.isFeatured).slice(0, 6) : [];
-  const groups = content.groupByCategory && !query.trim() ? groupByCategory(filtered, site.categories) : [{ id: 'all', title: null, description: null, items: filtered }];
-  const update = (patch: Partial<CatalogFilters>) => setFilters((current) => ({ ...current, ...patch }));
-  const showCategoryChips = content.showCategoryNav && usedCategories.length > 1;
-  const showToolbar = items.length > 0 && (content.showSearch || showCategoryChips || (content.showFilters && hasBothTypes));
-  const cardStyle = content.cardStyle === 'inherit' ? undefined : content.cardStyle;
-  const showcase = content.layout === 'showcase';
-  const columns = showcase ? { desktop: Math.min(content.columns.desktop, 3), tablet: 2, mobile: 1 } : content.columns;
+  const attributeFilters = useMemo(() => {
+    if (!cfg.byAttributes) return [];
+    const defs = cfg.attributes.length > 0 ? cfg.attributes.flatMap((id) => site.attributeDefs.filter((d) => d.id === id)) : site.attributeDefs.filter((d) => d.filterable);
+    return defs.map((def) => ({ def, options: attributeFilterOptions(def, items) })).filter((a) => a.options.length > 1);
+  }, [cfg.byAttributes, cfg.attributes, site.attributeDefs, items]);
 
-  const renderItems = (list: typeof filtered) =>
-    content.layout === 'list' ? (
-      <div className={styles.list}>
-        {list.map((item) => (
-          <ItemRow key={item.id} item={item} site={site} env={env} categoryName={item.categoryId ? categoryNames.get(item.categoryId) : undefined} />
-        ))}
-      </div>
-    ) : (
-      <div className={styles.grid} style={gridVars(columns)}>
-        {list.map((item) => (
-          <ItemCard
-            key={item.id}
-            item={item}
-            site={site}
-            env={env}
-            options={{ style: showcase ? (cardStyle ?? 'borderless') : cardStyle, categoryName: item.categoryId ? categoryNames.get(item.categoryId) : undefined }}
-          />
-        ))}
-      </div>
-    );
+  const hasBothTypes = items.some((i) => i.type === 'product') && items.some((i) => i.type === 'service');
+  const hasPrices = items.some((i) => i.price !== null);
+  const showTypes = cfg.types && hasBothTypes;
+  const showAvailability = cfg.availability && items.some((i) => !i.isAvailable);
+  const showPrice = cfg.price && hasPrices;
+  const showCategoryChips = cfg.categories && usedCategories.length > 1;
+  const panelFilters = showPrice || cfg.badges || attributeFilters.length > 0 || showAvailability;
+  const showSort = content.sort.allowUserSort;
+  const showToolbar = items.length > 0 && (cfg.search || showCategoryChips || showTypes || panelFilters || showSort);
+
+  // Dependencias campo por campo SIN el texto escrito: la búsqueda usa el valor diferido (`query`),
+  // así cada tecla filtra una sola vez (antes: una con el texto viejo y otra con el nuevo).
+  const { categoryId, type, onlyAvailable, priceMin, priceMax, badge, attrs } = filters;
+  const filtered = useMemo(
+    () => sortItems(filterItems(items, { query, categoryId, type, onlyAvailable, priceMin, priceMax, badge, attrs }), sort),
+    [items, query, categoryId, type, onlyAvailable, priceMin, priceMax, badge, attrs, sort],
+  );
+  const isSearching = filtered.length !== items.length || query.trim() !== '';
+  const featured = content.showFeatured && !isSearching ? items.filter((i) => i.isFeatured).slice(0, 6) : [];
+
+  const perPage = pagination.perPage;
+  const paged = pagination.mode !== 'all';
+  const pageCount = Math.max(1, Math.ceil(filtered.length / perPage));
+  const current = Math.min(page, pageCount);
+  const visible = !paged ? filtered : pagination.mode === 'pages' ? filtered.slice((current - 1) * perPage, current * perPage) : filtered.slice(0, current * perPage);
+  const remaining = filtered.length - visible.length;
+  const groups = content.groupByCategory && !query.trim() && sort === 'custom' ? groupByCategory(visible, site.categories) : [{ id: 'all', title: null, description: null, items: visible }];
+  const activeCount = [filters.priceMin !== null || filters.priceMax !== null, filters.badge !== 'all', filters.onlyAvailable, ...Object.values(filters.attrs).map(Boolean)].filter(Boolean).length;
+
+  const update = (patch: Partial<CatalogFilters>) => {
+    setFilters((f) => ({ ...f, ...patch }));
+    setPage(1);
+  };
+
+  // Scroll infinito: carga el siguiente bloque al acercarse al final.
+  const sentinel = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = sentinel.current;
+    if (pagination.mode !== 'infinite' || !el || remaining <= 0) return;
+    const observer = new IntersectionObserver((entries) => entries[0]?.isIntersecting && setPage((p) => p + 1), { rootMargin: '400px' });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [pagination.mode, remaining]);
+
+  const top = useRef<HTMLDivElement>(null);
+  const goTo = (n: number) => {
+    setPage(n);
+    top.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   return (
     <SectionFrame section={section} theme={site.theme}>
-      <SectionHead eyebrow={content.eyebrow} title={content.title} subtitle={content.subtitle} />
+      <SectionHead eyebrow={content.eyebrow} title={content.title} subtitle={content.subtitle} center={content.presentation.align === 'center'} />
 
       {showToolbar && (
-        <div className={styles.toolbar}>
+        <div className={styles.toolbar} ref={top}>
           <div className={styles.toolbarRow}>
-            {content.showSearch && (
+            {cfg.search && (
               <label className={styles.search}>
                 <span className={styles.visuallyHidden}>Buscar</span>
                 <Search size={16} className={styles.searchIcon} aria-hidden />
-                <input type="search" className={styles.searchInput} placeholder="Buscar en el catálogo" value={filters.query} onChange={(e) => update({ query: e.target.value })} />
+                <input type="search" className={styles.searchInput} placeholder="Buscar por nombre o código" value={filters.query} onChange={(e) => update({ query: e.target.value })} />
               </label>
             )}
             <nav className={styles.chips} aria-label="Categorías">
@@ -86,7 +130,7 @@ export function CatalogSection({ section, site, env }: SectionProps<'catalog'>) 
                   ))}
                 </>
               )}
-              {content.showFilters && hasBothTypes && (
+              {showTypes && (
                 <>
                   {showCategoryChips && <span className={styles.chipDivider} aria-hidden />}
                   <Chip active={filters.type === 'product'} onClick={() => update({ type: filters.type === 'product' ? 'all' : 'product' })}>Productos</Chip>
@@ -94,13 +138,78 @@ export function CatalogSection({ section, site, env }: SectionProps<'catalog'>) 
                 </>
               )}
             </nav>
-            {content.showFilters && items.some((i) => !i.isAvailable) && (
-              <label className={styles.filterToggle}>
-                <input type="checkbox" checked={filters.onlyAvailable} onChange={(e) => update({ onlyAvailable: e.target.checked })} />
-                Sólo disponibles
-              </label>
-            )}
+            <div className={styles.toolbarEnd}>
+              {panelFilters && (
+                <button type="button" className={`${styles.chip} ${activeCount > 0 ? styles.chipActive : ''}`} aria-expanded={panelOpen} onClick={() => setPanelOpen((o) => !o)}>
+                  <SlidersHorizontal size={14} aria-hidden /> Filtros{activeCount > 0 ? ` (${activeCount})` : ''}
+                </button>
+              )}
+              {showSort && (
+                <label className={styles.selectWrap}>
+                  <span className={styles.visuallyHidden}>Ordenar</span>
+                  <select
+                    className={styles.select}
+                    value={sort}
+                    onChange={(e) => {
+                      setUserSort(e.target.value as SortOption);
+                      setPage(1);
+                    }}
+                  >
+                    {SORT_OPTIONS.filter((o) => hasPrices || (o !== 'priceAsc' && o !== 'priceDesc')).map((o) => (
+                      <option key={o} value={o}>{PUBLIC_SORT_LABELS[o]}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
+            </div>
           </div>
+
+          {panelFilters && panelOpen && (
+            <div className={styles.filterPanel}>
+              {showPrice && (
+                <fieldset className={styles.filterField}>
+                  <legend>Precio</legend>
+                  <div className={styles.priceRange}>
+                    <input type="number" inputMode="decimal" min={0} placeholder="Mín." className={styles.select} value={filters.priceMin ?? ''} onChange={(e) => update({ priceMin: e.target.value === '' ? null : Number(e.target.value) })} />
+                    <span aria-hidden>–</span>
+                    <input type="number" inputMode="decimal" min={0} placeholder="Máx." className={styles.select} value={filters.priceMax ?? ''} onChange={(e) => update({ priceMax: e.target.value === '' ? null : Number(e.target.value) })} />
+                  </div>
+                </fieldset>
+              )}
+              {cfg.badges && (
+                <label className={styles.filterField}>
+                  <span>Mostrar</span>
+                  <select className={styles.select} value={filters.badge} onChange={(e) => update({ badge: e.target.value as BadgeFilter })}>
+                    {BADGE_FILTERS.map((b) => (
+                      <option key={b.value} value={b.value}>{b.label}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              {attributeFilters.map(({ def, options }) => (
+                <label key={def.id} className={styles.filterField}>
+                  <span>{def.name}</span>
+                  <select className={styles.select} value={filters.attrs[def.id] ?? ''} onChange={(e) => update({ attrs: { ...filters.attrs, [def.id]: e.target.value } })}>
+                    <option value="">Todos</option>
+                    {options.map((o) => (
+                      <option key={o} value={o}>{o}{def.unit && def.type === 'number' ? ` ${def.unit}` : ''}</option>
+                    ))}
+                  </select>
+                </label>
+              ))}
+              {showAvailability && (
+                <label className={styles.filterToggle}>
+                  <input type="checkbox" checked={filters.onlyAvailable} onChange={(e) => update({ onlyAvailable: e.target.checked })} />
+                  Sólo disponibles
+                </label>
+              )}
+              {activeCount > 0 && (
+                <button type="button" className={styles.linkButton} onClick={() => update({ priceMin: null, priceMax: null, badge: 'all', onlyAvailable: false, attrs: {} })}>
+                  Limpiar filtros
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -111,17 +220,23 @@ export function CatalogSection({ section, site, env }: SectionProps<'catalog'>) 
           </div>
           <div className={styles.carousel} style={gridVars({ desktop: 3, tablet: 2, mobile: 1 })}>
             {featured.map((item, i) => (
-              <ItemCard key={item.id} item={item} site={site} env={env} options={{ style: cardStyle, priority: i < 3 }} />
+              <ItemCard key={item.id} item={item} site={site} env={env} options={{ style: content.presentation.cardStyle === 'inherit' ? undefined : content.presentation.cardStyle, fields: content.presentation.fields, shape: content.presentation.shape, priority: i < 3 }} />
             ))}
           </div>
         </div>
+      )}
+
+      {isSearching && filtered.length > 0 && (
+        <p className={styles.resultCount} aria-live="polite">
+          {filtered.length} {filtered.length === 1 ? 'resultado' : 'resultados'}
+        </p>
       )}
 
       {filtered.length === 0 ? (
         <div className={styles.empty}>
           <PackageSearch size={36} strokeWidth={1.5} aria-hidden />
           <p className={styles.emptyTitle}>{items.length === 0 ? 'Muy pronto' : 'Sin resultados'}</p>
-          <p>{items.length === 0 ? 'Estamos preparando nuestro catálogo.' : 'Prueba con otra búsqueda o categoría.'}</p>
+          <p>{items.length === 0 ? 'Estamos preparando nuestro catálogo.' : 'Prueba con otra búsqueda, categoría o filtro.'}</p>
         </div>
       ) : (
         groups.map((group) => (
@@ -132,12 +247,50 @@ export function CatalogSection({ section, site, env }: SectionProps<'catalog'>) 
                 {group.description && <p className={`${styles.muted} ${styles.tightText}`}>{group.description}</p>}
               </div>
             )}
-            {renderItems(group.items)}
+            <ProductCollection items={group.items} site={site} env={env} presentation={content.presentation} categoryNames={categoryNames} />
           </div>
         ))
       )}
+
+      {pagination.mode === 'pages' && pageCount > 1 && (
+        <nav className={styles.pager} aria-label="Paginación">
+          <button type="button" className={styles.chip} disabled={current === 1} onClick={() => goTo(current - 1)} aria-label="Página anterior">
+            <ChevronLeft size={16} aria-hidden />
+          </button>
+          {pageNumbers(current, pageCount).map((n, i) =>
+            n === null ? (
+              <span key={`gap-${i}`} className={styles.pagerGap}>…</span>
+            ) : (
+              <button key={n} type="button" className={`${styles.chip} ${n === current ? styles.chipActive : ''}`} aria-current={n === current ? 'page' : undefined} onClick={() => goTo(n)}>
+                {n}
+              </button>
+            ),
+          )}
+          <button type="button" className={styles.chip} disabled={current === pageCount} onClick={() => goTo(current + 1)} aria-label="Página siguiente">
+            <ChevronRight size={16} aria-hidden />
+          </button>
+        </nav>
+      )}
+
+      {(pagination.mode === 'loadMore' || pagination.mode === 'infinite') && remaining > 0 && (
+        <div className={styles.sectionFoot} ref={sentinel}>
+          <button type="button" className={`${styles.chip} ${styles.loadMore}`} onClick={() => setPage(current + 1)}>
+            Ver más ({remaining})
+          </button>
+        </div>
+      )}
     </SectionFrame>
   );
+}
+
+/** 1 … 4 5 6 … 12 */
+function pageNumbers(current: number, count: number): (number | null)[] {
+  const out: (number | null)[] = [];
+  for (let n = 1; n <= count; n++) {
+    if (n === 1 || n === count || Math.abs(n - current) <= 1) out.push(n);
+    else if (out[out.length - 1] !== null) out.push(null);
+  }
+  return out;
 }
 
 function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {

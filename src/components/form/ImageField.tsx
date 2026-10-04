@@ -1,11 +1,12 @@
 'use client';
 
 import { Box, Button, CircularProgress, Stack, Typography } from '@mui/material';
-import { ImagePlus, Trash2, Upload } from 'lucide-react';
+import { ImagePlus, Images, Trash2, Upload } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useDashboard } from '@/components/dashboard/DashboardContext';
 import { useToast } from '@/components/feedback/ToastProvider';
 import { UploadError, uploadImage } from '@/features/media/client';
+import { MediaLibraryDialog } from '@/features/media/components/MediaLibraryDialog';
 import type { MediaKind } from '@/lib/utils/storage';
 
 type Props = {
@@ -20,13 +21,14 @@ type Props = {
   width?: number | string;
 };
 
-/** Campo de imagen única (logo, portada, favicon, imagen de categoría). */
+/** Campo de imagen única (logo, portada, favicon, categoría, imágenes del sitio): subir o elegir de la biblioteca. */
 export function ImageField({ label, description, kind, value, onChange, aspectRatio = '1 / 1', width = 112 }: Props) {
   const { businessId } = useDashboard();
   const toast = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [localPreview, setLocalPreview] = useState<string | null>(null);
+  const [library, setLibrary] = useState(false);
   const preview = localPreview ?? value;
 
   const handleFile = async (file: File | undefined) => {
@@ -98,6 +100,9 @@ export function ImageField({ label, description, kind, value, onChange, aspectRa
           <Button variant="outlined" color="inherit" startIcon={<Upload size={14} />} onClick={() => inputRef.current?.click()} disabled={busy}>
             {value ? 'Reemplazar' : 'Subir'}
           </Button>
+          <Button color="inherit" startIcon={<Images size={14} />} onClick={() => setLibrary(true)} disabled={busy}>
+            Biblioteca
+          </Button>
           {value && (
             <Button color="error" startIcon={<Trash2 size={14} />} onClick={remove} disabled={busy}>
               Quitar
@@ -106,6 +111,21 @@ export function ImageField({ label, description, kind, value, onChange, aspectRa
         </Stack>
       </Box>
       <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={(e) => void handleFile(e.target.files?.[0])} />
+      <MediaLibraryDialog
+        open={library}
+        onClose={() => setLibrary(false)}
+        // Logo, portada, favicon, imagen para compartir y categorías se guardan en columnas que exigen un archivo propio.
+        storageOnly={kind !== 'site'}
+        initialFolder={kind === 'logo' || kind === 'favicon' ? 'logos' : kind === 'category' ? 'products' : 'all'}
+        onSelect={async (image) => {
+          setBusy(true);
+          try {
+            await onChange(image.path);
+          } finally {
+            setBusy(false);
+          }
+        }}
+      />
     </Stack>
   );
 }

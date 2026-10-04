@@ -1,5 +1,6 @@
 import 'server-only';
 import { cache } from 'react';
+import { fetchAllRows } from '@/lib/supabase/paginate';
 import type { BusinessContext } from '@/lib/auth/session';
 import { pageFromRow, type SitePage } from '@/lib/site/pages';
 import { buildSiteViewModel, type SiteViewModel } from '@/lib/site/view-model';
@@ -21,26 +22,25 @@ export const listCategories = cache(async (ctx: BusinessContext) => {
   return data;
 });
 
-/** Ítems con sus imágenes (una sola consulta extra para todas las imágenes). */
+/**
+ * Ítems con sus imágenes. Las imágenes se piden por NEGOCIO (índice
+ * catalog_item_images_business_idx) y no con `in(item_id, …)`: con cientos de
+ * ítems esa lista de ids no cabe en la URL (desde ~450 ítems la petición
+ * falla). Ambas lecturas van por páginas (límite de 1000 filas de Supabase).
+ */
 export const listItemsWithImages = cache(async (ctx: BusinessContext) => {
-  const { data: items, error } = await ctx.supabase
-    .from('catalog_items')
-    .select(ITEM_COLUMNS)
-    .eq('catalog_id', ctx.catalog.id)
-    .is('deleted_at', null)
-    .order('position')
-    .order('created_at');
-  if (error) throw error;
-
-  const ids = items.map((i) => i.id);
-  const { data: images, error: imagesError } = ids.length
-    ? await ctx.supabase.from('catalog_item_images').select('*').in('item_id', ids).order('position')
-    : { data: [], error: null };
-  if (imagesError) throw imagesError;
+  const [items, images] = await Promise.all([
+    fetchAllRows((from, to) =>
+      ctx.supabase.from('catalog_items').select(ITEM_COLUMNS).eq('catalog_id', ctx.catalog.id).is('deleted_at', null).order('position').order('created_at').order('id').range(from, to),
+    ),
+    fetchAllRows((from, to) => ctx.supabase.from('catalog_item_images').select('*').eq('business_id', ctx.business.id).order('item_id').order('position').order('id').range(from, to)),
+  ]);
 
   const byItem = new Map<string, typeof images>();
-  for (const image of images ?? []) {
-    byItem.set(image.item_id, [...(byItem.get(image.item_id) ?? []), image]);
+  for (const image of images) {
+    const list = byItem.get(image.item_id);
+    if (list) list.push(image);
+    else byItem.set(image.item_id, [image]);
   }
   return items.map((item) => ({ ...item, images: byItem.get(item.id) ?? [] }));
 });

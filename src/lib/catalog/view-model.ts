@@ -2,7 +2,9 @@ import { env } from '@/lib/env';
 import { formatPrice } from '@/lib/utils/format';
 import { publicStorageUrl } from '@/lib/utils/storage';
 import type { ItemType, Tables } from '@/types/database';
+import { parseAttributeValues, type AttributeDef, type AttributeValues } from './attributes';
 import { parseItemAttributes, type ItemAttributes } from './item-attributes';
+import type { PriceFormat } from './settings';
 
 /**
  * Vistas de ítems y categorías (serializables, sin funciones). Las comparten
@@ -15,6 +17,8 @@ export type CatalogImageView = {
   height: number | null;
   alt: string;
 };
+
+export { discountPercent } from './price';
 
 export type CatalogItemView = {
   id: string;
@@ -37,6 +41,8 @@ export type CatalogItemView = {
   images: CatalogImageView[];
   badges: ItemAttributes['badges'];
   customBadge: ItemAttributes['customBadge'];
+  /** Valores de atributos personalizados (por id de atributo). */
+  attributes: AttributeValues;
   createdAt: string;
   /** URL absoluta (para mensajes de WhatsApp y SEO). */
   url: string;
@@ -71,15 +77,17 @@ export function mapCategories(categories: CategoryInput[]): CatalogCategoryView[
 }
 
 /** Ítems ordenados por categoría (orden del admin) y luego por posición. */
-export function mapItems(items: ItemInput[], categories: CatalogCategoryView[], businessSlug: string, locale: string): CatalogItemView[] {
+type MapOptions = { locale: string; attributeDefs?: AttributeDef[]; priceFormat?: PriceFormat };
+
+export function mapItems(items: ItemInput[], categories: CatalogCategoryView[], businessSlug: string, options: MapOptions): CatalogItemView[] {
   const order = new Map(categories.map((c, index) => [c.id, index]));
   const rank = (id: string | null) => (id ? (order.get(id) ?? Number.MAX_SAFE_INTEGER) : Number.MAX_SAFE_INTEGER);
   return items
-    .map((item) => toItemView(item, businessSlug, locale))
+    .map((item) => toItemView(item, businessSlug, options))
     .sort((a, b) => rank(a.categoryId) - rank(b.categoryId));
 }
 
-function toItemView(item: ItemInput, businessSlug: string, locale: string): CatalogItemView {
+function toItemView(item: ItemInput, businessSlug: string, { locale, attributeDefs = [], priceFormat }: MapOptions): CatalogItemView {
   const price = item.price === null ? null : Number(item.price);
   const compareAt = item.compare_at_price === null ? null : Number(item.compare_at_price);
   const attributes = parseItemAttributes(item.attributes);
@@ -101,8 +109,8 @@ function toItemView(item: ItemInput, businessSlug: string, locale: string): Cata
     price,
     compareAtPrice: compareAt,
     currency: item.currency,
-    priceLabel: price === null ? null : formatPrice(price, item.currency, locale),
-    compareAtLabel: compareAt !== null && price !== null && compareAt > price ? formatPrice(compareAt, item.currency, locale) : null,
+    priceLabel: price === null ? null : formatPrice(price, item.currency, locale, priceFormat),
+    compareAtLabel: compareAt !== null && price !== null && compareAt > price ? formatPrice(compareAt, item.currency, locale, { ...priceFormat, prefix: '' }) : null,
     priceNote: item.price_note,
     sku: item.sku,
     isAvailable: item.is_available,
@@ -112,6 +120,7 @@ function toItemView(item: ItemInput, businessSlug: string, locale: string): Cata
     images,
     badges: attributes.badges,
     customBadge: attributes.customBadge,
+    attributes: parseAttributeValues((item.attributes as { values?: unknown } | null)?.values, attributeDefs),
     createdAt: item.created_at,
     url: itemUrl(businessSlug, item.slug),
   };

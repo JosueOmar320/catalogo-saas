@@ -18,7 +18,7 @@ const db = new PGlite();
 await db.exec(`
 create role anon nologin; create role authenticated nologin;
 create schema auth;
-create table auth.users(id uuid primary key, raw_user_meta_data jsonb default '{}');
+create table auth.users(id uuid primary key, email text, raw_user_meta_data jsonb default '{}', raw_app_meta_data jsonb default '{}');
 create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true),'')::uuid $$;
 create schema storage;
 create table storage.buckets(id text primary key, name text, public bool, file_size_limit bigint, allowed_mime_types text[]);
@@ -31,9 +31,9 @@ create function storage.foldername(name text) returns text[] language sql as $$ 
 await db.exec(migrations[0]);
 const LEGACY_BIZ = 'cccccccc-0000-4000-8000-000000000003';
 await db.exec(`
-insert into auth.users(id, raw_user_meta_data) values
- ('aaaaaaaa-0000-4000-8000-000000000001','{"full_name":"Ana"}'),
- ('bbbbbbbb-0000-4000-8000-000000000002','{}');
+insert into auth.users(id, email, raw_user_meta_data) values
+ ('aaaaaaaa-0000-4000-8000-000000000001','ana@example.com','{"full_name":"Ana"}'),
+ ('bbbbbbbb-0000-4000-8000-000000000002','ana@otro.com','{}');
 insert into public.businesses(id, name, slug, description) values ('${LEGACY_BIZ}', 'Legado', 'legado', 'Tienda antigua');
 insert into public.catalogs(business_id, name, slug, is_default, status, cover_path, theme)
 values ('${LEGACY_BIZ}', 'Legado', 'principal', true, 'published', '${LEGACY_BIZ}/cover/x.jpg',
@@ -77,11 +77,27 @@ await expectOk('legacy public site includes pages', async () => {
   if (c.pages.length !== 1 || c.catalog.navigation.items.length !== 1 || 'pdf' in c.catalog) throw new Error(JSON.stringify(Object.keys(c.catalog)));
 });
 
+// --- v4: el administrador aprovisiona cuentas y negocios ---
+const ADM = 'dddddddd-0000-4000-8000-000000000004', JUAN = 'eeeeeeee-0000-4000-8000-000000000005', SELF = 'ffffffff-0000-4000-8000-000000000006';
+await db.exec(`reset role;
+insert into auth.users(id, email, raw_app_meta_data) values
+ ('${ADM}', 'admin@usuarios.invalid', '{"provisioned":true,"username":"jefa"}'),
+ ('${JUAN}', 'juan@usuarios.invalid', '{"provisioned":true,"username":"Juan","contact_email":"juan@correo.com"}'),
+ ('${SELF}', 'intruso@example.com', '{}');
+select public.bootstrap_platform_admin('jefa');`);
+await expectEq('existing users get usernames from their email', () => q(`select username from public.profiles where id in ($1,$2) order by username`, [A, B]).then((r) => r.map((x) => x.username)), ['ana', 'ana-bbbb']);
+await expectEq('provisioned user: username, contact email, active', () => q(`select username, email, status, platform_role from public.profiles where id=$1`, [JUAN]).then((r) => r[0]), { username: 'juan', email: 'juan@correo.com', status: 'active', platform_role: 'user' });
+await expectEq('self-registered account is born disabled', () => q(`select status from public.profiles where id=$1`, [SELF]).then((r) => r[0].status), 'disabled');
+
 await as(A);
 let bizA, bizB, catA, catB, catgA, itemA;
-await expectOk('A creates business', async () => { bizA = (await q(`select public.create_business('Tienda A','tienda-a','{"phone":"1"}','{"version":1}','{}') as id`))[0].id; return bizA; });
-await expectErr('reserved slug rejected', () => q(`select public.create_business('X','dashboard')`), 'slug_unavailable');
-await expectErr('duplicate slug rejected', () => q(`select public.create_business('X','tienda-a')`), 'slug_unavailable');
+await expectErr('user cannot create businesses (old RPC)', () => q(`select public.create_business('X','x-biz')`), 'permission denied');
+await expectErr('user cannot use admin RPC', () => q(`select public.admin_create_business('X','x-biz')`), 'forbidden');
+await as(ADM);
+await expectOk('admin creates business for A', async () => { bizA = (await q(`select public.admin_create_business('Tienda A','tienda-a',$1,'free','{"phone":"1"}','{"version":1}','{}') as id`, [A]))[0].id; return bizA; });
+await expectErr('reserved slug rejected', () => q(`select public.admin_create_business('X','dashboard')`), 'slug_unavailable');
+await expectErr('duplicate slug rejected', () => q(`select public.admin_create_business('X','tienda-a')`), 'slug_unavailable');
+await as(A);
 await expectErr('A cannot insert business directly', () => q(`insert into public.businesses(name, slug) values ('Hack','hack-biz')`), 'row-level security');
 catA = (await q(`select id, status, slug from public.catalogs where business_id=$1`, [bizA]))[0];
 await expectOk('default catalog exists', async () => catA);
@@ -95,8 +111,9 @@ await expectOk('A reorders', () => q(`select public.reorder_rows('catalog_items'
 await expectEq('positions updated', () => q(`select slug, position from public.catalog_items order by position`).then(r=>r.map(x=>`${x.slug}:${x.position}`)), ['asesoria:0','cafe:1']);
 await expectErr('reorder bad table', () => q(`select public.reorder_rows('businesses', array[]::uuid[])`), 'invalid_table');
 
+await as(ADM);
+await expectOk('admin creates business for B', async () => { bizB = (await q(`select public.admin_create_business('Tienda B','tienda-b',$1) as id`, [B]))[0].id; });
 await as(B);
-await expectOk('B creates business', async () => { bizB = (await q(`select public.create_business('Tienda B','tienda-b') as id`))[0].id; });
 catB = (await q(`select id from public.catalogs where business_id=$1`, [bizB]))[0];
 await expectEq('B sees only own businesses', () => q(`select slug from public.businesses`).then(r=>r.map(x=>x.slug)), ['tienda-b']);
 await expectEq('B sees none of A items', () => q(`select count(*)::int as n from public.catalog_items`).then(r=>r[0].n), 0);
@@ -161,6 +178,124 @@ await expectOk('A can set slogan', () => q(`update public.businesses set slogan=
 await as(null);
 await expectEq('anon sees only published pages', () => q(`select jsonb_array_length(public.get_public_catalog('tienda-a')->'pages') n`).then(r => r[0].n), 1);
 await expectErr('anon cannot call save_site', () => saveSite(catA.id, [page(P1, 'x', 'x', true)]), 'permission denied');
+
+// --- v3: atributos personalizados ---
+await as(A);
+await expectOk('A defines custom attributes', () => q(`update public.catalogs set attribute_defs = $2::jsonb where id = $1 returning id`, [catA.id, JSON.stringify([{ id: 'marca', name: 'Marca', type: 'select', options: ['X'] }])]));
+await expectErr('attribute_defs must be an array', () => q(`update public.catalogs set attribute_defs = '{}'::jsonb where id = $1`, [catA.id]), 'check constraint');
+await as(B);
+await expectEq('B cannot change A attribute defs', () => db.query(`update public.catalogs set attribute_defs = '[]'::jsonb where id = $1`, [catA.id]).then((r) => r.affectedRows), 0);
+await as(null);
+await expectEq('public catalog exposes attribute defs', () => q(`select public.get_public_catalog('tienda-a')->'catalog'->'attribute_defs'->0->>'name' as n`).then((r) => r[0].n), 'Marca');
+
+// --- v4: roles, estados, suspensión, auditoría y medios ---
+await as(A);
+await expectErr('user cannot make himself admin', () => q(`update public.profiles set platform_role='admin' where id=$1`, [A]), 'permission denied');
+await expectErr('user cannot change own status', () => q(`update public.profiles set status='active' where id=$1`, [A]), 'permission denied');
+await expectErr('user cannot rename own username', () => q(`update public.profiles set username='jefe' where id=$1`, [A]), 'permission denied');
+await expectOk('user can edit own name', () => q(`update public.profiles set full_name='Ana María' where id=$1 returning full_name`, [A]));
+await expectErr('user cannot bootstrap admin', () => q(`select public.bootstrap_platform_admin('ana')`), 'permission denied');
+await expectErr('user cannot write audit entries', () => q(`select public.log_audit('x','y','z')`), 'forbidden');
+await expectErr('user cannot update other profiles via admin RPC', () => q(`select public.admin_update_profile($1,'x',null,'admin','active',null)`, [A]), 'forbidden');
+await expectEq('user sees only own and team profiles', () => q(`select username from public.profiles order by username`).then((r) => r.map((x) => x.username)), ['ana']);
+await expectEq('user cannot read audit log', () => q(`select count(*)::int n from public.audit_log`).then((r) => r[0].n), 0);
+await expectErr('owner cannot activate/deactivate catalog', () => q(`update public.catalogs set is_active=false where id=$1`, [catA.id]), 'permission denied');
+await expectErr('owner cannot suspend/reactivate business', () => q(`update public.businesses set status='active' where id=$1`, [bizA]), 'permission denied');
+await expectOk('member registers media in own business', () => q(`insert into public.media_assets(business_id, path, kind, alt) values ($1,$2,'site','Fachada') returning id`, [bizA, `${bizA}/site/fachada.jpg`]));
+await expectErr('media path must belong to the business', () => q(`insert into public.media_assets(business_id, path) values ($1,$2)`, [bizA, `${bizB}/site/x.jpg`]), 'check constraint');
+await as(B);
+await expectEq('B cannot see A media', () => q(`select count(*)::int n from public.media_assets`).then((r) => r[0].n), 0);
+await expectErr('B cannot register media in A', () => q(`insert into public.media_assets(business_id, path) values ($1,$2)`, [bizA, `${bizA}/site/evil.jpg`]), 'row-level security');
+
+await as(ADM);
+await expectEq('admin reads every business', () => q(`select slug from public.businesses where slug in ('tienda-a','tienda-b') order by slug`).then((r) => r.map((x) => x.slug)), ['tienda-a', 'tienda-b']);
+await expectOk('admin can edit content of any business', () => q(`update public.catalog_items set name='Café admin' where id=$1 returning name`, [itemA]));
+await expectEq('admin reads all profiles', () => q(`select count(*)::int n from public.profiles`).then((r) => r[0].n), 5);
+await expectErr('admin cannot demote himself', () => q(`select public.admin_update_profile($1,'Jefa',null,'user','active',null)`, [ADM]), 'cannot_demote_self');
+await expectOk('admin assigns A business to Juan as editor', () => q(`select public.admin_set_business_member($1,$2,'editor')`, [bizA, JUAN]));
+await expectOk('admin limits Juan to 1 business', () => q(`select public.admin_update_profile($1,'Juan Pérez','juan@correo.com','user','active',1)`, [JUAN]));
+await expectErr('business quota enforced', () => q(`select public.admin_set_business_member($1,$2,'editor')`, [bizB, JUAN]), 'business_limit_reached');
+await as(JUAN);
+await expectEq('Juan only sees assigned business', () => q(`select slug from public.businesses`).then((r) => r.map((x) => x.slug)), ['tienda-a']);
+await expectEq('Juan sees his teammates', () => q(`select username from public.profiles order by username`).then((r) => r.map((x) => x.username)), ['ana', 'juan']);
+await as(ADM);
+await expectOk('admin disables Juan', () => q(`select public.admin_update_profile($1,'Juan Pérez','juan@correo.com','user','disabled',1)`, [JUAN]));
+await as(JUAN);
+await expectEq('disabled user sees no business', () => q(`select count(*)::int n from public.businesses`).then((r) => r[0].n), 0);
+await expectErr('disabled user cannot write content', () => q(`insert into public.categories(business_id, catalog_id, name) values ($1,$2,'x')`, [bizA, catA.id]), 'row-level security');
+await as(ADM);
+await expectOk('admin suspends business B', () => q(`select public.admin_update_business($1,'Tienda B2','tienda-b','free','suspended')`, [bizB]));
+await as(B);
+await expectEq('owner of suspended business loses access', () => q(`select count(*)::int n from public.businesses`).then((r) => r[0].n), 0);
+await as(A);
+await q(`update public.catalogs set status='published' where business_id=$1`, [bizA]);
+await as(ADM);
+await expectOk('admin deactivates catalog A', () => q(`select public.admin_update_catalog($1,'Tienda A',false,false)`, [catA.id]));
+await as(null);
+await expectEq('inactive catalog is not public', () => q(`select public.get_public_catalog('tienda-a') as c`).then((r) => r[0].c), null);
+await expectErr('anon cannot use admin RPCs', () => q(`select public.admin_create_business('x','anon-x')`), 'permission denied');
+await as(ADM);
+await expectOk('admin reactivates catalog', () => q(`select public.admin_update_catalog($1,'Tienda A',true,false)`, [catA.id]));
+await expectEq('audit: who created business A', () => q(`select actor_id, action from public.audit_log where entity_id=$1 and action='businesses.insert'`, [bizA]).then((r) => r[0]), { actor_id: ADM, action: 'businesses.insert' });
+await expectEq('audit: who disabled Juan (changed columns)', () => q(`select actor_id, metadata->'changed' as changed from public.audit_log where action='profiles.update' and entity_id=$1 order by id desc limit 1`, [JUAN]).then((r) => r[0]), { actor_id: ADM, changed: ['status'] });
+await expectOk('audit: content edits are attributed', async () => {
+  const r = await q(`select count(*)::int n from public.audit_log where action='catalog_items.update' and actor_id=$1`, [ADM]);
+  if (r[0].n < 1) throw new Error('no audit row');
+});
+await expectOk('admin writes explicit audit event', () => q(`select public.log_audit('user.password_reset','user',$1)`, [JUAN]));
+await expectOk('admin promotes A to admin', () => q(`select public.admin_update_profile($1,'Ana María','ana@example.com','admin','active',null)`, [A]));
+await as(A);
+await expectOk('second admin can demote the first', () => q(`select public.admin_update_profile($1,'Jefa',null,'user','active',null)`, [ADM]));
+await as(ADM);
+await expectEq('demoted admin loses admin access', () => q(`select count(*)::int n from public.audit_log`).then((r) => r[0].n), 0);
+
+
+// --- v5: biblioteca de medios (URLs externas, uso y reemplazo) ---
+await as(A);
+const OLD = `${bizA}/items/x.jpg`, NEW = `${bizA}/media/nueva.jpg`;
+await expectOk('external URL registered in library', () => q(`insert into public.media_assets(business_id, path, storage_provider, public_url, folder, name) values ($1,'https://cdn.example.com/a.jpg','external','https://cdn.example.com/a.jpg','backgrounds','Fondo') returning id`, [bizA]));
+await expectErr('external media must be https', () => q(`insert into public.media_assets(business_id, path, storage_provider) values ($1,'http://cdn.example.com/a.jpg','external')`, [bizA]), 'check constraint');
+await expectErr('storage media cannot point to a URL', () => q(`insert into public.media_assets(business_id, path) values ($1,'https://cdn.example.com/b.jpg')`, [bizA]), 'check constraint');
+await expectErr('unknown folder rejected', () => q(`insert into public.media_assets(business_id, path, folder) values ($1,$2,'secret')`, [bizA, `${bizA}/media/f.jpg`]), 'check constraint');
+const homeA = (await q(`select id from public.catalog_pages where business_id=$1 and deleted_at is null order by position limit 1`, [bizA]))[0].id;
+await q(`update public.catalog_pages set sections = sections || jsonb_build_array(jsonb_build_object('id','img1','type','image','content', jsonb_build_object('image', jsonb_build_object('path', $1::text)))) where id=$2`, [OLD, homeA]);
+await q(`update public.businesses set logo_path=$1 where id=$2`, [OLD, bizA]);
+await expectEq('media_references finds every use', () => q(`select place from public.media_references($1,$2) order by place`, [bizA, OLD]).then((r) => r.map((x) => x.place)), ['logo', 'page', 'product']);
+await expectErr('replace into another business path rejected', () => q(`select public.replace_media_references($1,$2,$3)`, [bizA, OLD, `${bizB}/media/x.jpg`]), 'invalid_path');
+await as(B);
+await expectEq('B cannot see where A media is used', () => q(`select count(*)::int n from public.media_references($1,$2)`, [bizA, OLD]).then((r) => r[0].n), 0);
+await expectEq('B cannot replace A media', () => q(`select public.replace_media_references($1,$2,$3) n`, [bizA, OLD, NEW]).then((r) => r[0].n), 0);
+await as(A);
+await expectEq('external URL can be reused by another business', () => q(`insert into public.media_assets(business_id, path, storage_provider) values ($1,'https://cdn.example.com/a.jpg','external') returning storage_provider`, [bizB]).then((r) => r[0].storage_provider), 'external');
+await expectOk('replace rewrites logo, page and product', async () => {
+  const [{ n }] = await q(`select public.replace_media_references($1,$2,$3,null) n`, [bizA, OLD, NEW]);
+  if (n < 3) throw new Error(`only ${n}`);
+  return n;
+});
+await expectEq('old path no longer referenced', () => q(`select count(*)::int n from public.media_references($1,$2)`, [bizA, OLD]).then((r) => r[0].n), 0);
+await expectEq('new path referenced everywhere', () => q(`select place from public.media_references($1,$2) order by place`, [bizA, NEW]).then((r) => r.map((x) => x.place)), ['logo', 'page', 'product']);
+await as(null);
+await expectErr('anon cannot inspect media usage', () => q(`select * from public.media_references($1,$2)`, [bizA, NEW]), 'permission denied');
+
+
+// --- Rendimiento: conteos del admin en SQL ---
+await as(A); // A es administrador en este punto de las pruebas
+await expectOk('admin_stats: totales para el admin', async () => {
+  const [{ s }] = await q(`select public.admin_stats() s`);
+  if (!s || s.users.total < 3 || s.businesses.total < 2 || typeof s.catalogs.published !== 'number') throw new Error(JSON.stringify(s));
+  return s.users;
+});
+await expectOk('admin_catalog_counts: páginas e ítems por catálogo', async () => {
+  const rows = await q(`select catalog_id, pages, items from public.admin_catalog_counts() where catalog_id=$1`, [catA.id]);
+  const direct = await q(`select (select count(*) from public.catalog_pages where catalog_id=$1 and deleted_at is null)::int p, (select count(*) from public.catalog_items where catalog_id=$1 and deleted_at is null)::int i`, [catA.id]);
+  if (Number(rows[0].pages) !== direct[0].p || Number(rows[0].items) !== direct[0].i) throw new Error(JSON.stringify({ rows, direct }));
+  return rows[0];
+});
+await as(JUAN);
+await expectEq('admin_stats: un usuario normal no ve nada', () => q(`select public.admin_stats() s`).then((r) => r[0].s), null);
+await expectEq('admin_catalog_counts: un usuario normal no ve nada', () => q(`select count(*)::int n from public.admin_catalog_counts()`).then((r) => r[0].n), 0);
+await as(null);
+await expectErr('anon no puede llamar admin_stats', () => q(`select public.admin_stats()`), 'permission denied');
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);

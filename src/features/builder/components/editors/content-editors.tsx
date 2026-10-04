@@ -1,8 +1,11 @@
 'use client';
 
-import { Autocomplete, Chip, Stack, TextField } from '@mui/material';
-import type { ComponentType } from 'react';
-import { CARD_STYLE_META, CARD_STYLES } from '@/lib/design/styles-registry';
+import { Autocomplete, Button, Stack, TextField } from '@mui/material';
+import { Images } from 'lucide-react';
+import { useState, type ComponentType } from 'react';
+import { ColumnsSectionEditor } from './columns-editor';
+import { MediaLibraryDialog } from '@/features/media/components/MediaLibraryDialog';
+import { SORT_LABELS, SORT_OPTIONS } from '@/lib/catalog/collections';
 import type { SitePage } from '@/lib/site/pages';
 import type { SectionOf, SectionType } from '@/lib/site/section-schemas';
 import type { SiteViewModel } from '@/lib/site/view-model';
@@ -21,6 +24,8 @@ import {
   SwitchRow,
   TextInput,
 } from '../controls';
+import { EXTRA_EDITORS } from './extra-editors';
+import { CollectionEditor, PresentationEditor } from './presentation-editors';
 
 export type EditorProps<T extends SectionType> = {
   section: SectionOf<T>;
@@ -30,12 +35,12 @@ export type EditorProps<T extends SectionType> = {
 };
 
 /** Actualiza campos del contenido conservando el resto. */
-function useContent<T extends SectionType>({ section, onChange }: EditorProps<T>) {
+export function useContent<T extends SectionType>({ section, onChange }: EditorProps<T>) {
   const content = (section as { content: object }).content;
   return (patch: Partial<SectionOf<T>['content']>) => onChange({ ...section, content: { ...content, ...patch } } as SectionOf<T>);
 }
 
-function Heading<T extends 'hero' | 'text' | 'products' | 'services' | 'catalog' | 'categories' | 'banner' | 'gallery' | 'features' | 'testimonials' | 'contact' | 'social'>(
+export function Heading<T extends Exclude<SectionType, 'spacer'>>(
   props: EditorProps<T> & { subtitleLabel?: string; titlePlaceholder?: string },
 ) {
   const set = useContent(props);
@@ -48,8 +53,6 @@ function Heading<T extends 'hero' | 'text' | 'products' | 'services' | 'catalog'
     </>
   );
 }
-
-const cardStyleOptions = [{ value: 'inherit' as const, label: 'Como el tema' }, ...CARD_STYLES.map((id) => ({ value: id, label: CARD_STYLE_META[id].label }))];
 
 /* ------------------------------------------------------------ Hero */
 
@@ -104,49 +107,6 @@ function TextEditor(props: EditorProps<'text'>) {
 
 /* ------------------------------------------------------------ Productos / Servicios */
 
-function ItemSourceFields(props: EditorProps<'products'> | EditorProps<'services'>) {
-  const set = useContent(props as EditorProps<'products'>);
-  const c = props.section.content;
-  const pool = c.itemType === 'any' ? props.site.items : props.site.items.filter((i) => i.type === c.itemType);
-  return (
-    <Group title="Qué mostrar">
-      <Segmented label="Tipo" value={c.itemType} onChange={(itemType) => set({ itemType })} options={[{ value: 'product', label: 'Productos' }, { value: 'service', label: 'Servicios' }, { value: 'any', label: 'Ambos' }]} />
-      <SelectInput
-        label="Selección"
-        value={c.source}
-        onChange={(source) => set({ source })}
-        options={[
-          { value: 'featured', label: 'Destacados' },
-          { value: 'latest', label: 'Más recientes' },
-          { value: 'category', label: 'De una categoría' },
-          { value: 'manual', label: 'Elegidos a mano' },
-          { value: 'all', label: 'Todos' },
-        ]}
-      />
-      {c.source === 'category' && (
-        <SelectInput label="Categoría" value={c.categoryId} onChange={(categoryId) => set({ categoryId })} options={[{ value: '', label: 'Elige una categoría' }, ...props.site.categories.map((cat) => ({ value: cat.id, label: cat.name }))]} />
-      )}
-      {c.source === 'manual' && (
-        <Autocomplete
-          multiple
-          options={pool.map((i) => i.id)}
-          value={c.itemIds.filter((id) => pool.some((i) => i.id === id))}
-          getOptionLabel={(id) => pool.find((i) => i.id === id)?.name ?? 'Ítem'}
-          onChange={(_, itemIds) => set({ itemIds })}
-          renderValue={(value, getItemProps) =>
-            value.map((id, index) => {
-              const { key, ...rest } = getItemProps({ index });
-              return <Chip key={key} label={pool.find((i) => i.id === id)?.name} {...rest} />;
-            })
-          }
-          renderInput={(params) => <TextField {...params} label="Ítems (en este orden)" />}
-        />
-      )}
-      {c.source !== 'manual' && <SliderInput label="Cantidad máxima" value={c.limit} min={1} max={48} onChange={(limit) => set({ limit })} />}
-    </Group>
-  );
-}
-
 function ProductsEditor(props: EditorProps<'products'>) {
   const set = useContent(props);
   const c = props.section.content;
@@ -155,15 +115,8 @@ function ProductsEditor(props: EditorProps<'products'>) {
       <Group>
         <Heading {...props} />
       </Group>
-      <ItemSourceFields {...props} />
-      <Group title="Presentación">
-        <Segmented label="Formato" value={c.layout} onChange={(layout) => set({ layout })} options={[{ value: 'grid', label: 'Cuadrícula' }, { value: 'carousel', label: 'Carrusel' }, { value: 'list', label: 'Lista' }]} />
-        {c.layout !== 'list' && <ColumnsEditor value={c.columns} onChange={(columns) => set({ columns })} />}
-        <SelectInput label="Estilo de tarjeta" value={c.cardStyle} onChange={(cardStyle) => set({ cardStyle })} options={cardStyleOptions} />
-        <SwitchRow label="Imagen" checked={c.showImage} onChange={(showImage) => set({ showImage })} />
-        <SwitchRow label="Precio" checked={c.showPrice} onChange={(showPrice) => set({ showPrice })} />
-        <SwitchRow label="Descripción" checked={c.showDescription} onChange={(showDescription) => set({ showDescription })} />
-      </Group>
+      <CollectionEditor value={c.collection} onChange={(collection) => set({ collection })} site={props.site} />
+      <PresentationEditor value={c.presentation} onChange={(presentation) => set({ presentation })} />
       <Group title="Botón al final">
         <ButtonEditor label="Botón (ej. Ver todos)" value={c.button} onChange={(button) => set({ button })} pages={props.pages} />
       </Group>
@@ -179,14 +132,8 @@ function ServicesEditor(props: EditorProps<'services'>) {
       <Group>
         <Heading {...props} />
       </Group>
-      <ItemSourceFields {...props} />
-      <Group title="Presentación">
-        <Segmented label="Formato" value={c.layout} onChange={(layout) => set({ layout })} options={[{ value: 'cards', label: 'Tarjetas' }, { value: 'rows', label: 'Filas' }, { value: 'compact', label: 'Compacto' }]} />
-        {c.layout === 'cards' && <ColumnsEditor value={c.columns} onChange={(columns) => set({ columns })} maxDesktop={4} />}
-        <SwitchRow label="Imagen" checked={c.showImage} onChange={(showImage) => set({ showImage })} />
-        <SwitchRow label="Precio" checked={c.showPrice} onChange={(showPrice) => set({ showPrice })} />
-        <SwitchRow label="Descripción" checked={c.showDescription} onChange={(showDescription) => set({ showDescription })} />
-      </Group>
+      <CollectionEditor value={c.collection} onChange={(collection) => set({ collection })} site={props.site} />
+      <PresentationEditor value={c.presentation} onChange={(presentation) => set({ presentation })} />
       <Group title="Botón al final">
         <ButtonEditor label="Botón" value={c.button} onChange={(button) => set({ button })} pages={props.pages} />
       </Group>
@@ -199,6 +146,8 @@ function ServicesEditor(props: EditorProps<'services'>) {
 function CatalogEditor(props: EditorProps<'catalog'>) {
   const set = useContent(props);
   const c = props.section.content;
+  const setFilters = (patch: Partial<typeof c.filters>) => set({ filters: { ...c.filters, ...patch } });
+  const filterable = props.site.attributeDefs.filter((d) => d.filterable);
   return (
     <>
       <Group>
@@ -206,16 +155,49 @@ function CatalogEditor(props: EditorProps<'catalog'>) {
       </Group>
       <Group title="Qué mostrar">
         <Segmented label="Tipo" value={c.itemType} onChange={(itemType) => set({ itemType })} options={[{ value: 'any', label: 'Todo' }, { value: 'product', label: 'Productos' }, { value: 'service', label: 'Servicios' }]} />
-        <SwitchRow label="Buscador" checked={c.showSearch} onChange={(showSearch) => set({ showSearch })} />
-        <SwitchRow label="Menú de categorías" checked={c.showCategoryNav} onChange={(showCategoryNav) => set({ showCategoryNav })} />
-        <SwitchRow label="Filtros" description="Productos/servicios y sólo disponibles." checked={c.showFilters} onChange={(showFilters) => set({ showFilters })} />
         <SwitchRow label="Destacados arriba" checked={c.showFeatured} onChange={(showFeatured) => set({ showFeatured })} />
-        <SwitchRow label="Agrupar por categoría" checked={c.groupByCategory} onChange={(groupByCategory) => set({ groupByCategory })} />
+        <SwitchRow label="Agrupar por categoría" description="Con el orden personalizado y sin búsqueda activa." checked={c.groupByCategory} onChange={(groupByCategory) => set({ groupByCategory })} />
       </Group>
-      <Group title="Presentación">
-        <Segmented label="Formato" value={c.layout} onChange={(layout) => set({ layout })} options={[{ value: 'grid', label: 'Cuadrícula' }, { value: 'list', label: 'Lista' }, { value: 'showcase', label: 'Vitrina' }]} />
-        {c.layout !== 'list' && <ColumnsEditor value={c.columns} onChange={(columns) => set({ columns })} />}
-        <SelectInput label="Estilo de tarjeta" value={c.cardStyle} onChange={(cardStyle) => set({ cardStyle })} options={cardStyleOptions} />
+      <PresentationEditor value={c.presentation} onChange={(presentation) => set({ presentation })} />
+      <Group title="Búsqueda y filtros" description="Los visitantes sólo ven los filtros que tienen sentido para tus ítems.">
+        <SwitchRow label="Buscador" description="Por nombre, código, etiquetas y atributos." checked={c.filters.search} onChange={(search) => setFilters({ search })} />
+        <SwitchRow label="Categorías" checked={c.filters.categories} onChange={(categories) => setFilters({ categories })} />
+        <SwitchRow label="Productos / servicios" checked={c.filters.types} onChange={(types) => setFilters({ types })} />
+        <SwitchRow label="Rango de precio" checked={c.filters.price} onChange={(price) => setFilters({ price })} />
+        <SwitchRow label="Destacados, nuevos, ofertas" checked={c.filters.badges} onChange={(badges) => setFilters({ badges })} />
+        <SwitchRow label="Sólo disponibles" checked={c.filters.availability} onChange={(availability) => setFilters({ availability })} />
+        <SwitchRow
+          label="Por atributos"
+          description={filterable.length === 0 ? 'Marca atributos como "filtrables" en Catálogo › Atributos.' : 'Usa los atributos marcados como filtrables.'}
+          checked={c.filters.byAttributes}
+          onChange={(byAttributes) => setFilters({ byAttributes })}
+        />
+        {c.filters.byAttributes && filterable.length > 1 && (
+          <Autocomplete
+            multiple
+            options={filterable.map((d) => d.id)}
+            value={c.filters.attributes.filter((id) => filterable.some((d) => d.id === id))}
+            getOptionLabel={(id) => filterable.find((d) => d.id === id)?.name ?? id}
+            onChange={(_, attributes) => setFilters({ attributes })}
+            renderInput={(params) => <TextField {...params} label="Atributos" placeholder={c.filters.attributes.length ? '' : 'Todos los filtrables'} />}
+          />
+        )}
+      </Group>
+      <Group title="Orden y paginación">
+        <SelectInput label="Orden por defecto" value={c.sort.default} onChange={(value) => set({ sort: { ...c.sort, default: value } })} options={SORT_OPTIONS.map((o) => ({ value: o, label: SORT_LABELS[o] }))} />
+        <SwitchRow label="El visitante puede cambiar el orden" checked={c.sort.allowUserSort} onChange={(allowUserSort) => set({ sort: { ...c.sort, allowUserSort } })} />
+        <SelectInput
+          label="Paginación"
+          value={c.pagination.mode}
+          onChange={(mode) => set({ pagination: { ...c.pagination, mode } })}
+          options={[
+            { value: 'all', label: 'Mostrar todo' },
+            { value: 'pages', label: 'Páginas numeradas' },
+            { value: 'loadMore', label: 'Botón "Ver más"' },
+            { value: 'infinite', label: 'Scroll infinito' },
+          ]}
+        />
+        {c.pagination.mode !== 'all' && <SliderInput label="Ítems por página" value={c.pagination.perPage} min={4} max={100} onChange={(perPage) => set({ pagination: { ...c.pagination, perPage } })} />}
       </Group>
     </>
   );
@@ -291,6 +273,7 @@ function GalleryEditor(props: EditorProps<'gallery'>) {
         <Heading {...props} />
       </Group>
       <Group title="Imágenes">
+        <GalleryFromLibrary onAdd={(paths) => set({ images: [...c.images, ...paths.filter((p) => !c.images.some((i) => i.path === p)).map((path) => ({ path, caption: '' }))].slice(0, 40) })} />
         <ListEditor
           items={c.images}
           onChange={(images) => set({ images })}
@@ -312,6 +295,19 @@ function GalleryEditor(props: EditorProps<'gallery'>) {
         <Segmented label="Separación" value={c.gap} onChange={(gap) => set({ gap })} options={[{ value: 'none', label: 'Sin' }, { value: 'sm', label: 'Chica' }, { value: 'md', label: 'Normal' }]} />
         <ColumnsEditor value={c.columns} onChange={(columns) => set({ columns })} />
       </Group>
+    </>
+  );
+}
+
+/** Agregar varias imágenes de la biblioteca a la vez (sin subirlas de nuevo). */
+function GalleryFromLibrary({ onAdd }: { onAdd: (paths: string[]) => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button variant="outlined" color="inherit" size="small" startIcon={<Images size={14} />} onClick={() => setOpen(true)} sx={{ alignSelf: 'flex-start' }}>
+        Agregar varias desde la biblioteca
+      </Button>
+      <MediaLibraryDialog open={open} onClose={() => setOpen(false)} multiple onSelectMany={(records) => onAdd(records.map((r) => r.path))} />
     </>
   );
 }
@@ -409,7 +405,7 @@ function ContactEditor(props: EditorProps<'contact'>) {
         <SwitchRow label="Horarios" checked={c.showHours} onChange={(showHours) => set({ showHours })} />
         <SwitchRow label="Redes sociales" checked={c.showSocial} onChange={(showSocial) => set({ showSocial })} />
         <SwitchRow label="Botones de contacto" checked={c.showActions} onChange={(showActions) => set({ showActions })} />
-        <SwitchRow label="Mapa" description="Usa la dirección del negocio (Google Maps, sin clave)." checked={c.showMap} onChange={(showMap) => set({ showMap })} />
+        <SwitchRow label="Mapa" description="Usa el enlace de Google Maps del negocio o, si no hay, su dirección." checked={c.showMap} onChange={(showMap) => set({ showMap })} />
       </Group>
     </>
   );
@@ -457,4 +453,6 @@ export const CONTENT_EDITORS: { [T in SectionType]: ComponentType<EditorProps<T>
   contact: ContactEditor,
   social: SocialEditor,
   spacer: SpacerEditor,
+  ...EXTRA_EDITORS,
+  columns: ColumnsSectionEditor,
 };

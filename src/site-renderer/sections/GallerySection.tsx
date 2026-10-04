@@ -1,9 +1,8 @@
 import Image from 'next/image';
 import type { CSSProperties } from 'react';
-import { env as appEnv } from '@/lib/env';
 import { mediaUrl } from '@/lib/utils/storage';
 import { gridVars, Placeholder, SectionFrame, SectionHead } from '../SectionFrame';
-import { SiteImage } from '../SiteImage';
+import { optimizable, SiteImage } from '../SiteImage';
 import styles from '../site.module.css';
 import type { SectionProps } from './types';
 
@@ -28,7 +27,7 @@ export function GallerySection({ section, site, env }: SectionProps<'gallery'>) 
         {images.map((img, i) => (
           <figure key={`${img.url}-${i}`} className={styles.galleryItem} style={masonry ? undefined : ({ aspectRatio: RATIO[content.ratio] } as CSSProperties)}>
             {masonry ? (
-              <Image src={img.url} alt={img.caption} width={800} height={800} sizes={sizes} unoptimized={!appEnv.imageOptimization} />
+              <Image src={img.url} alt={img.caption} width={800} height={800} sizes={sizes} unoptimized={!optimizable(img.url)} />
             ) : (
               <SiteImage src={img.url} alt={img.caption} sizes={sizes} />
             )}

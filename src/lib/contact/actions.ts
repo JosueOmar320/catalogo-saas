@@ -1,5 +1,5 @@
 import type { BusinessContact } from '@/lib/business/profile';
-import { digitsOnly } from '@/lib/business/profile';
+import { digitsOnly } from '@/lib/utils/phone';
 import type { ContactActionsConfig } from '@/lib/catalog/settings';
 
 /**

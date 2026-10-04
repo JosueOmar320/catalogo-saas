@@ -1,4 +1,5 @@
-import { digitsOnly, type BusinessContact } from '@/lib/business/profile';
+import type { BusinessContact } from '@/lib/business/profile';
+import { digitsOnly } from '@/lib/utils/phone';
 import type { LinkTarget } from './section-schemas';
 import type { SitePage } from './pages';
 

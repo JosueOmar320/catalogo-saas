@@ -5,7 +5,7 @@ import { requireBusinessContext, type BusinessContext } from '@/lib/auth/session
 import { invalidatePublicCatalog } from '@/lib/catalog/cache';
 import { dbErrorMessage, fail, ok, type ActionResult } from '@/lib/utils/result';
 import { parseInput, uuidSchema } from '@/lib/utils/validation';
-import { isValidMediaPath, removeStorageObjects } from '@/features/media/server';
+import { isValidMediaPath, releaseStorageObjects } from '@/features/media/server';
 import { categoryFormSchema, type CategoryFormValues } from './schema';
 
 function afterChange(ctx: BusinessContext) {
@@ -17,7 +17,7 @@ export async function createCategory(input: CategoryFormValues): Promise<ActionR
   const ctx = await requireBusinessContext();
   const parsed = parseInput(categoryFormSchema, input);
   if (!parsed.success) return parsed.result;
-  if (!isValidMediaPath(ctx, parsed.data.imagePath, 'category')) return fail('Imagen inválida.');
+  if (!isValidMediaPath(ctx, parsed.data.imagePath)) return fail('Imagen inválida.');
 
   const { data: last } = await ctx.supabase
     .from('categories')
@@ -51,7 +51,7 @@ export async function updateCategory(id: string, input: CategoryFormValues): Pro
   if (!uuidSchema.safeParse(id).success) return fail('Categoría inválida.');
   const parsed = parseInput(categoryFormSchema, input);
   if (!parsed.success) return parsed.result;
-  if (!isValidMediaPath(ctx, parsed.data.imagePath, 'category')) return fail('Imagen inválida.');
+  if (!isValidMediaPath(ctx, parsed.data.imagePath)) return fail('Imagen inválida.');
 
   const { data: current } = await ctx.supabase
     .from('categories')
@@ -72,7 +72,7 @@ export async function updateCategory(id: string, input: CategoryFormValues): Pro
     .eq('id', id);
   if (error) return fail(dbErrorMessage(error));
   if (current.image_path && current.image_path !== parsed.data.imagePath) {
-    await removeStorageObjects(ctx, [current.image_path]);
+    await releaseStorageObjects(ctx, [current.image_path]);
   }
   afterChange(ctx);
   return ok(undefined, 'Categoría actualizada');

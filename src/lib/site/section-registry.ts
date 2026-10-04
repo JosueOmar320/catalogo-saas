@@ -16,6 +16,14 @@ export const SECTION_META: Record<SectionType, { label: string; description: str
   contact: { label: 'Contacto', description: 'Teléfono, WhatsApp, email, dirección, horarios y mapa.', icon: 'phone', group: 'Contacto' },
   social: { label: 'Redes sociales', description: 'Tus perfiles como íconos, botones o tarjetas.', icon: 'globe', group: 'Contacto' },
   spacer: { label: 'Separador', description: 'Espacio vertical con línea u ornamento opcional.', icon: 'arrow-right', group: 'Diseño' },
+  image: { label: 'Imagen', description: 'Una imagen grande con leyenda y enlace opcional.', icon: 'image', group: 'Contenido' },
+  video: { label: 'Video', description: 'YouTube, Vimeo o un video propio, solo o con texto.', icon: 'play', group: 'Contenido' },
+  faq: { label: 'Preguntas frecuentes', description: 'Preguntas y respuestas desplegables.', icon: 'circle-help', group: 'Contenido' },
+  pricing: { label: 'Precios y planes', description: 'Paquetes o planes con precio, beneficios y botón.', icon: 'credit-card', group: 'Catálogo' },
+  team: { label: 'Equipo', description: 'Personas con foto, cargo y descripción.', icon: 'users', group: 'Contenido' },
+  stats: { label: 'Estadísticas', description: 'Cifras destacadas: clientes, años, proyectos…', icon: 'chart', group: 'Contenido' },
+  logos: { label: 'Logos', description: 'Marcas, clientes o certificaciones.', icon: 'badge-check', group: 'Contenido' },
+  columns: { label: 'Columnas (libre)', description: 'Arma tu composición: imagen + texto, tarjetas, listas con íconos, varios botones, cifras…', icon: 'columns', group: 'Principal' },
 };
 
 export const SECTION_GROUPS = ['Principal', 'Catálogo', 'Contenido', 'Contacto', 'Diseño'] as const;

@@ -5,7 +5,8 @@ import { canManageCatalog, requireBusinessContext } from '@/lib/auth/session';
 import { invalidatePublicCatalog } from '@/lib/catalog/cache';
 import { pageToRow } from '@/lib/site/pages';
 import { dbErrorMessage, fail, ok, type ActionResult } from '@/lib/utils/result';
-import { collectMediaPaths, isPathOwnedBy } from '@/lib/utils/storage';
+import { collectMediaPaths } from '@/lib/utils/storage';
+import { invalidMediaRefs } from '@/features/media/server';
 import type { Json } from '@/types/database';
 import { saveSiteSchema, type SaveSiteInput } from './schema';
 
@@ -25,8 +26,8 @@ export async function saveSite(input: SaveSiteInput): Promise<ActionResult> {
   }
   const { theme, navigation, pages, deletedPageIds } = parsed.data;
 
-  const foreign = collectMediaPaths({ theme, pages }).filter((path) => !isPathOwnedBy(path, ctx.business.id));
-  if (foreign.length > 0) return fail('Una de las imágenes no es válida. Vuelve a subirla.');
+  // Imágenes: archivos del negocio o URLs externas registradas en su biblioteca.
+  if ((await invalidMediaRefs(ctx, collectMediaPaths({ theme, pages }))).length > 0) return fail('Una de las imágenes no es válida. Elígela de nuevo desde la biblioteca.');
 
   const { error } = await ctx.supabase.rpc('save_site', {
     p_catalog_id: ctx.catalog.id,

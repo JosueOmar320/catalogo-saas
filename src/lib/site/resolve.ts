@@ -1,6 +1,8 @@
+import { resolveCollection } from '@/lib/catalog/collections-core';
 import type { CatalogItemView } from '@/lib/catalog/view-model';
-import { backgroundTone, resolveBackground, type Background } from '@/lib/design/background';
-import { isDark } from '@/lib/design/color';
+import type { Background } from '@/lib/design/background';
+import { backgroundTone, resolveBackground } from '@/lib/design/background-core';
+import { contrastRatio, isDark, mix } from '@/lib/design/color';
 import type { ThemeConfig } from '@/lib/design/theme';
 import type { SectionOf } from './section-schemas';
 import type { SiteViewModel } from './view-model';
@@ -11,32 +13,9 @@ import type { SiteViewModel } from './view-model';
  */
 type ItemSourceContent = SectionOf<'products'>['content'] | SectionOf<'services'>['content'];
 
-export function resolveSectionItems(
-  content: ItemSourceContent,
-  items: CatalogItemView[],
-  { ignoreLimit = false }: { ignoreLimit?: boolean } = {},
-): CatalogItemView[] {
-  const pool = content.itemType === 'any' ? items : items.filter((i) => i.type === content.itemType);
-  let result: CatalogItemView[];
-  switch (content.source) {
-    case 'featured':
-      result = pool.filter((i) => i.isFeatured);
-      break;
-    case 'latest':
-      result = [...pool].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-      break;
-    case 'category':
-      result = pool.filter((i) => i.categoryId === content.categoryId);
-      break;
-    case 'manual': {
-      const byId = new Map(pool.map((i) => [i.id, i]));
-      result = content.itemIds.flatMap((id) => (byId.has(id) ? [byId.get(id)!] : []));
-      break;
-    }
-    default:
-      result = pool;
-  }
-  return ignoreLimit || content.source === 'manual' ? result : result.slice(0, content.limit);
+/** Ítems de una sección de productos o servicios (colección dinámica). */
+export function resolveSectionItems(content: ItemSourceContent, items: CatalogItemView[], options: { ignoreLimit?: boolean } = {}): CatalogItemView[] {
+  return resolveCollection(content.collection, items, options);
 }
 
 export type ResolvedBadge = { key: string; label: string; color: string };
@@ -83,4 +62,21 @@ export function firstVisibleSection<T extends { visible: boolean }>(sections: T[
 /** El header "transparente" se superpone sólo si la página empieza con un hero. */
 export function headerOverlaysPage(theme: ThemeConfig, sections: { visible: boolean; type: string }[]): boolean {
   return theme.header.style === 'transparent' && firstVisibleSection(sections)?.type === 'hero';
+}
+
+/**
+ * "Degradado + texto claro" sin colores propios (los defaults son blanco →
+ * gris claro: el texto no se leería). Las plantillas, los blueprints y
+ * Garfield lo usan para decir "un degradado de marca": aquí se completa con
+ * los colores del tema.
+ */
+export function withBrandGradients<T extends { style: { background: Background; textColor: string } }>(sections: T[], theme: ThemeConfig): T[] {
+  const { primary, accent } = theme.colors;
+  const to = contrastRatio(accent, '#FFFFFF') >= 3 && accent.toLowerCase() !== primary.toLowerCase() ? accent : mix(primary, '#000000', 0.35);
+  return sections.map((section) => {
+    const bg = section.style.background;
+    const isDefault = bg.type === 'gradient' && bg.gradient.from.toUpperCase() === '#FFFFFF' && bg.gradient.to.toUpperCase() === '#E8E8E8';
+    if (!isDefault || section.style.textColor !== 'light') return section;
+    return { ...section, style: { ...section.style, background: { ...bg, gradient: { ...bg.gradient, from: primary, to } } } };
+  });
 }

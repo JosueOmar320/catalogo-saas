@@ -1,4 +1,5 @@
 import { parseContact, parseSocialLinks, type BusinessContact, type SocialLink } from '@/lib/business/profile';
+import { parseAttributeDefs, type AttributeDef } from '@/lib/catalog/attributes';
 import { parseCatalogSettings, parseSeo, type CatalogSeo, type CatalogSettings } from '@/lib/catalog/settings';
 import { catalogUrl, mapCategories, mapItems, type CatalogCategoryView, type CatalogItemView, type CategoryInput, type ItemInput } from '@/lib/catalog/view-model';
 import { parseTheme, type ThemeConfig } from '@/lib/design/theme';
@@ -28,6 +29,8 @@ export type SiteViewModel = {
   faviconUrl: string | null;
   categories: CatalogCategoryView[];
   items: CatalogItemView[];
+  /** Atributos personalizados definidos por el negocio. */
+  attributeDefs: AttributeDef[];
   pages: SitePage[];
   navigation: NavigationConfig;
   showBranding: boolean;
@@ -38,7 +41,7 @@ export type SiteViewModel = {
 
 export type SiteInput = {
   business: Pick<Tables<'businesses'>, 'name' | 'slug' | 'description' | 'logo_path' | 'contact' | 'social_links'> & { slogan?: string | null };
-  catalog: Pick<Tables<'catalogs'>, 'theme' | 'settings' | 'seo' | 'cover_path' | 'favicon_path' | 'published_at'> & { navigation?: unknown };
+  catalog: Pick<Tables<'catalogs'>, 'theme' | 'settings' | 'seo' | 'cover_path' | 'favicon_path' | 'published_at'> & { navigation?: unknown; attribute_defs?: unknown };
   categories: CategoryInput[];
   items: ItemInput[];
   pages: Parameters<typeof pageFromRow>[0][];
@@ -48,6 +51,7 @@ export type SiteInput = {
 export function buildSiteViewModel(input: SiteInput): SiteViewModel {
   const settings = parseCatalogSettings(input.catalog.settings);
   const categories = mapCategories(input.categories);
+  const attributeDefs = parseAttributeDefs(input.catalog.attribute_defs);
   return {
     business: {
       name: input.business.name,
@@ -64,7 +68,8 @@ export function buildSiteViewModel(input: SiteInput): SiteViewModel {
     coverUrl: publicStorageUrl(input.catalog.cover_path),
     faviconUrl: publicStorageUrl(input.catalog.favicon_path),
     categories,
-    items: mapItems(input.items, categories, input.business.slug, settings.locale),
+    items: mapItems(input.items, categories, input.business.slug, { locale: settings.locale, attributeDefs, priceFormat: settings.priceFormat }),
+    attributeDefs,
     pages: input.pages.map(pageFromRow),
     navigation: parseNavigation(input.catalog.navigation),
     showBranding: !input.removeBranding,

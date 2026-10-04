@@ -2,7 +2,7 @@
 import { Circle, Defs, G, Image, Line, Link, LinearGradient, Path, Polyline, RadialGradient, Rect, Stop, Svg, Text, View } from '@react-pdf/renderer';
 import type { Style } from '@react-pdf/types';
 import type { ReactNode } from 'react';
-import type { CatalogItemView } from '@/lib/catalog/view-model';
+import { discountPercent, type CatalogItemView } from '@/lib/catalog/view-model';
 import type { Background } from '@/lib/design/background';
 import { readableOn } from '@/lib/design/color';
 import { ICONS, isIconId } from '@/lib/design/icons';
@@ -180,16 +180,18 @@ export function headingStyle(ctx: PdfContext, size: number, color?: string): Sty
 
 /* ------------------------------------------------------------ Precio y badges */
 
-export function PdfPrice({ item, ctx, size, color, align }: { item: CatalogItemView; ctx: PdfContext; size?: number; color?: string; align?: 'left' | 'right' | 'center' }) {
+export function PdfPrice({ item, ctx, size, color, align, compare = true, discount = false }: { item: CatalogItemView; ctx: PdfContext; size?: number; color?: string; align?: 'left' | 'right' | 'center'; compare?: boolean; discount?: boolean }) {
   const { t } = ctx;
   const s = size ?? t.size.base * 1.1;
+  const percent = discount ? discountPercent(item) : null;
   return (
     <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4, flexWrap: 'wrap', justifyContent: align === 'right' ? 'flex-end' : align === 'center' ? 'center' : 'flex-start' }}>
       {item.priceLabel ? (
         <>
           {item.priceNote === 'desde' && <Text style={{ fontSize: t.size.tiny, color: t.colors.mutedText }}>desde</Text>}
           <Text style={{ fontFamily: t.fonts.price, fontWeight: 700, fontSize: s, color: color ?? t.colors.price }}>{item.priceLabel}</Text>
-          {item.compareAtLabel && <Text style={{ fontSize: t.size.tiny, color: t.colors.mutedText, textDecoration: 'line-through' }}>{item.compareAtLabel}</Text>}
+          {compare && item.compareAtLabel && <Text style={{ fontSize: t.size.tiny, color: t.colors.mutedText, textDecoration: 'line-through' }}>{item.compareAtLabel}</Text>}
+          {percent !== null && <PdfDiscount ctx={ctx} percent={percent} />}
           {item.priceNote && item.priceNote !== 'desde' && <Text style={{ fontSize: t.size.tiny, color: t.colors.mutedText }}>{item.priceNote}</Text>}
         </>
       ) : (
@@ -197,6 +199,12 @@ export function PdfPrice({ item, ctx, size, color, align }: { item: CatalogItemV
       )}
     </View>
   );
+}
+
+/** "-20%" en el color de error del tema. */
+export function PdfDiscount({ ctx, percent }: { ctx: PdfContext; percent: number }) {
+  const { t } = ctx;
+  return <Text style={{ fontSize: t.size.tiny, fontWeight: 700, color: t.colors.error, borderWidth: 0.6, borderColor: t.colors.error, borderRadius: 6, paddingHorizontal: 4, paddingVertical: 1 }}>-{percent}%</Text>;
 }
 
 export function PdfBadges({ item, ctx, style }: { item: CatalogItemView; ctx: PdfContext; style?: Style }) {
@@ -231,4 +239,80 @@ export function PdfBadges({ item, ctx, style }: { item: CatalogItemView; ctx: Pd
 export function PdfPicture({ ctx, url, style }: { ctx: PdfContext; url?: string | null; style: Style }) {
   const image = img(ctx, url);
   return image ? <Image src={image} style={{ objectFit: 'cover', ...style }} /> : <View style={{ backgroundColor: ctx.t.colors.soft, ...style }} />;
+}
+
+/** Máscara de las 4 esquinas de un hexágono (con 2 pt de sobra para tapar el borde de la imagen). */
+function hexMask(w: number, h: number) {
+  const e = 2;
+  return [
+    `M${-e} ${-e} H${w * 0.25} L${-e} ${h / 2} Z`,
+    `M${w * 0.75} ${-e} H${w + e} V${h / 2} Z`,
+    `M${-e} ${h / 2} L${w * 0.25} ${h + e} H${-e} Z`,
+    `M${w + e} ${h / 2} V${h + e} H${w * 0.75} Z`,
+    `M${-e} ${-e} H${w + e} V0 H${-e} Z M${-e} ${h} H${w + e} V${h + e} H${-e} Z`,
+  ].join(' ');
+}
+
+export type PdfShape = 'rect' | 'rounded' | 'circle' | 'arch' | 'hexagon';
+
+/**
+ * Imagen con forma (recta, redondeada, círculo, arco, hexágono) y marco
+ * opcional: la misma decisión que `presentation.shape` en la web.
+ */
+export function PdfShapedPicture({ ctx, url, width, height, shape = 'rect', frame, style }: { ctx: PdfContext; url?: string | null; width: number; height: number; shape?: PdfShape; frame?: boolean; style?: Style }) {
+  const { t } = ctx;
+  const w = shape === 'circle' || shape === 'hexagon' ? Math.min(width, height) : width;
+  const h = shape === 'circle' || shape === 'hexagon' ? w : height;
+  const radius: Style =
+    shape === 'rounded'
+      ? { borderRadius: t.radius }
+      : shape === 'circle'
+        ? { borderRadius: w / 2 }
+        : shape === 'arch'
+          ? { borderTopLeftRadius: w / 2, borderTopRightRadius: w / 2, borderBottomLeftRadius: t.radius * 0.5, borderBottomRightRadius: t.radius * 0.5 }
+          : {};
+  const picture =
+    shape === 'hexagon' ? (
+      <View style={{ width: w, height: h }}>
+        <PdfPicture ctx={ctx} url={url} style={{ width: w, height: h }} />
+        {/* Esquinas del hexágono tapadas con el color del papel. */}
+        <Svg width={w + 4} height={h + 4} viewBox={`-2 -2 ${w + 4} ${h + 4}`} style={{ position: 'absolute', top: -2, left: -2 }}>
+          <Path d={hexMask(w, h)} fill={t.colors.paper} />
+        </Svg>
+      </View>
+    ) : (
+      <PdfPicture ctx={ctx} url={url} style={{ width: w, height: h, ...radius }} />
+    );
+  if (!frame || shape === 'hexagon') return <View style={style}>{picture}</View>;
+  const pad = 4;
+  const outer: Style =
+    shape === 'circle'
+      ? { borderRadius: (w + pad * 2) / 2 }
+      : shape === 'arch'
+        ? { borderTopLeftRadius: (w + pad * 2) / 2, borderTopRightRadius: (w + pad * 2) / 2, borderBottomLeftRadius: t.radius * 0.5 + pad, borderBottomRightRadius: t.radius * 0.5 + pad }
+        : shape === 'rounded'
+          ? { borderRadius: t.radius + pad }
+          : {};
+  return (
+    <View style={{ padding: pad - 1, borderWidth: 1.2, borderColor: t.colors.accent, alignSelf: 'flex-start', ...outer, ...style }}>
+      {picture}
+    </View>
+  );
+}
+
+export function PdfLogo({ ctx, url, size }: { ctx: PdfContext; url: string | null; size: number }) {
+  const image = img(ctx, url);
+  return image ? <Image src={image} style={{ width: size, height: size, objectFit: 'contain' }} /> : null;
+}
+
+/** Línea ◆ línea: separador ornamental. */
+export function PdfOrnament({ ctx, width = 140, color }: { ctx: PdfContext; width?: number; color?: string }) {
+  const c = color ?? ctx.t.colors.accent;
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, width, alignSelf: 'center' }}>
+      <View style={{ flex: 1, height: 0.6, backgroundColor: c }} />
+      <Text style={{ fontSize: 7, color: c }}>◆</Text>
+      <View style={{ flex: 1, height: 0.6, backgroundColor: c }} />
+    </View>
+  );
 }

@@ -364,14 +364,15 @@ const BG_LABELS: Record<(typeof BACKGROUND_TYPES)[number], string> = {
   gradient: 'Degradado',
   image: 'Imagen',
   pattern: 'Patrón',
+  video: 'Video',
 };
 
 /**
  * Editor de fondo reutilizable (global, página, sección, header, footer, PDF).
  * `allowInherit` muestra la opción "Heredado" (usa el fondo del nivel superior).
  */
-export function BackgroundEditor({ value, onChange, allowInherit = true, inheritLabel = 'Heredado' }: { value: Background; onChange: (value: Background) => void; allowInherit?: boolean; inheritLabel?: string }) {
-  const types = BACKGROUND_TYPES.filter((t) => allowInherit || t !== 'inherit');
+export function BackgroundEditor({ value, onChange, allowInherit = true, inheritLabel = 'Heredado', allowVideo = false }: { value: Background; onChange: (value: Background) => void; allowInherit?: boolean; inheritLabel?: string; allowVideo?: boolean }) {
+  const types = BACKGROUND_TYPES.filter((t) => (allowInherit || t !== 'inherit') && (allowVideo || t !== 'video' || value.type === 'video'));
   const set = (patch: Partial<Background>) => onChange({ ...value, ...patch });
   return (
     <Stack spacing={1.5}>
@@ -383,8 +384,18 @@ export function BackgroundEditor({ value, onChange, allowInherit = true, inherit
         ))}
       </ToggleButtonGroup>
 
-      {(value.type === 'color' || value.type === 'pattern' || value.type === 'image') && (
-        <ColorInput label={value.type === 'color' ? 'Color' : 'Color base'} value={value.color} onChange={(color) => set({ color })} />
+      {(value.type === 'color' || value.type === 'pattern' || value.type === 'image' || value.type === 'video') && (
+        <ColorInput label={value.type === 'color' ? 'Color' : value.type === 'video' ? 'Color mientras carga (y en el PDF)' : 'Color base'} value={value.color} onChange={(color) => set({ color })} />
+      )}
+
+      {value.type === 'video' && (
+        <TextInput
+          label="Enlace del video (.mp4 o .webm)"
+          value={value.video.url}
+          placeholder="https://…/video.mp4"
+          helper="Se reproduce en silencio y en bucle. Usa el overlay para que el texto se lea bien."
+          onChange={(url) => set({ video: { url: url.trim() } })}
+        />
       )}
 
       {value.type === 'gradient' && (
@@ -401,10 +412,26 @@ export function BackgroundEditor({ value, onChange, allowInherit = true, inherit
       {value.type === 'image' && (
         <>
           <MediaInput label="Imagen de fondo" value={value.image.path} onChange={(path) => set({ image: { ...value.image, path } })} aspect="16 / 9" width={140} />
-          <SelectInput label="Posición" value={value.image.position} onChange={(position) => set({ image: { ...value.image, position } })} options={[{ value: 'center', label: 'Centro' }, { value: 'top', label: 'Arriba' }, { value: 'bottom', label: 'Abajo' }, { value: 'left', label: 'Izquierda' }, { value: 'right', label: 'Derecha' }]} />
+          <SelectInput
+            label="Posición"
+            value={value.image.position}
+            onChange={(position) => set({ image: { ...value.image, position } })}
+            options={[
+              { value: 'center', label: 'Centro' },
+              { value: 'top', label: 'Arriba' },
+              { value: 'bottom', label: 'Abajo' },
+              { value: 'left', label: 'Izquierda' },
+              { value: 'right', label: 'Derecha' },
+              { value: 'top left', label: 'Arriba a la izquierda' },
+              { value: 'top right', label: 'Arriba a la derecha' },
+              { value: 'bottom left', label: 'Abajo a la izquierda' },
+              { value: 'bottom right', label: 'Abajo a la derecha' },
+            ]}
+          />
           <Advanced title="Ajustes de imagen">
             <Segmented label="Tamaño" value={value.image.size} onChange={(size) => set({ image: { ...value.image, size } })} options={[{ value: 'cover', label: 'Cubrir' }, { value: 'contain', label: 'Contener' }, { value: 'auto', label: 'Original' }]} />
             <SwitchRow label="Repetir (mosaico)" checked={value.image.repeat} onChange={(repeat) => set({ image: { ...value.image, repeat } })} />
+            <SwitchRow label="Fija al hacer scroll (parallax)" checked={value.image.fixed} onChange={(fixed) => set({ image: { ...value.image, fixed } })} />
             <SliderInput label="Opacidad de la imagen" value={value.image.opacity} min={0} max={100} format={(v) => `${v}%`} onChange={(opacity) => set({ image: { ...value.image, opacity } })} />
           </Advanced>
         </>
@@ -440,7 +467,7 @@ export function BackgroundEditor({ value, onChange, allowInherit = true, inherit
         </>
       )}
 
-      {(value.type === 'image' || value.type === 'gradient' || value.type === 'pattern') && (
+      {(value.type === 'image' || value.type === 'gradient' || value.type === 'pattern' || value.type === 'video') && (
         <>
           <ColorInput label="Color del overlay" value={value.overlay.color} onChange={(color) => set({ overlay: { ...value.overlay, color } })} />
           <SliderInput label="Overlay (oscurecer/aclarar)" value={value.overlay.opacity} min={0} max={90} format={(v) => `${v}%`} onChange={(opacity) => set({ overlay: { ...value.overlay, opacity } })} />

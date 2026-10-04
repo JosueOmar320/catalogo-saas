@@ -8,20 +8,29 @@ export function publicStorageUrl(path: string | null | undefined): string | null
   return `${base}/storage/v1/object/public/${env.storageBucket}/${path.split('/').map(encodeURIComponent).join('/')}`;
 }
 
-export const MEDIA_KINDS = ['logo', 'cover', 'favicon', 'category', 'items', 'og', 'site'] as const;
+/** Carpetas físicas. Las nuevas subidas van a `media/`; las demás existen por compatibilidad. */
+export const MEDIA_KINDS = ['logo', 'cover', 'favicon', 'category', 'items', 'og', 'site', 'media'] as const;
 export type MediaKind = (typeof MEDIA_KINDS)[number];
 
-/** Verifica que una ruta pertenezca al negocio (primer segmento = business_id). */
+/**
+ * Verifica que una ruta pertenezca al negocio (primer segmento = business_id).
+ * Cualquier carpeta sirve para cualquier uso: una imagen se reutiliza sin copiarla.
+ */
 export function isPathOwnedBy(path: string, businessId: string, kind?: MediaKind): boolean {
   const [owner, folder, file] = path.split('/');
   if (owner !== businessId || !file || path.includes('..')) return false;
   return kind ? folder === kind : (MEDIA_KINDS as readonly string[]).includes(folder);
 }
 
+/** Referencia a una imagen externa (registrada en la biblioteca como `storage_provider = 'external'`). */
+export function isExternalMediaUrl(ref: string | null | undefined): ref is string {
+  return typeof ref === 'string' && /^https:\/\//.test(ref);
+}
+
 /**
- * URL de una imagen referenciada por el sitio. Las rutas son de Storage; las
- * URLs absolutas sólo aparecen en datos de ejemplo (el servidor rechaza
- * guardar rutas ajenas al negocio).
+ * URL de una imagen referenciada por el contenido: clave de Storage del
+ * negocio o URL externa registrada en la biblioteca (el servidor rechaza
+ * cualquier otra cosa al guardar).
  */
 export function mediaUrl(path: string | null | undefined): string | null {
   if (!path) return null;

@@ -94,9 +94,7 @@ export function pageToRow(page: SitePage) {
   };
 }
 
-export function findHome(pages: SitePage[]): SitePage | undefined {
-  return pages.find((p) => p.isHome) ?? pages[0];
-}
+export { findHome } from './find-home';
 
 export function newPage(title: string, slug: string, sections: Section[], template: PageTemplate = 'custom', id: string = crypto.randomUUID()): SitePage {
   return {

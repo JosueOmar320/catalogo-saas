@@ -2,6 +2,7 @@ import type { ComponentType } from 'react';
 import type { SectionType } from '@/lib/site/section-schemas';
 import { BannerSection } from './BannerSection';
 import { CatalogSection } from './CatalogSection';
+import { ColumnsSection } from './ColumnsSection';
 import { CategoriesSection } from './CategoriesSection';
 import { ContactSection } from './ContactSection';
 import { FeaturesSection } from './FeaturesSection';
@@ -13,7 +14,14 @@ import { SocialSection } from './SocialSection';
 import { SpacerSection } from './SpacerSection';
 import { TestimonialsSection } from './TestimonialsSection';
 import { TextSection } from './TextSection';
+import { FaqSection } from './FaqSection';
+import { ImageSection } from './ImageSection';
+import { LogosSection } from './LogosSection';
+import { PricingSection } from './PricingSection';
+import { StatsSection } from './StatsSection';
+import { TeamSection } from './TeamSection';
 import type { SectionProps } from './types';
+import { VideoSection } from './VideoSection';
 
 /**
  * Registro de renderers web. TypeScript exige un componente por cada tipo de
@@ -33,6 +41,14 @@ export const SECTION_COMPONENTS: { [T in SectionType]: ComponentType<SectionProp
   contact: ContactSection,
   social: SocialSection,
   spacer: SpacerSection,
+  image: ImageSection,
+  video: VideoSection,
+  faq: FaqSection,
+  pricing: PricingSection,
+  team: TeamSection,
+  stats: StatsSection,
+  logos: LogosSection,
+  columns: ColumnsSection,
 };
 
 export type { SectionProps } from './types';

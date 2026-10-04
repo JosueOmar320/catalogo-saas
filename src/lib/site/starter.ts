@@ -1,3 +1,4 @@
+import { PAGE_BLUEPRINT_DEFS } from './blueprints';
 import { navigationFromPages, type NavigationConfig } from './navigation';
 import { newPage, type SitePage } from './pages';
 import { createSection, type Section } from './section-schemas';
@@ -85,25 +86,11 @@ export function buildStarterSite(offering: BusinessOffering): { pages: SitePage[
   return { pages, navigation: navigationFromPages(pages) };
 }
 
-/** Plantillas para "Nueva página" en el builder. */
-export const PAGE_BLUEPRINTS: { template: SitePage['template']; title: string; slug: string; description: string; sections: () => Section[] }[] = [
-  { template: 'custom', title: 'Página en blanco', slug: 'nueva-pagina', description: 'Empieza desde cero.', sections: () => [createSection('text', { title: 'Título de la página' })] },
-  { template: 'products', title: 'Productos', slug: 'productos', description: 'Catálogo con buscador y categorías.', sections: () => [createSection('catalog', { title: 'Productos', itemType: 'product' })] },
-  { template: 'services', title: 'Servicios', slug: 'servicios', description: 'Lista de servicios con botón de contacto.', sections: () => [createSection('services', { title: 'Servicios' })] },
-  {
-    template: 'promotions',
-    title: 'Promociones',
-    slug: 'promociones',
-    description: 'Banner + productos en oferta.',
-    sections: () => [
-      createSection('banner', { title: 'Promociones de la semana', layout: 'full', height: 'md' }, { background: { type: 'gradient' } }),
-      createSection('products', { title: 'En oferta', source: 'all' }),
-    ],
-  },
-  { template: 'about', title: 'Nosotros', slug: 'nosotros', description: 'Historia, equipo y galería.', sections: () => [createSection('text', { title: 'Quiénes somos' }), createSection('gallery', { title: 'Galería' })] },
-  { template: 'gallery', title: 'Galería', slug: 'galeria', description: 'Portafolio o fotos del lugar.', sections: () => [createSection('gallery', { title: 'Galería', layout: 'masonry' })] },
-  { template: 'contact', title: 'Contacto', slug: 'contacto', description: 'Datos de contacto y mapa.', sections: () => [createSection('contact', { title: 'Contacto', showMap: true })] },
-];
+/** Plantillas para "Nueva página" en el builder (las mismas que usa Garfield AI). */
+export const PAGE_BLUEPRINTS = (['blank', 'home', 'products', 'services', 'menu', 'promotions', 'about', 'gallery', 'contact'] as const).map((id) => {
+  const bp = PAGE_BLUEPRINT_DEFS[id];
+  return { ...bp, sections: () => bp.sections({}) };
+});
 
 /**
  * Página de inicio equivalente a la v1 (hero + catálogo completo + contacto).

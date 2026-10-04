@@ -25,7 +25,7 @@ export function ItemCardPreview({ site, values, categoryName }: { site: SiteView
     price,
     compareAtPrice: compareAt,
     currency: values.currency,
-    priceLabel: price === null || Number.isNaN(price) ? null : formatPrice(price, values.currency, locale),
+    priceLabel: price === null || Number.isNaN(price) ? null : formatPrice(price, values.currency, locale, site.settings.priceFormat),
     compareAtLabel: compareAt !== null && price !== null && compareAt > price ? formatPrice(compareAt, values.currency, locale) : null,
     priceNote: values.priceNote || null,
     sku: values.sku || null,
@@ -39,6 +39,7 @@ export function ItemCardPreview({ site, values, categoryName }: { site: SiteView
     }),
     badges: values.badges ?? [],
     customBadge: values.customBadgeLabel ? { label: values.customBadgeLabel, color: values.customBadgeColor } : null,
+    attributes: values.attributeValues ?? {},
     createdAt: new Date(0).toISOString(),
     url: site.url,
   };

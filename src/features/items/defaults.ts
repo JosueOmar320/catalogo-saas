@@ -23,6 +23,7 @@ export function emptyItemValues(type: ItemType, currency: ItemFormValues['curren
     badges: [],
     customBadgeLabel: '',
     customBadgeColor: '#0F766E',
+    attributeValues: {},
   };
 }
 
@@ -34,6 +35,7 @@ export function itemToFormValues(item: Omit<AdminItem, 'images'> & { images: Tab
     badges: attributes.badges,
     customBadgeLabel: attributes.customBadge?.label ?? '',
     customBadgeColor: attributes.customBadge?.color ?? '#0F766E',
+    attributeValues: ((item.attributes as { values?: ItemFormValues['attributeValues'] } | null)?.values ?? {}) as ItemFormValues['attributeValues'],
     type: item.type,
     name: item.name,
     categoryId: item.category_id ?? '',

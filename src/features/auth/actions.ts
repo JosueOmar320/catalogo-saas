@@ -1,81 +1,93 @@
 'use server';
 
+import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { env } from '@/lib/env';
+import { getProfile, getUser, isPlatformAdmin } from '@/lib/auth/session';
+import { createAdminClient, isServiceRoleConfigured } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { fail, ok, type ActionResult } from '@/lib/utils/result';
 import { parseInput } from '@/lib/utils/validation';
-import {
-  forgotPasswordSchema,
-  resetPasswordSchema,
-  signInSchema,
-  signUpSchema,
-  type ForgotPasswordValues,
-  type ResetPasswordValues,
-  type SignInValues,
-  type SignUpValues,
-} from './schema';
+import { accountSchema, changePasswordSchema, signInSchema, type AccountValues, type ChangePasswordValues, type SignInValues } from './schema';
+
+const INVALID = 'Usuario o contraseña incorrectos.';
 
 /** Sólo se permiten redirecciones internas (evita open redirects). */
-function safeNext(next: string | null | undefined): string {
-  return next && next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard';
+function safeNext(next: string | null | undefined): string | null {
+  return next && next.startsWith('/') && !next.startsWith('//') ? next : null;
 }
 
+/**
+ * Login con usuario + contraseña. El servidor resuelve el usuario a su
+ * identificador de Supabase Auth con la service role (no hay ninguna API
+ * pública que revele emails) e inicia sesión con la sesión normal (RLS).
+ */
 export async function signIn(input: SignInValues, next?: string): Promise<ActionResult> {
   const parsed = parseInput(signInSchema, input);
   if (!parsed.success) return parsed.result;
-  const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword(parsed.data);
-  if (error) {
-    if (error.code === 'email_not_confirmed') return fail('Confirma tu email antes de entrar (revisa tu bandeja).');
-    return fail('Email o contraseña incorrectos.');
+  const { username, password } = parsed.data;
+
+  let loginEmail: string | null = null;
+  if (username.includes('@')) {
+    loginEmail = username; // cuentas creadas antes de la v4
+  } else {
+    if (!isServiceRoleConfigured()) return fail('El acceso con usuario requiere SUPABASE_SERVICE_ROLE_KEY en el servidor.');
+    const admin = createAdminClient();
+    const { data: profile } = await admin.from('profiles').select('id').eq('username', username).maybeSingle();
+    if (!profile) return fail(INVALID);
+    const { data } = await admin.auth.admin.getUserById(profile.id);
+    loginEmail = data.user?.email ?? null;
   }
-  redirect(safeNext(next));
-}
+  if (!loginEmail) return fail(INVALID);
 
-export async function signUp(input: SignUpValues): Promise<ActionResult<{ needsConfirmation: boolean }>> {
-  const parsed = parseInput(signUpSchema, input);
-  if (!parsed.success) return parsed.result;
   const supabase = await createClient();
-  const { data, error } = await supabase.auth.signUp({
-    email: parsed.data.email,
-    password: parsed.data.password,
-    options: {
-      data: { full_name: parsed.data.fullName },
-      emailRedirectTo: `${env.siteUrl}/auth/confirm?next=/onboarding`,
-    },
-  });
-  if (error) {
-    if (error.code === 'user_already_exists') return fail('Ya existe una cuenta con ese email.');
-    if (error.code === 'weak_password') return fail('La contraseña es muy débil.');
-    return fail('No se pudo crear la cuenta. Intenta de nuevo.');
+  const { data, error } = await supabase.auth.signInWithPassword({ email: loginEmail, password });
+  if (error || !data.user) return fail(INVALID);
+
+  // El estado se revisa DESPUÉS de validar la contraseña (no revela qué cuentas existen).
+  const { data: profile } = await supabase.from('profiles').select('status, platform_role').eq('id', data.user.id).single();
+  if (!profile || profile.status !== 'active') {
+    await supabase.auth.signOut();
+    return fail('Tu acceso está desactivado. Contacta al administrador.');
   }
-  if (data.session) redirect('/onboarding');
-  return ok({ needsConfirmation: true });
-}
-
-export async function requestPasswordReset(input: ForgotPasswordValues): Promise<ActionResult> {
-  const parsed = parseInput(forgotPasswordSchema, input);
-  if (!parsed.success) return parsed.result;
-  const supabase = await createClient();
-  await supabase.auth.resetPasswordForEmail(parsed.data.email, {
-    redirectTo: `${env.siteUrl}/auth/confirm?next=/reset-password`,
-  });
-  // Misma respuesta exista o no la cuenta (no revelar emails registrados).
-  return ok(undefined, 'Si el email está registrado, te enviamos un enlace para restablecer la contraseña.');
-}
-
-export async function updatePassword(input: ResetPasswordValues): Promise<ActionResult> {
-  const parsed = parseInput(resetPasswordSchema, input);
-  if (!parsed.success) return parsed.result;
-  const supabase = await createClient();
-  const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
-  if (error) return fail('No se pudo actualizar la contraseña. Solicita un nuevo enlace.');
-  redirect('/dashboard');
+  if (isServiceRoleConfigured()) {
+    await createAdminClient().from('profiles').update({ last_login_at: new Date().toISOString() }).eq('id', data.user.id);
+  }
+  redirect(safeNext(next) ?? (profile.platform_role === 'admin' ? '/admin' : '/dashboard'));
 }
 
 export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();
   redirect('/login');
+}
+
+/** Cambio de contraseña del propio usuario (verifica la actual). */
+export async function changePassword(input: ChangePasswordValues): Promise<ActionResult> {
+  const parsed = parseInput(changePasswordSchema, input);
+  if (!parsed.success) return parsed.result;
+  const user = await getUser();
+  if (!user?.email) return fail('Inicia sesión de nuevo.');
+  const supabase = await createClient();
+  const { error: wrong } = await supabase.auth.signInWithPassword({ email: user.email, password: parsed.data.currentPassword });
+  if (wrong) return fail('La contraseña actual no es correcta.', { currentPassword: ['La contraseña actual no es correcta'] });
+  const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
+  if (error) return fail(error.code === 'same_password' ? 'La nueva contraseña debe ser distinta.' : 'No se pudo cambiar la contraseña.');
+  return ok(undefined, 'Contraseña actualizada');
+}
+
+export async function updateAccount(input: AccountValues): Promise<ActionResult> {
+  const parsed = parseInput(accountSchema, input);
+  if (!parsed.success) return parsed.result;
+  const profile = await getProfile();
+  if (!profile) return fail('Inicia sesión de nuevo.');
+  const supabase = await createClient();
+  const { error } = await supabase.from('profiles').update({ full_name: parsed.data.fullName }).eq('id', profile.id);
+  if (error) return fail('No se pudo guardar.');
+  revalidatePath('/cuenta');
+  return ok(undefined, 'Datos guardados');
+}
+
+/** Destino inicial según el rol (para la página raíz del panel). */
+export async function homeFor(): Promise<string> {
+  return isPlatformAdmin(await getProfile()) ? '/admin' : '/dashboard';
 }

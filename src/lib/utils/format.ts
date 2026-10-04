@@ -1,24 +1,44 @@
 const formatterCache = new Map<string, Intl.NumberFormat>();
 
-/** Formatea un precio según moneda y locale del catálogo. */
-export function formatPrice(value: number, currency: string, locale = 'es-419'): string {
-  const key = `${locale}:${currency}`;
+type PriceFormatOptions = {
+  prefix?: string;
+  currencyDisplay?: 'symbol' | 'code' | 'none';
+  position?: 'before' | 'after';
+  decimals?: 'auto' | '0' | '2';
+};
+
+function numberFormatter(locale: string, digits: number) {
+  const key = `${locale}:${digits}`;
   let formatter = formatterCache.get(key);
   if (!formatter) {
-    try {
-      formatter = new Intl.NumberFormat(locale, {
-        style: 'currency',
-        currencyDisplay: 'narrowSymbol',
-        currency,
-        minimumFractionDigits: Number.isInteger(value) ? 0 : 2,
-        maximumFractionDigits: 2,
-      });
-    } catch {
-      formatter = new Intl.NumberFormat(locale, { maximumFractionDigits: 2 });
-    }
+    formatter = new Intl.NumberFormat(locale, { minimumFractionDigits: digits, maximumFractionDigits: digits });
     formatterCache.set(key, formatter);
   }
-  return formatter.format(value);
+  return formatter;
+}
+
+function currencySymbol(currency: string, locale: string): string {
+  try {
+    return new Intl.NumberFormat(locale, { style: 'currency', currency, currencyDisplay: 'narrowSymbol' })
+      .formatToParts(0)
+      .find((p) => p.type === 'currency')?.value ?? currency;
+  } catch {
+    return currency;
+  }
+}
+
+/**
+ * Formatea un precio según la moneda, el locale y el formato del catálogo:
+ * "$45", "365 C$", "VALOR: 30 USD", "$1,200.00".
+ */
+export function formatPrice(value: number, currency: string, locale = 'es-419', format: PriceFormatOptions = {}): string {
+  const digits = format.decimals === '2' ? 2 : format.decimals === '0' ? 0 : Number.isInteger(value) ? 0 : 2;
+  const number = numberFormatter(locale, digits).format(value);
+  const display = format.currencyDisplay ?? 'symbol';
+  const unit = display === 'none' ? '' : display === 'code' ? currency : currencySymbol(currency, locale);
+  const position = format.position ?? (display === 'code' ? 'after' : 'before');
+  const amount = !unit ? number : position === 'after' ? `${number} ${unit}` : `${unit}${unit.length > 1 && display === 'code' ? ' ' : ''}${number}`;
+  return format.prefix ? `${format.prefix} ${amount}` : amount;
 }
 
 export function formatBytes(bytes: number): string {

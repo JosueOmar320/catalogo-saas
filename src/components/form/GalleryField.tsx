@@ -1,13 +1,14 @@
 'use client';
 
 import { Box, ButtonBase, Chip, CircularProgress, IconButton, Stack, Tooltip, Typography } from '@mui/material';
-import { ChevronLeft, ChevronRight, ImagePlus, Star, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ImagePlus, Images, Star, Trash2 } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useDashboard } from '@/components/dashboard/DashboardContext';
 import { useToast } from '@/components/feedback/ToastProvider';
 import { moveItem } from '@/components/ui/SortableList';
 import { UploadError, uploadImage } from '@/features/media/client';
-import type { UploadedImage } from '@/features/media/schema';
+import { MediaLibraryDialog } from '@/features/media/components/MediaLibraryDialog';
+import { ACCEPTED_IMAGE_TYPES, MAX_UPLOAD_BYTES, type MediaRecord, type UploadedImage } from '@/features/media/schema';
 import { publicStorageUrl } from '@/lib/utils/storage';
 
 type Props = {
@@ -16,6 +17,13 @@ type Props = {
 };
 
 const TILE = { width: 112, height: 112 } as const;
+
+/** Imagen de la biblioteca → imagen del ítem (mismo archivo, sin copiar). */
+function toUploaded(record: MediaRecord): UploadedImage {
+  const mime = (ACCEPTED_IMAGE_TYPES as readonly string[]).includes(record.mimeType ?? '') ? (record.mimeType as UploadedImage['mimeType']) : null;
+  // La miniatura sólo si es otro archivo (las imágenes chicas usan la misma ruta).
+  return { path: record.path, thumbPath: record.thumbPath && record.thumbPath !== record.path ? record.thumbPath : null, width: record.width, height: record.height, sizeBytes: record.sizeBytes && record.sizeBytes <= MAX_UPLOAD_BYTES ? record.sizeBytes : null, mimeType: mime, alt: record.alt || record.name };
+}
 
 /**
  * Galería del ítem. Las imágenes se suben a Storage al elegirlas; la
@@ -27,6 +35,7 @@ export function GalleryField({ value, onChange }: Props) {
   const toast = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(0);
+  const [library, setLibrary] = useState(false);
   const remaining = maxImagesPerItem === null ? Infinity : maxImagesPerItem - value.length - uploading;
 
   const addFiles = async (files: File[]) => {
@@ -118,7 +127,16 @@ export function GalleryField({ value, onChange }: Props) {
             sx={{ ...TILE, borderRadius: 1.5, border: 1, borderStyle: 'dashed', borderColor: 'divider', flexDirection: 'column', gap: 0.5, color: 'text.secondary', '&:hover': { borderColor: 'primary.main', color: 'primary.main' } }}
           >
             <ImagePlus size={20} />
-            <Typography variant="caption">Agregar</Typography>
+            <Typography variant="caption">Subir</Typography>
+          </ButtonBase>
+        )}
+        {remaining > 0 && (
+          <ButtonBase
+            onClick={() => setLibrary(true)}
+            sx={{ ...TILE, borderRadius: 1.5, border: 1, borderStyle: 'dashed', borderColor: 'divider', flexDirection: 'column', gap: 0.5, color: 'text.secondary', '&:hover': { borderColor: 'primary.main', color: 'primary.main' } }}
+          >
+            <Images size={20} />
+            <Typography variant="caption">Biblioteca</Typography>
           </ButtonBase>
         )}
       </Box>
@@ -133,6 +151,18 @@ export function GalleryField({ value, onChange }: Props) {
         multiple
         hidden
         onChange={(e) => void addFiles(Array.from(e.target.files ?? []))}
+      />
+      <MediaLibraryDialog
+        open={library}
+        onClose={() => setLibrary(false)}
+        multiple
+        storageOnly
+        initialFolder="products"
+        onSelectMany={(records) => {
+          const fresh = records.filter((r) => !value.some((v) => v.path === r.path)).slice(0, Math.max(0, remaining));
+          if (fresh.length < records.length && remaining !== Infinity && records.length > remaining) toast.info(`Tu plan permite ${maxImagesPerItem} imágenes por ítem.`);
+          onChange([...value, ...fresh.map(toUploaded)]);
+        }}
       />
     </Box>
   );

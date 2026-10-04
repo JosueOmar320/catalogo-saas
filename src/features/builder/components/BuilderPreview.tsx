@@ -18,6 +18,8 @@ type Props = {
   onNavigate: (pageId: string) => void;
   onSelectSection: (sectionId: string) => void;
   notice?: string | null;
+  /** Aviso extra sobre la preview (p. ej. vista previa de Garfield). */
+  banner?: React.ReactNode;
 };
 
 /**
@@ -25,7 +27,7 @@ type Props = {
  * navegan entre páginas dentro del editor; un clic en una sección la abre
  * en el panel de edición. Container queries → tablet y móvil reales.
  */
-export function BuilderPreview({ site, pageId, selectedSectionId, device, onDevice, onNavigate, onSelectSection, notice }: Props) {
+export function BuilderPreview({ site, pageId, selectedSectionId, device, onDevice, onNavigate, onSelectSection, notice, banner }: Props) {
   const frame = useRef<HTMLDivElement>(null);
   const page = site.pages.find((p) => p.id === pageId) ?? site.pages[0];
 
@@ -70,6 +72,7 @@ export function BuilderPreview({ site, pageId, selectedSectionId, device, onDevi
           <IconButton href={page.isHome ? '/preview' : `/preview/${page.slug}`} target="_blank" aria-label="Abrir vista previa"><ExternalLink size={16} /></IconButton>
         </Tooltip>
       </Stack>
+      {banner}
       {notice && <Alert severity="info" sx={{ mb: 1.5, py: 0 }}>{notice}</Alert>}
       <Box sx={{ flex: 1, minHeight: 0, bgcolor: '#E9E9EE', borderRadius: 2, p: device === 'desktop' ? 0 : 2, display: 'flex', justifyContent: 'center', overflow: 'hidden' }}>
         <Box

@@ -44,7 +44,7 @@ export function ContactForm({ contact, actions, businessName }: { contact: Busin
             <Grid size={{ xs: 12, sm: 6 }}><TextFieldControl control={contactForm.control} name="website" label="Sitio web" placeholder="https://" /></Grid>
             <Grid size={{ xs: 12, sm: 8 }}><TextFieldControl control={contactForm.control} name="address" label="Dirección" /></Grid>
             <Grid size={{ xs: 12, sm: 4 }}><TextFieldControl control={contactForm.control} name="city" label="Ciudad" /></Grid>
-            <Grid size={12}><TextFieldControl control={contactForm.control} name="mapsUrl" label="Enlace de Google Maps" placeholder="https://maps.app.goo.gl/…" /></Grid>
+            <Grid size={12}><TextFieldControl control={contactForm.control} name="mapsUrl" label="Enlace de Google Maps" placeholder="https://maps.app.goo.gl/…" helperText="En Google Maps: Compartir → Copiar vínculo. Se usa para el botón de la dirección y para ubicar el pin del mapa." /></Grid>
             <Grid size={12}><TextFieldControl control={contactForm.control} name="hours" label="Horarios" multiline minRows={3} placeholder={'Lunes a viernes: 9:00 – 18:00\nSábado: 10:00 – 14:00'} /></Grid>
             <Grid size={12}><TextFieldControl control={contactForm.control} name="additionalInfo" label="Información adicional" multiline minRows={2} placeholder="Formas de pago, envíos, estacionamiento…" helperText="Se muestra en la sección de contacto y en el PDF." /></Grid>
           </Grid>
