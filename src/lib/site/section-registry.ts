@@ -23,6 +23,7 @@ export const SECTION_META: Record<SectionType, { label: string; description: str
   team: { label: 'Equipo', description: 'Personas con foto, cargo y descripción.', icon: 'users', group: 'Contenido' },
   stats: { label: 'Estadísticas', description: 'Cifras destacadas: clientes, años, proyectos…', icon: 'chart', group: 'Contenido' },
   logos: { label: 'Logos', description: 'Marcas, clientes o certificaciones.', icon: 'badge-check', group: 'Contenido' },
+  columns: { label: 'Columnas (libre)', description: 'Arma tu composición: imagen + texto, tarjetas, listas con íconos, varios botones, cifras…', icon: 'columns', group: 'Principal' },
 };
 
 export const SECTION_GROUPS = ['Principal', 'Catálogo', 'Contenido', 'Contacto', 'Diseño'] as const;

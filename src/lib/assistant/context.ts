@@ -20,7 +20,26 @@ const sectionSummary = z.object({
   details: text(300),
 });
 
+const pdfBlockSummary = z.object({ id: text(64), type: text(20), title: text(160), enabled: z.boolean(), newPage: z.boolean(), details: text(300) });
+
+/** Resumen del PDF (sólo en modo PDF). */
+export const pdfContextSchema = z.object({
+  template: text(30),
+  paper: text(40),
+  selectedBlockId: text(64).nullable(),
+  cover: text(200),
+  header: text(200),
+  footer: text(200),
+  style: text(200),
+  background: text(80),
+  blocks: z.array(pdfBlockSummary).max(40),
+});
+export type PdfAssistantContext = z.infer<typeof pdfContextSchema>;
+
 export const assistantContextSchema = z.object({
+  /** Dónde está el usuario: editor del sitio o estudio de PDF. Cambia qué acciones existen. */
+  mode: z.enum(['site', 'pdf']).default('site'),
+  pdf: pdfContextSchema.optional(),
   business: z.object({ name: text(120), slogan: text(200), description: text(400) }),
   panel: z.enum(['pages', 'navigation', 'design']),
   currentPageId: text(64),
@@ -60,10 +79,13 @@ export const assistantContextSchema = z.object({
     attributes: z.array(z.object({ id: text(40), name: text(40), type: text(10), options: z.array(text(40)).max(40) })).max(40),
   }),
   /** Los agrega el SERVIDOR (no se confía en el cliente): últimas imágenes y productos. */
-  media: z.array(z.object({ path: text(300), alt: text(300), source: text(10) })).max(40).optional(),
+  media: z.array(z.object({ path: text(1000), name: text(200), alt: text(300), folder: text(20), source: text(10) })).max(40).optional(),
+  /** El negocio tiene logo cargado (lo agrega el servidor). */
+  hasLogo: z.boolean().optional(),
   products: z.array(z.object({ id: text(64), name: text(160), type: text(10), category: text(80), price: z.number().nullable(), featured: z.boolean(), hasImage: z.boolean() })).max(80).optional(),
 });
 export type AssistantContext = z.infer<typeof assistantContextSchema>;
+export type AssistantMode = AssistantContext['mode'];
 
 function sectionDetails(section: Section): string {
   const c = section.content as Record<string, unknown>;
@@ -99,11 +121,15 @@ export function buildAssistantContext(input: {
   currentPageId: string;
   selectedSectionId: string | null;
   lastSectionIds: string[];
+  mode?: AssistantMode;
+  pdf?: PdfAssistantContext;
 }): AssistantContext {
   const { site, theme } = input;
   const inNav = (pageId: string) => input.navigation.items.some((i) => i.kind === 'page' && i.pageId === pageId && i.visible);
   const bg = theme.background;
   return {
+    mode: input.mode ?? 'site',
+    ...(input.pdf ? { pdf: input.pdf } : {}),
     business: { name: site.business.name.slice(0, 120), slogan: (site.business.slogan ?? '').slice(0, 200), description: (site.business.description ?? '').slice(0, 400) },
     panel: input.panel,
     currentPageId: input.currentPageId,

@@ -249,5 +249,53 @@ await expectOk('second admin can demote the first', () => q(`select public.admin
 await as(ADM);
 await expectEq('demoted admin loses admin access', () => q(`select count(*)::int n from public.audit_log`).then((r) => r[0].n), 0);
 
+
+// --- v5: biblioteca de medios (URLs externas, uso y reemplazo) ---
+await as(A);
+const OLD = `${bizA}/items/x.jpg`, NEW = `${bizA}/media/nueva.jpg`;
+await expectOk('external URL registered in library', () => q(`insert into public.media_assets(business_id, path, storage_provider, public_url, folder, name) values ($1,'https://cdn.example.com/a.jpg','external','https://cdn.example.com/a.jpg','backgrounds','Fondo') returning id`, [bizA]));
+await expectErr('external media must be https', () => q(`insert into public.media_assets(business_id, path, storage_provider) values ($1,'http://cdn.example.com/a.jpg','external')`, [bizA]), 'check constraint');
+await expectErr('storage media cannot point to a URL', () => q(`insert into public.media_assets(business_id, path) values ($1,'https://cdn.example.com/b.jpg')`, [bizA]), 'check constraint');
+await expectErr('unknown folder rejected', () => q(`insert into public.media_assets(business_id, path, folder) values ($1,$2,'secret')`, [bizA, `${bizA}/media/f.jpg`]), 'check constraint');
+const homeA = (await q(`select id from public.catalog_pages where business_id=$1 and deleted_at is null order by position limit 1`, [bizA]))[0].id;
+await q(`update public.catalog_pages set sections = sections || jsonb_build_array(jsonb_build_object('id','img1','type','image','content', jsonb_build_object('image', jsonb_build_object('path', $1::text)))) where id=$2`, [OLD, homeA]);
+await q(`update public.businesses set logo_path=$1 where id=$2`, [OLD, bizA]);
+await expectEq('media_references finds every use', () => q(`select place from public.media_references($1,$2) order by place`, [bizA, OLD]).then((r) => r.map((x) => x.place)), ['logo', 'page', 'product']);
+await expectErr('replace into another business path rejected', () => q(`select public.replace_media_references($1,$2,$3)`, [bizA, OLD, `${bizB}/media/x.jpg`]), 'invalid_path');
+await as(B);
+await expectEq('B cannot see where A media is used', () => q(`select count(*)::int n from public.media_references($1,$2)`, [bizA, OLD]).then((r) => r[0].n), 0);
+await expectEq('B cannot replace A media', () => q(`select public.replace_media_references($1,$2,$3) n`, [bizA, OLD, NEW]).then((r) => r[0].n), 0);
+await as(A);
+await expectEq('external URL can be reused by another business', () => q(`insert into public.media_assets(business_id, path, storage_provider) values ($1,'https://cdn.example.com/a.jpg','external') returning storage_provider`, [bizB]).then((r) => r[0].storage_provider), 'external');
+await expectOk('replace rewrites logo, page and product', async () => {
+  const [{ n }] = await q(`select public.replace_media_references($1,$2,$3,null) n`, [bizA, OLD, NEW]);
+  if (n < 3) throw new Error(`only ${n}`);
+  return n;
+});
+await expectEq('old path no longer referenced', () => q(`select count(*)::int n from public.media_references($1,$2)`, [bizA, OLD]).then((r) => r[0].n), 0);
+await expectEq('new path referenced everywhere', () => q(`select place from public.media_references($1,$2) order by place`, [bizA, NEW]).then((r) => r.map((x) => x.place)), ['logo', 'page', 'product']);
+await as(null);
+await expectErr('anon cannot inspect media usage', () => q(`select * from public.media_references($1,$2)`, [bizA, NEW]), 'permission denied');
+
+
+// --- Rendimiento: conteos del admin en SQL ---
+await as(A); // A es administrador en este punto de las pruebas
+await expectOk('admin_stats: totales para el admin', async () => {
+  const [{ s }] = await q(`select public.admin_stats() s`);
+  if (!s || s.users.total < 3 || s.businesses.total < 2 || typeof s.catalogs.published !== 'number') throw new Error(JSON.stringify(s));
+  return s.users;
+});
+await expectOk('admin_catalog_counts: páginas e ítems por catálogo', async () => {
+  const rows = await q(`select catalog_id, pages, items from public.admin_catalog_counts() where catalog_id=$1`, [catA.id]);
+  const direct = await q(`select (select count(*) from public.catalog_pages where catalog_id=$1 and deleted_at is null)::int p, (select count(*) from public.catalog_items where catalog_id=$1 and deleted_at is null)::int i`, [catA.id]);
+  if (Number(rows[0].pages) !== direct[0].p || Number(rows[0].items) !== direct[0].i) throw new Error(JSON.stringify({ rows, direct }));
+  return rows[0];
+});
+await as(JUAN);
+await expectEq('admin_stats: un usuario normal no ve nada', () => q(`select public.admin_stats() s`).then((r) => r[0].s), null);
+await expectEq('admin_catalog_counts: un usuario normal no ve nada', () => q(`select count(*)::int n from public.admin_catalog_counts()`).then((r) => r[0].n), 0);
+await as(null);
+await expectErr('anon no puede llamar admin_stats', () => q(`select public.admin_stats()`), 'permission denied');
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);

@@ -1,7 +1,8 @@
-import { resolveCollection } from '@/lib/catalog/collections';
+import { resolveCollection } from '@/lib/catalog/collections-core';
 import type { CatalogItemView } from '@/lib/catalog/view-model';
-import { backgroundTone, resolveBackground, type Background } from '@/lib/design/background';
-import { isDark } from '@/lib/design/color';
+import type { Background } from '@/lib/design/background';
+import { backgroundTone, resolveBackground } from '@/lib/design/background-core';
+import { contrastRatio, isDark, mix } from '@/lib/design/color';
 import type { ThemeConfig } from '@/lib/design/theme';
 import type { SectionOf } from './section-schemas';
 import type { SiteViewModel } from './view-model';
@@ -61,4 +62,21 @@ export function firstVisibleSection<T extends { visible: boolean }>(sections: T[
 /** El header "transparente" se superpone sólo si la página empieza con un hero. */
 export function headerOverlaysPage(theme: ThemeConfig, sections: { visible: boolean; type: string }[]): boolean {
   return theme.header.style === 'transparent' && firstVisibleSection(sections)?.type === 'hero';
+}
+
+/**
+ * "Degradado + texto claro" sin colores propios (los defaults son blanco →
+ * gris claro: el texto no se leería). Las plantillas, los blueprints y
+ * Garfield lo usan para decir "un degradado de marca": aquí se completa con
+ * los colores del tema.
+ */
+export function withBrandGradients<T extends { style: { background: Background; textColor: string } }>(sections: T[], theme: ThemeConfig): T[] {
+  const { primary, accent } = theme.colors;
+  const to = contrastRatio(accent, '#FFFFFF') >= 3 && accent.toLowerCase() !== primary.toLowerCase() ? accent : mix(primary, '#000000', 0.35);
+  return sections.map((section) => {
+    const bg = section.style.background;
+    const isDefault = bg.type === 'gradient' && bg.gradient.from.toUpperCase() === '#FFFFFF' && bg.gradient.to.toUpperCase() === '#E8E8E8';
+    if (!isDefault || section.style.textColor !== 'light') return section;
+    return { ...section, style: { ...section.style, background: { ...bg, gradient: { ...bg.gradient, from: primary, to } } } };
+  });
 }

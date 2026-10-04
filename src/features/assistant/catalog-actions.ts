@@ -3,12 +3,13 @@
 import { canManageCatalog, requireBusinessContext, type BusinessContext } from '@/lib/auth/session';
 import { isCatalogAction, parseActions, type CatalogAction } from '@/lib/assistant/actions';
 import { parseCatalogSettings } from '@/lib/catalog/settings';
-import { env } from '@/lib/env';
+import { fetchAllRows } from '@/lib/supabase/paginate';
 import { fail, ok, type ActionResult } from '@/lib/utils/result';
-import { isPathOwnedBy, type MediaKind } from '@/lib/utils/storage';
+import { isPathOwnedBy } from '@/lib/utils/storage';
 import { getItem } from '@/features/catalog/queries';
 import { reorder } from '@/features/catalog/reorder-actions';
 import { createCategory, deleteCategory, updateCategory } from '@/features/categories/actions';
+import { setBusinessLogo } from '@/features/business/actions';
 import { deleteItem, saveItem } from '@/features/items/actions';
 import { emptyItemValues, itemToFormValues } from '@/features/items/defaults';
 import type { ItemFormValues } from '@/features/items/schema';
@@ -34,12 +35,13 @@ export async function applyCatalogActions(raw: unknown[]): Promise<ActionResult<
   const catalogActions = actions.filter(isCatalogAction);
   if (catalogActions.length === 0) return ok({ results: [], aliases: {} });
 
-  const [{ data: categories }, { data: items }] = await Promise.all([
-    ctx.supabase.from('categories').select('id, name').eq('catalog_id', ctx.catalog.id).is('deleted_at', null),
-    ctx.supabase.from('catalog_items').select('id, name').eq('catalog_id', ctx.catalog.id).is('deleted_at', null),
+  // Por páginas: con más de 1000 productos la lista se cortaría y "el producto X" no se encontraría.
+  const [categories, items] = await Promise.all([
+    fetchAllRows((from, to) => ctx.supabase.from('categories').select('id, name').eq('catalog_id', ctx.catalog.id).is('deleted_at', null).order('id').range(from, to)),
+    fetchAllRows((from, to) => ctx.supabase.from('catalog_items').select('id, name').eq('catalog_id', ctx.catalog.id).is('deleted_at', null).order('id').range(from, to)),
   ]);
-  const categoryList = [...(categories ?? [])];
-  const itemList = [...(items ?? [])];
+  const categoryList = [...categories];
+  const itemList = [...items];
   const aliases: Record<string, string> = {};
   const currency = parseCatalogSettings(ctx.catalog.settings).currency;
 
@@ -80,39 +82,35 @@ function unwrap<T>(result: ActionResult<T>): T {
   return result.data;
 }
 
-/**
- * Imagen de la biblioteca → carpeta que exige el destino (items/category).
- * Si está en otra carpeta del negocio (p. ej. importada para una sección), se copia.
- */
-async function imageFor(ctx: BusinessContext, path: string, kind: MediaKind): Promise<{ path: string; width: number | null; height: number | null; mime: string | null; size: number | null; alt: string }> {
+/** Imagen de la biblioteca para un producto o categoría (debe ser un archivo propio, no un enlace externo). */
+async function imageFor(ctx: BusinessContext, path: string): Promise<{ path: string; thumbPath: string | null; width: number | null; height: number | null; mime: string | null; size: number | null; alt: string }> {
   if (!isPathOwnedBy(path, ctx.business.id)) throw new Error('Una de las imágenes no pertenece al negocio.');
-  const { data: asset } = await ctx.supabase.from('media_assets').select('path, width, height, mime_type, size_bytes, alt').eq('business_id', ctx.business.id).eq('path', path).is('deleted_at', null).maybeSingle();
+  const { data: asset } = await ctx.supabase.from('media_assets').select('path, thumb_path, width, height, mime_type, size_bytes, alt').eq('business_id', ctx.business.id).eq('path', path).is('deleted_at', null).maybeSingle();
   if (!asset) throw new Error('Una de las imágenes no está en la biblioteca.');
-  let finalPath = path;
-  if (!isPathOwnedBy(path, ctx.business.id, kind)) {
-    const extension = path.split('.').pop() ?? 'jpg';
-    finalPath = `${ctx.business.id}/${kind}/${crypto.randomUUID()}.${extension}`;
-    const { error } = await ctx.supabase.storage.from(env.storageBucket).copy(path, finalPath);
-    if (error) throw new Error('No se pudo preparar la imagen.');
-    await ctx.supabase.from('media_assets').insert({ business_id: ctx.business.id, path: finalPath, kind, width: asset.width, height: asset.height, mime_type: asset.mime_type, size_bytes: asset.size_bytes, alt: asset.alt, source: 'import' });
-  }
-  return { path: finalPath, width: asset.width, height: asset.height, mime: asset.mime_type, size: asset.size_bytes, alt: asset.alt };
+  // Cualquier imagen propia sirve para cualquier uso: se reutiliza el MISMO archivo (sin copias).
+  return { path, thumbPath: asset.thumb_path && asset.thumb_path !== path ? asset.thumb_path : null, width: asset.width, height: asset.height, mime: asset.mime_type, size: asset.size_bytes, alt: asset.alt };
 }
 
 async function productImages(ctx: BusinessContext, paths: string[]): Promise<ItemFormValues['images']> {
   const images: ItemFormValues['images'] = [];
   for (const path of paths) {
-    const image = await imageFor(ctx, path, 'items');
+    const image = await imageFor(ctx, path);
     const mime = image.mime === 'image/png' || image.mime === 'image/webp' || image.mime === 'image/jpeg' ? image.mime : null;
-    images.push({ path: image.path, thumbPath: null, width: image.width, height: image.height, sizeBytes: image.size, mimeType: mime, alt: image.alt });
+    images.push({ path: image.path, thumbPath: image.thumbPath, width: image.width, height: image.height, sizeBytes: image.size, mimeType: mime, alt: image.alt });
   }
   return images;
 }
 
 async function applyOne(ctx: BusinessContext, action: CatalogAction, h: Helpers): Promise<string> {
   switch (action.action) {
+    case 'set_logo': {
+      if (!action.path) throw new Error('No encontré un logo en tu biblioteca. Súbelo en Medios (carpeta Logos).');
+      if (!isPathOwnedBy(action.path, ctx.business.id)) throw new Error('El logo debe estar en tu biblioteca: importa la imagen primero.');
+      unwrap(await setBusinessLogo(action.path));
+      return 'Logo del negocio actualizado';
+    }
     case 'create_category': {
-      const imagePath = action.imagePath ? (await imageFor(ctx, action.imagePath, 'category')).path : null;
+      const imagePath = action.imagePath ? (await imageFor(ctx, action.imagePath)).path : null;
       const { id } = unwrap(await createCategory({ name: action.name, description: action.description ?? '', imagePath, isActive: true }));
       h.categoryList.push({ id, name: action.name });
       if (action.as) h.aliases[action.as] = id;
@@ -122,7 +120,7 @@ async function applyOne(ctx: BusinessContext, action: CatalogAction, h: Helpers)
       const id = h.resolve(h.categoryList, action.category, 'la categoría');
       const { data: current } = await ctx.supabase.from('categories').select('name, description, image_path, is_active').eq('id', id).single();
       if (!current) throw new Error('La categoría ya no existe.');
-      const imagePath = action.imagePath === undefined ? current.image_path : action.imagePath === null ? null : (await imageFor(ctx, action.imagePath, 'category')).path;
+      const imagePath = action.imagePath === undefined ? current.image_path : action.imagePath === null ? null : (await imageFor(ctx, action.imagePath)).path;
       unwrap(await updateCategory(id, { name: action.name ?? current.name, description: action.description ?? current.description ?? '', imagePath, isActive: action.active ?? current.is_active }));
       return `Categoría «${action.name ?? current.name}» actualizada`;
     }

@@ -1,5 +1,7 @@
 import type { AssistantContext } from '@/lib/assistant/context';
 import type { PageBlueprintId } from '@/lib/site/blueprints';
+import { columnPreset } from '@/lib/site/column-presets';
+import { SITE_TEMPLATES, SITE_TEMPLATE_WORDS } from '@/lib/site/templates';
 import type { SectionType } from '@/lib/site/section-schemas';
 
 /**
@@ -21,6 +23,20 @@ const norm = (value: string) =>
     .trim();
 
 const has = (text: string, ...words: string[]) => words.some((w) => text.includes(w));
+
+/** "cuatro columnas" → "4 columnas" ("una/uno" no: son artículos en casi todos los pedidos). */
+const NUMBER_WORDS: Record<string, string> = { dos: '2', tres: '3', cuatro: '4', cinco: '5', seis: '6', siete: '7', ocho: '8', nueve: '9', diez: '10', doce: '12' };
+const withDigits = (text: string) => text.replace(/\b(dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|doce)\b/g, (w) => NUMBER_WORDS[w]);
+
+/** Secciones (no de productos) cuyas columnas se pueden cambiar. */
+const COLUMN_SECTIONS = new Set(['features', 'gallery', 'team', 'pricing', 'logos']);
+
+/** "una foto de comida para el hero" → "comida". */
+function mediaQueryFrom(text: string): string | undefined {
+  const match = text.match(/(?:fotos?|imagen(?:es)?|fotografias?)\s+(?:de|con|del|sobre)\s+(?:la |el |los |las |un |una |mi |mis |nuestra |nuestro )?(.+?)(?=\s+(?:y|para|en|como|al|a la|de fondo)\b|$)/);
+  const query = match?.[1]?.replace(/\b(fondo|portada|hero|biblioteca|mis imagenes)\b/g, '').trim();
+  return query && query.length > 1 ? query.slice(0, 60) : undefined;
+}
 
 const COLORS: [string[], string][] = [
   [['blanco'], '#FFFFFF'],
@@ -94,6 +110,12 @@ const PAGE_WORDS: [string[], PageBlueprintId, string][] = [
 type SectionIntent = { type: SectionType; content: Record<string, unknown>; style?: Record<string, unknown> };
 
 const SECTION_WORDS: [string[], () => SectionIntent[]][] = [
+  [['imagen y texto', 'imagen con texto', 'texto e imagen', 'texto con imagen', 'foto y texto', 'foto con texto'], () => [{ type: 'columns', content: columnPreset('imageText') }]],
+  [['tres tarjetas', '3 tarjetas', 'tarjetas de servicios', 'tarjetas con iconos'], () => [{ type: 'columns', content: columnPreset('threeCards') }]],
+  [['proceso', 'pasos', 'como trabajamos', 'como funciona'], () => [{ type: 'columns', content: { title: '¿Cómo trabajamos?', ...columnPreset('steps') } }]],
+  [['lista de beneficios', 'beneficios con imagen', 'lista con iconos'], () => [{ type: 'columns', content: columnPreset('benefitsImage') }]],
+  [['dos botones', '2 botones', 'varios botones'], () => [{ type: 'columns', content: columnPreset('ctaButtons') }]],
+  [['columnas', 'composicion libre'], () => [{ type: 'columns', content: columnPreset('imageText') }]],
   [['preguntas frecuentes', 'faq', 'dudas frecuentes'], () => [{ type: 'faq', content: { title: 'Preguntas frecuentes', items: [{ question: '¿Hacen envíos?', answer: 'Sí, escríbenos y te cotizamos el envío a tu zona.' }, { question: '¿Qué formas de pago aceptan?', answer: 'Efectivo, transferencia y tarjeta.' }] } }]],
   [['planes', 'paquetes', 'membresia', 'tabla de precios'], () => [{ type: 'pricing', content: { title: 'Planes', plans: [{ name: 'Básico', price: '$199', period: '/mes', features: ['Beneficio 1', 'Beneficio 2'] }, { name: 'Pro', price: '$399', period: '/mes', features: ['Todo lo del Básico', 'Beneficio extra'], highlighted: true, badge: 'Más elegido' }] } }]],
   [['equipo', 'quienes somos'], () => [{ type: 'team', content: { title: 'Nuestro equipo' } }]],
@@ -139,7 +161,7 @@ const LAYOUT_WORDS: [string[], string][] = [
 const PRODUCT_TYPES = ['products', 'services', 'catalog'];
 
 export function rulesRespond(raw: string, ctx: AssistantContext): Out {
-  const text = norm(raw);
+  const text = withDigits(norm(raw));
   const page = ctx.pages.find((p) => p.id === ctx.currentPageId) ?? ctx.pages[0];
   const selected = page?.sections.find((s) => s.id === ctx.selectedSectionId) ?? ctx.pages.flatMap((p) => p.sections).find((s) => s.id === ctx.selectedSectionId);
   const refersToThis = /\b(esta|este|esto|aqui|la seleccionada)\b/.test(text);
@@ -179,8 +201,79 @@ export function rulesRespond(raw: string, ctx: AssistantContext): Out {
       ['Oscurece un poco más el fondo', 'Cambia el título de esta sección'],
     );
   }
-  if (has(text, 'imagen', 'foto') && has(text, 'fondo', 'hero', 'agrega', 'pon')) {
-    return done('En modo básico puedo usar imágenes que adjuntes aquí (botón 🖼️) o que elijas de la biblioteca. Con IA activada también puedo buscar fotos libres por ti.', [], []);
+  /* ---------------- Logo */
+  if (/\blogo\b/.test(text) && has(text, 'header', 'encabezado', 'menu', 'arriba', 'usa', 'pon', 'muestra', 'agrega')) {
+    if (has(text, 'quita', 'oculta', 'sin logo')) return done('Oculté el logo del encabezado.', [{ action: 'update_theme', header: { showLogo: false } }], []);
+    if (ctx.hasLogo) return done('Listo: el logo del negocio se muestra en el encabezado.', [{ action: 'update_theme', header: { showLogo: true } }], ['Centra el logo', 'Haz el encabezado fijo al hacer scroll']);
+    return done('Busqué el logo en tu biblioteca (carpeta Logos) para usarlo como logo del negocio y mostrarlo en el encabezado.', [{ action: 'set_logo', media: { folder: 'logos' }, showInHeader: true }], ['Centra el logo']);
+  }
+
+  /* ---------------- Galería con las últimas N imágenes */
+  const latest = text.match(/\b(?:ultimas|recientes|mas recientes)\s+(\d{1,2})\s+(?:imagenes|fotos)\b/) ?? text.match(/\b(\d{1,2})\s+(?:imagenes|fotos)\s+(?:mas\s+)?recientes\b/);
+  if (latest && has(text, 'galeria', 'fotos', 'imagenes')) {
+    const count = Math.min(40, Math.max(1, Number(latest[1])));
+    const query = mediaQueryFrom(text.replace(latest[0], ''));
+    const media = { latest: count, ...(query ? { query } : {}) };
+    const existing = selected?.type === 'gallery' ? 'selected' : page?.sections.some((x) => x.type === 'gallery') && !has(text, 'agrega una galeria', 'crea una galeria', 'nueva galeria') ? 'type:gallery' : null;
+    if (existing) return done(`Agregué ${count} imágenes de tu biblioteca a la galería.`, [{ action: 'add_gallery_images', section: existing, media, replace: has(text, 'reemplaza', 'cambia') }], ['Muéstrala como mosaico', 'Ponla al final']);
+    return done(`Creé una galería con ${count} imágenes de tu biblioteca.`, [
+      { action: 'create_section', section: { type: 'gallery', content: { title: 'Galería' }, as: '$galeria' }, ...(positionFrom() ? { position: positionFrom() } : {}) },
+      { action: 'add_gallery_images', section: '$galeria', media },
+    ], ['Muéstrala como mosaico', 'Cambia el título de la galería']);
+  }
+
+  /* ---------------- Imágenes de fondo en varias secciones */
+  if (has(text, 'imagenes de fondo', 'fondos con imagen', 'fondos con fotos', 'fotos de fondo') || (has(text, 'imagen de fondo', 'foto de fondo') && has(text, 'secciones', 'todas', 'cada'))) {
+    const candidates = (page?.sections ?? []).filter((x) => ['hero', 'banner', 'stats', 'testimonials', 'columns', 'text', 'features'].includes(x.type)).slice(0, 4);
+    const query = mediaQueryFrom(text) ?? (page?.title && page.title.toLowerCase() !== 'inicio' ? page.title : ctx.business.name);
+    if (candidates.length) {
+      return done(
+        `Puse imágenes de fondo (oscurecidas para que se lea el texto) en ${candidates.length} secciones de «${page!.title}».`,
+        [...candidates.map((x) => ({ action: 'set_image', section: x.id, media: { query }, target: 'background', overlay: 55 })), { action: 'polish_page', page: 'current', intensity: 'balanced' }],
+        ['Hazla más llamativa', 'Usa otra imagen en el hero'],
+      );
+    }
+  }
+
+  /* ---------------- Más diseño (dirección de arte) */
+  if (has(text, 'llamativ', 'elaborad', 'mas diseno', 'con diseno', 'dale vida', 'mas vistos', 'mas visual', 'muy simple', 'muy sencill', 'aburrid', 'muy plana', 'mas atractiv', 'mas dinamic', 'mas profesional', 'mas impactante')) {
+    const intensity = has(text, 'mucho', 'muy llamativ', 'impactante', 'atrevid', 'audaz') ? 'bold' : has(text, 'un poco', 'sutil', 'ligeramente') ? 'subtle' : has(text, 'llamativ', 'dinamic', 'vida') ? 'bold' : 'balanced';
+    return done(
+      'Le di más diseño a la página: fondos alternados, bandas con tu color de marca' + (intensity === 'bold' ? ', degradados, divisores con ondas y parallax' : '') + '. Tus textos no cambiaron.',
+      [{ action: 'polish_page', page: 'current', intensity }],
+      ['Pon imágenes de fondo en las secciones', 'Agrega una sección de imagen y texto', 'Hazla todavía más llamativa'],
+    );
+  }
+
+  /* ---------------- Imagen de la biblioteca en una sección (por descripción) */
+  const composing = /\b(imagen|foto) (y|con|e) texto\b|\btexto (y|con|e) (imagen|foto)\b/.test(text) || /\b(agrega|crea|anade|inserta) (una|otra) seccion\b/.test(text);
+  if (!composing && has(text, 'imagen', 'foto', 'fotografia') && has(text, 'fondo', 'hero', 'portada', 'banner', 'seccion', 'usa', 'pon', 'busca', 'biblioteca', 'mis imagenes', 'mis fotos')) {
+    const query = mediaQueryFrom(text);
+    const section = has(text, 'hero', 'portada', 'principal') ? 'type:hero' : has(text, 'banner') ? 'type:banner' : /\b(esta|este) seccion\b/.test(text) && selected ? 'selected' : (typeFromWords(text.replace(/(fotos?|imagen(es)?) de .*/, '')) ?? (selected ? 'selected' : 'type:hero'));
+    const background = has(text, 'fondo');
+    return done(
+      query ? `Busqué una imagen de «${query}» en tu biblioteca y la puse${background ? ' de fondo' : ''}.` : `Usé una imagen de tu biblioteca${background ? ' como fondo' : ''}.`,
+      [{ action: 'set_image', section, media: query ? { query } : { folder: background ? 'backgrounds' : 'images' }, ...(background ? { target: 'background' } : {}) }],
+      ['Oscurece un poco más el fondo', 'Usa otra imagen', 'Cambia el título de esta sección'],
+    );
+  }
+
+  /* ---------------- Tema: espaciado, esquinas, sombras, ancho */
+  if (has(text, 'espacio', 'aire', 'espaciado') && has(text, 'mas', 'menos', 'compact')) {
+    const value = has(text, 'menos', 'compact') ? 'compact' : has(text, 'mucho') ? 'spacious' : 'relaxed';
+    return done(value === 'compact' ? 'Reduje el espacio entre secciones.' : 'Di más aire entre secciones.', [{ action: 'update_theme', spacing: { sectionPadding: value } }], []);
+  }
+  if (has(text, 'esquinas', 'bordes', 'redondead')) {
+    const radius = has(text, 'recta', 'cuadrad', 'sin redondear') ? 0 : has(text, 'muy', 'mas') ? 20 : 14;
+    return done(radius === 0 ? 'Esquinas rectas en todo el sitio.' : 'Redondeé las esquinas de tarjetas, botones e imágenes.', [{ action: 'update_theme', shape: { radius } }], []);
+  }
+  if (has(text, 'sombra')) {
+    const shadow = has(text, 'sin sombra', 'quita') ? 'none' : has(text, 'fuerte', 'marcada') ? 'strong' : 'soft';
+    return done(shadow === 'none' ? 'Quité las sombras.' : 'Agregué sombras suaves a tarjetas y bloques.', [{ action: 'update_theme', shape: { shadow } }], []);
+  }
+  if (has(text, 'ancho completo', 'pantalla completa', 'mas ancho', 'mas angosto')) {
+    const maxWidth = has(text, 'angosto') ? 'narrow' : has(text, 'completo', 'completa') ? 'full' : 'wide';
+    return done('Cambié el ancho del contenido del sitio.', [{ action: 'update_theme', spacing: { maxWidth } }], []);
   }
 
   /* ---------------- Eliminar */
@@ -214,6 +307,22 @@ export function rulesRespond(raw: string, ctx: AssistantContext): Out {
     return done('¿Qué sección muevo y a dónde? Por ejemplo: "mueve esta sección arriba de la de productos".', [], []);
   }
 
+  /* ---------------- Sitio completo desde una plantilla */
+  if (has(text, 'web', 'sitio', 'plantilla', 'website') && has(text, 'quiero', 'crea', 'hazme', 'arma', 'necesito', 'usa la plantilla', 'aplica la plantilla', 'empieza')) {
+    const match = SITE_TEMPLATE_WORDS.find(([words]) => has(text, ...words));
+    if (match) {
+      const topic = raw.match(/para (?:mi |una |un |el |la )?(.+?)[.!?]*$/i)?.[1]?.replace(/^(empresa|negocio|tienda|local) de /i, '').trim().slice(0, 80);
+      const style = PRESET_WORDS.find(([words]) => has(text, ...words));
+      const actions: Record<string, unknown>[] = [{ action: 'apply_site_template', template: match[1], ...(topic ? { topic } : {}), mode: has(text, 'agrega', 'sin borrar', 'conserva') ? 'add' : 'replace' }];
+      if (style && style[1] !== SITE_TEMPLATES[match[1]].preset) actions.push({ action: 'update_theme', preset: style[1] });
+      return done(
+        `Preparé un sitio con la plantilla «${SITE_TEMPLATES[match[1]].label}»${topic ? ` para ${topic}` : ''}: páginas, secciones y diseño listos para editar. Revísalo en la vista previa y confírmalo.`,
+        actions,
+        ['Pon una foto de mi biblioteca en el hero', 'Cambia el color principal', 'Agrega una sección de preguntas frecuentes'],
+      );
+    }
+  }
+
   /* ---------------- Crear página */
   // "una página de servicios", "página para mi tienda" (y no "que la página se vea…").
   const wantsPage = /\b(una|otra|nueva)\s+pagina\b|\bpagina (de|para|sobre|nueva)\b/.test(text) && !/\b(se vea|luzca|sea mas|este mas)\b/.test(text);
@@ -230,6 +339,18 @@ export function rulesRespond(raw: string, ctx: AssistantContext): Out {
       [{ action: 'create_page', title, blueprint, ...(topic ? { topic: topic.slice(0, 80) } : {}) }],
       ['Cambia los textos del hero', 'Agrega una sección de testimonios', 'Cambia el fondo a un color claro'],
     );
+  }
+
+  /* ---------------- Columnas de una sección que no es de productos */
+  const anyColumns = text.match(/(\d{1,2})\s*(?:columnas|por fila|en fila)/);
+  if (anyColumns && selected?.type === 'columns') {
+    const n = Math.min(4, Math.max(1, Number(anyColumns[1])));
+    const layout = ['1', '1-1', '1-1-1', '1-1-1-1'][n - 1];
+    return done(`La sección ahora tiene ${n} columnas.`, [{ action: 'update_section', section: 'selected', content: { layout } }], ['Apílalas en el celular']);
+  }
+  if (anyColumns && selected && COLUMN_SECTIONS.has(selected.type)) {
+    const n = Math.min(6, Math.max(1, Number(anyColumns[1])));
+    return done(`La sección ahora usa ${n} columnas en escritorio.`, [{ action: 'update_section', section: 'selected', content: { columns: { desktop: n } } }], ['En el celular, una columna']);
   }
 
   /* ---------------- Productos: columnas, imagen, layout, filtros */

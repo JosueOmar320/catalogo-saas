@@ -1,66 +1,54 @@
 'use client';
 
-import { Box, ButtonBase, CircularProgress, Dialog, DialogContent, DialogTitle, IconButton, InputAdornment, Stack, TextField, Typography } from '@mui/material';
-import { Search, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { listMediaLibrary, type LibraryImage } from '../actions';
+import { Box, Dialog, DialogContent, DialogTitle, IconButton } from '@mui/material';
+import { X } from 'lucide-react';
+import type { MediaFolder } from '@/types/database';
+import type { MediaRecord } from '../schema';
+import { MediaLibrary } from './MediaLibrary';
 
-/** Biblioteca de medios del negocio: elegir una imagen ya subida o importada. */
-export function MediaLibraryDialog({ open, onClose, onSelect }: { open: boolean; onClose: () => void; onSelect: (image: LibraryImage) => void }) {
-  const [query, setQuery] = useState('');
-  const [images, setImages] = useState<LibraryImage[] | null>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    let cancelled = false;
-    const timer = setTimeout(async () => {
-      const result = await listMediaLibrary(query);
-      if (!cancelled) setImages(result.ok ? result.data : []);
-    }, query ? 300 : 0);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [open, query]);
-
+/**
+ * Selector de imágenes: la misma biblioteca (buscar, carpetas, subir, desde
+ * URL) en modo "elegir". `storageOnly` para campos que exigen una copia
+ * propia (logo, productos, categorías).
+ */
+export function MediaLibraryDialog({
+  open,
+  onClose,
+  onSelect,
+  onSelectMany,
+  multiple = false,
+  storageOnly = false,
+  initialFolder = 'all',
+  title,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSelect?: (image: MediaRecord) => void;
+  onSelectMany?: (images: MediaRecord[]) => void;
+  multiple?: boolean;
+  storageOnly?: boolean;
+  initialFolder?: MediaFolder | 'all';
+  title?: string;
+}) {
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+    <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth slotProps={{ paper: { sx: { height: { md: '86vh' } } } }}>
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <Box sx={{ flex: 1 }}>Biblioteca de imágenes</Box>
+        <Box sx={{ flex: 1 }}>{title ?? (multiple ? 'Elige imágenes' : 'Elige una imagen')}</Box>
         <IconButton onClick={onClose} aria-label="Cerrar"><X size={18} /></IconButton>
       </DialogTitle>
       <DialogContent>
-        <TextField
-          size="small"
-          fullWidth
-          placeholder="Buscar por descripción"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          sx={{ mb: 2 }}
-          slotProps={{ input: { startAdornment: <InputAdornment position="start"><Search size={15} /></InputAdornment> } }}
-        />
-        {images === null ? (
-          <Stack sx={{ py: 6, alignItems: 'center' }}><CircularProgress size={24} /></Stack>
-        ) : images.length === 0 ? (
-          <Typography color="text.secondary" sx={{ py: 6, textAlign: 'center' }}>
-            {query ? 'No hay imágenes con esa descripción.' : 'Aún no hay imágenes. Súbelas desde cualquier campo de imagen o pídele a Garfield que busque una.'}
-          </Typography>
-        ) : (
-          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 1.25, pb: 1 }}>
-            {images.map((image) => (
-              <ButtonBase
-                key={image.id}
-                onClick={() => {
-                  onSelect(image);
-                  onClose();
-                }}
-                sx={{ display: 'block', borderRadius: 1.5, overflow: 'hidden', border: 1, borderColor: 'divider', textAlign: 'left', '&:hover': { borderColor: 'primary.main', boxShadow: (t) => `0 0 0 1px ${t.palette.primary.main}` } }}
-              >
-                <Box component="img" src={image.thumbUrl} alt={image.alt} loading="lazy" sx={{ width: '100%', aspectRatio: '4 / 3', objectFit: 'cover', display: 'block', bgcolor: 'action.hover' }} />
-                <Typography variant="caption" noWrap component="p" sx={{ px: 1, py: 0.5 }}>{image.alt || 'Sin descripción'}</Typography>
-              </ButtonBase>
-            ))}
-          </Box>
+        {open && (
+          <MediaLibrary
+            mode="pick"
+            multiple={multiple}
+            storageOnly={storageOnly}
+            initialFolder={initialFolder}
+            onPick={(items) => {
+              if (multiple) onSelectMany?.(items);
+              else if (items[0]) onSelect?.(items[0]);
+              onClose();
+            }}
+          />
         )}
       </DialogContent>
     </Dialog>

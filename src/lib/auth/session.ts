@@ -56,12 +56,15 @@ export const getBusinessContext = cache(async (): Promise<BusinessContext | null
   const supabase = await createClient();
   const user = await getUser();
   if (!user) return null;
-  const profile = await getProfile();
+  // Perfil, membresías y cookie en paralelo (antes: uno tras otro, una ida y vuelta más por página).
+  const [profile, { data: memberships }, cookieStore] = await Promise.all([
+    getProfile(),
+    supabase.from('business_members').select('business_id, role').eq('user_id', user.id),
+    cookies(),
+  ]);
   if (!profile || profile.status !== 'active') return null;
   const admin = isPlatformAdmin(profile);
-
-  const { data: memberships } = await supabase.from('business_members').select('business_id, role').eq('user_id', user.id);
-  const preferred = (await cookies()).get(ACTIVE_BUSINESS_COOKIE)?.value;
+  const preferred = cookieStore.get(ACTIVE_BUSINESS_COOKIE)?.value;
   const ids = new Set((memberships ?? []).map((m) => m.business_id));
   if (admin && preferred && /^[0-9a-f-]{36}$/.test(preferred)) ids.add(preferred);
   if (ids.size === 0) return null;

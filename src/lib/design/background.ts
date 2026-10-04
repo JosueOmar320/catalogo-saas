@@ -1,6 +1,5 @@
 import { z } from 'zod';
-import { isDark, mix } from './color';
-import { PATTERN_IDS, patternSvg, type PatternId } from './patterns';
+import { PATTERN_IDS } from './patterns';
 import { fieldFactory, hexColor } from './schema-utils';
 
 /**
@@ -26,7 +25,7 @@ export function buildBackgroundSchema(lenient: boolean, defaults: { type?: Backg
       .prefault({}),
     image: z
       .object({
-        path: f(z.string().max(300).nullable(), null),
+        path: f(z.string().max(1000).nullable(), null),
         position: f(z.enum(IMAGE_POSITIONS), 'center'),
         size: f(z.enum(['cover', 'contain', 'auto']), 'cover'),
         repeat: f(z.boolean(), false),
@@ -61,55 +60,8 @@ export function buildBackgroundSchema(lenient: boolean, defaults: { type?: Backg
 export const backgroundSchema = buildBackgroundSchema(false);
 export type Background = z.output<typeof backgroundSchema>;
 
-export const INHERIT_BACKGROUND: Background = backgroundSchema.parse({});
-
 export function colorBackground(color: string): Background {
   return backgroundSchema.parse({ type: 'color', color });
 }
 
-/** Aplica la cascada sección > página > global. */
-export function resolveBackground(...levels: (Background | null | undefined)[]): Background {
-  return levels.find((bg) => bg && bg.type !== 'inherit') ?? INHERIT_BACKGROUND;
-}
-
-/**
- * Color "promedio" aproximado del fondo, para elegir texto claro u oscuro.
- * Devuelve null si no se puede saber (imagen sin overlay).
- */
-export function backgroundTone(bg: Background): string | null {
-  const overlay = bg.overlay.opacity / 100;
-  let base: string | null;
-  switch (bg.type) {
-    case 'color':
-    case 'pattern':
-      base = bg.color;
-      break;
-    case 'gradient':
-      base = mix(bg.gradient.from, bg.gradient.to, 0.5);
-      break;
-    case 'image':
-    case 'video':
-      base = overlay >= 0.35 ? bg.overlay.color : null;
-      break;
-    default:
-      base = null;
-  }
-  if (base && overlay > 0) return mix(bg.overlay.color, base, overlay);
-  return base;
-}
-
-export function isDarkBackground(bg: Background): boolean | null {
-  const tone = backgroundTone(bg);
-  return tone ? isDark(tone) : null;
-}
-
-export function gradientCss(bg: Background): string {
-  const { kind, angle, from, to } = bg.gradient;
-  return kind === 'radial' ? `radial-gradient(circle at center, ${from}, ${to})` : `linear-gradient(${angle}deg, ${from}, ${to})`;
-}
-
-/** Imagen de fondo del patrón como data URI + tamaño de baldosa (web). */
-export function patternCss(id: PatternId, color: string, opacity: number, scale: number) {
-  const { svg, size } = patternSvg(id, color, opacity / 100, scale);
-  return { image: `url("data:image/svg+xml,${encodeURIComponent(svg)}")`, size: `${size}px ${size}px` };
-}
+export { INHERIT_BACKGROUND, resolveBackground, backgroundTone, isDarkBackground, gradientCss, patternCss } from './background-core';

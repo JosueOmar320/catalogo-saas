@@ -1,4 +1,5 @@
-import { parseActions, type AssistantResponse } from '@/lib/assistant/actions';
+import type { AssistantMode } from '@/lib/assistant/context';
+import { parseModeActions, type AnyAction } from '@/lib/assistant/modes';
 import { jsonSystemPrompt } from './prompt';
 import { MAX_TOOL_ROUNDS, ProviderError, QuotaExceededError, userTurn, type AssistantModel, type ModelInput, type ModelResult } from './types';
 
@@ -58,7 +59,7 @@ export class OpenAICompatibleModel implements AssistantModel {
 
   private async respondWith(model: string, { messages, context, tools }: ModelInput): Promise<ModelResult> {
     const conversation: Message[] = [
-      { role: 'system', content: jsonSystemPrompt(tools?.specs) },
+      { role: 'system', content: jsonSystemPrompt(tools?.specs, context.mode) },
       ...messages.map((m, i) => ({ role: m.role, content: i === messages.length - 1 && m.role === 'user' ? userTurn(m.content, context) : m.content })),
     ];
 
@@ -80,7 +81,7 @@ export class OpenAICompatibleModel implements AssistantModel {
       completion = await this.complete(model, conversation);
     }
 
-    let parsed = parse(completion.text);
+    let parsed = parse(completion.text, context.mode);
     if (completion.truncated) parsed.errors.push('La respuesta fue demasiado larga y se cortó.');
 
     // Una corrección: JSON inválido o acciones que no pasaron la validación.
@@ -93,7 +94,7 @@ export class OpenAICompatibleModel implements AssistantModel {
           content: `Tu respuesta tuvo estos problemas y esas acciones se descartaron:\n${parsed.errors.join('\n')}\nResponde de nuevo SOLO con el objeto JSON final completo y corregido (message, actions, suggestions), sin tool_calls.`,
         },
       ]);
-      const second = parse(retry.text);
+      const second = parse(retry.text, context.mode);
       if (second.errors.length < parsed.errors.length || (second.result.actions.length > parsed.result.actions.length && second.errors.length <= parsed.errors.length)) parsed = second;
     }
     return { ...parsed.result, mode: this.mode, provider: this.options.provider, model, warnings: parsed.errors };
@@ -157,11 +158,11 @@ export function toolCalls(text: string): { tool: string; args: unknown }[] {
 }
 
 /** Valida la respuesta final. */
-export function parse(text: string): { result: AssistantResponse; errors: string[] } {
+export function parse(text: string, mode: AssistantMode = 'site'): { result: { message: string; actions: AnyAction[]; suggestions: string[] }; errors: string[] } {
   const errors: string[] = [];
   const raw = extractJson(text) ?? {};
   if (!extractJson(text)) errors.push('La respuesta no fue un JSON válido.');
-  const { actions, errors: actionErrors } = parseActions(raw.actions);
+  const { actions, errors: actionErrors } = parseModeActions(mode, raw.actions);
   errors.push(...actionErrors);
   const message = typeof raw.message === 'string' && raw.message.trim() ? raw.message.slice(0, 2000) : errors.length ? 'No pude armar bien la respuesta. ¿Puedes repetirlo con otras palabras?' : 'Listo.';
   const suggestions = Array.isArray(raw.suggestions) ? raw.suggestions.filter((s): s is string => typeof s === 'string').map((s) => s.slice(0, 60)).slice(0, 4) : [];

@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { assistantActionSchema } from './actions';
+import type { AssistantMode } from './context';
+import { actionSchemaFor } from './modes';
 import { COLLECTION_LABELS, COLLECTION_SOURCES, SORT_LABELS, SORT_OPTIONS } from '@/lib/catalog/collections';
 import { LAYOUT_OPTIONS, PRODUCT_LAYOUT_META, PRODUCT_LAYOUTS } from '@/lib/catalog/presentation';
 import { buildBackgroundSchema } from '@/lib/design/background';
@@ -9,9 +10,12 @@ import { PATTERN_IDS } from '@/lib/design/patterns';
 import { THEME_PRESETS } from '@/lib/design/presets';
 import { CARD_STYLE_META, CARD_STYLES, FOOTER_STYLES, HEADER_STYLE_META, HEADER_STYLES } from '@/lib/design/styles-registry';
 import { themeSchema } from '@/lib/design/theme';
+import { PDF_BLOCK_META, PDF_BLOCK_TYPES, PDF_TEMPLATE_META, PDF_TEMPLATES, pdfSettingsSchema } from '@/lib/pdf/settings';
 import { PAGE_BLUEPRINT_DEFS, PAGE_BLUEPRINT_IDS } from '@/lib/site/blueprints';
+import { COLUMN_PRESET_META, COLUMN_PRESETS } from '@/lib/site/column-presets';
+import { SITE_TEMPLATE_IDS, SITE_TEMPLATES } from '@/lib/site/templates';
 import { SECTION_META } from '@/lib/site/section-registry';
-import { SECTION_TYPES, sectionSchemas, sectionStyleSchema } from '@/lib/site/section-schemas';
+import { COLUMN_BLOCK_KINDS, COLUMN_LAYOUTS, SECTION_TYPES, sectionSchemas, sectionStyleSchema } from '@/lib/site/section-schemas';
 
 /**
  * Guía de capacidades para el modelo, GENERADA desde los registros y schemas
@@ -91,8 +95,8 @@ function signature(schema: z.ZodType): string {
  * Formato de respuesta en texto (para proveedores sin herramientas o en modo
  * JSON): la misma lista de acciones, generada del schema Zod.
  */
-export function responseFormatGuide(): string {
-  const json = z.toJSONSchema(assistantActionSchema, { io: 'input', unrepresentable: 'any' }) as JsonSchema;
+export function responseFormatGuide(mode: AssistantMode = 'site'): string {
+  const json = z.toJSONSchema(actionSchemaFor(mode), { io: 'input', unrepresentable: 'any' }) as JsonSchema;
   const actions = (json.oneOf ?? json.anyOf ?? []).map((member) => `- ${compact(member, 0, { describe: true })}`).join('\n');
   return `## Formato de respuesta (OBLIGATORIO)
 Responde SOLO con un objeto JSON válido, sin texto antes ni después y sin bloques de código:
@@ -100,6 +104,38 @@ Responde SOLO con un objeto JSON válido, sin texto antes ni después y sin bloq
 
 Cada Action es exactamente una de estas (los campos con ? son opcionales; "object" = objeto con los campos de la guía de secciones/tema):
 ${actions}`;
+}
+
+let cachedPdf: string | null = null;
+
+/** Guía del modo PDF: bloques, portada, encabezado, pie y estilo (generada de los schemas). */
+export function pdfCapabilitiesGuide(): string {
+  if (cachedPdf) return cachedPdf;
+  const shape = pdfSettingsSchema.shape;
+  const blocks = PDF_BLOCK_TYPES.map((type) => `- ${type}: ${PDF_BLOCK_META[type].label}. ${PDF_BLOCK_META[type].description}`).join('\n');
+  cachedPdf = `## Bloques del PDF (en orden; cada uno puede empezar en página nueva)
+${blocks}
+Campos de cada bloque (fields de add_pdf_block/update_pdf_block): ${signature(shape.blocks)}
+
+## Plantillas (set_pdf_template): aplican estilo sin borrar contenido
+${PDF_TEMPLATES.map((id) => `- ${id}: ${PDF_TEMPLATE_META[id].label}. ${PDF_TEMPLATE_META[id].description}`).join('\n')}
+
+## Portada (update_pdf_cover)
+${signature(shape.cover)}
+
+## Encabezado (update_pdf_header) y pie (update_pdf_footer)
+header: ${signature(shape.header)}
+footer: ${signature(shape.footer)}
+
+## Estilo propio del PDF (update_pdf_style; vacío = igual que el sitio)
+${signature(shape.style)}
+Fuentes: ${FONT_IDS.map((id) => `${id} (${FONTS[id].label})`).join(', ')}.
+
+## Productos en el PDF (set_pdf_products_layout)
+Layouts: ${PRODUCT_LAYOUTS.map((id) => `${id} (${PRODUCT_LAYOUT_META[id].label})`).join(', ')}.
+"4 productos por página" → itemsPerPage 4; "2 columnas" → columns 2; "portada antes de cada categoría" → categoryStyle "hero" (o "editorial") y categoryNewPage true.
+`;
+  return cachedPdf;
 }
 
 let cached: string | null = null;
@@ -134,6 +170,12 @@ Para "N productos por fila" cambia presentation.columns.desktop (1–6); tablet 
 ## Colecciones (collection) — qué ítems muestra una sección products/services
 Fuentes: ${COLLECTION_SOURCES.map((s) => `${s} (${COLLECTION_LABELS[s]})`).join(', ')}.
 Orden: ${SORT_OPTIONS.map((s) => `${s} (${SORT_LABELS[s]})`).join(', ')}. limit 0 = sin límite.
+
+## Plantillas de SITIO (apply_site_template): tema + páginas + secciones
+${SITE_TEMPLATE_IDS.map((id) => `- ${id}: ${SITE_TEMPLATES[id].label}. ${SITE_TEMPLATES[id].description}`).join('\n')}
+
+## Sección "columns" (composición libre)
+Para imagen + texto, tarjetas, procesos en pasos, listas con íconos, varios botones o cifras usa type "columns": layout (${COLUMN_LAYOUTS.join(', ')}) y columns[] con blocks[] (kind: ${COLUMN_BLOCK_KINDS.join(', ')}). Composiciones típicas: ${COLUMN_PRESETS.map((p) => `${p} (${COLUMN_PRESET_META[p].label})`).join(', ')}.
 
 ## Plantillas de página (blueprint de create_page)
 ${PAGE_BLUEPRINT_IDS.map((id) => `- ${id}: ${PAGE_BLUEPRINT_DEFS[id].description}`).join('\n')}

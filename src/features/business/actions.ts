@@ -11,7 +11,7 @@ import { createClient } from '@/lib/supabase/server';
 import { dbErrorMessage, fail, ok, type ActionResult } from '@/lib/utils/result';
 import { parseInput } from '@/lib/utils/validation';
 import type { Json, TablesUpdate } from '@/types/database';
-import { isValidMediaPath, removeStorageObjects } from '@/features/media/server';
+import { isValidMediaPath, releaseStorageObjects } from '@/features/media/server';
 import { businessProfileSchema, businessSlugSchema, type BusinessProfileValues } from './schema';
 
 const COOKIE_OPTIONS = { httpOnly: true, sameSite: 'lax' as const, path: '/', maxAge: 60 * 60 * 24 * 365 };
@@ -69,10 +69,10 @@ export async function updateSocialLinks(input: z.input<typeof socialLinksSchema>
 export async function setBusinessLogo(path: string | null): Promise<ActionResult> {
   const ctx = await requireBusinessContext();
   if (path !== null && typeof path !== 'string') return fail('Imagen inválida.');
-  if (!isValidMediaPath(ctx, path, 'logo')) return fail('Imagen inválida.');
+  if (!isValidMediaPath(ctx, path)) return fail('Imagen inválida.');
   const previous = ctx.business.logo_path;
   const result = await updateBusiness(ctx, { logo_path: path }, path ? 'Logo actualizado' : 'Logo eliminado');
-  if (result.ok && previous && previous !== path) await removeStorageObjects(ctx, [previous]);
+  if (result.ok && previous && previous !== path) await releaseStorageObjects(ctx, [previous]);
   return result;
 }
 

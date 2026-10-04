@@ -20,12 +20,12 @@ import { fieldFactory, hexColor } from '@/lib/design/schema-utils';
 
 /* ------------------------------------------------------------ Plantillas */
 
-export const PDF_TEMPLATES = ['commercial', 'catalog', 'editorial', 'minimal', 'brochure', 'technical', 'menu', 'modern', 'luxury'] as const;
+export const PDF_TEMPLATES = ['commercial', 'catalog', 'editorial', 'minimal', 'brochure', 'technical', 'menu', 'modern', 'luxury', 'corporate', 'productBrochure'] as const;
 export type PdfTemplateId = (typeof PDF_TEMPLATES)[number];
 
 export const PDF_TEMPLATE_META: Record<PdfTemplateId, { label: string; description: string }> = {
   commercial: { label: 'Comercial', description: 'Portada con banda de color, ondas decorativas, precios destacados y pie con redes.' },
-  catalog: { label: 'Catálogo de productos', description: 'Portada con foto, índice, categorías con imagen y cuadrícula de tarjetas.' },
+  catalog: { label: 'Catálogo clásico', description: 'Portada con foto, índice, categorías con imagen y cuadrícula de tarjetas.' },
   editorial: { label: 'Editorial', description: 'Como una revista: portada dividida, capítulos numerados y filas alternadas.' },
   minimal: { label: 'Minimal', description: 'Mucho aire, líneas finas y lista compacta con miniaturas.' },
   brochure: { label: 'Folleto de servicios', description: 'Portada a sangre, zigzag con imágenes en arco y pocas piezas por página.' },
@@ -33,6 +33,8 @@ export const PDF_TEMPLATE_META: Record<PdfTemplateId, { label: string; descripti
   menu: { label: 'Menú / Lista de precios', description: 'Dos columnas con puntos guía hasta el precio y ornamentos.' },
   modern: { label: 'Moderno', description: 'Bloques de color, etiquetas de categoría y precios en píldora.' },
   luxury: { label: 'Lujo', description: 'Marcos dobles, ornamentos y tipografía espaciada.' },
+  corporate: { label: 'Corporativo', description: 'Sobrio y ordenado: banda de color, encabezado con logo, fichas con códigos y contraportada.' },
+  productBrochure: { label: 'Folleto de producto', description: 'Pocos productos con mucho protagonismo: fotos grandes, página promocional y contraportada.' },
 };
 
 /* ------------------------------------------------------------ Opciones */
@@ -60,7 +62,7 @@ export const CATEGORY_STYLE_LABELS: Record<(typeof CATEGORY_STYLES)[number], str
   editorial: 'Capítulo numerado',
 };
 
-export const PDF_BLOCK_TYPES = ['cover', 'toc', 'catalog', 'products', 'comparison', 'text', 'gallery', 'page', 'contact', 'pageBreak'] as const;
+export const PDF_BLOCK_TYPES = ['cover', 'toc', 'catalog', 'products', 'comparison', 'text', 'gallery', 'image', 'promo', 'page', 'contact', 'backCover', 'pageBreak'] as const;
 export type PdfBlockType = (typeof PDF_BLOCK_TYPES)[number];
 
 export const PDF_BLOCK_META: Record<PdfBlockType, { label: string; description: string }> = {
@@ -71,10 +73,16 @@ export const PDF_BLOCK_META: Record<PdfBlockType, { label: string; description: 
   comparison: { label: 'Tabla comparativa', description: 'Compara ítems por precio y atributos.' },
   text: { label: 'Página de información', description: 'Texto libre con imagen: nosotros, políticas, garantía.' },
   gallery: { label: 'Galería', description: 'Fotos de tus ítems o imágenes propias.' },
+  image: { label: 'Página de imagen', description: 'Una foto grande o a página completa, con texto opcional encima.' },
+  promo: { label: 'Página promocional', description: 'Oferta o novedad destacada: titular, imagen, etiqueta de descuento y llamado a la acción.' },
   page: { label: 'Página del sitio', description: 'Una página de tu sitio adaptada a impresión.' },
   contact: { label: 'Contacto', description: 'Datos de contacto, redes y notas (formas de pago, políticas).' },
+  backCover: { label: 'Contraportada', description: 'Última página: logo, mensaje de cierre y datos de contacto.' },
   pageBreak: { label: 'Salto de página', description: 'Lo que sigue empieza en una página nueva.' },
 };
+
+export const PDF_DENSITIES = ['compact', 'normal', 'airy'] as const;
+export const PDF_DENSITY_LABELS: Record<(typeof PDF_DENSITIES)[number], string> = { compact: 'Compacto', normal: 'Normal', airy: 'Amplio' };
 
 /* ------------------------------------------------------------ Esquemas */
 
@@ -126,7 +134,7 @@ function build(lenient: boolean) {
       type: z.literal('text'),
       ...heading,
       body: f(z.string().max(6000), ''),
-      imagePath: f(z.string().max(300).nullable(), null),
+      imagePath: f(z.string().max(1000).nullable(), null),
       imagePosition: f(z.enum(['top', 'left', 'right', 'bottom']), 'right'),
     }),
     gallery: z.object({
@@ -135,10 +143,36 @@ function build(lenient: boolean) {
       ...heading,
       source: f(z.enum(['items', 'custom']), 'items'),
       collection: coll({ source: 'all', limit: 12 }),
-      images: f(z.array(z.object({ path: z.string().min(1).max(300), caption: f(z.string().trim().max(120), '') })).max(40), []),
+      images: f(z.array(z.object({ path: z.string().min(1).max(1000), caption: f(z.string().trim().max(120), '') })).max(40), []),
       columns: f(z.number().int().min(2).max(5), 3),
       shape: f(z.enum(['rect', 'rounded', 'circle', 'hexagon']), 'rounded'),
       captions: bool(true),
+    }),
+    image: z.object({
+      ...base,
+      type: z.literal('image'),
+      ...heading,
+      imagePath: f(z.string().max(1000).nullable(), null),
+      /** Alto: página completa (a sangre), media página o un tercio. */
+      size: f(z.enum(['full', 'half', 'third']), 'full'),
+      fit: f(z.enum(['cover', 'contain']), 'cover'),
+      textPosition: f(z.enum(['none', 'top', 'center', 'bottom']), 'bottom'),
+      overlay: f(z.number().int().min(0).max(90), 35),
+      caption: text(200),
+    }),
+    promo: z.object({
+      ...base,
+      type: z.literal('promo'),
+      eyebrow: text(60),
+      ...heading,
+      body: f(z.string().max(1500), ''),
+      badge: text(30),
+      cta: text(80),
+      imagePath: f(z.string().max(1000).nullable(), null),
+      layout: f(z.enum(['split', 'fullImage', 'centered']), 'split'),
+      background: buildBackgroundSchema(lenient).prefault({}),
+      /** Productos destacados debajo (0 = ninguno). */
+      collection: coll({ source: 'sale', limit: 0 }),
     }),
     page: z.object({ ...base, type: z.literal('page'), pageId: f(z.string().max(64), '') }),
     contact: z.object({
@@ -150,10 +184,20 @@ function build(lenient: boolean) {
       notes: f(z.string().max(3000), ''),
       showSocial: bool(true),
     }),
+    backCover: z.object({
+      ...base,
+      type: z.literal('backCover'),
+      title: f(z.string().trim().max(120), 'Gracias'),
+      message: text(400),
+      showLogo: bool(true),
+      showContact: bool(true),
+      showSocial: bool(true),
+      background: buildBackgroundSchema(lenient).prefault({}),
+    }),
     pageBreak: z.object({ ...base, type: z.literal('pageBreak') }),
   } satisfies Record<PdfBlockType, z.ZodType>;
 
-  const blockSchema = z.discriminatedUnion('type', [blocks.cover, blocks.toc, blocks.catalog, blocks.products, blocks.comparison, blocks.text, blocks.gallery, blocks.page, blocks.contact, blocks.pageBreak]);
+  const blockSchema = z.discriminatedUnion('type', [blocks.cover, blocks.toc, blocks.catalog, blocks.products, blocks.comparison, blocks.text, blocks.gallery, blocks.image, blocks.promo, blocks.page, blocks.contact, blocks.backCover, blocks.pageBreak]);
   // Leniente: un bloque inválido se descarta en lugar de invalidar todo el PDF.
   const blockList = lenient
     ? z.array(z.unknown()).catch([]).transform((list) => list.flatMap((b) => {
@@ -186,7 +230,7 @@ function build(lenient: boolean) {
         showDescription: bool(true),
         showContact: bool(true),
         imageSource: f(z.enum(['cover', 'custom', 'none']), 'cover'),
-        imagePath: f(z.string().max(300).nullable(), null),
+        imagePath: f(z.string().max(1000).nullable(), null),
         imageShape: f(z.enum(['rect', 'rounded', 'circle', 'arch']), 'rect'),
         background: buildBackgroundSchema(lenient).prefault({}),
         decoration: f(z.enum(DECORATIONS), 'none'),
@@ -201,6 +245,10 @@ function build(lenient: boolean) {
         showPageNumber: bool(false),
         text: text(80),
         color: color,
+        /** Dónde va el logo/nombre: izquierda (texto a la derecha), centro o derecha. */
+        align: f(z.enum(['left', 'center', 'right']), 'left'),
+        /** Título de la sección actual (categoría o bloque) en el encabezado. */
+        showSectionTitle: bool(false),
       })
       .prefault({}),
     footer: z
@@ -213,6 +261,8 @@ function build(lenient: boolean) {
         showWebsite: bool(true),
         showSocial: bool(false),
         customText: text(160),
+        showBusinessName: bool(false),
+        align: f(z.enum(['spread', 'center']), 'spread'),
       })
       .prefault({}),
     decorations: z
@@ -224,6 +274,24 @@ function build(lenient: boolean) {
       })
       .prefault({}),
     background: buildBackgroundSchema(lenient).prefault({}),
+    /**
+     * Estilo propio del PDF. Vacío = igual que el sitio: el PDF hereda la
+     * identidad y sólo se cambia lo que el usuario (o Garfield) decida.
+     */
+    style: z
+      .object({
+        headingFont: text(40),
+        bodyFont: text(40),
+        /** Escala del texto respecto al sitio. */
+        scale: f(z.number().min(0.8).max(1.3), 1),
+        density: f(z.enum(PDF_DENSITIES), 'normal'),
+        primary: color,
+        accent: color,
+        heading: color,
+        text: color,
+        uppercaseHeadings: f(z.enum(['inherit', 'yes', 'no']), 'inherit'),
+      })
+      .prefault({}),
     inkSaver: bool(false),
   });
 }
@@ -247,6 +315,8 @@ type Preset = {
   presentation: Partial<Presentation> & { layout: ProductLayout };
   categoryStyle: PdfBlockOf<'catalog'>['categoryStyle'];
   itemsPerPage: number;
+  /** Estilo propio (fuentes, densidad…). Si falta, la plantilla vuelve a heredar del sitio. */
+  style?: Partial<PdfSettings['style']>;
 };
 
 const P = (p: Partial<Presentation> & { layout: ProductLayout }) => p;
@@ -326,12 +396,33 @@ export const TEMPLATE_PRESETS: Record<PdfTemplateId, Preset> = {
   },
   luxury: {
     cover: { layout: 'framed', align: 'center', titleSize: 'lg', decoration: 'none', sparkles: false },
-    header: { style: 'title' },
-    footer: { style: 'line' },
+    header: { style: 'title', align: 'center' },
+    footer: { style: 'line', align: 'center' },
     decorations: { corners: 'none', sparkles: false, frame: true },
     presentation: P({ layout: 'grid', columns: { desktop: 3, tablet: 2, mobile: 2, pdf: 2 }, shape: 'rect', frame: false, align: 'center' }),
     categoryStyle: 'editorial',
     itemsPerPage: 0,
+    style: { headingFont: 'playfair', bodyFont: 'lora', density: 'airy', uppercaseHeadings: 'yes', accent: '#B08D57' },
+  },
+  corporate: {
+    cover: { layout: 'band', align: 'left', titleSize: 'lg', decoration: 'lines', sparkles: false, imageShape: 'rect' },
+    header: { style: 'line', align: 'left', showSectionTitle: true },
+    footer: { style: 'line', pageNumbers: 'ofTotal', showBusinessName: true, showWebsite: true },
+    decorations: { corners: 'none', sparkles: false, frame: false },
+    presentation: P({ layout: 'compactGrid', columns: { desktop: 4, tablet: 3, mobile: 2, pdf: 4 }, shape: 'rect', fields: { image: true, description: true, price: true, sku: true, category: false, badges: false, attributes: 'card', button: false, compareAt: true, discount: false, availability: true } }),
+    categoryStyle: 'simple',
+    itemsPerPage: 0,
+    style: { headingFont: 'montserrat', bodyFont: 'inter', density: 'compact' },
+  },
+  productBrochure: {
+    cover: { layout: 'fullImage', align: 'left', titleSize: 'xl', decoration: 'none', sparkles: false },
+    header: { style: 'none' },
+    footer: { style: 'line', align: 'center' },
+    decorations: { corners: 'none', sparkles: false, frame: false },
+    presentation: P({ layout: 'largeCards', columns: { desktop: 2, tablet: 2, mobile: 1, pdf: 2 }, imageSize: 'lg', ratio: 'portrait', shape: 'rounded', fields: { image: true, description: true, price: true, sku: false, category: false, badges: true, attributes: 'card', button: false, compareAt: true, discount: true, availability: true } }),
+    categoryStyle: 'hero',
+    itemsPerPage: 4,
+    style: { density: 'airy', scale: 1.08 },
   },
 };
 
@@ -346,6 +437,8 @@ export function applyTemplate(settings: PdfSettings, id: PdfTemplateId): PdfSett
     header: { ...settings.header, ...preset.header },
     footer: { ...settings.footer, ...preset.footer },
     decorations: { ...settings.decorations, ...preset.decorations },
+    // La plantilla define su tipografía y densidad; los colores propios del usuario se conservan.
+    style: { ...settings.style, headingFont: '', bodyFont: '', scale: 1, density: 'normal', uppercaseHeadings: 'inherit', ...preset.style },
     blocks: settings.blocks.map((b) => {
       if (b.type === 'catalog') return { ...b, presentation: pres(b.presentation), categoryStyle: preset.categoryStyle, itemsPerPage: preset.itemsPerPage };
       if (b.type === 'products') return { ...b, presentation: pres(b.presentation), itemsPerPage: preset.itemsPerPage };
@@ -360,7 +453,7 @@ export function createPdfBlock(type: PdfBlockType, template: PdfTemplateId, extr
   const id = `${type}-${Math.random().toString(36).slice(2, 9)}`;
   const withPres = type === 'catalog' || type === 'products' ? { presentation: preset.presentation, itemsPerPage: preset.itemsPerPage } : {};
   const withCat = type === 'catalog' ? { categoryStyle: preset.categoryStyle } : {};
-  const title = type === 'products' ? 'Destacados' : type === 'comparison' ? 'Comparativa' : type === 'text' ? 'Sobre nosotros' : type === 'gallery' ? 'Galería' : '';
+  const title = { products: 'Destacados', comparison: 'Comparativa', text: 'Sobre nosotros', gallery: 'Galería', promo: 'Oferta especial', backCover: 'Gracias', image: '' }[type as string] ?? '';
   const parsed = lenientPdfSettingsSchema.parse({ blocks: [{ id, type, title, ...withPres, ...withCat, ...extra }] }).blocks[0];
   return parsed ?? { id, type: 'pageBreak', enabled: true, newPage: true };
 }

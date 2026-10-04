@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { imageSize, runTool, safeDownload, type ToolContext } from '@/features/assistant/server/tools';
+import sharp from 'sharp';
 import type { ServerSupabase } from '@/lib/supabase/server';
 
 const BIZ = '11111111-2222-4333-8444-555555555555';
@@ -13,7 +14,13 @@ function fakeSupabase() {
   const inserts: Record<string, unknown>[] = [];
   const supabase = {
     storage: { from: () => ({ upload: async (path: string) => (uploads.push(path), { error: null }), remove: async () => ({ error: null }) }) },
-    from: () => ({ insert: async (row: Record<string, unknown>) => (inserts.push(row), { error: null }) }),
+    from: () => ({
+      insert: (row: Record<string, unknown>) => {
+        inserts.push(row);
+        const result = { data: { id: 'm1', created_at: '2026-01-01', ...row }, error: null };
+        return { select: () => ({ single: async () => result }) };
+      },
+    }),
   } as unknown as ServerSupabase;
   return { supabase, uploads, inserts };
 }
@@ -37,7 +44,7 @@ describe('Garfield AI · herramientas de servidor', () => {
     await assert.rejects(safeDownload('https://10.1.2.3/a.jpg', fetchOk), /no está permitida/);
     await assert.rejects(safeDownload('https://[::1]/a.jpg', fetchOk), /no está permitida/);
     await assert.rejects(safeDownload('https://93.184.216.34/a.jpg', (async () => new Response('<html>', { status: 200 })) as typeof fetch), /no es una imagen/);
-    await assert.rejects(safeDownload('https://93.184.216.34/a.jpg', (async () => imageResponse(JPEG, { 'content-length': String(9 * 1024 * 1024) })) as typeof fetch), /5 MB/);
+    await assert.rejects(safeDownload('https://93.184.216.34/a.jpg', (async () => imageResponse(JPEG, { 'content-length': String(11 * 1024 * 1024) })) as typeof fetch), /10 MB/);
     const ok = await safeDownload('https://93.184.216.34/a.jpg', fetchOk);
     assert.equal(ok.mime, 'image/jpeg');
   });
@@ -64,6 +71,7 @@ describe('Garfield AI · herramientas de servidor', () => {
 
   it('buscar en el banco libre → importar a la biblioteca del negocio', async () => {
     const { supabase, uploads, inserts } = fakeSupabase();
+    const photo = new Uint8Array(await sharp({ create: { width: 1200, height: 800, channels: 3, background: '#b0603a' } }).jpeg().toBuffer());
     const calls: string[] = [];
     const fetchMock = (async (input: string | URL) => {
       const url = String(input);
@@ -76,7 +84,7 @@ describe('Garfield AI · herramientas de servidor', () => {
           ],
         });
       }
-      return imageResponse(JPEG);
+      return imageResponse(photo);
     }) as typeof fetch;
     const ctx = context({ supabase, fetch: fetchMock });
     const search = await runTool('search_stock_images', { query: 'restaurant interior', orientation: 'landscape' }, ctx);
@@ -91,10 +99,12 @@ describe('Garfield AI · herramientas de servidor', () => {
     const imported = await runTool('import_image', { ref: stock.ref, alt: 'Salón del restaurante', use: 'section' }, ctx);
     assert.ok(imported.ok, !imported.ok ? imported.error : '');
     const path = (imported.ok ? imported.result : null) as { path: string };
-    assert.match(path.path, new RegExp(`^${BIZ}/site/[0-9a-f-]+\\.jpg$`));
-    assert.deepEqual(uploads, [path.path]);
+    assert.match(path.path, new RegExp(`^${BIZ}/media/[0-9a-f-]+\\.jpg$`));
+    assert.equal(uploads[0], path.path, 'imagen principal');
+    assert.match(uploads[1], /-thumb\.jpg$/, 'y su miniatura');
     assert.equal(inserts[0].source, 'stock');
-    assert.equal(inserts[0].width, 800);
+    assert.equal(inserts[0].width, 1200);
+    assert.equal(inserts[0].folder, 'images');
     assert.match(String(inserts[0].attribution), /CC0 vía stocksnap/);
     assert.ok(ctx.media.has(path.path));
   });

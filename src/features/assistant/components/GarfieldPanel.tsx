@@ -8,7 +8,6 @@ import { useToast } from '@/components/feedback/ToastProvider';
 import { UploadError, uploadImage } from '@/features/media/client';
 import { ASSISTANT } from '@/lib/assistant/identity';
 import { publicStorageUrl } from '@/lib/utils/storage';
-import { contextSuggestions } from '../suggestions';
 import { GarfieldAvatar } from './GarfieldAvatar';
 import { useGarfield, type ChatAttachment, type ChatEntry } from './GarfieldProvider';
 
@@ -73,7 +72,7 @@ export function GarfieldPanel() {
   const fileInput = useRef<HTMLInputElement>(null);
   const list = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
-  const suggestions = contextSuggestions(g.state);
+  const suggestions = g.suggestions;
 
   useEffect(() => {
     list.current?.scrollTo({ top: list.current.scrollHeight, behavior: 'smooth' });
@@ -140,6 +139,7 @@ export function GarfieldPanel() {
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
               <Typography variant="body1" sx={{ fontWeight: 750 }}>{ASSISTANT.name}</Typography>
+              {g.editor === 'pdf' && <Chip size="small" label="PDF" sx={{ height: 20, fontSize: 11, fontWeight: 700, bgcolor: '#fff' }} />}
               {g.mode === 'basic' && (
                 <Tooltip title="Sin IA (o sin cuota por hoy): entiendo pedidos directos. Configura GEMINI_API_KEY (gratis) para conversar libremente.">
                   <Chip size="small" label="Modo básico" sx={{ height: 20, fontSize: 11, bgcolor: '#fff' }} />
@@ -275,6 +275,9 @@ function AssistantEntry({ entry, latest }: { entry: ChatEntry; latest: boolean }
   return (
     <AssistantBubble mood={mood} error={entry.error}>
       <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{entry.text}</Typography>
+      {entry.local && g.mode === 'ai' && (
+        <Typography variant="caption" color="text.secondary" component="p" sx={{ mt: 0.5 }}>⚡ Resuelto al instante, sin usar IA</Typography>
+      )}
       {entry.plan && <PlanCard entry={entry} />}
       {latest && entry.suggestions && entry.suggestions.length > 0 && !g.pending && (
         <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
@@ -337,9 +340,9 @@ function PlanCard({ entry }: { entry: ChatEntry }) {
           <Button size="small" color="inherit" onClick={() => g.cancelPlan(entry.id)}>Cancelar</Button>
         </Stack>
       )}
-      {plan.status === 'applied' && plan.undo && (
+      {plan.status === 'applied' && plan.undo !== undefined && (
         <Stack direction="row" sx={{ px: 1.25, pb: 1, alignItems: 'center', justifyContent: 'space-between' }}>
-          <Typography variant="caption" color="text.secondary">{plan.steps.some((x) => x.kind === 'editor' && x.status === 'ok') ? 'Recuerda pulsar «Guardar cambios».' : 'Guardado en tu catálogo.'}</Typography>
+          <Typography variant="caption" color="text.secondary">{plan.steps.some((x) => (x.kind === 'editor' || x.kind === 'pdf') && x.status === 'ok') ? (g.editor === 'pdf' ? 'Recuerda pulsar «Guardar» en el estudio.' : 'Recuerda pulsar «Guardar cambios».') : 'Guardado en tu catálogo.'}</Typography>
           <Button size="small" color="inherit" startIcon={<RotateCcw size={13} />} onClick={() => g.undoPlan(entry.id)}>Deshacer</Button>
         </Stack>
       )}

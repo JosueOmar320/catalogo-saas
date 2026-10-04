@@ -2,9 +2,10 @@
 
 import { Alert, Autocomplete, Box, Button, ButtonBase, Chip, CircularProgress, IconButton, Menu, MenuItem, Paper, Stack, Switch, Tab, Tabs, TextField, Tooltip, Typography, useMediaQuery, useTheme } from '@mui/material';
 import {
+  BadgePercent,
+  BookMarked,
   BookOpen,
-  ChevronLeft,
-  ChevronRight,
+  Image as ImageIcon,
   Columns3,
   Download,
   FileText,
@@ -36,6 +37,8 @@ import {
   DECORATION_LABELS,
   DECORATIONS,
   PDF_BLOCK_META,
+  PDF_DENSITIES,
+  PDF_DENSITY_LABELS,
   PDF_BLOCK_TYPES,
   PDF_TEMPLATE_META,
   PDF_TEMPLATES,
@@ -61,10 +64,14 @@ import {
   TextInput,
 } from '@/features/builder/components/controls';
 import { CollectionEditor, PresentationEditor } from '@/features/builder/components/editors/presentation-editors';
+import { GarfieldLauncher, GarfieldPanel } from '@/features/assistant/components/GarfieldPanel';
+import { PdfGarfieldProvider } from '@/features/assistant/components/PdfGarfieldProvider';
+import { FONT_IDS, FONTS } from '@/lib/design/fonts';
+import { PdfPreview } from './PdfPreview';
 import { savePdfSettings } from '../actions';
 
-type TabId = 'template' | 'content' | 'cover' | 'page';
-type Props = { catalogId: string; initial: PdfSettings; site: SiteViewModel; enabled: boolean };
+type TabId = 'template' | 'content' | 'cover' | 'style' | 'page';
+type Props = { catalogId: string; initial: PdfSettings; site: SiteViewModel; enabled: boolean; canManage?: boolean };
 
 const PREVIEW_MAX_ITEMS = 60;
 const BLOCK_ICONS: Record<PdfBlockType, LucideIcon> = {
@@ -75,8 +82,11 @@ const BLOCK_ICONS: Record<PdfBlockType, LucideIcon> = {
   comparison: Table2,
   text: FileText,
   gallery: Images,
+  image: ImageIcon,
+  promo: BadgePercent,
   page: Columns3,
   contact: Phone,
+  backCover: BookMarked,
   pageBreak: Scissors,
 };
 
@@ -85,13 +95,16 @@ const BLOCK_ICONS: Record<PdfBlockType, LucideIcon> = {
  * comparativa, información, galería, páginas del sitio, contacto) → vista
  * previa real con selector de página → descarga.
  */
-export function PdfStudio({ catalogId, initial, site, enabled }: Props) {
+export function PdfStudio({ catalogId, initial, site, enabled, canManage = true }: Props) {
   const [settings, setSettings] = useState<PdfSettings>(initial);
   const [saved, setSaved] = useState(JSON.stringify(initial));
   const [tab, setTab] = useState<TabId>('content');
   const [selected, setSelected] = useState<string | null>(null);
   const [addAnchor, setAddAnchor] = useState<HTMLElement | null>(null);
-  const [preview, setPreview] = useState<{ url: string; pages: number; marks: Record<string, number> } | null>(null);
+  const [preview, setPreview] = useState<{ blob: Blob; pages: number; marks: Record<string, number> } | null>(null);
+  // Propuesta de Garfield en vista previa: se genera el PDF con ella sin tocar el borrador.
+  const [proposal, setProposal] = useState<PdfSettings | null>(null);
+  const shown = proposal ?? settings;
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -126,7 +139,7 @@ export function PdfStudio({ catalogId, initial, site, enabled }: Props) {
       const response = await fetch(`/api/catalogs/${catalogId}/pdf`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ settings, preview: isPreview }),
+        body: JSON.stringify({ settings: isPreview ? shown : settings, preview: isPreview }),
         signal,
       });
       if (!response.ok) throw new Error((await response.json().catch(() => null))?.error ?? 'No se pudo generar el PDF.');
@@ -136,7 +149,7 @@ export function PdfStudio({ catalogId, initial, site, enabled }: Props) {
       } catch {}
       return { blob: await response.blob(), pages: Number(response.headers.get('X-Pdf-Pages')) || 0, marks };
     },
-    [catalogId, settings],
+    [catalogId, settings, shown],
   );
 
   const refresh = useCallback(async () => {
@@ -148,10 +161,7 @@ export function PdfStudio({ catalogId, initial, site, enabled }: Props) {
     setError(null);
     try {
       const result = await request(true, controller.signal);
-      setPreview((old) => {
-        if (old) URL.revokeObjectURL(old.url);
-        return { url: URL.createObjectURL(result.blob), pages: result.pages, marks: result.marks };
-      });
+      setPreview({ blob: result.blob, pages: result.pages, marks: result.marks });
       setPage((p) => Math.min(p, Math.max(1, result.pages)));
     } catch (e) {
       if ((e as Error).name !== 'AbortError') setError((e as Error).message);
@@ -190,6 +200,18 @@ export function PdfStudio({ catalogId, initial, site, enabled }: Props) {
     if (target) setPage(target);
   };
 
+  /** Bloque al que pertenece una página de la vista previa (el último que empezó en o antes de ella). */
+  const blockAtPage = (n: number): PdfBlock | null => {
+    const cover = shown.blocks.find((b) => b.type === 'cover' && b.enabled);
+    if (n === 1 && cover) return cover;
+    let best: { block: PdfBlock; page: number } | null = null;
+    for (const block of shown.blocks) {
+      const start = preview?.marks[block.id];
+      if (start && start <= n && (!best || start >= best.page)) best = { block, page: start };
+    }
+    return best?.block ?? null;
+  };
+
   const blockLabel = (b: PdfBlock) => {
     if (b.type === 'page') return `Página: ${site.pages.find((p) => p.id === b.pageId)?.title ?? '—'}`;
     const title = 'title' in b && b.title && b.type !== 'toc' && b.type !== 'contact' ? b.title : '';
@@ -203,6 +225,7 @@ export function PdfStudio({ catalogId, initial, site, enabled }: Props) {
         <Tab value="content" label="Contenido" />
         <Tab value="template" label="Plantilla" />
         <Tab value="cover" label="Portada" />
+        <Tab value="style" label="Estilo" />
         <Tab value="page" label="Página y marco" />
       </Tabs>
 
@@ -279,6 +302,8 @@ export function PdfStudio({ catalogId, initial, site, enabled }: Props) {
 
       {tab === 'cover' && <CoverEditor settings={settings} patch={(v) => patch('cover', v)} />}
 
+      {tab === 'style' && <PdfStyleEditor value={settings.style} onChange={(style) => set('style', style)} />}
+
       {tab === 'page' && (
         <>
           <Group title="Formato">
@@ -293,7 +318,9 @@ export function PdfStudio({ catalogId, initial, site, enabled }: Props) {
               <>
                 <SwitchRow label="Logo" checked={settings.header.showLogo} onChange={(showLogo) => patch('header', { showLogo })} />
                 <SwitchRow label="Nombre del negocio" checked={settings.header.showName} onChange={(showName) => patch('header', { showName })} />
+                {settings.header.style === 'line' && <Segmented label="Logo y nombre" value={settings.header.align} onChange={(align) => patch('header', { align })} options={[{ value: 'left', label: 'Izquierda' }, { value: 'center', label: 'Centro' }, { value: 'right', label: 'Derecha' }]} />}
                 <SwitchRow label="Número de página" checked={settings.header.showPageNumber} onChange={(showPageNumber) => patch('header', { showPageNumber })} />
+                <SwitchRow label="Título de la sección" description="La categoría o el bloque que se está leyendo." checked={settings.header.showSectionTitle} onChange={(showSectionTitle) => patch('header', { showSectionTitle })} />
                 <TextInput label="Texto" value={settings.header.text} placeholder="Ej. Catálogo de servicios 2026" onChange={(text) => patch('header', { text })} maxLength={80} />
                 <ColorInput label="Color" value={settings.header.color || '#1A1A1A'} onChange={(color) => patch('header', { color })} />
                 {settings.header.color && <Button size="small" color="inherit" onClick={() => patch('header', { color: '' })}>Usar color del tema</Button>}
@@ -305,6 +332,8 @@ export function PdfStudio({ catalogId, initial, site, enabled }: Props) {
             {settings.footer.style !== 'none' && (
               <>
                 <Segmented label="Numeración" value={settings.footer.pageNumbers} onChange={(pageNumbers) => patch('footer', { pageNumbers })} options={[{ value: 'none', label: 'Sin' }, { value: 'simple', label: '3' }, { value: 'ofTotal', label: '3 / 12' }]} />
+                {settings.footer.style === 'line' && <Segmented label="Alineación" value={settings.footer.align} onChange={(align) => patch('footer', { align })} options={[{ value: 'spread', label: 'A los lados' }, { value: 'center', label: 'Centrado' }]} />}
+                <SwitchRow label="Nombre del negocio" checked={settings.footer.showBusinessName} onChange={(showBusinessName) => patch('footer', { showBusinessName })} />
                 <SwitchRow label="Usuario de redes (@)" checked={settings.footer.showSocial} onChange={(showSocial) => patch('footer', { showSocial })} />
                 <SwitchRow label="WhatsApp" checked={settings.footer.showWhatsapp} onChange={(showWhatsapp) => patch('footer', { showWhatsapp })} />
                 <SwitchRow label="Teléfono" checked={settings.footer.showPhone} onChange={(showPhone) => patch('footer', { showPhone })} />
@@ -335,26 +364,35 @@ export function PdfStudio({ catalogId, initial, site, enabled }: Props) {
     <Stack sx={{ height: '100%', minHeight: 0 }}>
       <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1.5 }}>
         <Typography variant="overline" color="text.secondary">Vista previa</Typography>
+        {proposal && <Chip size="small" color="warning" label="Propuesta de Garfield" />}
         {site.items.length > PREVIEW_MAX_ITEMS && <Chip size="small" label={`Muestra los primeros ${PREVIEW_MAX_ITEMS} ítems`} />}
         <Box sx={{ flex: 1 }} />
-        {pages > 0 && (
-          <Stack direction="row" sx={{ alignItems: 'center' }}>
-            <IconButton size="small" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1} aria-label="Página anterior"><ChevronLeft size={16} /></IconButton>
-            <Typography variant="body2" sx={{ minWidth: 72, textAlign: 'center' }}>Pág. {page} / {pages}</Typography>
-            <IconButton size="small" onClick={() => setPage((p) => Math.min(pages, p + 1))} disabled={page >= pages} aria-label="Página siguiente"><ChevronRight size={16} /></IconButton>
-          </Stack>
-        )}
         <Button color="inherit" startIcon={loading ? <CircularProgress size={14} /> : <RefreshCw size={14} />} onClick={() => void refresh()} disabled={loading || !enabled}>
           Actualizar
         </Button>
       </Stack>
-      <Box sx={{ position: 'relative', flex: 1, minHeight: { xs: '70vh', lg: 0 }, bgcolor: '#E9E9EE', borderRadius: 2, overflow: 'hidden' }}>
-        {/* key: al cambiar de página se vuelve a montar el visor en esa página. */}
-        {preview && <Box key={`${preview.url}-${page}`} component="iframe" src={`${preview.url}#page=${page}&toolbar=0&view=FitH`} title="Vista previa del PDF" sx={{ width: '100%', height: '100%', border: 0 }} />}
-        {(loading || !preview) && (
-          <Stack spacing={1} sx={{ position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center', bgcolor: preview ? 'rgba(233,233,238,.6)' : 'transparent' }}>
-            {enabled ? <CircularProgress size={28} /> : null}
-            <Typography variant="body2" color="text.secondary">{enabled ? 'Generando vista previa…' : 'La exportación a PDF no está incluida en tu plan.'}</Typography>
+      <Box sx={{ flex: 1, minHeight: { xs: '75vh', lg: 0 } }}>
+        {enabled ? (
+          <PdfPreview
+            blob={preview?.blob ?? null}
+            page={page}
+            onPage={setPage}
+            busy={loading}
+            pageLabel={(n) => {
+              const block = blockAtPage(n);
+              return block ? blockLabel(block) : '';
+            }}
+            onPageClick={(n) => {
+              const block = blockAtPage(n);
+              if (block && !proposal) {
+                setSelected(block.id);
+                setTab(block.type === 'cover' ? 'cover' : 'content');
+              }
+            }}
+          />
+        ) : (
+          <Stack sx={{ height: '100%', alignItems: 'center', justifyContent: 'center', bgcolor: '#E9E9EE', borderRadius: 2 }}>
+            <Typography variant="body2" color="text.secondary">La exportación a PDF no está incluida en tu plan.</Typography>
           </Stack>
         )}
       </Box>
@@ -363,6 +401,7 @@ export function PdfStudio({ catalogId, initial, site, enabled }: Props) {
   );
 
   return (
+    <PdfGarfieldProvider settings={settings} onChange={setSettings} selectedBlockId={selected} onSelectBlock={(id) => { setSelected(id); setTab('content'); }} onPreview={setProposal} site={site}>
     <Box sx={{ display: 'flex', flexDirection: 'column', height: { lg: 'calc(100vh - 56px - 32px)' } }}>
       <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', mb: 2 }}>
         <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -390,6 +429,46 @@ export function PdfStudio({ catalogId, initial, site, enabled }: Props) {
         </Stack>
       )}
     </Box>
+    {canManage && enabled && (
+      <>
+        <GarfieldLauncher />
+        <GarfieldPanel />
+      </>
+    )}
+    </PdfGarfieldProvider>
+  );
+}
+
+/* ------------------------------------------------------------ Estilo propio del PDF */
+
+const fontOptions = [{ value: '', label: 'Como el sitio' }, ...FONT_IDS.map((id) => ({ value: id, label: FONTS[id].label }))];
+
+function PdfStyleEditor({ value, onChange }: { value: PdfSettings['style']; onChange: (style: PdfSettings['style']) => void }) {
+  const set = (patch: Partial<PdfSettings['style']>) => onChange({ ...value, ...patch });
+  const color = (key: 'primary' | 'accent' | 'heading' | 'text', label: string, fallback: string) => (
+    <Stack spacing={0.5}>
+      <ColorInput label={label} value={value[key] || fallback} onChange={(c) => set({ [key]: c })} />
+      {value[key] && <Button size="small" color="inherit" onClick={() => set({ [key]: '' })} sx={{ alignSelf: 'flex-start' }}>Usar el del sitio</Button>}
+    </Stack>
+  );
+  return (
+    <>
+      <Group title="Tipografía" description="Por defecto el PDF usa la identidad de tu sitio. Cámbiala sólo para el PDF.">
+        <SelectInput label="Títulos" value={value.headingFont} onChange={(headingFont) => set({ headingFont })} options={fontOptions} />
+        <SelectInput label="Textos" value={value.bodyFont} onChange={(bodyFont) => set({ bodyFont })} options={fontOptions} />
+        <SliderInput label="Tamaño del texto" value={value.scale} min={0.8} max={1.3} step={0.02} format={(v) => `${Math.round(v * 100)}%`} onChange={(scale) => set({ scale })} />
+        <Segmented label="Títulos en mayúsculas" value={value.uppercaseHeadings} onChange={(uppercaseHeadings) => set({ uppercaseHeadings })} options={[{ value: 'inherit', label: 'Como el sitio' }, { value: 'yes', label: 'Sí' }, { value: 'no', label: 'No' }]} />
+      </Group>
+      <Group title="Espaciado">
+        <Segmented label="Densidad" value={value.density} onChange={(density) => set({ density })} options={PDF_DENSITIES.map((d) => ({ value: d, label: PDF_DENSITY_LABELS[d] }))} />
+      </Group>
+      <Group title="Colores" description="Vacío = los colores del sitio.">
+        {color('primary', 'Principal', '#1A1A1A')}
+        {color('accent', 'Acento y precios', '#C8A96A')}
+        {color('heading', 'Títulos', '#1A1A1A')}
+        {color('text', 'Texto', '#333333')}
+      </Group>
+    </>
   );
 }
 
@@ -575,6 +654,48 @@ function BlockEditor({ block, onChange, site, onCoverTab }: { block: PdfBlock; o
         <Group description="Las secciones de la página (texto, galería, beneficios, testimonios…) se adaptan para impresión.">
           <SelectInput label="Página del sitio" value={block.pageId} onChange={(pageId) => set(block, { pageId })} options={[{ value: '', label: 'Elige una página' }, ...site.pages.map((p) => ({ value: p.id, label: p.title }))]} />
           {newPage}
+        </Group>
+      );
+    case 'image':
+      return (
+        <Group>
+          <MediaInput label="Imagen" value={block.imagePath} onChange={(imagePath) => set(block, { imagePath })} aspect="3 / 4" />
+          <Segmented label="Tamaño" value={block.size} onChange={(size) => set(block, { size })} options={[{ value: 'full', label: 'Página entera' }, { value: 'half', label: 'Media' }, { value: 'third', label: 'Un tercio' }]} />
+          <Segmented label="Encuadre" value={block.fit} onChange={(fit) => set(block, { fit })} options={[{ value: 'cover', label: 'Llenar' }, { value: 'contain', label: 'Completa' }]} />
+          {heading(block, (v) => set(block, v))}
+          <Segmented label="Texto" value={block.textPosition} onChange={(textPosition) => set(block, { textPosition })} options={[{ value: 'none', label: 'Sin' }, { value: 'top', label: 'Arriba' }, { value: 'center', label: 'Centro' }, { value: 'bottom', label: 'Abajo' }]} />
+          {block.textPosition !== 'none' && <SliderInput label="Oscurecer la imagen" value={block.overlay} min={0} max={90} format={(v) => `${v}%`} onChange={(overlay) => set(block, { overlay })} />}
+          <TextInput label="Pie de foto" value={block.caption} onChange={(caption) => set(block, { caption })} maxLength={200} />
+          {block.size !== 'full' && newPage}
+        </Group>
+      );
+    case 'promo':
+      return (
+        <>
+          <Group>
+            <TextInput label="Antetítulo" value={block.eyebrow} placeholder="Ej. SÓLO ESTE MES" onChange={(eyebrow) => set(block, { eyebrow })} maxLength={60} />
+            {heading(block, (v) => set(block, v))}
+            <TextInput label="Etiqueta destacada" value={block.badge} placeholder="Ej. -30%" onChange={(badge) => set(block, { badge })} maxLength={30} />
+            <RichTextInput label="Texto" value={block.body} onChange={(body) => set(block, { body })} />
+            <TextInput label="Llamado a la acción" value={block.cta} placeholder="Ej. Pide por WhatsApp" onChange={(cta) => set(block, { cta })} maxLength={80} />
+          </Group>
+          <Group title="Diseño">
+            <Segmented label="Composición" value={block.layout} onChange={(layout) => set(block, { layout })} options={[{ value: 'split', label: 'Imagen al lado' }, { value: 'fullImage', label: 'Foto de fondo' }, { value: 'centered', label: 'Centrada' }]} />
+            <MediaInput label="Imagen" value={block.imagePath} onChange={(imagePath) => set(block, { imagePath })} />
+            <BackgroundEditor value={block.background} onChange={(background) => set(block, { background })} inheritLabel="Suave" />
+          </Group>
+          <CollectionEditor value={block.collection} onChange={(collection) => set(block, { collection })} site={site} title="Productos destacados debajo (cantidad 0 = ninguno)" />
+        </>
+      );
+    case 'backCover':
+      return (
+        <Group description="Siempre va al final, en una página propia.">
+          <TextInput label="Título" value={block.title} onChange={(title) => set(block, { title })} maxLength={120} />
+          <TextInput label="Mensaje" value={block.message} placeholder="Ej. Gracias por elegirnos. Escríbenos para hacer tu pedido." onChange={(message) => set(block, { message })} multiline rows={2} maxLength={400} />
+          <SwitchRow label="Logo" checked={block.showLogo} onChange={(showLogo) => set(block, { showLogo })} />
+          <SwitchRow label="Datos de contacto" checked={block.showContact} onChange={(showContact) => set(block, { showContact })} />
+          <SwitchRow label="Redes sociales" checked={block.showSocial} onChange={(showSocial) => set(block, { showSocial })} />
+          <BackgroundEditor value={block.background} onChange={(background) => set(block, { background })} inheritLabel="Color principal" />
         </Group>
       );
     case 'contact':

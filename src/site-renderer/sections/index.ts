@@ -2,6 +2,7 @@ import type { ComponentType } from 'react';
 import type { SectionType } from '@/lib/site/section-schemas';
 import { BannerSection } from './BannerSection';
 import { CatalogSection } from './CatalogSection';
+import { ColumnsSection } from './ColumnsSection';
 import { CategoriesSection } from './CategoriesSection';
 import { ContactSection } from './ContactSection';
 import { FeaturesSection } from './FeaturesSection';
@@ -47,6 +48,7 @@ export const SECTION_COMPONENTS: { [T in SectionType]: ComponentType<SectionProp
   team: TeamSection,
   stats: StatsSection,
   logos: LogosSection,
+  columns: ColumnsSection,
 };
 
 export type { SectionProps } from './types';

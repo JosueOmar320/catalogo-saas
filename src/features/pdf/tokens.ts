@@ -23,11 +23,17 @@ export function pdfTokens(theme: ThemeConfig, settings: PdfSettings, fonts: PdfF
   const pageHeight = landscape ? w : h;
   const margin = settings.margins === 'custom' ? settings.customMargin * MM : MARGINS[settings.margins];
   const small = settings.paperSize === 'A5';
-  const base = Math.min(11, Math.max(8.5, t.type.base * (small ? 0.54 : 0.6)));
+  const style = settings.style;
+  // Estilo propio del PDF (vacío = igual que el sitio): escala y colores.
+  const base = Math.min(11, Math.max(8.5, t.type.base * (small ? 0.54 : 0.6))) * style.scale;
   const ratio = t.type.h3 / t.type.base;
 
   // Paleta: la del tema, o "ahorro de tinta" (papel blanco y colores legibles).
   let colors = { ...t.colors };
+  if (style.primary) colors = { ...colors, primary: style.primary, button: style.primary, buttonText: readableOn(style.primary) };
+  if (style.accent) colors = { ...colors, accent: style.accent, price: style.accent };
+  if (style.heading) colors = { ...colors, heading: style.heading };
+  if (style.text) colors = { ...colors, text: style.text };
   if (settings.inkSaver) {
     const ink = contrastRatio(colors.text, '#FFFFFF') >= 4.5 ? colors.text : '#1A1A1A';
     const readable = (c: string) => (contrastRatio(c, '#FFFFFF') >= 3 ? c : ink);
@@ -69,7 +75,9 @@ export function pdfTokens(theme: ThemeConfig, settings: PdfSettings, fonts: PdfF
     },
     size: { base, small: base * 0.85, tiny: base * 0.75, h3: base * ratio, h2: base * ratio ** 2.2, h1: base * ratio ** 3.4 },
     headingWeight: Number(theme.typography.headingWeight) >= 600 ? 700 : 400,
-    headingUpper: theme.typography.headingCase === 'uppercase',
+    headingUpper: style.uppercaseHeadings === 'inherit' ? theme.typography.headingCase === 'uppercase' : style.uppercaseHeadings === 'yes',
+    /** Densidad: multiplica separaciones entre bloques y tarjetas. */
+    density: { compact: 0.72, normal: 1, airy: 1.4 }[style.density],
     letterSpacing: theme.typography.headingLetterSpacing * base,
     radius: Math.min(theme.shape.radius * 0.6, 12),
     borderWidth: Math.max(0.5, theme.shape.borderWidth * 0.6),

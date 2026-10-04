@@ -5,7 +5,7 @@ import type { PdfBlockOf } from '@/lib/pdf/settings';
 import { resolveLink } from '@/lib/site/links';
 import { parseVideoUrl } from '@/lib/site/video';
 import { heroText, resolveSectionItems, resolveTextMode } from '@/lib/site/resolve';
-import type { Section } from '@/lib/site/section-schemas';
+import type { ColumnBlock, Section } from '@/lib/site/section-schemas';
 import { mediaUrl } from '@/lib/utils/storage';
 import { CatalogBlock, ContactBlock } from './blocks';
 import type { PdfDoc } from './doc';
@@ -350,7 +350,110 @@ function PdfSection({ section, doc }: { section: Section; doc: PdfDoc }) {
         </View>
       );
     }
+    case 'columns':
+      return <PdfColumns doc={doc} section={section} ink={ink} />;
+    default: {
+      // Todos los tipos de sección deben tener su versión PDF.
+      const missing: never = section;
+      return missing;
+    }
   }
+}
+
+const RATIOS = { original: 0.66, square: 1, landscape: 0.75, portrait: 1.3, wide: 0.5625 } as const;
+
+/** Sección Columnas en papel: columnas con el mismo reparto de ancho; los bloques se adaptan a impresión. */
+function PdfColumns({ doc, section, ink }: { doc: PdfDoc; section: Extract<Section, { type: 'columns' }>; ink?: string }) {
+  const { t } = doc;
+  const c = section.content;
+  const parts = c.layout.split('-').map(Number);
+  const total = parts.reduce((a, b) => a + b, 0);
+  const gap = { sm: 10, md: 16, lg: 24 }[c.gap];
+  const usable = t.contentWidth - gap * (parts.length - 1);
+  const color = (fallback: string) => ink ?? fallback;
+  const block = (b: ColumnBlock, width: number, align: 'left' | 'center' | 'right') => {
+    const textAlign = align;
+    switch (b.kind) {
+      case 'heading':
+        return (
+          <View key={b.id}>
+            {b.eyebrow && <Text style={{ fontSize: t.size.tiny, letterSpacing: 2, textTransform: 'uppercase', color: ink ?? t.colors.accent, marginBottom: 3, textAlign }}>{b.eyebrow}</Text>}
+            {b.text && <Text style={{ ...headingStyle(doc, b.level === 'h2' ? t.size.h2 : b.level === 'h3' ? t.size.h3 : t.size.base * 1.1, ink), textAlign }}>{b.text}</Text>}
+          </View>
+        );
+      case 'text':
+        return b.body ? <PdfRichText key={b.id} source={b.body} ctx={doc} color={ink} /> : null;
+      case 'image': {
+        const url = mediaUrl(b.image.path);
+        return url ? <PdfPicture key={b.id} ctx={doc} url={url} style={{ width, height: Math.min(width * RATIOS[b.ratio], 360), borderRadius: b.rounded ? t.radius : 0 }} /> : null;
+      }
+      case 'buttons':
+        return (
+          <View key={b.id} style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: align === 'center' ? 'center' : align === 'right' ? 'flex-end' : 'flex-start' }}>
+            {b.items.filter((i) => i.label).map((i, n) => <Text key={n} style={{ fontSize: t.size.small, fontWeight: 700, color: color(t.colors.accent) }}>{i.label} →</Text>)}
+          </View>
+        );
+      case 'list':
+        return (
+          <View key={b.id} style={{ gap: 4 }}>
+            {b.items.map((item, i) => (
+              <View key={item.id} style={{ flexDirection: 'row', gap: 6, alignItems: 'flex-start' }}>
+                {b.marker === 'number' || b.marker === 'bullet' ? (
+                  <Text style={{ fontSize: t.size.small, fontWeight: 700, color: ink ?? t.colors.accent, width: 12 }}>{b.marker === 'number' ? `${i + 1}.` : '•'}</Text>
+                ) : (
+                  <View style={{ marginTop: 1.5 }}><PdfIcon id={b.marker === 'icon' && item.icon ? item.icon : 'check'} size={9} color={ink ?? t.colors.accent} /></View>
+                )}
+                <Text style={{ fontSize: t.size.small, color: color(t.colors.text), flex: 1 }}>{item.text}</Text>
+              </View>
+            ))}
+          </View>
+        );
+      case 'card':
+        return (
+          <View key={b.id} wrap={false} style={{ padding: 10, borderRadius: t.radius, backgroundColor: t.colors.surface, borderWidth: 0.6, borderColor: t.colors.border, gap: 4, alignItems: align === 'center' ? 'center' : 'flex-start' }}>
+            {mediaUrl(b.image.path) ? <PdfPicture ctx={doc} url={mediaUrl(b.image.path)} style={{ width: width - 20, height: (width - 20) * 0.6, borderRadius: t.radius * 0.7 }} /> : b.icon ? <PdfIcon id={b.icon} size={16} color={t.colors.accent} /> : null}
+            {b.title && <Text style={{ fontFamily: t.fonts.heading, fontWeight: 700, fontSize: t.size.base, color: t.colors.heading }}>{b.title}</Text>}
+            {b.text && <Text style={{ fontSize: t.size.small, color: t.colors.mutedText, textAlign }}>{b.text}</Text>}
+          </View>
+        );
+      case 'icon':
+        return <PdfIcon key={b.id} id={b.icon} size={b.size === 'lg' ? 26 : b.size === 'sm' ? 14 : 20} color={ink ?? t.colors.accent} />;
+      case 'badge':
+        return b.text ? <Text key={b.id} style={{ alignSelf: align === 'center' ? 'center' : 'flex-start', fontSize: t.size.tiny, fontWeight: 700, color: t.colors.onAccent, backgroundColor: t.colors.accent, paddingVertical: 2, paddingHorizontal: 7, borderRadius: 8 }}>{b.text}</Text> : null;
+      case 'stat':
+        return (
+          <View key={b.id} style={{ alignItems: align === 'center' ? 'center' : 'flex-start' }}>
+            <Text style={{ fontFamily: t.fonts.heading, fontWeight: 800, fontSize: t.size.h2 * 1.1, color: color(t.colors.heading) }}>{b.value}</Text>
+            {b.label && <Text style={{ fontSize: t.size.small, color: color(t.colors.mutedText) }}>{b.label}</Text>}
+          </View>
+        );
+      case 'divider':
+        return <View key={b.id} style={{ height: 0.6, backgroundColor: t.colors.border, marginVertical: 2 }} />;
+      case 'spacer':
+        return <View key={b.id} style={{ height: { sm: 6, md: 12, lg: 20 }[b.size] }} />;
+      case 'video':
+        return b.url ? <Link key={b.id} src={b.url} style={{ fontSize: t.size.small, color: ink ?? t.colors.accent }}>▶ Ver video</Link> : null;
+    }
+  };
+  return (
+    <View>
+      <SectionTitle ctx={doc} title={c.title} subtitle={c.subtitle} color={ink} />
+      <View style={{ flexDirection: 'row', gap, alignItems: c.verticalAlign === 'center' ? 'center' : c.verticalAlign === 'bottom' ? 'flex-end' : 'flex-start' }}>
+        {parts.map((part, i) => {
+          const column = c.columns[i];
+          const width = (usable * part) / total;
+          if (!column) return <View key={i} style={{ width }} />;
+          const surface = column.surface !== 'none';
+          const inner = surface ? width - 20 : width;
+          return (
+            <View key={column.id} style={{ width, gap: 8, padding: surface ? 10 : 0, borderRadius: t.radius, backgroundColor: column.surface === 'card' ? t.colors.surface : column.surface === 'soft' ? t.colors.soft : undefined, borderWidth: column.surface === 'card' || column.surface === 'outline' ? 0.6 : 0, borderColor: t.colors.border, alignItems: column.align === 'center' ? 'center' : column.align === 'right' ? 'flex-end' : 'stretch' }}>
+              {column.blocks.map((b) => block(b, inner, column.align))}
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
 }
 
 /** La sección "Catálogo" de la web como bloque de catálogo del PDF (misma presentación y orden). */

@@ -161,6 +161,11 @@ type MediaAssetRow = Timestamps & {
   attribution: string | null;
   created_by: string | null;
   deleted_at: string | null;
+  name: string;
+  original_name: string | null;
+  folder: MediaFolder;
+  storage_provider: StorageProviderId;
+  public_url: string | null;
 };
 
 type BusinessMemberRow = Timestamps & {
@@ -186,6 +191,8 @@ export type PlatformRole = 'admin' | 'user';
 export type UserStatus = 'active' | 'disabled';
 export type BusinessStatus = 'active' | 'suspended';
 export type MediaSource = 'upload' | 'import' | 'stock' | 'chat';
+export type MediaFolder = 'images' | 'logos' | 'products' | 'backgrounds' | 'banners' | 'other';
+export type StorageProviderId = 'supabase' | 'external';
 
 export type Database = {
   __InternalSupabase: { PostgrestVersion: '12' };
@@ -236,6 +243,10 @@ export type Database = {
         Returns: undefined;
       };
       get_public_catalog: { Args: { p_business_slug: string }; Returns: Json };
+      admin_catalog_counts: { Args: Record<string, never>; Returns: { catalog_id: string; pages: number; items: number }[] };
+      admin_stats: { Args: Record<string, never>; Returns: Json };
+      media_references: { Args: { p_business: string; p_path: string }; Returns: { place: string; ref_id: string; label: string }[] };
+      replace_media_references: { Args: { p_business: string; p_old: string; p_new: string; p_new_thumb?: string | null }; Returns: number };
       save_site: {
         Args: {
           p_catalog_id: string;

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { getSiteForAdmin } from '@/features/catalog/queries';
 import { PdfStudio } from '@/features/pdf/components/PdfStudio';
-import { requireBusinessContext } from '@/lib/auth/session';
+import { canManageCatalog, requireBusinessContext } from '@/lib/auth/session';
 import { parsePdfSettings } from '@/lib/pdf/settings';
 
 export const metadata: Metadata = { title: 'Catálogo en PDF' };
@@ -17,6 +17,7 @@ export default async function ExportPdfPage() {
       initial={parsePdfSettings(ctx.catalog.pdf, legacy)}
       site={site}
       enabled={ctx.entitlements.features.pdf_export}
+      canManage={canManageCatalog(ctx)}
     />
   );
 }

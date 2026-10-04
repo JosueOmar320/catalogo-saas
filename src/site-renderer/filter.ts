@@ -44,6 +44,21 @@ function matchesBadge(item: CatalogItemView, badge: BadgeFilter): boolean {
   }
 }
 
+/**
+ * Texto de búsqueda normalizado de cada ítem, calculado UNA vez por ítem (y
+ * no en cada tecla). WeakMap: se libera solo cuando el ítem deja de existir.
+ */
+const searchText = new WeakMap<CatalogItemView, string>();
+function haystackOf(item: CatalogItemView): string {
+  let text = searchText.get(item);
+  if (text === undefined) {
+    const attrText = Object.values(item.attributes).flatMap(attrStrings);
+    text = normalize([item.name, item.shortDescription, item.sku, ...item.tags, ...attrText].filter(Boolean).join(' '));
+    searchText.set(item, text);
+  }
+  return text;
+}
+
 /** Búsqueda sin acentos por nombre, descripción, código, etiquetas y atributos; más filtros. */
 export function filterItems(items: CatalogItemView[], filters: CatalogFilters): CatalogItemView[] {
   const terms = normalize(filters.query.trim()).split(/\s+/).filter(Boolean);
@@ -59,8 +74,7 @@ export function filterItems(items: CatalogItemView[], filters: CatalogFilters): 
       if (!attrStrings(item.attributes[id]).includes(wanted)) return false;
     }
     if (terms.length === 0) return true;
-    const attrText = Object.values(item.attributes).flatMap(attrStrings);
-    const haystack = normalize([item.name, item.shortDescription, item.sku, ...item.tags, ...attrText].filter(Boolean).join(' '));
+    const haystack = haystackOf(item);
     return terms.every((term) => haystack.includes(term));
   });
 }
@@ -80,8 +94,14 @@ export function groupByCategory(items: CatalogItemView[], categories: CatalogCat
   const byCategory = new Map<string, CatalogItemView[]>();
   const uncategorized: CatalogItemView[] = [];
   for (const item of items) {
-    if (item.categoryId) byCategory.set(item.categoryId, [...(byCategory.get(item.categoryId) ?? []), item]);
-    else uncategorized.push(item);
+    if (!item.categoryId) {
+      uncategorized.push(item);
+      continue;
+    }
+    // push (no copiar el arreglo en cada ítem: eso era O(n²) por categoría).
+    const list = byCategory.get(item.categoryId);
+    if (list) list.push(item);
+    else byCategory.set(item.categoryId, [item]);
   }
   const groups: CatalogGroup[] = categories
     .filter((c) => byCategory.has(c.id))

@@ -1,6 +1,6 @@
-# Vitrina: arquitectura (v4, acceso controlado + administración)
+# Vitrina: arquitectura (v5: medios, Garfield híbrido, composición y PDF)
 
-> Auditoría de la v1 y plan de la v2: [AUDITORIA-V2.md](AUDITORIA-V2.md). Análisis de los catálogos PDF de referencia y propuesta de la v3: [ANALISIS-CATALOGOS-PDF.md](ANALISIS-CATALOGOS-PDF.md). Auditoría y propuesta de la v4: [AUDITORIA-V4.md](AUDITORIA-V4.md).
+> Auditoría de la v1 y plan de la v2: [AUDITORIA-V2.md](AUDITORIA-V2.md). Análisis de los catálogos PDF de referencia y propuesta de la v3: [ANALISIS-CATALOGOS-PDF.md](ANALISIS-CATALOGOS-PDF.md). Auditoría y propuesta de la v4: [AUDITORIA-V4.md](AUDITORIA-V4.md). Auditoría y propuesta de la v5: [AUDITORIA-V5.md](AUDITORIA-V5.md).
 
 ## Concepto
 
@@ -11,7 +11,7 @@ Business ──► Catálogo / Sitio
                ├── Tema (sistema de diseño: colores, tipografía, espaciado, bordes,
                │         sombras, botones, fondo, header, footer, tarjetas, badges)
                ├── Navegación (ítems ordenados: páginas, enlaces, WhatsApp…)
-               ├── Páginas ──► Secciones (20 tipos, JSONB) ──► Productos / Servicios / Contenido
+               ├── Páginas ──► Secciones (21 tipos, JSONB; "Columnas" = columnas → bloques) ──► Productos / Servicios / Contenido
                ├── Configuración de PDF (plantilla, papel, portada, header/footer, contenido)
                └── Categorías, ítems, imágenes (sin cambios de la v1)
                           │
@@ -141,6 +141,47 @@ Aplicar:  acciones de catálogo → applyCatalogActions (mismas Server Actions q
 - `features/assistant/executor.ts`: función pura; resuelve referencias, valida con los schemas estrictos, descarta imágenes desconocidas, clasifica riesgo y ejecuta con el reducer del builder. Probada en `tests/assistant/`.
 - La ruta del asistente no escribe datos de negocio: sólo `import_image` sube una imagen a la biblioteca del negocio (HTTPS, IP pública, re-verificación en redirecciones, 5 MB, bytes mágicos de imagen). Los cambios de catálogo se aplican cuando el usuario pulsa "Aplicar", con sus permisos; los del editor, al guardar.
 
+## Medios (v5)
+
+```
+Navegador ──(canvas: ≤2000 px + miniatura 480)──► Storage  {negocio}/media/{uuid}.jpg
+URL externa ──safeDownload (IP pública verificada al conectar)──► sharp ──► Storage   (Importar)
+                                                         └──► sólo la referencia https (Enlace)
+                     ▼
+media_assets: nombre, alt, carpeta, proveedor (supabase|external), medidas, origen, miniatura
+                     ▼
+contenido (secciones, tema, PDF, productos, logo) guarda la CLAVE o la URL registrada
+mediaUrl(clave) → URL pública  ·  Next/Image → AVIF/WebP responsive  ·  PDF → JPEG/PNG (sharp)
+```
+
+- `lib/storage/provider.ts` (StorageProvider) y `features/media/service.ts` (MediaService): la app no conoce el proveedor; cambiar a R2/S3 = otra implementación de la interfaz y de `publicStorageUrl`. Las claves guardadas no cambian.
+- Cualquier imagen del negocio sirve para cualquier uso (ya no se valida por carpeta): no hay copias.
+- `media_references()` (SQL, RLS) dice dónde se usa una imagen; borrar sólo se permite si no se usa. `replace_media_references()` cambia la ruta en secciones, tema, PDF, productos, categorías, logo y portada de una vez (reemplazar / importar una externa).
+- Los formularios (logo, categoría, fotos de producto) ya no borran archivos al reemplazar: `releaseStorageObjects` sólo elimina archivos fuera de la biblioteca y sin uso.
+- Las URLs externas sólo pasan la validación del servidor si están registradas en la biblioteca del negocio; el PDF las descarga con la misma descarga segura.
+
+## Garfield: modos, router y herramientas (v5)
+
+```
+Panel (sitio o PDF) ──contexto del modo──► /api/assistant
+   HybridModel: cláusulas → intérprete local (rules.ts / pdf-rules.ts)
+      simple → responde local (routed: local) · creativo/no entendido → LLM (routed: llm)
+   resolveMediaQueries: media {query|latest|folder} → rutas reales de la biblioteca
+   parseModeActions (Zod del modo) → validatedMedia
+Cliente: GarfieldEngine + adaptador del editor
+   sitio → planAssistantActions (reducer del builder) · PDF → planPdfActions (PdfSettings)
+```
+
+- `lib/assistant/modes.ts`: catálogo de acciones por modo (sitio: páginas, secciones, tema, menú, imágenes, logo, plantillas, productos, categorías; PDF: plantilla, formato, estilo, portada, encabezado, pie, bloques, productos).
+- Plantillas de sitio (`lib/site/templates.ts`) y composiciones de Columnas (`lib/site/column-presets.ts`): combinaciones de secciones existentes, las usan el editor y Garfield.
+
+## PDF (v5)
+
+- Tramos: el documento se arma como portada + tramos de FLUJO (encabezado, pie, fondo) y páginas ENTERAS de diseño (imagen a sangre, promocional, contraportada) con su propio fondo y sin partirse.
+- `settings.style`: fuentes, colores, escala y densidad propias del PDF; vacío = las del sitio.
+- Encabezado con logo a la izquierda/centro/derecha y "título de la sección" (de la pasada anterior del render).
+- Vista previa con pdf.js (`PdfPreview`): miniaturas, zoom, cada página sabe a qué bloque pertenece.
+
 ## Acceso, roles y administración (v4)
 
 ```
@@ -168,4 +209,13 @@ Igual que la v1 (RLS, FKs compuestas, privilegios por columna, Storage por carpe
 - Videos: sólo `https`; YouTube (dominio `youtube-nocookie`), Vimeo (`dnt=1`) o archivos `.mp4/.webm`. Nada se inserta como HTML.
 - `attribute_defs`: validado con Zod en la acción (`saveAttributeDefs`, sólo owner/admin) y con un CHECK en la base (arreglo, máx. 40).
 - Service role sólo en el servidor (`lib/supabase/admin.ts`, `server-only`) y sólo para la API de Auth y la búsqueda de usuario al iniciar sesión.
-- 108 pruebas de base de datos (`npm run test:db`): aislamiento, migración v1, atributos y v4 (autopromoción bloqueada, suspensión, cuotas, auditoría, medios, catálogo inactivo). 57 pruebas unitarias (`npm run test:unit`).
+- 126 pruebas de base de datos (`npm run test:db`): aislamiento, migración v1, atributos, v4 (autopromoción bloqueada, suspensión, cuotas, auditoría, catálogo inactivo) v5 (URLs externas, dónde se usa, reemplazo, aislamiento) y conteos del panel admin (sólo administradores). 95 pruebas unitarias (`npm run test:unit`).
+
+## Rendimiento
+
+- **Sin zod en el navegador del sitio público**: los componentes de `site-renderer/` importan lógica de módulos `*-core.ts` sin esquemas (`background-core`, `collections-core`, `attributes-core`, `price`, `find-home`, `type-roles`, `utils/phone`). Los módulos con esquema los re-exportan, así el resto del código no cambia. Al agregar lógica que use el sitio público, ponla en el módulo sin zod.
+- **Consultas sin límite de 1000 filas**: `lib/supabase/paginate.ts` (`fetchAllRows`) pagina lecturas que pueden crecer; nunca usar `.in()` con listas de ids sin acotar (la URL se corta cerca de 450 uuids).
+- **Panel admin**: conteos con `admin_catalog_counts()` y `admin_stats()` (migración `20261005000000_performance.sql`), con respaldo al método anterior si la migración no está aplicada.
+- **Vista previa del builder**: las secciones se memorizan (`PageView.tsx`) y sólo se re-renderizan si cambia su contenido o algo del sitio que las afecta.
+- **PDF**: caché de imágenes LRU (64 MB, 10 min) en `features/pdf/images.ts`.
+

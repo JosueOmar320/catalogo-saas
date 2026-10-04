@@ -21,7 +21,7 @@ type Props = {
   width?: number | string;
 };
 
-/** Campo de imagen única (logo, portada, favicon, imagen de categoría). */
+/** Campo de imagen única (logo, portada, favicon, categoría, imágenes del sitio): subir o elegir de la biblioteca. */
 export function ImageField({ label, description, kind, value, onChange, aspectRatio = '1 / 1', width = 112 }: Props) {
   const { businessId } = useDashboard();
   const toast = useToast();
@@ -114,6 +114,9 @@ export function ImageField({ label, description, kind, value, onChange, aspectRa
       <MediaLibraryDialog
         open={library}
         onClose={() => setLibrary(false)}
+        // Logo, portada, favicon, imagen para compartir y categorías se guardan en columnas que exigen un archivo propio.
+        storageOnly={kind !== 'site'}
+        initialFolder={kind === 'logo' || kind === 'favicon' ? 'logos' : kind === 'category' ? 'products' : 'all'}
         onSelect={async (image) => {
           setBusy(true);
           try {

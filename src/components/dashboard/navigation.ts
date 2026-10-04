@@ -26,6 +26,7 @@ export const NAVIGATION: NavEntry[] = [
       { label: 'Orden', href: '/dashboard/catalog/order' },
     ],
   },
+  { label: 'Medios', icon: ImageIcon, href: '/dashboard/media' },
   {
     label: 'Sitio web',
     icon: Globe,

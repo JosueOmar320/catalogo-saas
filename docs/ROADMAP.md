@@ -6,9 +6,9 @@
 | --- | --- |
 | **Arrastrar y soltar en la preview** | Hoy se reordena en el panel (arrastrar o flechas) y se selecciona una sección haciendo clic en la preview. Arrastrar dentro de la preview es el siguiente paso natural. |
 | **Deshacer / rehacer en el builder** | El estado del builder es un reducer: basta con guardar el historial de estados. |
-| **Estilos por breakpoint más finos** | Hoy: columnas y visibilidad por dispositivo, y tamaños de texto de escritorio y móvil en la jerarquía tipográfica (v4). Siguiente: padding y alineación por dispositivo en `SectionStyle`. |
+| **Estilos por breakpoint más finos** | Hoy: columnas y visibilidad por dispositivo, tamaños de texto de escritorio y móvil (v4), padding y alineación sólo en celular y columnas apiladas/invertidas (v5). Siguiente: ajustes de tablet. |
 | **Video subido** | El hero acepta una URL .mp4. Subir video a Storage requiere otro perfil de media (tamaño, formatos). |
-| **Plantillas de sitio completas** | Además de los presets de diseño: conjuntos de páginas por rubro (restaurante, tienda, servicios). `buildStarterSite` ya existe. |
+| **Más plantillas de sitio** | v5 trae 10. Agregar una = otra entrada en `lib/site/templates.ts` (tema + páginas + secciones existentes). |
 | **Draft → Preview → Publish con snapshot** | Tabla `catalog_publications (catalog_id, snapshot jsonb, published_at)`. Publicar guarda el resultado de `get_public_catalog`; la página pública lee el snapshot. Hoy los cambios guardados son visibles de inmediato (los ítems y categorías tienen su propio interruptor de visibilidad). |
 | **Billing (Stripe)** | Tabla `subscriptions` + webhook en un Route Handler que actualiza `businesses.plan_id` (con service role, ya que el usuario no puede cambiarlo; hoy lo cambia el administrador en `/admin/negocios`). `lib/plans` ya centraliza límites y features. |
 | **Dominios personalizados** | Tabla `business_domains (domain, business_id, verified_at)` + en `proxy.ts`, reescribir `host → /catalogo/[slug]`. Vercel Domains API para el alta. |
@@ -18,7 +18,7 @@
 | **Más acciones de contacto** | Agregar la clave en `contactActionsSchema` y su definición en `lib/contact/actions.ts` (link externo, formulario, reservación, compra). |
 | **Más secciones, estilos, fuentes, plantillas PDF** | Ver "Registros extensibles" en ARQUITECTURA.md: cada uno se agrega en un registro y TypeScript obliga a completar web, editor y PDF. |
 | **Papelera** | Ítems y categorías usan `deleted_at`: sólo falta la vista para restaurar y un job que purgue imágenes. |
-| **Limpieza de Storage** | Job programado (Supabase Cron o Vercel Cron) que borre archivos sin referencia (subidas abandonadas, ítems purgados). |
+| **Limpieza de Storage** | La biblioteca ya sabe qué se usa (`media_references`). Falta un job programado que borre archivos sin registro ni uso (subidas abandonadas). |
 | **Variantes con precio propio** | Los atributos personalizados ya existen (v3). Variantes (talla M = $X, stock por variante) necesitan una tabla `catalog_item_variants` y selección en la ficha. |
 | **Sitemap de catálogos** | `sitemap.ts` puede listar los catálogos publicados con una RPC pública. |
 | **i18n** | Los textos están en español en los componentes. Extraerlos a diccionarios cuando se venda fuera de LATAM. |
@@ -45,7 +45,16 @@
 | **Funciones por plan (feature flags)** | `plans.features` ya existe. Falta la UI en `/admin/configuracion` para editar planes y que el editor oculte lo no incluido. |
 | **Retención y exportación de auditoría** | Job que archive `audit_log` viejo y exportación CSV desde `/admin/auditoria`. |
 | **Garfield: cambios de negocio y PDF** | Hoy edita sitio, tema, navegación, contenido, medios, productos y categorías. Siguiente: datos del negocio (contacto, horarios) y bloques del PDF, con las mismas Server Actions. |
-| **Descargas de Garfield resistentes a DNS rebinding** | `import_image` verifica que el host resuelva a una IP pública antes de descargar; fijar la IP resuelta en la conexión (agente HTTP propio) cierra la ventana entre verificación y descarga. |
+
+## Siguientes pasos de medios, Garfield y PDF (v5)
+
+| Funcionalidad | Cómo encaja |
+| --- | --- |
+| **Etiquetas y carpetas propias en la biblioteca** | `media_assets.tags` ya existe; falta la interfaz. Carpetas propias = tabla `media_folders`. |
+| **Transformaciones en el CDN** | Con Supabase Pro (o R2 + Images) se pueden pedir tamaños por URL; `mediaUrl(ref, variante)` es el único punto a cambiar. |
+| **Garfield: reescritura de textos con contexto del negocio** | Las plantillas ya se aplican sin IA; con IA el modelo además personaliza los textos. Siguiente: herramienta para leer las páginas completas (no sólo el resumen) antes de reescribir. |
+| **Bloques anidados de un nivel más** | Columnas → bloques cubre la mayoría de composiciones. Si hiciera falta, "tarjetas dentro de una columna" sería otro tipo de bloque, no un árbol libre. |
+| **Editar sobre la vista previa del PDF** | Hoy cada miniatura abre su bloque. Siguiente: arrastrar miniaturas para reordenar bloques. |
 
 ## Mejoras de producto propuestas (no implementadas; conviene validarlas antes)
 

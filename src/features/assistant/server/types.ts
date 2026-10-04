@@ -1,4 +1,4 @@
-import type { AssistantResponse } from '@/lib/assistant/actions';
+import type { AnyAction } from '@/lib/assistant/modes';
 import type { AssistantContext } from '@/lib/assistant/context';
 
 export type ChatMessage = { role: 'user' | 'assistant'; content: string };
@@ -9,11 +9,17 @@ export type ModelInput = { messages: ChatMessage[]; context: AssistantContext; t
 
 /** Rondas máximas de herramientas antes de exigir la respuesta final. */
 export const MAX_TOOL_ROUNDS = 5;
-export type ModelResult = AssistantResponse & {
+export type ModelResult = {
+  message: string;
+  actions: AnyAction[];
+  suggestions: string[];
+  /** ai = respondió un modelo de lenguaje · basic = intérprete local (sin IA). */
   mode: 'ai' | 'basic';
   /** Proveedor y modelo que respondieron (p. ej. "gemini" / "gemini-3.5-flash-lite"). */
   provider: string;
   model?: string;
+  /** Quién resolvió el pedido: el intérprete local (sin costo) o el modelo de lenguaje. */
+  routed?: 'local' | 'llm';
   warnings: string[];
 };
 

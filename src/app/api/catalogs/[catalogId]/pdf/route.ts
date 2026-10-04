@@ -3,7 +3,8 @@ import { getSiteForAdmin } from '@/features/catalog/queries';
 import { renderSitePdf } from '@/features/pdf/render';
 import { getBusinessContext, type BusinessContext } from '@/lib/auth/session';
 import { parsePdfSettings, pdfSettingsSchema, type PdfSettings } from '@/lib/pdf/settings';
-import { collectMediaPaths, isPathOwnedBy } from '@/lib/utils/storage';
+import { collectMediaPaths } from '@/lib/utils/storage';
+import { invalidMediaRefs } from '@/features/media/server';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -24,8 +25,8 @@ async function authorize(catalogId: string): Promise<BusinessContext | NextRespo
 }
 
 async function respond(ctx: BusinessContext, settings: PdfSettings, { download, preview }: { download: boolean; preview: boolean }) {
-  // El servidor descarga las imágenes: sólo rutas del propio negocio (evita SSRF).
-  if (collectMediaPaths(settings).some((path) => !isPathOwnedBy(path, ctx.business.id))) {
+  // El servidor descarga las imágenes: sólo archivos del negocio o URLs externas de su biblioteca (y éstas, con descarga segura).
+  if ((await invalidMediaRefs(ctx, collectMediaPaths(settings))).length > 0) {
     return NextResponse.json({ error: 'Imagen inválida en la configuración.' }, { status: 400 });
   }
   const site = await getSiteForAdmin(ctx);

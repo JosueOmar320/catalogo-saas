@@ -1,7 +1,10 @@
 'use client';
 
-import { Autocomplete, Stack, TextField } from '@mui/material';
-import type { ComponentType } from 'react';
+import { Autocomplete, Button, Stack, TextField } from '@mui/material';
+import { Images } from 'lucide-react';
+import { useState, type ComponentType } from 'react';
+import { ColumnsSectionEditor } from './columns-editor';
+import { MediaLibraryDialog } from '@/features/media/components/MediaLibraryDialog';
 import { SORT_LABELS, SORT_OPTIONS } from '@/lib/catalog/collections';
 import type { SitePage } from '@/lib/site/pages';
 import type { SectionOf, SectionType } from '@/lib/site/section-schemas';
@@ -270,6 +273,7 @@ function GalleryEditor(props: EditorProps<'gallery'>) {
         <Heading {...props} />
       </Group>
       <Group title="Imágenes">
+        <GalleryFromLibrary onAdd={(paths) => set({ images: [...c.images, ...paths.filter((p) => !c.images.some((i) => i.path === p)).map((path) => ({ path, caption: '' }))].slice(0, 40) })} />
         <ListEditor
           items={c.images}
           onChange={(images) => set({ images })}
@@ -291,6 +295,19 @@ function GalleryEditor(props: EditorProps<'gallery'>) {
         <Segmented label="Separación" value={c.gap} onChange={(gap) => set({ gap })} options={[{ value: 'none', label: 'Sin' }, { value: 'sm', label: 'Chica' }, { value: 'md', label: 'Normal' }]} />
         <ColumnsEditor value={c.columns} onChange={(columns) => set({ columns })} />
       </Group>
+    </>
+  );
+}
+
+/** Agregar varias imágenes de la biblioteca a la vez (sin subirlas de nuevo). */
+function GalleryFromLibrary({ onAdd }: { onAdd: (paths: string[]) => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button variant="outlined" color="inherit" size="small" startIcon={<Images size={14} />} onClick={() => setOpen(true)} sx={{ alignSelf: 'flex-start' }}>
+        Agregar varias desde la biblioteca
+      </Button>
+      <MediaLibraryDialog open={open} onClose={() => setOpen(false)} multiple onSelectMany={(records) => onAdd(records.map((r) => r.path))} />
     </>
   );
 }
@@ -437,4 +454,5 @@ export const CONTENT_EDITORS: { [T in SectionType]: ComponentType<EditorProps<T>
   social: SocialEditor,
   spacer: SpacerEditor,
   ...EXTRA_EDITORS,
+  columns: ColumnsSectionEditor,
 };

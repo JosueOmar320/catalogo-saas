@@ -59,6 +59,10 @@ export function SectionFrame({ section, theme, children, backgroundOnContent, pr
   if (style.border.width > 0) vars['--s-border'] = `${style.border.width}px solid ${style.border.color || 'var(--c-border)'}`;
   if (style.border.radius > 0) vars['--s-radius'] = `${style.border.radius}px`;
   if (style.shadow !== 'none') vars['--s-shadow'] = SHADOW[style.shadow];
+  // Celular: padding propio (si se definió).
+  const mobile = style.mobile;
+  if (mobile.paddingTop !== 'inherit') vars['--pt-m'] = PADDING[mobile.paddingTop];
+  if (mobile.paddingBottom !== 'inherit') vars['--pb-m'] = PADDING[mobile.paddingBottom];
   const container = style.width === 'full' ? styles.containerFull : style.width === 'wide' ? styles.containerWide : style.width === 'narrow' ? styles.containerNarrow : '';
 
   return (
@@ -72,6 +76,9 @@ export function SectionFrame({ section, theme, children, backgroundOnContent, pr
       data-margin={style.marginTop !== 'none' ? style.marginTop : undefined}
       data-overlap={style.overlap !== 'none' ? style.overlap : undefined}
       data-boxed={style.boxed || undefined}
+      data-mobile-pt={mobile.paddingTop !== 'inherit' || undefined}
+      data-mobile-pb={mobile.paddingBottom !== 'inherit' || undefined}
+      data-mobile-align={mobile.textAlign !== 'inherit' ? mobile.textAlign : undefined}
       data-decorated={style.border.width > 0 || style.border.radius > 0 || style.shadow !== 'none' || undefined}
       className={[
         styles.section,

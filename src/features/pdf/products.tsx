@@ -256,7 +256,7 @@ function comparisonRows(c: Ctx, items: CatalogItemView[], width: number): ReactE
 /* ------------------------------------------------------------ Filas */
 
 function gridRows(c: Ctx, items: CatalogItemView[], width: number, cols: number, render: (item: CatalogItemView, w: number) => ReactElement) {
-  const gap = GAP[c.p.gap];
+  const gap = GAP[c.p.gap] * c.doc.t.density;
   const w = (width - gap * (cols - 1)) / cols;
   const rows: ReactElement[] = [];
   for (let i = 0; i < items.length; i += cols) {

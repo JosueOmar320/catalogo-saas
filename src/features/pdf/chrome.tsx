@@ -3,7 +3,7 @@ import { Circle, G, Image, Line, Path, Rect, Svg, Text, View } from '@react-pdf/
 import type { ReactNode } from 'react';
 import type { PdfSettings } from '@/lib/pdf/settings';
 import type { SiteViewModel } from '@/lib/site/view-model';
-import type { PdfDoc } from './doc';
+import { sectionTitleAt, type PdfDoc } from './doc';
 import { img, type PdfContext } from './primitives';
 
 export function contactLine(site: SiteViewModel, parts: { phone?: boolean; whatsapp?: boolean; email?: boolean; website?: boolean } = { phone: true, whatsapp: true, email: true, website: true }) {
@@ -33,7 +33,7 @@ export function PdfHeader({ doc }: { doc: PdfDoc }) {
   const h = settings.header;
   if (h.style === 'none') return null;
   const logo = img(doc, site.business.logoUrl);
-  const pageText = (n: number) => [h.text, h.showPageNumber ? String(n) : ''].filter(Boolean).join('   ');
+  const pageText = (n: number) => [h.showSectionTitle ? sectionTitleAt(doc, n) : '', h.text, h.showPageNumber ? String(n) : ''].filter(Boolean).join('   ·   ');
 
   if (h.style === 'band') {
     const height = t.margin * 0.5 + 30;
@@ -63,13 +63,17 @@ export function PdfHeader({ doc }: { doc: PdfDoc }) {
   }
 
   const color = h.color || t.colors.heading;
+  // Logo/nombre a la izquierda (texto a la derecha), a la derecha (texto a la izquierda) o centrado (texto debajo).
+  const brand = (
+    <View key="brand" style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+      {h.showLogo && logo && <Image src={logo} style={{ width: 16, height: 16, objectFit: 'contain' }} />}
+      {h.showName && <Text style={{ fontFamily: t.fonts.heading, fontWeight: 700, fontSize: t.size.small, color }}>{site.business.name}</Text>}
+    </View>
+  );
+  const info = <Text key="info" style={{ fontSize: t.size.tiny, color, letterSpacing: 1, textTransform: 'uppercase', textAlign: h.align === 'center' ? 'center' : h.align === 'right' ? 'left' : 'right' }} render={({ pageNumber }) => pageText(pageNumber)} />;
   return (
-    <View fixed style={{ position: 'absolute', top: t.margin * 0.55, left: t.margin, right: t.margin, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 6, borderBottomWidth: 0.6, borderBottomColor: h.color || t.colors.border }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-        {h.showLogo && logo && <Image src={logo} style={{ width: 16, height: 16, objectFit: 'contain' }} />}
-        {h.showName && <Text style={{ fontFamily: t.fonts.heading, fontWeight: 700, fontSize: t.size.small, color }}>{site.business.name}</Text>}
-      </View>
-      <Text style={{ fontSize: t.size.tiny, color, letterSpacing: 1, textTransform: 'uppercase' }} render={({ pageNumber }) => pageText(pageNumber)} />
+    <View fixed style={{ position: 'absolute', top: t.margin * 0.55, left: t.margin, right: t.margin, flexDirection: h.align === 'center' ? 'column' : 'row', alignItems: 'center', justifyContent: 'space-between', gap: h.align === 'center' ? 2 : 0, paddingBottom: 6, borderBottomWidth: 0.6, borderBottomColor: h.color || t.colors.border }}>
+      {h.align === 'right' ? [info, brand] : [brand, info]}
     </View>
   );
 }
@@ -81,7 +85,7 @@ export function PdfFooter({ doc }: { doc: PdfDoc }) {
   const f = settings.footer;
   if (f.style === 'none') return null;
   const handle = f.showSocial ? socialHandle(site) : null;
-  const text = [contactLine(site, { phone: f.showPhone, whatsapp: f.showWhatsapp, email: f.showEmail, website: f.showWebsite }), f.customText].filter(Boolean).join('   ·   ');
+  const text = [f.showBusinessName ? site.business.name : '', contactLine(site, { phone: f.showPhone, whatsapp: f.showWhatsapp, email: f.showEmail, website: f.showWebsite }), f.customText].filter(Boolean).join('   ·   ');
   const numbers = (n: number, total: number) => (f.pageNumbers === 'none' ? '' : f.pageNumbers === 'ofTotal' ? `${n} / ${total}` : String(n));
 
   if (f.style === 'band') {
@@ -101,8 +105,8 @@ export function PdfFooter({ doc }: { doc: PdfDoc }) {
   }
 
   return (
-    <View fixed style={{ position: 'absolute', bottom: t.margin * 0.55, left: t.margin, right: t.margin, flexDirection: 'row', justifyContent: 'space-between', gap: 12, paddingTop: 6, borderTopWidth: 0.5, borderTopColor: t.colors.border }}>
-      <Text style={{ fontSize: t.size.tiny, color: t.colors.mutedText, flex: 1 }}>{[handle, text].filter(Boolean).join('   ·   ')}</Text>
+    <View fixed style={{ position: 'absolute', bottom: t.margin * 0.55, left: t.margin, right: t.margin, flexDirection: f.align === 'center' ? 'column' : 'row', alignItems: f.align === 'center' ? 'center' : 'stretch', justifyContent: 'space-between', gap: f.align === 'center' ? 2 : 12, paddingTop: 6, borderTopWidth: 0.5, borderTopColor: t.colors.border }}>
+      <Text style={{ fontSize: t.size.tiny, color: t.colors.mutedText, flex: f.align === 'center' ? undefined : 1, textAlign: f.align === 'center' ? 'center' : 'left' }}>{[handle, text].filter(Boolean).join('   ·   ')}</Text>
       {f.pageNumbers !== 'none' && <Text style={{ fontSize: t.size.tiny, color: t.colors.mutedText }} render={({ pageNumber, totalPages }) => numbers(pageNumber, totalPages)} />}
     </View>
   );

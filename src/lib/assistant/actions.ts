@@ -2,6 +2,8 @@ import { z } from 'zod';
 import { THEME_PRESETS } from '@/lib/design/presets';
 import { PAGE_BLUEPRINT_IDS } from '@/lib/site/blueprints';
 import { SECTION_TYPES } from '@/lib/site/section-schemas';
+import { SITE_TEMPLATE_IDS } from '@/lib/site/templates';
+import { mediaQuerySchema } from './pdf-actions';
 
 /**
  * Catálogo de acciones de Garfield AI: la ÚNICA forma en que el asistente
@@ -36,8 +38,17 @@ export const sectionSpecSchema = z.object({
 export type SectionSpec = z.infer<typeof sectionSpecSchema>;
 
 const navKinds = z.enum(['page', 'url', 'whatsapp', 'phone', 'email']);
-/** Ruta de Storage de la biblioteca del negocio ("{negocio}/site/…"). Nunca URLs externas. */
-const mediaPath = z.string().trim().min(3).max(300).regex(/^[0-9a-f-]{36}\/[a-z]+\/[^\s]+$/, 'Usa la ruta de la biblioteca (search_media / import_image)');
+/**
+ * Imagen de la biblioteca del negocio: ruta de Storage ("{negocio}/media/…")
+ * o URL externa registrada en la biblioteca. El servidor sólo deja pasar las
+ * que existen en la biblioteca (validatedMedia).
+ */
+const mediaPath = z
+  .string()
+  .trim()
+  .min(3)
+  .max(1000)
+  .regex(/^([0-9a-f-]{36}\/[a-z]+\/[^\s]+|https:\/\/[^\s]+)$/, 'Usa la ruta de la biblioteca (search_media / import_image)');
 
 export const assistantActionSchema = z.discriminatedUnion('action', [
   /* ---------------- Páginas */
@@ -137,7 +148,8 @@ export const assistantActionSchema = z.discriminatedUnion('action', [
     action: z.literal('set_image'),
     section: ref,
     page: ref.optional(),
-    path: mediaPath,
+    path: mediaPath.optional().describe('Ruta de la imagen. O usa media para que el servidor la busque.'),
+    media: mediaQuerySchema.optional(),
     target: z.enum(['auto', 'background', 'image']).optional().describe('auto: hero/banner → fondo con overlay; texto/imagen → imagen de la sección; galería → agrega.'),
     overlay: z.number().min(0).max(90).optional().describe('Oscurecer el fondo (0–90). Por defecto 45 en fondos con texto.'),
     alt: z.string().max(200).optional(),
@@ -146,9 +158,18 @@ export const assistantActionSchema = z.discriminatedUnion('action', [
     action: z.literal('add_gallery_images'),
     section: ref,
     page: ref.optional(),
-    images: z.array(z.object({ path: mediaPath, caption: z.string().max(160).optional() })).min(1).max(40),
+    images: z.array(z.object({ path: mediaPath, caption: z.string().max(160).optional() })).max(40).optional(),
+    media: mediaQuerySchema.optional().describe('En lugar de images: { latest: 6 } o { query: "comida", latest: 8 }.'),
     replace: z.boolean().optional().describe('Reemplazar las imágenes actuales en lugar de agregar.'),
   }),
+  z
+    .object({
+      action: z.literal('set_logo'),
+      path: mediaPath.optional(),
+      media: mediaQuerySchema.optional().describe('Por defecto busca en la carpeta Logos.'),
+      showInHeader: z.boolean().optional().describe('Mostrar el logo en el encabezado (por defecto sí).'),
+    })
+    .describe('Usa una imagen de la biblioteca como logo del negocio (se guarda al aplicar).'),
   z.object({ action: z.literal('reorder_gallery'), section: ref, page: ref.optional(), order: z.array(mediaPath).max(40) }),
   z.object({ action: z.literal('remove_gallery_images'), section: ref, page: ref.optional(), paths: z.array(mediaPath).min(1).max(40) }),
 
@@ -210,6 +231,26 @@ export const assistantActionSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('delete_product'), product: ref }),
   z.object({ action: z.literal('reorder_products'), order: z.array(ref).min(1).max(500) }),
 
+  /* ---------------- Dirección de arte */
+  z
+    .object({
+      action: z.literal('polish_page'),
+      page: ref.optional(),
+      intensity: z.enum(['subtle', 'balanced', 'bold']).optional().describe('subtle: casi igual · balanced (por defecto): bandas suaves y de marca · bold: además divisores y parallax.'),
+    })
+    .describe('Le da ritmo visual a una página: alterna fondos suaves y de color de marca, oscurece imágenes de fondo y agrega divisores. No cambia textos ni secciones con fondo propio.'),
+
+  /* ---------------- Plantillas de sitio */
+  z
+    .object({
+      action: z.literal('apply_site_template'),
+      template: z.enum(SITE_TEMPLATE_IDS),
+      mode: z.enum(['replace', 'add']).optional().describe('replace (por defecto): el sitio queda sólo con las páginas de la plantilla. add: agrega las páginas que falten.'),
+      topic: z.string().max(80).optional().describe('Rubro del negocio para ajustar los textos ("restaurante italiano").'),
+      keepTheme: z.boolean().optional().describe('Conservar el tema actual (colores, tipografía).'),
+    })
+    .describe('Crea el sitio desde una plantilla (tema + páginas + secciones). Luego puedes personalizar con otras acciones.'),
+
   /* ---------------- Editor */
   z.object({ action: z.literal('focus'), page: ref.optional(), section: ref.optional() }).describe('Abre una página o sección en el editor, sin cambiarla.'),
 ]);
@@ -226,10 +267,11 @@ export const assistantResponseSchema = z.object({
 export type AssistantResponse = z.infer<typeof assistantResponseSchema>;
 
 /** Acciones que siempre piden confirmación. */
-export const CONFIRM_ACTIONS: ReadonlySet<AssistantActionType> = new Set(['delete_page', 'delete_section', 'remove_nav_item', 'set_home_page', 'delete_category', 'delete_product']);
+export const CONFIRM_ACTIONS: ReadonlySet<AssistantActionType> = new Set(['delete_page', 'delete_section', 'remove_nav_item', 'set_home_page', 'delete_category', 'delete_product', 'apply_site_template']);
 
-/** Acciones sobre productos y categorías: se ejecutan en el servidor al aplicar (no en el borrador). */
+/** Acciones sobre productos, categorías y el negocio: se ejecutan en el servidor al aplicar (no en el borrador). */
 export const CATALOG_ACTIONS: ReadonlySet<AssistantActionType> = new Set([
+  'set_logo',
   'create_category',
   'update_category',
   'delete_category',
@@ -239,7 +281,7 @@ export const CATALOG_ACTIONS: ReadonlySet<AssistantActionType> = new Set([
   'delete_product',
   'reorder_products',
 ]);
-export type CatalogAction = Extract<AssistantAction, { action: 'create_category' | 'update_category' | 'delete_category' | 'reorder_categories' | 'create_product' | 'update_product' | 'delete_product' | 'reorder_products' }>;
+export type CatalogAction = Extract<AssistantAction, { action: 'set_logo' | 'create_category' | 'update_category' | 'delete_category' | 'reorder_categories' | 'create_product' | 'update_product' | 'delete_product' | 'reorder_products' }>;
 export const isCatalogAction = (a: AssistantAction): a is CatalogAction => CATALOG_ACTIONS.has(a.action);
 
 /**

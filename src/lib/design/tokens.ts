@@ -1,5 +1,6 @@
 import { alpha, mix, readableOn } from './color';
-import { TYPE_ROLES, type ThemeConfig, type TypeRole } from './theme';
+import type { ThemeConfig } from './theme';
+import { TYPE_ROLES, type TypeRole } from './type-roles';
 
 /**
  * Valores concretos derivados del tema. Es la única traducción de "opciones"

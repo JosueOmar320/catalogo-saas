@@ -32,15 +32,25 @@ export const SECTION_TYPES = [
   'team',
   'stats',
   'logos',
+  'columns',
 ] as const;
 export type SectionType = (typeof SECTION_TYPES)[number];
+
+/** Distribuciones de la sección Columnas (fracciones del ancho). */
+export const COLUMN_LAYOUTS = ['1', '1-1', '1-2', '2-1', '1-3', '3-1', '1-1-1', '1-2-1', '1-1-1-1'] as const;
+export type ColumnLayout = (typeof COLUMN_LAYOUTS)[number];
+export const columnCount = (layout: ColumnLayout) => layout.split('-').length;
+
+/** Bloques que se pueden poner dentro de una columna. */
+export const COLUMN_BLOCK_KINDS = ['heading', 'text', 'image', 'buttons', 'list', 'card', 'icon', 'badge', 'stat', 'divider', 'spacer', 'video'] as const;
+export type ColumnBlockKind = (typeof COLUMN_BLOCK_KINDS)[number];
 
 function build(lenient: boolean) {
   const f = fieldFactory(lenient);
   const bool = (v: boolean) => f(z.boolean(), v);
   const text = (max: number, v = '') => f(z.string().max(max), v);
   const uuidOrEmpty = f(z.union([z.literal(''), z.uuid()]), '');
-  const image = z.object({ path: f(z.string().max(300).nullable(), null) }).prefault({});
+  const image = z.object({ path: f(z.string().max(1000).nullable(), null) }).prefault({});
   const columns = (desktop: number, tablet: number, mobile: number) =>
     z
       .object({
@@ -112,8 +122,61 @@ function build(lenient: boolean) {
       hideOnMobile: bool(false),
       hideOnDesktop: bool(false),
       anchor: f(z.string().regex(/^[a-z0-9-]*$/).max(40), ''),
+      /** Ajustes sólo para celulares (inherit = como en escritorio). */
+      mobile: z
+        .object({
+          paddingTop: f(z.enum(['inherit', 'none', 'sm', 'md', 'lg']), 'inherit'),
+          paddingBottom: f(z.enum(['inherit', 'none', 'sm', 'md', 'lg']), 'inherit'),
+          textAlign: f(z.enum(['inherit', 'left', 'center']), 'inherit'),
+        })
+        .prefault({}),
     })
     .prefault({});
+
+  /* ---------------- Bloques de la sección Columnas */
+  const blockBase = { id: z.string().min(1).max(64) };
+  const columnBlock = z.discriminatedUnion('kind', [
+    z.object({ ...blockBase, kind: z.literal('heading'), eyebrow: text(80), text: text(200), level: f(z.enum(['h2', 'h3', 'h4']), 'h2') }),
+    z.object({ ...blockBase, kind: z.literal('text'), body: text(4000), size: f(z.enum(['sm', 'md', 'lg']), 'md') }),
+    z.object({ ...blockBase, kind: z.literal('image'), image, alt: text(200), ratio: f(z.enum(['original', 'square', 'landscape', 'portrait', 'wide']), 'landscape'), rounded: bool(true), shadow: bool(false) }),
+    z.object({ ...blockBase, kind: z.literal('buttons'), items: f(z.array(button).max(4), []) }),
+    z.object({
+      ...blockBase,
+      kind: z.literal('list'),
+      items: f(z.array(z.object({ id: z.string().max(64), text: text(240), icon: f(z.union([z.literal(''), z.enum(ICON_IDS)]), '') })).max(20), []),
+      marker: f(z.enum(['icon', 'bullet', 'number', 'check']), 'check'),
+    }),
+    z.object({
+      ...blockBase,
+      kind: z.literal('card'),
+      icon: f(z.union([z.literal(''), z.enum(ICON_IDS)]), ''),
+      image,
+      title: text(120),
+      text: text(600),
+      button,
+    }),
+    z.object({ ...blockBase, kind: z.literal('icon'), icon: f(z.enum(ICON_IDS), 'star'), size: f(z.enum(['sm', 'md', 'lg']), 'md'), shape: f(z.enum(['none', 'circle', 'square']), 'circle') }),
+    z.object({ ...blockBase, kind: z.literal('badge'), text: text(40), tone: f(z.enum(['accent', 'primary', 'neutral']), 'accent') }),
+    z.object({ ...blockBase, kind: z.literal('stat'), value: text(24), label: text(80) }),
+    z.object({ ...blockBase, kind: z.literal('divider') }),
+    z.object({ ...blockBase, kind: z.literal('spacer'), size: f(z.enum(['sm', 'md', 'lg']), 'md') }),
+    z.object({ ...blockBase, kind: z.literal('video'), url: f(z.union([z.literal(''), z.url({ protocol: /^https$/ }).max(500)]), ''), ratio: f(z.enum(['16:9', '4:3', '1:1']), '16:9') }),
+  ]);
+  // Leniente: un bloque inválido se descarta en lugar de invalidar toda la sección.
+  const blockList = lenient
+    ? z.array(z.unknown()).catch([]).transform((list) => list.flatMap((b) => {
+        const r = columnBlock.safeParse(b);
+        return r.success ? [r.data] : [];
+      }).slice(0, 12))
+    : z.array(columnBlock).max(12);
+  const column = z.object({
+    id: z.string().min(1).max(64),
+    blocks: blockList.prefault([]),
+    align: f(z.enum(['left', 'center', 'right']), 'left'),
+    /** Columna como tarjeta. */
+    surface: f(z.enum(['none', 'card', 'soft', 'outline']), 'none'),
+    padding: f(z.enum(['none', 'sm', 'md', 'lg']), 'none'),
+  });
 
   const base = <T extends SectionType, C extends z.ZodType>(type: T, content: C) =>
     z.object({
@@ -233,7 +296,7 @@ function build(lenient: boolean) {
       'gallery',
       z.object({
         ...heading,
-        images: f(z.array(z.object({ path: z.string().max(300), caption: text(160) })).max(40), []),
+        images: f(z.array(z.object({ path: z.string().max(1000), caption: text(160) })).max(40), []),
         layout: f(z.enum(['grid', 'masonry', 'slider']), 'grid'),
         ratio: f(z.enum(['square', 'landscape', 'portrait', 'original']), 'square'),
         columns: columns(3, 3, 2),
@@ -266,7 +329,7 @@ function build(lenient: boolean) {
                 name: text(80),
                 role: text(80),
                 text: text(600),
-                photo: f(z.string().max(300).nullable(), null),
+                photo: f(z.string().max(1000).nullable(), null),
                 rating: f(z.number().int().min(0).max(5), 5),
               }),
             )
@@ -369,7 +432,7 @@ function build(lenient: boolean) {
       'team',
       z.object({
         ...heading,
-        members: f(z.array(z.object({ id: z.string().max(64), name: text(80), role: text(80), bio: text(400), photo: f(z.string().max(300).nullable(), null) })).max(24), []),
+        members: f(z.array(z.object({ id: z.string().max(64), name: text(80), role: text(80), bio: text(400), photo: f(z.string().max(1000).nullable(), null) })).max(24), []),
         layout: f(z.enum(['grid', 'list']), 'grid'),
         photoShape: f(z.enum(['circle', 'rounded', 'square']), 'circle'),
         columns: columns(4, 3, 2),
@@ -388,10 +451,28 @@ function build(lenient: boolean) {
       'logos',
       z.object({
         ...heading,
-        logos: f(z.array(z.object({ path: z.string().max(300), name: text(80), url: f(z.union([z.literal(''), z.url({ protocol: /^https?$/ }).max(500)]), '') })).max(30), []),
+        logos: f(z.array(z.object({ path: z.string().max(1000), name: text(80), url: f(z.union([z.literal(''), z.url({ protocol: /^https?$/ }).max(500)]), '') })).max(30), []),
         grayscale: bool(true),
         size: f(z.enum(['sm', 'md', 'lg']), 'md'),
         columns: columns(5, 4, 2),
+      }),
+    ),
+    columns: base(
+      'columns',
+      z.object({
+        ...heading,
+        layout: f(z.enum(COLUMN_LAYOUTS), '1-1'),
+        gap: f(z.enum(['sm', 'md', 'lg']), 'md'),
+        verticalAlign: f(z.enum(['top', 'center', 'bottom', 'stretch']), 'center'),
+        /** En tablet: igual que en escritorio o en 2 columnas. */
+        tablet: f(z.enum(['same', '2', '1']), '2'),
+        /** En celular: una columna (apiladas) o dos. */
+        mobile: f(z.enum(['1', '2']), '1'),
+        reverseOnMobile: bool(false),
+        columns: f(z.array(column).min(1).max(4), [
+          { id: 'c1', blocks: [], align: 'left', surface: 'none', padding: 'none' },
+          { id: 'c2', blocks: [], align: 'left', surface: 'none', padding: 'none' },
+        ]),
       }),
     ),
   } satisfies Record<SectionType, z.ZodType>;
@@ -417,6 +498,7 @@ function build(lenient: boolean) {
     sections.team,
     sections.stats,
     sections.logos,
+    sections.columns,
   ]);
 
   return { sections, section, style, link, button };
@@ -506,4 +588,16 @@ function migrateLegacySection(entry: Obj): Obj {
     next.filters = { search: content.showSearch, categories: content.showCategoryNav, types: content.showFilters, availability: content.showFilters };
   }
   return { ...entry, content: next };
+}
+
+/* ------------------------------------------------------------------ Columnas */
+
+export type ColumnsContent = SectionOf<'columns'>['content'];
+export type ColumnBlock = ColumnsContent['columns'][number]['blocks'][number];
+export type ColumnBlockOf<K extends ColumnBlockKind> = Extract<ColumnBlock, { kind: K }>;
+
+/** Bloque nuevo con sus valores por defecto (y los campos dados). */
+export function createColumnBlock<K extends ColumnBlockKind>(kind: K, fields: Record<string, unknown> = {}): ColumnBlockOf<K> {
+  const parsed = lenient.sections.columns.parse({ id: 'x', type: 'columns', content: { columns: [{ id: 'c', blocks: [{ id: crypto.randomUUID(), ...fields, kind }] }] } });
+  return parsed.content.columns[0].blocks[0] as ColumnBlockOf<K>;
 }

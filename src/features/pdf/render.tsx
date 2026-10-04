@@ -10,6 +10,8 @@ import { resolvePdfFonts } from './fonts';
 import { prefetchImages } from './images';
 import { parseVideoUrl } from '@/lib/site/video';
 import { BIG_IMAGE_LAYOUTS } from './products';
+import { tocEntries } from './blocks';
+import { FONT_IDS, type FontId } from '@/lib/design/fonts';
 import { SitePdfDocument } from './SitePdfDocument';
 import { pdfTokens } from './tokens';
 
@@ -65,8 +67,10 @@ function countPages(buffer: Buffer): number {
 export async function renderSitePdf(site: SiteViewModel, settings: PdfSettings, options: Options = {}): Promise<RenderedPdf> {
   const items = options.maxItems ? site.items.slice(0, options.maxItems) : site.items;
   const { typography } = site.theme;
+  // Fuentes propias del PDF (si se eligieron); si no, las del sitio.
+  const font = (id: string, fallback: FontId): FontId => ((FONT_IDS as readonly string[]).includes(id) ? (id as FontId) : fallback);
   const [fonts, images] = await Promise.all([
-    resolvePdfFonts({ heading: typography.headingFont, body: typography.bodyFont, price: typography.priceFont }),
+    resolvePdfFonts({ heading: font(settings.style.headingFont, typography.headingFont), body: font(settings.style.bodyFont, typography.bodyFont), price: font(settings.style.bodyFont, typography.priceFont) }),
     prefetchImages(collectImageUrls(site, settings, items)),
   ]);
   const t = pdfTokens(site.theme, settings, fonts);
@@ -81,12 +85,15 @@ export async function renderSitePdf(site: SiteViewModel, settings: PdfSettings, 
     items,
     marks: new Map(),
     toc: new Map(),
+    sectionTitles: new Map(),
   };
+  doc.sectionTitles = new Map(tocEntries(doc, settings.blocks.filter((b) => b.enabled), true).map((e) => [e.id, e.label]));
 
-  const hasToc = settings.blocks.some((b) => b.enabled && b.type === 'toc');
+  // Segunda pasada si hace falta saber en qué página cae cada bloque (índice o título de sección en el encabezado).
+  const twoPasses = settings.blocks.some((b) => b.enabled && b.type === 'toc') || (settings.header.style !== 'none' && settings.header.showSectionTitle);
   let final = doc;
   let buffer = await renderToBuffer(<SitePdfDocument doc={doc} />);
-  if (hasToc) {
+  if (twoPasses) {
     final = { ...doc, toc: new Map(doc.marks), marks: new Map() };
     buffer = await renderToBuffer(<SitePdfDocument doc={final} />);
   }

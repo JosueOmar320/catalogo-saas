@@ -1,5 +1,5 @@
 import type { LinkContext } from '@/lib/site/links';
-import { findHome } from '@/lib/site/pages';
+import { findHome } from '@/lib/site/find-home';
 import type { SiteViewModel } from '@/lib/site/view-model';
 
 /**

@@ -1,8 +1,9 @@
 import Image from 'next/image';
+import { optimizable } from './SiteImage';
 import type { CSSProperties } from 'react';
 import { alpha } from '@/lib/design/color';
-import { gradientCss, patternCss, type Background } from '@/lib/design/background';
-import { env } from '@/lib/env';
+import type { Background } from '@/lib/design/background';
+import { gradientCss, patternCss } from '@/lib/design/background-core';
 import { mediaUrl } from '@/lib/utils/storage';
 import styles from './site.module.css';
 
@@ -38,7 +39,7 @@ export function BackgroundLayers({ background, priority = false, videoUrl }: { b
             fill
             sizes="100vw"
             priority={priority}
-            unoptimized={!env.imageOptimization}
+            unoptimized={!optimizable(imageUrl)}
             style={{ objectFit: 'cover', objectPosition: image.position }}
           />
         </div>

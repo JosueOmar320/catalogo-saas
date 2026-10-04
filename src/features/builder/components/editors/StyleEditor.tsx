@@ -5,13 +5,22 @@ import { useState } from 'react';
 import type { Section, SectionStyle } from '@/lib/site/section-schemas';
 import { BackgroundEditor, ColorInput, Group, Segmented, SelectInput, SliderInput, SwitchRow, TextInput } from '../controls';
 
-type Category = 'background' | 'layout' | 'spacing' | 'appearance' | 'advanced';
+type Category = 'background' | 'layout' | 'spacing' | 'appearance' | 'mobile' | 'advanced';
 const CATEGORIES: { id: Category; label: string }[] = [
   { id: 'background', label: 'Fondo' },
   { id: 'layout', label: 'Diseño' },
   { id: 'spacing', label: 'Espaciado' },
   { id: 'appearance', label: 'Apariencia' },
+  { id: 'mobile', label: 'Celular' },
   { id: 'advanced', label: 'Avanzado' },
+];
+
+const mobilePadding = [
+  { value: 'inherit' as const, label: 'Igual' },
+  { value: 'none' as const, label: '0' },
+  { value: 'sm' as const, label: 'S' },
+  { value: 'md' as const, label: 'M' },
+  { value: 'lg' as const, label: 'L' },
 ];
 
 const padding = [
@@ -123,6 +132,16 @@ export function StyleEditor({ section, onChange }: { section: Section; onChange:
             ))}
           </Group>
         </>
+      )}
+
+      {category === 'mobile' && (
+        <Group title="Sólo en celulares" description="Ajustes que se aplican en pantallas chicas. Igual = como en escritorio.">
+          <Segmented label="Espacio arriba" value={style.mobile.paddingTop} onChange={(paddingTop) => set({ mobile: { ...style.mobile, paddingTop } })} options={mobilePadding} />
+          <Segmented label="Espacio abajo" value={style.mobile.paddingBottom} onChange={(paddingBottom) => set({ mobile: { ...style.mobile, paddingBottom } })} options={mobilePadding} />
+          <Segmented label="Alineación del texto" value={style.mobile.textAlign} onChange={(textAlign) => set({ mobile: { ...style.mobile, textAlign } })} options={[{ value: 'inherit', label: 'Igual' }, { value: 'left', label: 'Izquierda' }, { value: 'center', label: 'Centro' }]} />
+          <SwitchRow label="Ocultar en celulares" checked={style.hideOnMobile} onChange={(hideOnMobile) => set({ hideOnMobile })} />
+          <Typography variant="caption" color="text.secondary">Las columnas por dispositivo de productos, galerías y la sección Columnas se ajustan en la pestaña Contenido. Los tamaños de texto en celular, en Diseño › Tipografía.</Typography>
+        </Group>
       )}
 
       {category === 'advanced' && (

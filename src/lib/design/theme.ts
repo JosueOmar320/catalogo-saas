@@ -4,10 +4,9 @@ import { mix } from './color';
 import { FONT_IDS, type FontId } from './fonts';
 import { fieldFactory, hexColor } from './schema-utils';
 import { CARD_STYLES, FOOTER_STYLES, HEADER_STYLES } from './styles-registry';
+import { TYPE_ROLES, type TypeRole } from './type-roles';
 
-/** Jerarquía tipográfica: cada rol puede ajustarse sin romper la escala del tema. */
-export const TYPE_ROLES = ['h1', 'h2', 'h3', 'body', 'small', 'label', 'button'] as const;
-export type TypeRole = (typeof TYPE_ROLES)[number];
+export { TYPE_ROLES, type TypeRole };
 export const TYPE_ROLE_LABELS: Record<TypeRole, string> = { h1: 'Título H1', h2: 'Título H2', h3: 'Título H3', body: 'Texto', small: 'Pequeño', label: 'Etiqueta', button: 'Botón' };
 
 function typeRole(f: ReturnType<typeof fieldFactory>) {

@@ -1,4 +1,5 @@
-import { discountPercent, type CatalogItemView } from '@/lib/catalog/view-model';
+import { discountPercent } from '@/lib/catalog/price';
+import type { CatalogItemView } from '@/lib/catalog/view-model';
 import styles from './site.module.css';
 
 /** Precio del ítem. `compare` muestra el precio anterior tachado; `discount`, el porcentaje. */

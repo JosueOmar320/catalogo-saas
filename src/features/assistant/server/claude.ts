@@ -1,14 +1,22 @@
 import 'server-only';
 import Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
-import { assistantResponseSchema, parseActions, type AssistantResponse } from '@/lib/assistant/actions';
+import type { AssistantMode } from '@/lib/assistant/context';
+import { parseModeActions, responseSchemaFor, type AnyAction } from '@/lib/assistant/modes';
 import { systemBlocks } from './prompt';
 import { MAX_TOOL_ROUNDS, ProviderError, QuotaExceededError, userTurn, type AssistantModel, type ModelInput, type ModelResult } from './types';
 
 const MAX_TOKENS = 8000;
 
-// JSON Schema de la herramienta, generado del MISMO schema Zod que valida la respuesta.
-const { $schema: _schema, ...RESPOND_SCHEMA } = z.toJSONSchema(assistantResponseSchema, { io: 'input', unrepresentable: 'any' }) as Record<string, unknown>;
+// JSON Schema de la herramienta, generado del MISMO schema Zod que valida la respuesta (uno por modo).
+const RESPOND_SCHEMAS = new Map<AssistantMode, Record<string, unknown>>();
+function respondSchema(mode: AssistantMode) {
+  if (!RESPOND_SCHEMAS.has(mode)) {
+    const { $schema: _schema, ...schema } = z.toJSONSchema(responseSchemaFor(mode), { io: 'input', unrepresentable: 'any' }) as Record<string, unknown>;
+    RESPOND_SCHEMAS.set(mode, schema);
+  }
+  return RESPOND_SCHEMAS.get(mode)!;
+}
 
 /** Claude con una herramienta forzada ("respond"): la salida siempre es estructurada. */
 export class ClaudeModel implements AssistantModel {
@@ -45,8 +53,8 @@ export class ClaudeModel implements AssistantModel {
       this.client.messages.create({
         model: this.model,
         max_tokens: MAX_TOKENS,
-        system: systemBlocks(),
-        tools: [...serverTools, { name: 'respond', description: 'Respuesta FINAL al usuario con las acciones del editor.', input_schema: RESPOND_SCHEMA as Anthropic.Tool.InputSchema }],
+        system: systemBlocks(context.mode),
+        tools: [...serverTools, { name: 'respond', description: 'Respuesta FINAL al usuario con las acciones del editor.', input_schema: respondSchema(context.mode) as Anthropic.Tool.InputSchema }],
         tool_choice: mustRespond || serverTools.length === 0 ? { type: 'tool', name: 'respond' } : { type: 'any' },
         messages: conversation,
       });
@@ -66,7 +74,7 @@ export class ClaudeModel implements AssistantModel {
       response = await request(conversation, round === MAX_TOOL_ROUNDS - 1);
     }
 
-    let parsed = read(response);
+    let parsed = read(response, context.mode);
     // Una corrección: si alguna acción no pasó la validación, se lo explicamos al modelo.
     if (parsed.errors.length > 0) {
       const toolUse = response.content.find((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use' && b.name === 'respond');
@@ -79,7 +87,7 @@ export class ClaudeModel implements AssistantModel {
           ],
           true,
         );
-        const second = read(retry);
+        const second = read(retry, context.mode);
         if (second.errors.length <= parsed.errors.length) parsed = second;
       }
     }
@@ -87,10 +95,10 @@ export class ClaudeModel implements AssistantModel {
   }
 }
 
-function read(response: Anthropic.Message): { result: AssistantResponse; errors: string[] } {
+function read(response: Anthropic.Message, mode: AssistantMode): { result: { message: string; actions: AnyAction[]; suggestions: string[] }; errors: string[] } {
   const toolUse = response.content.find((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use' && b.name === 'respond');
   const input = (toolUse?.input ?? {}) as { message?: unknown; actions?: unknown; suggestions?: unknown };
-  const { actions, errors } = parseActions(input.actions);
+  const { actions, errors } = parseModeActions(mode, input.actions);
   const message = typeof input.message === 'string' && input.message.trim() ? input.message.slice(0, 2000) : response.content.find((b): b is Anthropic.TextBlock => b.type === 'text')?.text ?? 'Listo.';
   const suggestions = Array.isArray(input.suggestions) ? input.suggestions.filter((s): s is string => typeof s === 'string').map((s) => s.slice(0, 60)).slice(0, 4) : [];
   if (response.stop_reason === 'max_tokens') errors.push('La respuesta fue demasiado larga y se cortó.');

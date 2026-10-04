@@ -1,11 +1,13 @@
 'use client';
 
 import { Box, Button, ButtonBase, Chip, Divider, IconButton, ListItemIcon, Menu, MenuItem, Stack, Tooltip, Typography } from '@mui/material';
-import { Copy, Eye, EyeOff, Home, MoreHorizontal, Plus, Settings2, Trash2, X } from 'lucide-react';
+import { Copy, Eye, EyeOff, Home, LayoutTemplate, MoreHorizontal, Plus, Settings2, Trash2, Wand2, X } from 'lucide-react';
 import { useState } from 'react';
 import { useConfirm } from '@/components/feedback/ConfirmProvider';
 import { SortableList } from '@/components/ui/SortableList';
+import { artDirect } from '@/lib/site/art-direction';
 import { newPage } from '@/lib/site/pages';
+import { withBrandGradients } from '@/lib/site/resolve';
 import { SECTION_GROUPS, SECTION_META } from '@/lib/site/section-registry';
 import { createSection, SECTION_TYPES, type SectionType } from '@/lib/site/section-schemas';
 import { PAGE_BLUEPRINTS } from '@/lib/site/starter';
@@ -13,6 +15,7 @@ import { Icon } from '@/site-renderer/Icon';
 import { useOptionalGarfield } from '@/features/assistant/components/GarfieldProvider';
 import { GarfieldHint } from '@/features/assistant/components/GarfieldPanel';
 import { useBuilder, useSelectedPage } from '../state';
+import { SiteTemplatesDialog } from './SiteTemplatesDialog';
 
 /** Lista de páginas + secciones de la página seleccionada. */
 export function PagesPanel() {
@@ -21,6 +24,8 @@ export function PagesPanel() {
   const confirm = useConfirm();
   const [menu, setMenu] = useState<{ anchor: HTMLElement; pageId: string } | null>(null);
   const [adding, setAdding] = useState<'page' | 'section' | null>(null);
+  const [templates, setTemplates] = useState(false);
+  const [polish, setPolish] = useState<HTMLElement | null>(null);
   const garfield = useOptionalGarfield();
   const navVisible = (pageId: string) => state.navigation.items.some((i) => i.kind === 'page' && i.pageId === pageId && i.visible);
 
@@ -35,8 +40,12 @@ export function PagesPanel() {
     <Box sx={{ pt: 1.5 }}>
       <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
         <Typography variant="overline" color="text.secondary">Páginas</Typography>
-        <Button size="small" startIcon={<Plus size={14} />} onClick={() => setAdding(adding === 'page' ? null : 'page')}>Nueva página</Button>
+        <Stack direction="row" spacing={0.5}>
+          <Button size="small" color="inherit" startIcon={<LayoutTemplate size={14} />} onClick={() => setTemplates(true)}>Plantillas</Button>
+          <Button size="small" startIcon={<Plus size={14} />} onClick={() => setAdding(adding === 'page' ? null : 'page')}>Nueva página</Button>
+        </Stack>
       </Stack>
+      <SiteTemplatesDialog open={templates} onClose={() => setTemplates(false)} />
 
       {adding === 'page' && (
         <Box sx={{ mb: 1.5, p: 1, border: 1, borderColor: 'divider', borderRadius: 1.5 }}>
@@ -53,7 +62,7 @@ export function PagesPanel() {
             <ButtonBase
               key={bp.template + bp.title}
               onClick={() => {
-                dispatch({ type: 'addPage', page: newPage(bp.title, bp.slug, bp.sections(), bp.template), showInNav: true });
+                dispatch({ type: 'addPage', page: newPage(bp.title, bp.slug, withBrandGradients(bp.sections(), state.theme), bp.template), showInNav: true });
                 setAdding(null);
               }}
               sx={{ display: 'block', width: '100%', textAlign: 'left', p: 1, borderRadius: 1, '&:hover': { bgcolor: 'action.hover' } }}
@@ -123,6 +132,27 @@ export function PagesPanel() {
           <Typography variant="caption" color="text.secondary" component="p" noWrap>de «{page.title}»</Typography>
         </Box>
         <Stack direction="row">
+          <Tooltip title="Darle más diseño a la página (fondos alternados, bandas de color, divisores)">
+            <IconButton onClick={(e) => setPolish(e.currentTarget)} aria-label="Mejorar diseño de la página"><Wand2 size={16} /></IconButton>
+          </Tooltip>
+          <Menu anchorEl={polish} open={Boolean(polish)} onClose={() => setPolish(null)}>
+            {(['subtle', 'balanced', 'bold'] as const).map((intensity) => (
+              <MenuItem
+                key={intensity}
+                onClick={() => {
+                  setPolish(null);
+                  const sections = artDirect(page.sections, state.theme, intensity);
+                  dispatch({ type: 'reset', state: { ...state, pages: state.pages.map((p) => (p.id === page.id ? { ...p, sections } : p)), dirty: { ...state.dirty, pages: true } } });
+                }}
+                sx={{ whiteSpace: 'normal', maxWidth: 300 }}
+              >
+                <Box>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>{{ subtle: 'Sutil', balanced: 'Equilibrado', bold: 'Llamativo' }[intensity]}</Typography>
+                  <Typography variant="caption" color="text.secondary">{{ subtle: 'Pocos cambios: fondos suaves en beneficios y opiniones.', balanced: 'Alterna fondos suaves y bandas de color de marca.', bold: 'Además degradados, divisores con ondas y parallax.' }[intensity]}</Typography>
+                </Box>
+              </MenuItem>
+            ))}
+          </Menu>
           <Tooltip title="Configurar página (URL, fondo, SEO)">
             <IconButton onClick={() => dispatch({ type: 'editPageSettings', open: true })} aria-label="Configurar página"><Settings2 size={16} /></IconButton>
           </Tooltip>

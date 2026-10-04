@@ -1,4 +1,7 @@
-import { CONFIRM_ACTIONS, isCatalogAction, type AssistantAction, type SectionSpec } from '@/lib/assistant/actions';
+import { artDirect } from '@/lib/site/art-direction';
+import { withBrandGradients } from '@/lib/site/resolve';
+import { applySiteTemplate, SITE_TEMPLATES } from '@/lib/site/templates';
+import { CONFIRM_ACTIONS, isCatalogAction, type AssistantAction, type CatalogAction, type SectionSpec } from '@/lib/assistant/actions';
 import { buildBackgroundSchema, type Background } from '@/lib/design/background';
 import { applyPreset, getPreset } from '@/lib/design/presets';
 import { themeSchema, type ThemeConfig } from '@/lib/design/theme';
@@ -198,12 +201,20 @@ export function planAssistantActions(initial: BuilderState, actions: AssistantAc
     return out;
   }
 
-  /** Ítems de listas (beneficios, testimonios, preguntas, planes, equipo) sin id → id nuevo. */
+  /**
+   * Ítems de listas (beneficios, testimonios, preguntas, planes, equipo) y
+   * columnas/bloques de la sección Columnas sin id → id nuevo.
+   */
   function withItemIds(content: PlainObject): PlainObject {
+    const ids = (list: unknown) => (Array.isArray(list) ? list.map((item) => (isPlainObject(item) && !item.id ? { ...item, id: crypto.randomUUID() } : item)) : list);
     const out = { ...content };
-    for (const key of ['items', 'plans', 'members'] as const) {
-      const list = out[key];
-      if (Array.isArray(list)) out[key] = list.map((item) => (isPlainObject(item) && !item.id ? { ...item, id: crypto.randomUUID() } : item));
+    for (const key of ['items', 'plans', 'members'] as const) if (Array.isArray(out[key])) out[key] = ids(out[key]);
+    if (Array.isArray(out.columns)) {
+      out.columns = (ids(out.columns) as unknown[]).map((column) =>
+        isPlainObject(column) && Array.isArray(column.blocks)
+          ? { ...column, blocks: (ids(column.blocks) as unknown[]).map((b) => (isPlainObject(b) && Array.isArray(b.items) && b.kind === 'list' ? { ...b, items: ids(b.items) } : b)) }
+          : column,
+      );
     }
     return out;
   }
@@ -213,7 +224,7 @@ export function planAssistantActions(initial: BuilderState, actions: AssistantAc
     const cleaned = sanitize(candidate) as PlainObject;
     const content = withItemIds(isPlainObject(cleaned.content) ? cleaned.content : {});
     const result = sectionSchemas[type].safeParse({ ...cleaned, content });
-    return result.success ? (result.data as Section) : fail(`${SECTION_META[type].label}: ${zodMessage(result.error)}`);
+    return result.success ? withBrandGradients([result.data as Section], s.theme)[0] : fail(`${SECTION_META[type].label}: ${zodMessage(result.error)}`);
   }
 
   function buildSection(spec: SectionSpec): Section {
@@ -224,7 +235,8 @@ export function planAssistantActions(initial: BuilderState, actions: AssistantAc
     } catch (error) {
       return fail(`${SECTION_META[spec.type].label}: ${zodMessage(error as { issues: { path: PropertyKey[]; message: string }[] })}`);
     }
-    return spec.name ? { ...section, name: spec.name.slice(0, 60) } : section;
+    const branded = withBrandGradients([section], s.theme)[0];
+    return spec.name ? { ...branded, name: spec.name.slice(0, 60) } : branded;
   }
 
   /* ---------------- Posición */
@@ -319,6 +331,8 @@ export function planAssistantActions(initial: BuilderState, actions: AssistantAc
         } else {
           sections = (blueprint ?? PAGE_BLUEPRINT_DEFS.blank).sections({ topic: a.topic, catalogPageId: catalogPage?.id });
         }
+        // Ritmo visual automático (sólo en secciones sin fondo propio).
+        sections = artDirect(withBrandGradients(sections, s.theme), s.theme, 'balanced');
         const page = newPage(a.title.slice(0, 80), validSlug(a.slug || a.title), sections, blueprint?.template ?? 'custom');
         dispatch({
           type: 'addPage',
@@ -516,25 +530,27 @@ export function planAssistantActions(initial: BuilderState, actions: AssistantAc
 
       case 'set_image': {
         const { page, section } = findSection(a.section, a.page);
-        if (!knownMedia.has(a.path)) fail('Esa imagen no está en la biblioteca del negocio.');
+        if (!a.path) fail('No encontré una imagen para eso en tu biblioteca. Súbela en Medios o adjúntala aquí.');
+        const path = a.path!;
+        if (!knownMedia.has(path)) fail('Esa imagen no está en la biblioteca del negocio.');
         const content = section.content as PlainObject;
         const target = a.target ?? 'auto';
         let patch: PlainObject;
         let where: string;
         if (Array.isArray(content.images) && target !== 'background') {
-          patch = { content: { images: [...(content.images as PlainObject[]), { path: a.path, caption: a.alt ?? '' }] } };
+          patch = { content: { images: [...(content.images as PlainObject[]), { path, caption: a.alt ?? '' }] } };
           where = 'galería';
         } else if (target === 'image' || (target === 'auto' && isPlainObject(content.image) && section.type !== 'hero' && section.type !== 'banner')) {
           if (!isPlainObject(content.image)) fail(`${sectionLabel(section)} no tiene un campo de imagen: usa el fondo.`);
           const extra: PlainObject = {};
           if (section.type === 'text' && content.imagePosition === 'none') extra.imagePosition = 'right';
           if ((section.type === 'hero' || section.type === 'banner') && content.layout !== 'split') extra.layout = 'split';
-          patch = { content: { image: { path: a.path }, ...extra, ...(a.alt && 'alt' in content ? { alt: a.alt } : {}) } };
+          patch = { content: { image: { path }, ...extra, ...(a.alt && 'alt' in content ? { alt: a.alt } : {}) } };
           where = 'imagen';
         } else {
           patch = {
             style: {
-              background: { type: 'image', image: { path: a.path, size: 'cover', position: 'center', opacity: 100 }, overlay: { color: '#000000', opacity: a.overlay ?? 45 } },
+              background: { type: 'image', image: { path, size: 'cover', position: 'center', opacity: 100 }, overlay: { color: '#000000', opacity: a.overlay ?? 45 } },
               ...((a.overlay ?? 45) >= 30 ? { textColor: 'light' } : {}),
             },
           };
@@ -552,9 +568,11 @@ export function planAssistantActions(initial: BuilderState, actions: AssistantAc
         if (!Array.isArray(images)) fail(`${sectionLabel(section)} no es una galería.`);
         let next: { path: string; caption: string }[];
         if (a.action === 'add_gallery_images') {
-          const unknown = a.images.find((i) => !knownMedia.has(i.path));
+          const list = a.images ?? [];
+          if (list.length === 0) fail('No encontré imágenes para la galería en tu biblioteca.');
+          const unknown = list.find((i) => !knownMedia.has(i.path));
           if (unknown) fail('Una de las imágenes no está en la biblioteca del negocio.');
-          const added = a.images.map((i) => ({ path: i.path, caption: i.caption ?? '' }));
+          const added = list.map((i) => ({ path: i.path, caption: i.caption ?? '' }));
           next = a.replace ? added : [...images!, ...added];
         } else if (a.action === 'reorder_gallery') {
           const ordered = a.order.flatMap((p) => images!.filter((i) => i.path === p));
@@ -568,6 +586,33 @@ export function planAssistantActions(initial: BuilderState, actions: AssistantAc
         return { label: `Galería ${sectionLabel(section)}: ${verb} (${next.length})`, risk };
       }
 
+      case 'polish_page': {
+        const page = findPage(a.page);
+        const sections = artDirect(page.sections, s.theme, a.intensity ?? 'balanced');
+        s = { ...s, pages: s.pages.map((p) => (p.id === page.id ? { ...p, sections } : p)), dirty: { ...s.dirty, pages: true } };
+        sections.forEach((x) => touched.push(x.id));
+        focus = { pageId: page.id, sectionId: null };
+        return { label: `Más diseño en «${page.title}» (${{ subtle: 'sutil', balanced: 'equilibrado', bold: 'llamativo' }[a.intensity ?? 'balanced']})`, risk };
+      }
+      case 'apply_site_template': {
+        const result = applySiteTemplate({ theme: s.theme, pages: s.pages, navigation: s.navigation }, a.template, { mode: a.mode, topic: a.topic, keepTheme: a.keepTheme });
+        const removed = result.removedPageIds.filter((id) => s.persistedPageIds.includes(id));
+        const home = result.pages.find((p) => p.isHome) ?? result.pages[0];
+        s = {
+          ...s,
+          theme: result.theme,
+          pages: result.pages,
+          navigation: result.navigation,
+          deletedPageIds: [...new Set([...s.deletedPageIds, ...removed])],
+          selectedPageId: a.mode === 'add' ? s.selectedPageId : home.id,
+          selectedSectionId: null,
+          dirty: { theme: !a.keepTheme || s.dirty.theme, navigation: true, pages: true },
+        };
+        result.pages.flatMap((p) => p.sections).forEach((x) => touched.push(x.id));
+        focus = { pageId: s.selectedPageId, sectionId: null };
+        const label = SITE_TEMPLATES[a.template].label;
+        return { label: a.mode === 'add' ? `Agregar las páginas de la plantilla «${label}»` : `Sitio desde la plantilla «${label}» (${result.pages.length} páginas)`, risk };
+      }
       case 'focus': {
         if (a.section) {
           const { page, section } = findSection(a.section, a.page);
@@ -612,8 +657,10 @@ export function planAssistantActions(initial: BuilderState, actions: AssistantAc
   return { steps, next: s, changed, needsConfirmation, autoApply, hasCatalogChanges, focus, touchedSectionIds: [...new Set(touched)] };
 }
 
-function describeCatalog(a: Extract<AssistantAction, { action: 'create_category' | 'update_category' | 'delete_category' | 'reorder_categories' | 'create_product' | 'update_product' | 'delete_product' | 'reorder_products' }>): string {
+function describeCatalog(a: CatalogAction): string {
   switch (a.action) {
+    case 'set_logo':
+      return 'Usar la imagen como logo del negocio';
     case 'create_category':
       return `Nueva categoría «${a.name}»`;
     case 'update_category':
@@ -639,6 +686,12 @@ function describeFailed(action: AssistantAction): string {
       return `Nueva sección ${SECTION_META[action.section.type].label}`;
     case 'create_page':
       return `Nueva página «${action.title}»`;
+    case 'set_image':
+      return 'Poner una imagen en la sección';
+    case 'add_gallery_images':
+      return 'Agregar imágenes a la galería';
+    case 'set_logo':
+      return 'Usar el logo del negocio';
     default:
       return action.action.replace(/_/g, ' ');
   }

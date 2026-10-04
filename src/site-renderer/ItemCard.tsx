@@ -1,6 +1,6 @@
 import { ImageIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { visibleAttributes } from '@/lib/catalog/attributes';
+import { visibleAttributes } from '@/lib/catalog/attributes-core';
 import type { CatalogItemView } from '@/lib/catalog/view-model';
 import type { CardStyleId } from '@/lib/design/styles-registry';
 import type { SiteViewModel } from '@/lib/site/view-model';

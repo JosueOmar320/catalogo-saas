@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { visibleAttributes } from '@/lib/catalog/attributes';
+import { visibleAttributes } from '@/lib/catalog/attributes-core';
 import type { Presentation } from '@/lib/catalog/presentation';
 import type { CatalogItemView } from '@/lib/catalog/view-model';
 import type { SiteViewModel } from '@/lib/site/view-model';

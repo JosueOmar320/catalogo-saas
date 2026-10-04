@@ -2,7 +2,7 @@
 
 import { ChevronLeft, ChevronRight, PackageSearch, Search, SlidersHorizontal } from 'lucide-react';
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
-import { SORT_LABELS, SORT_OPTIONS, sortItems, type SortOption } from '@/lib/catalog/collections';
+import { SORT_LABELS, SORT_OPTIONS, sortItems, type SortOption } from '@/lib/catalog/collections-core';
 import { attributeFilterOptions, EMPTY_FILTERS, filterItems, groupByCategory, type BadgeFilter, type CatalogFilters } from '../filter';
 import { ItemCard } from '../ItemCard';
 import { ProductCollection } from '../ProductCollection';
@@ -67,7 +67,13 @@ export function CatalogSection({ section, site, env }: SectionProps<'catalog'>) 
   const showSort = content.sort.allowUserSort;
   const showToolbar = items.length > 0 && (cfg.search || showCategoryChips || showTypes || panelFilters || showSort);
 
-  const filtered = useMemo(() => sortItems(filterItems(items, { ...filters, query }), sort), [items, filters, query, sort]);
+  // Dependencias campo por campo SIN el texto escrito: la búsqueda usa el valor diferido (`query`),
+  // así cada tecla filtra una sola vez (antes: una con el texto viejo y otra con el nuevo).
+  const { categoryId, type, onlyAvailable, priceMin, priceMax, badge, attrs } = filters;
+  const filtered = useMemo(
+    () => sortItems(filterItems(items, { query, categoryId, type, onlyAvailable, priceMin, priceMax, badge, attrs }), sort),
+    [items, query, categoryId, type, onlyAvailable, priceMin, priceMax, badge, attrs, sort],
+  );
   const isSearching = filtered.length !== items.length || query.trim() !== '';
   const featured = content.showFeatured && !isSearching ? items.filter((i) => i.isFeatured).slice(0, 6) : [];
 

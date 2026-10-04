@@ -28,6 +28,8 @@ export const PDF_SKINS: Record<PdfTemplateId, PdfSkin> = {
   menu: { card: 'plain', price: 'text', heading: 'ornament', upper: false, center: true },
   modern: { card: 'soft', price: 'pill', heading: 'pill', upper: false, center: false },
   luxury: { card: 'framed', price: 'text', heading: 'ornament', upper: true, center: true },
+  corporate: { card: 'bordered', price: 'text', heading: 'bar', upper: true, center: false },
+  productBrochure: { card: 'plain', price: 'tag', heading: 'spaced', upper: false, center: false },
 };
 
 /** Todo lo que un bloque necesita para dibujarse. */
@@ -41,7 +43,18 @@ export type PdfDoc = PdfContext & {
   marks: Map<string, number>;
   /** Números de página de la pasada anterior (para el índice). */
   toc: Map<string, number>;
+  /** Título de cada bloque/categoría (para el encabezado "título de sección"). */
+  sectionTitles: Map<string, string>;
 };
+
+/** Título de la sección que está en la página `n` (según la pasada anterior). */
+export function sectionTitleAt(doc: PdfDoc, n: number): string {
+  let best: { page: number; id: string } | null = null;
+  for (const [id, page] of doc.toc) {
+    if (page <= n && doc.sectionTitles.has(id) && (!best || page >= best.page)) best = { page, id };
+  }
+  return best ? (doc.sectionTitles.get(best.id) ?? '') : '';
+}
 
 /** Atributos a mostrar en el PDF según la presentación. */
 export function pdfAttributes(doc: PdfDoc, item: CatalogItemView, mode: Presentation['fields']['attributes']): ResolvedAttribute[] {
