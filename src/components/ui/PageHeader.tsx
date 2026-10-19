@@ -33,7 +33,8 @@ export function PageHeader({ title, description, actions, back }: Props) {
             </Typography>
           )}
         </Box>
-        {actions && <Stack direction="row" spacing={1} sx={{ flexShrink: 0, flexWrap: 'wrap', rowGap: 1 }}>{actions}</Stack>}
+        {/* useFlexGap: al pasar a otra línea, los botones no arrastran el margen izquierdo. */}
+        {actions && <Stack direction="row" spacing={1} useFlexGap sx={{ flexShrink: 0, flexWrap: 'wrap' }}>{actions}</Stack>}
       </Stack>
     </Box>
   );

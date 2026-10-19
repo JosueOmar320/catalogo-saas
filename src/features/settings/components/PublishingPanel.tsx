@@ -5,6 +5,7 @@ import { Eye, EyeOff, Rocket } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { STATUS_LABELS } from '@/lib/catalog/status';
 import { useConfirm } from '@/components/feedback/ConfirmProvider';
+import { QrCodeButton } from '@/components/dashboard/QrCodeButton';
 import { CopyField } from '@/components/ui/CopyField';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { publishCatalog, unpublishCatalog } from '@/features/catalog/actions';
@@ -12,9 +13,9 @@ import { useLocale, useT } from '@/i18n/client';
 import { useAction } from '@/lib/hooks/use-action';
 import type { CatalogStatus } from '@/types/database';
 
-type Props = { status: CatalogStatus; url: string; publishedAt: string | null; visibleItems: number; hiddenItems: number };
+type Props = { status: CatalogStatus; url: string; publishedAt: string | null; visibleItems: number; hiddenItems: number; businessName: string; slug: string };
 
-export function PublishingPanel({ status, url, publishedAt, visibleItems, hiddenItems }: Props) {
+export function PublishingPanel({ status, url, publishedAt, visibleItems, hiddenItems, businessName, slug }: Props) {
   const t = useT();
   const locale = useLocale();
   const router = useRouter();
@@ -37,7 +38,7 @@ export function PublishingPanel({ status, url, publishedAt, visibleItems, hidden
           </Typography>
           {visibleItems === 0 && !published && <Alert severity="warning">{t('Aún no hay ítems visibles. Puedes publicar igual, pero tus clientes verán un catálogo vacío.')}</Alert>}
           <CopyField label={t('Enlace público')} value={url} openable={published} />
-          <Stack direction="row" spacing={1}>
+          <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
             {published ? (
               <Button
                 variant="outlined"
@@ -59,6 +60,7 @@ export function PublishingPanel({ status, url, publishedAt, visibleItems, hidden
             <Button variant="outlined" color="inherit" startIcon={<Eye size={15} />} href="/preview" target="_blank">
               {t('Vista previa')}
             </Button>
+            <QrCodeButton url={url} businessName={businessName} slug={slug} published={published} />
           </Stack>
         </Stack>
       </SectionCard>

@@ -4088,3 +4088,67 @@ details[open] > .faqQuestion .faqChevron {
   cursor: pointer;
   padding: 4px;
 }
+
+/* ===================================================== Ficha: compartir y relacionados */
+
+.share {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.shareLabel {
+  font-size: var(--fs-small);
+  color: var(--c-muted);
+  margin-right: 4px;
+}
+
+.shareButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--c-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--c-heading);
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color 0.15s ease;
+}
+
+.shareButton:hover {
+  background: color-mix(in srgb, var(--c-text) 8%, transparent);
+}
+
+.shareButton:focus-visible {
+  outline: 2px solid var(--c-button);
+  outline-offset: 2px;
+}
+
+.related {
+  margin-top: calc(56px * var(--pad-scale));
+  padding-top: calc(32px * var(--pad-scale));
+  border-top: 1px solid var(--c-border);
+}
+
+.relatedTitle {
+  margin: 0 0 20px;
+  font-family: var(--ty-h3-font, var(--f-heading)), sans-serif;
+  font-size: var(--ty-h3-size, 1.4em);
+  color: var(--c-heading);
+}
+
+.relatedGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr));
+  gap: var(--gap-theme, 20px);
+}
+
+@container site (max-width: 599px) {
+  .relatedGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

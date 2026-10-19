@@ -77,7 +77,8 @@ function sampleItems(currency: string, url: string): CatalogItemView[] {
     customBadge: null,
     attributes: item.attrs ?? {},
     createdAt: new Date(2026, 0, 30 - index).toISOString(),
-    url,
+    // Como en un sitio real: cada ítem con su propia URL (compartir, WhatsApp, SEO).
+    url: `${url}/p/ejemplo-${index + 1}`,
   }));
 }
 

@@ -127,4 +127,18 @@ test.describe('Pedido por WhatsApp', () => {
     await page.waitForTimeout(500);
     expect(beacons).toEqual([]);
   });
+
+  test('la ficha permite compartir y sugiere productos relacionados', async ({ page, context }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await page.goto('/demo/p/ejemplo-1');
+    const share = page.getByRole('group', { name: 'Compartir' });
+    await expect(share.getByRole('link', { name: 'Compartir por WhatsApp' })).toHaveAttribute('href', /^https:\/\/wa\.me\/\?text=Mira%20esto%3A%20Espresso%20doble%20https?%3A/);
+    await share.getByRole('button', { name: 'Copiar enlace' }).click();
+    await expect(share.getByRole('button', { name: 'Enlace copiado' })).toBeVisible();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(/\/p\/ejemplo-1$/);
+
+    const related = page.getByRole('region', { name: 'También te puede interesar' });
+    await expect(related.getByRole('article')).toHaveCount(4);
+    await expect(related.getByRole('heading', { name: 'Espresso doble', exact: true })).toHaveCount(0);
+  });
 });

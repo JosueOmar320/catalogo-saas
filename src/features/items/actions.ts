@@ -14,6 +14,7 @@ import { parseInput, uuidSchema } from '@/lib/utils/validation';
 import type { Json, TablesUpdate } from '@/types/database';
 import { releaseStorageObjects } from '@/features/media/server';
 import { parseAttributeDefs, parseAttributeValues } from '@/lib/catalog/attributes';
+import { adjustPrice, isValidAdjustment, PRICE_ROUNDINGS } from '@/lib/catalog/price-adjust';
 import { itemFormSchema, itemFormToAttributes, itemFormToRow, type ItemFormValues } from './schema';
 
 function afterChange(ctx: BusinessContext) {
@@ -236,4 +237,78 @@ export async function duplicateItem(id: string): Promise<ActionResult<{ id: stri
 
   afterChange(ctx);
   return ok({ id: copy.id }, msg('Ítem duplicado (oculto hasta que lo actives)'));
+}
+
+/* ------------------------------------------------------------ Acciones masivas */
+
+const bulkSchema = z.object({
+  ids: z.array(z.uuid()).min(1).max(500),
+  action: z.discriminatedUnion('type', [
+    z.object({ type: z.literal('set'), field: z.enum(['is_visible', 'is_available', 'is_featured']), value: z.boolean() }),
+    z.object({ type: z.literal('category'), categoryId: z.uuid().nullable() }),
+    z.object({ type: z.literal('delete') }),
+    z.object({ type: z.literal('price'), mode: z.enum(['percent', 'amount']), value: z.number(), rounding: z.enum(PRICE_ROUNDINGS) }),
+  ]),
+});
+
+export type BulkItemsInput = z.input<typeof bulkSchema>;
+
+/**
+ * Cambia varios ítems a la vez (siempre dentro del catálogo activo; RLS
+ * además impide tocar otros negocios). Devuelve cuántos cambiaron.
+ */
+export async function bulkUpdateItems(input: BulkItemsInput): Promise<ActionResult<{ count: number }>> {
+  const ctx = await requireBusinessContext();
+  const parsed = parseInput(bulkSchema, input);
+  if (!parsed.success) return parsed.result;
+  const { ids, action } = parsed.data;
+  const scoped = () => ctx.supabase.from('catalog_items');
+
+  let count = 0;
+  if (action.type === 'price') {
+    if (!isValidAdjustment(action)) return fail(msg('El ajuste debe estar entre -90 % y +500 % (o un monto distinto de cero).'));
+    const { data, error } = await scoped().select('id, price, compare_at_price').in('id', ids).eq('catalog_id', ctx.catalog.id).is('deleted_at', null);
+    if (error) return fail(dbErrorMessage(error));
+    const changes = data.flatMap((row) => {
+      const price = adjustPrice(row.price === null ? null : Number(row.price), action);
+      if (price === null) return [];
+      const compare = adjustPrice(row.compare_at_price === null ? null : Number(row.compare_at_price), action);
+      // Un "precio anterior" que ya no es mayor que el nuevo dejaría de ser una oferta.
+      return [{ id: row.id, price, compare_at_price: compare !== null && compare > price ? compare : null }];
+    });
+    for (let i = 0; i < changes.length; i += 20) {
+      const results = await Promise.all(
+        changes.slice(i, i + 20).map(({ id, ...values }) => scoped().update(values).eq('id', id).eq('catalog_id', ctx.catalog.id)),
+      );
+      const failed = results.find((r) => r.error);
+      if (failed?.error) return fail(dbErrorMessage(failed.error));
+    }
+    count = changes.length;
+  } else {
+    if (action.type === 'category' && !(await categoryBelongsToCatalog(ctx, action.categoryId))) return fail(msg('Categoría inválida.'));
+    const values: TablesUpdate<'catalog_items'> =
+      action.type === 'set' ? { [action.field]: action.value } : action.type === 'category' ? { category_id: action.categoryId } : { deleted_at: new Date().toISOString() };
+    const { data, error } = await scoped().update(values).in('id', ids).eq('catalog_id', ctx.catalog.id).is('deleted_at', null).select('id');
+    if (error) return fail(dbErrorMessage(error));
+    count = data.length;
+  }
+
+  afterChange(ctx);
+  const t = await getT();
+  return ok({ count }, count === 1 ? t('1 ítem actualizado') : t('{count} ítems actualizados', { count }));
+}
+
+
+/** Lista mínima para la búsqueda rápida del panel (⌘K): nombre, código y tipo. */
+export async function listQuickItems(): Promise<ActionResult<{ id: string; name: string; sku: string | null; type: 'product' | 'service' }[]>> {
+  const ctx = await requireBusinessContext();
+  const { data, error } = await ctx.supabase
+    .from('catalog_items')
+    .select('id, name, sku, type')
+    .eq('catalog_id', ctx.catalog.id)
+    .is('deleted_at', null)
+    .order('updated_at', { ascending: false })
+    .limit(1000);
+  if (error) return fail(dbErrorMessage(error));
+  return ok(data);
 }

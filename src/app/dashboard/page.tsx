@@ -2,6 +2,7 @@ import { Alert, Avatar, Box, Grid, LinearProgress, Stack, Typography } from '@mu
 import { AlertCircle, ArrowRight, CheckCircle2, Circle, ExternalLink, FileText, FolderTree, ImageIcon, LayoutTemplate, MessageCircle, Package, Palette, Plus, Wrench } from 'lucide-react';
 import type { Metadata } from 'next';
 import { STATUS_LABELS } from '@/lib/catalog/status';
+import { QrCodeButton } from '@/components/dashboard/QrCodeButton';
 import { CopyField } from '@/components/ui/CopyField';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LinkButton } from '@/components/ui/LinkButton';
@@ -266,6 +267,9 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
           <Stack spacing={2.5}>
             <SectionCard title={t('Tu catálogo')} description={t('Estado: {status}', { status: t(STATUS_LABELS[ctx.catalog.status].label) })}>
               <CopyField value={url} openable={published} />
+              <Box sx={{ mt: 1.5 }}>
+                <QrCodeButton url={url} businessName={ctx.business.name} slug={ctx.business.slug} published={published} />
+              </Box>
               <Typography variant="caption" color="text.secondary" component="p" sx={{ mt: 1 }}>
                 {published && ctx.catalog.published_at
                   ? t('Publicado el {date}. Los cambios se reflejan al instante.', { date: formatDate(ctx.catalog.published_at, locale) })

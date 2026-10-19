@@ -22,7 +22,7 @@ export default async function DemoPage({ params, searchParams }: PageProps<'/dem
     if (!item) notFound();
     return (
       <SiteView site={site} env={demoEnv}>
-        <ItemDetail site={site} item={item} backHref="/demo" />
+        <ItemDetail site={site} item={item} backHref="/demo" env={{ mode: 'public', basePath: '/demo', currentPageId: null }} />
       </SiteView>
     );
   }

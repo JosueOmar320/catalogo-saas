@@ -95,6 +95,82 @@ test('el inicio del panel cuenta el pedido enviado', async ({ page }) => {
   await expect(main.getByRole('listitem').filter({ hasText: `${productName} · 1 unidad` })).toBeVisible();
 });
 
+test('importar productos desde CSV y volver a importarlos actualiza en vez de duplicar', async ({ page }) => {
+  const csv = ['nombre;categoria;precio;codigo;destacado', 'Pastel de zanahoria;Postres;65;POS-1;sí', 'Galleta de avena;Postres;1.200,50;POS-2;no'].join('\n');
+  const importFile = async () => {
+    await page.goto('/dashboard/catalog/products');
+    await page.getByRole('button', { name: 'Importar', exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: 'Importar desde CSV' });
+    await dialog.locator('input[type=file]').setInputFiles({ name: 'productos.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
+    return dialog;
+  };
+
+  let dialog = await importFile();
+  await expect(dialog.getByText('2 nuevos')).toBeVisible();
+  await expect(dialog.getByText('0 se actualizan')).toBeVisible();
+  await expect(dialog.getByLabel(/Crear las categorías que no existen: Postres/)).toBeChecked();
+  await dialog.getByRole('button', { name: 'Importar 2' }).click();
+  await expect(page.getByText('Importación lista: 2 nuevos y 0 actualizados.')).toBeVisible();
+  await expect(page.getByText('Pastel de zanahoria')).toBeVisible();
+  await expect(page.getByText('$1,200.50')).toBeVisible();
+
+  // El mismo archivo otra vez: se reconocen por código.
+  dialog = await importFile();
+  await expect(dialog.getByText('0 nuevos')).toBeVisible();
+  await expect(dialog.getByText('2 se actualizan')).toBeVisible();
+  await dialog.getByRole('button', { name: 'Importar 2' }).click();
+  await expect(page.getByText('Importación lista: 0 nuevos y 2 actualizados.')).toBeVisible();
+
+  // Exportar trae lo mismo en CSV.
+  const exported = await page.request.get('/api/catalog/export');
+  expect(exported.headers()['content-type']).toContain('text/csv');
+  const text = await exported.text();
+  expect(text).toMatch(/^\uFEFFnombre,tipo,categoria,precio/);
+  expect(text).toContain('Pastel de zanahoria,producto,Postres,65,,,POS-1');
+});
+
+test('acciones masivas: ocultar varios y subir precios con redondeo', async ({ page }) => {
+  await page.goto('/dashboard/catalog/products');
+  await page.getByRole('checkbox', { name: 'Seleccionar Pastel de zanahoria' }).check();
+  await page.getByRole('checkbox', { name: 'Seleccionar Galleta de avena' }).check();
+  const toolbar = page.getByRole('toolbar', { name: 'Acciones para los ítems seleccionados' });
+  await expect(toolbar.getByText('2 seleccionados')).toBeVisible();
+
+  await toolbar.getByRole('button', { name: 'Visibilidad' }).click();
+  await page.getByRole('menuitem', { name: 'Ocultar del catálogo' }).click();
+  await expect(page.getByText('2 ítems actualizados')).toBeVisible();
+  await expect(toolbar).toHaveCount(0);
+  await expect(page.getByRole('listitem').filter({ hasText: 'Pastel de zanahoria' }).getByRole('switch')).not.toBeChecked();
+
+  await page.getByRole('checkbox', { name: 'Seleccionar Pastel de zanahoria' }).check();
+  await page.getByRole('toolbar').getByRole('button', { name: 'Precios' }).click();
+  const prices = page.getByRole('dialog', { name: 'Ajustar precios' });
+  await prices.getByLabel('Porcentaje').fill('10');
+  await prices.getByLabel('Redondeo').selectOption('unit');
+  await expect(prices.getByText('$72')).toBeVisible(); // 65 + 10 % = 71.5 → 72
+  await prices.getByRole('button', { name: 'Ajustar 1 precio' }).click();
+  await expect(page.getByText('1 ítem actualizado')).toBeVisible();
+  await expect(page.getByRole('listitem').filter({ hasText: 'Pastel de zanahoria' }).getByText('$72')).toBeVisible();
+});
+
+test('búsqueda rápida (Ctrl+K) y código QR del catálogo', async ({ page }) => {
+  await page.goto('/dashboard');
+  await page.keyboard.press('Control+k');
+  const search = page.getByRole('combobox', { name: 'Buscar' });
+  await search.fill('zanahoria');
+  await expect(page.getByRole('option', { name: /Pastel de zanahoria/ })).toBeVisible();
+  await search.press('Enter');
+  await expect(page).toHaveURL(/\/dashboard\/catalog\/items\/[0-9a-f-]{36}$/);
+
+  await page.goto('/dashboard');
+  await page.getByRole('button', { name: 'Código QR' }).click();
+  const qr = page.getByRole('dialog', { name: 'Código QR de tu catálogo' });
+  await expect(qr.getByRole('img', { name: new RegExp(`Código QR que abre .*/catalogo/${slug}`) })).toBeVisible();
+  const download = page.waitForEvent('download');
+  await qr.getByRole('button', { name: 'PNG' }).click();
+  expect((await download).suggestedFilename()).toBe(`qr-${slug}.png`);
+});
+
 test('aviso semanal: a quién le llega y la baja con el enlace del correo', async ({ page, browser, request }) => {
   const cron = async () => {
     const response = await request.get('/api/cron/catalog-review?dry=1', { headers: { authorization: `Bearer ${process.env.CRON_SECRET}` } });

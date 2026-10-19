@@ -4,16 +4,21 @@ import type { CatalogItemView } from '@/lib/catalog/view-model';
 import type { SiteViewModel } from '@/lib/site/view-model';
 import { Badges } from './Badges';
 import { ContactActions } from './ContactActions';
+import type { RenderEnv } from './env';
 import { ImageGallery } from './ImageGallery';
+import { ItemCard } from './ItemCard';
 import { PriceTag } from './PriceTag';
+import { relatedItems } from './related';
+import { ShareItem } from './ShareItem';
 import { siteTranslator, siteYesNo } from './site-i18n';
 import styles from './site.module.css';
 
 /** Ficha de un producto/servicio (URL propia para SEO y para compartir). */
-export function ItemDetail({ site, item, backHref }: { site: SiteViewModel; item: CatalogItemView; backHref: string }) {
+export function ItemDetail({ site, item, backHref, env }: { site: SiteViewModel; item: CatalogItemView; backHref: string; env: RenderEnv }) {
   const category = site.categories.find((c) => c.id === item.categoryId);
   const specs = visibleAttributes(item.attributes, site.attributeDefs, 'detail', siteYesNo(site.settings.language));
   const t = siteTranslator(site.settings.language);
+  const related = relatedItems(site, item);
   return (
     <div className={styles.container}>
       <a href={backHref} className={styles.backLink}>
@@ -54,8 +59,19 @@ export function ItemDetail({ site, item, backHref }: { site: SiteViewModel; item
           <div className={styles.btnRow}>
             <ContactActions site={site} item={item} />
           </div>
+          <ShareItem name={item.name} url={item.url} />
         </div>
       </div>
+      {related.length > 0 && (
+        <section className={styles.related} aria-labelledby="related-title">
+          <h2 id="related-title" className={styles.relatedTitle}>{t('También te puede interesar')}</h2>
+          <div className={styles.relatedGrid}>
+            {related.map((other) => (
+              <ItemCard key={other.id} item={other} site={site} env={env} options={{ sizes: '(max-width: 600px) 50vw, 280px', categoryName: site.categories.find((c) => c.id === other.categoryId)?.name }} />
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
