@@ -293,6 +293,41 @@ test('oferta con fecha de fin: vencida vuelve al precio normal; vigente dice has
   await visitor.close();
 });
 
+test('pausar pedidos: el visitante ve el aviso y no puede enviar; al quitarla, vuelve a poder', async ({ page, browser }) => {
+  await page.goto('/dashboard/settings/contacto');
+  await page.getByRole('switch', { name: /Pausar pedidos/ }).click();
+  await page.getByRole('textbox', { name: 'Mensaje (opcional)' }).fill('Volvemos el lunes.');
+  await page.getByRole('button', { name: 'Guardar pedidos' }).click();
+  await expect(page.getByText('Configuración guardada')).toBeVisible();
+
+  const visitor = await browser.newContext(ANONYMOUS);
+  const site = await visitor.newPage();
+  await site.goto(`/catalogo/${slug}/p/croissant-e2e`);
+  await site.getByRole('button', { name: 'Agregar al pedido' }).click();
+  const dialog = site.getByRole('dialog', { name: 'Tu pedido' });
+  await expect(async () => {
+    await site.reload();
+    await site.getByRole('button', { name: /^Ver pedido/ }).click();
+    await expect(dialog.getByText('Por ahora no estamos recibiendo pedidos. Volvemos el lunes.')).toBeVisible({ timeout: 1000 });
+  }).toPass({ timeout: 15_000 });
+  await expect(dialog.getByRole('link', { name: 'Enviar pedido por WhatsApp' })).toHaveCount(0);
+
+  await page.getByRole('switch', { name: /Pausar pedidos/ }).click();
+  const save = page.getByRole('button', { name: 'Guardar pedidos' });
+  await save.click();
+  // Guardado = el formulario queda sin cambios pendientes.
+  await expect(save).toBeDisabled();
+  // La página pública se regenera tras guardar (puede servir una vez la copia anterior).
+  await expect(async () => {
+    await site.reload();
+    await site.getByRole('button', { name: /^Ver pedido/ }).click();
+    await expect(dialog.getByText('Por ahora no estamos recibiendo pedidos.', { exact: false })).toHaveCount(0, { timeout: 1000 });
+  }).toPass({ timeout: 15_000 });
+  await dialog.getByLabel('Dirección de entrega').fill('Calle 5 #10');
+  await expect(dialog.getByRole('link', { name: 'Enviar pedido por WhatsApp' })).toBeVisible();
+  await visitor.close();
+});
+
 test('importar con enlaces de fotos: avisa cuáles no se pudieron descargar', async ({ page }) => {
   await page.goto('/dashboard/catalog/products');
   await page.getByRole('button', { name: 'Importar', exact: true }).click();

@@ -13,8 +13,11 @@ const subscribe = (onChange: () => void) => {
 };
 const currentMinute = () => Math.floor(Date.now() / 60_000);
 
+/** Minuto actual (epoch / 60 000) que se actualiza solo; null en el servidor y al hidratar. */
+export const useMinute = () => useSyncExternalStore(subscribe, currentMinute, () => null);
+
 export function useOpenStatus(schedule: Schedule | null): OpenStatus | null {
-  const minute = useSyncExternalStore(subscribe, currentMinute, () => null);
+  const minute = useMinute();
   if (!schedule?.enabled || minute === null) return null;
   return openStatus(schedule, new Date(minute * 60_000));
 }

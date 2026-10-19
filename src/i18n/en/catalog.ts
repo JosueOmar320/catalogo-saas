@@ -557,6 +557,13 @@ const catalog: Catalog = {
   'Debe ser mayor que 0': 'Must be greater than 0',
   'Hay cupones con el mismo código': 'Some coupons have the same code',
   'Un porcentaje no puede pasar de 100': "A percentage can't be over 100",
+  // Pausa de pedidos
+  'Pausar pedidos': 'Pause orders',
+  'Vacaciones o sin servicio: tus clientes ven el catálogo y un aviso, pero no pueden enviar pedidos.': "Vacation or no service: customers see your catalog and a notice, but can't send orders.",
+  'Hasta (opcional)': 'Until (optional)',
+  'Vacío: hasta que la quites.': 'Empty: until you turn it off.',
+  'Mensaje (opcional)': 'Message (optional)',
+  'Volvemos el lunes con pan recién horneado.': "We're back on Monday with fresh bread.",
 };
 
 export default catalog;

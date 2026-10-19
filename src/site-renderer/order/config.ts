@@ -4,7 +4,7 @@ import type { SiteViewModel } from '@/lib/site/view-model';
 import { digitsOnly } from '@/lib/utils/phone';
 import { defaultText } from '../default-texts';
 import { siteTranslator } from '../site-i18n';
-import { couponHash, type OrderItem, type OrderOptions, type OrderPricing, type PublicCoupon } from './message';
+import { couponHash, type CatalogIndex, type OrderItem, type OrderOptions, type OrderPause, type OrderPricing, type PublicCoupon } from './message';
 
 /** Lo que necesita el pedido en el navegador (datos planos: viaja del servidor al cliente). */
 export type OrderConfig = {
@@ -22,6 +22,12 @@ export type OrderConfig = {
   coupons: PublicCoupon[];
   /** Sal de la huella de los cupones (el negocio). */
   couponScope: string;
+  /** Precio actual de todo lo que se puede pedir: el pedido guardado se actualiza con él. */
+  catalog: CatalogIndex;
+  /** Sugerencias para "¿Agregas algo más?" (destacados primero; sin opciones que elegir). */
+  suggestions: OrderItem[];
+  /** Pedidos en pausa (vacaciones…), o null. */
+  pause: OrderPause | null;
   /** Horario por día (si el negocio lo usa): el panel avisa cuando está cerrado. */
   schedule: Schedule | null;
   /** Negocio al que se le cuenta el pedido enviado (sólo en el sitio publicado). */
@@ -58,6 +64,9 @@ export function orderConfig(site: SiteViewModel, { track = false }: { track?: bo
       .filter((coupon) => coupon.active)
       .map((coupon) => ({ hash: couponHash(site.business.slug, coupon.code), type: coupon.type, value: coupon.value, minSubtotal: coupon.minSubtotal, ends: coupon.ends })),
     couponScope: site.business.slug,
+    catalog: catalogIndex(site),
+    suggestions: suggestions(site),
+    pause: order.paused ? { until: order.pausedUntil, timeZone: order.pauseTimeZone, message: order.pauseMessage } : null,
     schedule: site.business.contact.schedule.enabled ? site.business.contact.schedule : null,
     trackSlug: track ? site.business.slug : null,
   };
@@ -96,4 +105,23 @@ export function variantOrderItem(
     url: item.url,
     image: item.images[0]?.thumbUrl ?? null,
   };
+}
+
+const MAX_SUGGESTIONS = 6;
+
+function catalogIndex(site: SiteViewModel): CatalogIndex {
+  const index: CatalogIndex = {};
+  for (const item of site.items) {
+    if (!orderable(site, item)) continue;
+    if (item.variants) {
+      for (const option of item.variants.options) if (option.available) index[`${item.id}:${option.id}`] = [option.price, option.priceLabel];
+    } else index[item.id] = [item.price, item.priceLabel];
+  }
+  return index;
+}
+
+/** Destacados primero y después el resto, en el orden del catálogo; sólo con precio y sin opciones que elegir. */
+function suggestions(site: SiteViewModel): OrderItem[] {
+  const candidates = site.items.filter((item) => orderable(site, item) && !item.variants && item.price !== null);
+  return [...candidates.filter((i) => i.isFeatured), ...candidates.filter((i) => !i.isFeatured)].slice(0, MAX_SUGGESTIONS).map(toOrderItem);
 }
