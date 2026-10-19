@@ -24,7 +24,7 @@ export default async function PublicSiteLayout({ children, params }: LayoutProps
   const header = buildHeaderProps(site, { mode: 'public', basePath: `/catalogo/${slug}`, currentPageId: null });
 
   return (
-    <SiteShell theme={site.theme} language={site.settings.language} order={orderConfig(site)}>
+    <SiteShell theme={site.theme} language={site.settings.language} order={orderConfig(site, { track: true })}>
       <SiteHeader {...header} />
       <main className={siteStyles.main}>{children}</main>
       <SiteFooter site={site} navItems={header.items} />

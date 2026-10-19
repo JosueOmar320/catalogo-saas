@@ -113,4 +113,18 @@ test.describe('Pedido por WhatsApp', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'Taller de barismo' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Agregar al pedido' })).toHaveCount(0);
   });
+
+  test('la demo no cuenta pedidos (sólo el sitio publicado avisa al servidor)', async ({ page, context }) => {
+    const beacons: string[] = [];
+    page.on('request', (request) => request.url().endsWith('/api/orders') && beacons.push(request.url()));
+    await context.route('https://wa.me/**', (route) => route.fulfill({ status: 200, contentType: 'text/plain', body: 'WhatsApp' }));
+    await page.goto('/demo');
+    await card(page, 'Espresso doble').getByRole('button', { name: 'Agregar al pedido' }).click();
+    await orderButton(page).click();
+    const popup = context.waitForEvent('page');
+    await page.getByRole('dialog', { name: 'Tu pedido' }).getByRole('link', { name: 'Enviar pedido por WhatsApp' }).click();
+    await (await popup).close();
+    await page.waitForTimeout(500);
+    expect(beacons).toEqual([]);
+  });
 });

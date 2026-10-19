@@ -176,6 +176,24 @@ type BusinessMemberRow = Timestamps & {
   role: MemberRole;
 };
 
+/** Pedidos por WhatsApp enviados (contadores por día UTC; los escribe record_order). */
+type OrderStatsDailyRow = {
+  business_id: string;
+  day: string;
+  orders: number;
+  units: number;
+  /** numeric: PostgREST lo devuelve como número. */
+  value: number;
+};
+
+type OrderItemStatsDailyRow = {
+  business_id: string;
+  day: string;
+  item_id: string;
+  orders: number;
+  units: number;
+};
+
 /** Inserción: columnas con default son opcionales. */
 type InsertOf<Row, Required extends keyof Row> = Pick<Row, Required> & Partial<Omit<Row, Required>>;
 
@@ -211,6 +229,8 @@ export type Database = {
       catalog_pages: Table<CatalogPageRow, 'business_id' | 'catalog_id' | 'title' | 'slug'>;
       audit_log: Table<AuditLogRow, 'action' | 'entity_type'>;
       media_assets: Table<MediaAssetRow, 'business_id' | 'path'>;
+      order_stats_daily: Table<OrderStatsDailyRow, 'business_id' | 'day'>;
+      order_item_stats_daily: Table<OrderItemStatsDailyRow, 'business_id' | 'day' | 'item_id'>;
     };
     Views: { [_ in never]: never };
     Functions: {
@@ -248,6 +268,7 @@ export type Database = {
       admin_catalog_counts: { Args: Record<string, never>; Returns: { catalog_id: string; pages: number; items: number }[] };
       admin_stats: { Args: Record<string, never>; Returns: Json };
       rate_limit_consume: { Args: { p_key: string; p_limit: number; p_window_seconds: number }; Returns: boolean };
+      record_order: { Args: { p_business_slug: string; p_items: { id: string; qty: number }[] }; Returns: boolean };
       media_references: { Args: { p_business: string; p_path: string }; Returns: { place: string; ref_id: string; label: string }[] };
       replace_media_references: { Args: { p_business: string; p_old: string; p_new: string; p_new_thumb?: string | null }; Returns: number };
       save_site: {

@@ -68,7 +68,30 @@ test('al publicar, el visitante ve el producto y puede pedirlo por WhatsApp', as
   await site.getByRole('button', { name: /^Ver pedido/ }).click();
   const href = await site.getByRole('link', { name: 'Enviar pedido por WhatsApp' }).getAttribute('href');
   expect(new URL(href!).searchParams.get('text')).toContain(`Hola ${businessName}, quiero hacer este pedido:\n\n• 1 × ${productName} (precio por confirmar)`);
+
+  // Enviar: WhatsApp se intercepta (no sale a internet) y el sitio avisa al servidor.
+  await visitor.route('https://wa.me/**', (route) => route.fulfill({ status: 200, contentType: 'text/plain', body: 'WhatsApp' }));
+  const tracked = site.waitForRequest((request) => request.url().endsWith('/api/orders') && request.method() === 'POST');
+  const popup = visitor.waitForEvent('page');
+  await site.getByRole('link', { name: 'Enviar pedido por WhatsApp' }).click();
+  const beacon = await tracked;
+  expect(beacon.postDataJSON()).toEqual({ slug, items: [{ id: expect.any(String), qty: 1 }] });
+  await (await popup).close();
   await visitor.close();
+});
+
+test('el inicio del panel cuenta el pedido enviado', async ({ page }) => {
+  await page.goto('/dashboard');
+  await expect(page.getByRole('main').getByText('Últimos 30 días', { exact: true })).toBeVisible();
+  // El aviso del navegador llega en segundo plano: se recarga hasta verlo.
+  await expect(async () => {
+    await page.reload();
+    await expect(page.getByRole('main').getByRole('term').filter({ hasText: /^Pedidos$/ }).locator('xpath=following-sibling::dd[1]')).toHaveText('1', { timeout: 1000 });
+  }).toPass({ timeout: 15_000 });
+  // Dentro de <main>: tras recargar, el streaming puede dejar un instante una copia oculta.
+  const main = page.getByRole('main');
+  await expect(main.getByText('Lo más pedido', { exact: true })).toBeVisible();
+  await expect(main.getByRole('listitem').filter({ hasText: `${productName} · 1 unidad` })).toBeVisible();
 });
 
 test('el idioma elegido se guarda en el perfil y vuelve al iniciar sesión', async ({ page, browser }) => {

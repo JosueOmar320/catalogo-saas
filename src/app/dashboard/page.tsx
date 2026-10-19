@@ -10,12 +10,14 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { itemThumbnail, listCategories, listItemsWithImages, listPages } from '@/features/catalog/queries';
 import { REVIEW_FILTERS, type ReviewFilter } from '@/features/items/review';
+import { OrderStatsChart } from '@/features/orders/components/OrderStatsChart';
+import { getOrderStats } from '@/features/orders/queries';
 import { getLocale, getT } from '@/i18n/server';
 import { requireBusinessContext } from '@/lib/auth/session';
 import { parseContact } from '@/lib/business/profile';
 import { parseCatalogSettings } from '@/lib/catalog/settings';
 import { catalogUrl } from '@/lib/catalog/view-model';
-import { formatDate, formatRelative } from '@/lib/utils/format';
+import { formatDate, formatPrice, formatRelative } from '@/lib/utils/format';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
@@ -26,7 +28,7 @@ const RECENT_COUNT = 5;
 
 export default async function DashboardHome({ searchParams }: PageProps<'/dashboard'>) {
   const ctx = await requireBusinessContext();
-  const [{ welcome }, categories, items, pages, t, locale] = await Promise.all([searchParams, listCategories(ctx), listItemsWithImages(ctx), listPages(ctx), getT(), getLocale()]);
+  const [{ welcome }, categories, items, pages, t, locale, orderStats] = await Promise.all([searchParams, listCategories(ctx), listItemsWithImages(ctx), listPages(ctx), getT(), getLocale(), getOrderStats(ctx)]);
   const contact = parseContact(ctx.business.contact);
   const settings = parseCatalogSettings(ctx.catalog.settings);
   const products = items.filter((i) => i.type === 'product');
@@ -79,6 +81,8 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
   ];
 
   const ordersOn = settings.order.enabled && Boolean(contact.whatsapp);
+  const itemNames = new Map(items.map((i) => [i.id, i.name]));
+  const money = (value: number) => formatPrice(value, settings.currency, settings.locale, settings.priceFormat);
 
   return (
     <>
@@ -161,6 +165,57 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
                         </LinkButton>
                       </Stack>
                     ))}
+                  </Stack>
+                )}
+              </SectionCard>
+            )}
+
+            {orderStats && (
+              <SectionCard title={t('Pedidos por WhatsApp')} description={t('Últimos 30 días')}>
+                {!ordersOn ? (
+                  <Stack spacing={1.5} sx={{ alignItems: 'flex-start' }}>
+                    <Typography variant="body2" color="text.secondary">
+                      {t('Activa los pedidos para que tus clientes armen su lista y te la envíen por WhatsApp. Aquí verás cuántos recibes y qué es lo más pedido.')}
+                    </Typography>
+                    <LinkButton href="/dashboard/settings/contacto" variant="outlined" color="inherit" startIcon={<MessageCircle size={14} />}>
+                      {t('Activar pedidos por WhatsApp')}
+                    </LinkButton>
+                  </Stack>
+                ) : orderStats.orders === 0 ? (
+                  <Typography variant="body2" color="text.secondary">
+                    {t('Todavía no hay pedidos en estos días. Comparte el enlace de tu catálogo en WhatsApp, redes y tu bio.')}
+                  </Typography>
+                ) : (
+                  <Stack spacing={2.5}>
+                    <Box component="dl" sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 2, m: 0 }}>
+                      {[
+                        { label: t('Pedidos'), value: String(orderStats.orders) },
+                        { label: t('Unidades'), value: String(orderStats.units) },
+                        { label: t('Valor estimado'), value: money(orderStats.value) },
+                      ].map((stat) => (
+                        <Box key={stat.label}>
+                          <Typography component="dt" variant="caption" color="text.secondary">{stat.label}</Typography>
+                          <Typography component="dd" variant="h2" sx={{ m: 0, fontVariantNumeric: 'tabular-nums', overflowWrap: 'anywhere' }}>{stat.value}</Typography>
+                        </Box>
+                      ))}
+                    </Box>
+                    <OrderStatsChart days={orderStats.days} locale={locale} />
+                    {orderStats.top.length > 0 && (
+                      <Box>
+                        <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>{t('Lo más pedido')}</Typography>
+                        <Stack component="ol" spacing={0.75} sx={{ m: 0, pl: 2.5 }}>
+                          {orderStats.top.map((top) => (
+                            <Typography component="li" variant="body2" key={top.itemId}>
+                              {itemNames.get(top.itemId) ?? t('Producto eliminado')}
+                              <Typography component="span" variant="body2" color="text.secondary">{' · '}{top.units === 1 ? t('1 unidad') : t('{count} unidades', { count: top.units })}</Typography>
+                            </Typography>
+                          ))}
+                        </Stack>
+                      </Box>
+                    )}
+                    <Typography variant="caption" color="text.secondary">
+                      {t('Se cuenta cada vez que un cliente envía su pedido desde tu sitio. El valor usa los precios del catálogo; el total final lo acuerdas por WhatsApp.')}
+                    </Typography>
                   </Stack>
                 )}
               </SectionCard>
