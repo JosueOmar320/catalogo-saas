@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { randomBytes } from 'node:crypto';
 import { describe, it } from 'node:test';
 import { countReview } from '@/features/items/review';
 import { buildCatalogReviewEmail } from '@/lib/email/catalog-review';
@@ -40,14 +41,17 @@ describe('Aviso semanal por correo', () => {
   });
 
   it('el enlace de baja es válido sólo para ese usuario y ese secreto', () => {
+    // Claves generadas al vuelo: ningún valor fijo que un escáner de secretos confunda con uno real.
+    const key = randomBytes(24).toString('hex');
+    const otherKey = randomBytes(24).toString('hex');
     const user = 'aaaaaaaa-0000-4000-8000-000000000001';
-    const token = unsubscribeToken(user, 'secreto-de-prueba-123');
-    assert.equal(verifyUnsubscribeToken(token, 'secreto-de-prueba-123'), user);
-    assert.equal(verifyUnsubscribeToken(token, 'otro-secreto-cualquiera'), null);
-    assert.equal(verifyUnsubscribeToken(token.replace(user, 'bbbbbbbb-0000-4000-8000-000000000002'), 'secreto-de-prueba-123'), null);
-    assert.equal(verifyUnsubscribeToken(`${token}x`, 'secreto-de-prueba-123'), null);
+    const token = unsubscribeToken(user, key);
+    assert.equal(verifyUnsubscribeToken(token, key), user);
+    assert.equal(verifyUnsubscribeToken(token, otherKey), null);
+    assert.equal(verifyUnsubscribeToken(token.replace(user, 'bbbbbbbb-0000-4000-8000-000000000002'), key), null);
+    assert.equal(verifyUnsubscribeToken(`${token}x`, key), null);
     assert.equal(verifyUnsubscribeToken(token, ''), null);
-    assert.equal(verifyUnsubscribeToken('', 'secreto-de-prueba-123'), null);
+    assert.equal(verifyUnsubscribeToken('', key), null);
   });
 
   it('cuenta pendientes con el mismo criterio que el inicio del panel', () => {
