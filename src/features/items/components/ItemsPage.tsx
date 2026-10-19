@@ -10,11 +10,12 @@ import { requireBusinessContext } from '@/lib/auth/session';
 import { parseCatalogSettings } from '@/lib/catalog/settings';
 import { formatPrice } from '@/lib/utils/format';
 import type { ItemType } from '@/types/database';
+import type { ReviewFilter } from '../review';
 import { ITEM_TYPE_LABELS } from '../schema';
 import { ItemsTable, type ItemRowData } from './ItemsTable';
 
 /** Página de listado compartida por Productos y Servicios. */
-export async function ItemsPage({ type }: { type: ItemType }) {
+export async function ItemsPage({ type, review }: { type: ItemType; review?: ReviewFilter | null }) {
   const ctx = await requireBusinessContext();
   const t = await getT();
   const [categories, items] = await Promise.all([listCategories(ctx), listItemsWithImages(ctx)]);
@@ -70,7 +71,7 @@ export async function ItemsPage({ type }: { type: ItemType }) {
           />
         </SectionCard>
       ) : (
-        <ItemsTable items={rows} categories={categories.map(({ id, name }) => ({ id, name }))} />
+        <ItemsTable key={review ?? 'all'} items={rows} categories={categories.map(({ id, name }) => ({ id, name }))} initialReview={review} />
       )}
     </>
   );

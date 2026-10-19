@@ -24,6 +24,7 @@ import { useConfirm } from '@/components/feedback/ConfirmProvider';
 import { useT } from '@/i18n/client';
 import { useAction } from '@/lib/hooks/use-action';
 import { deleteItem, duplicateItem, toggleItemField } from '../actions';
+import { REVIEW_FILTERS, type ReviewFilter } from '../review';
 
 export type ItemRowData = {
   id: string;
@@ -41,6 +42,8 @@ export type ItemRowData = {
 type Props = {
   items: ItemRowData[];
   categories: { id: string; name: string }[];
+  /** Filtro de revisión inicial (desde el inicio del panel: ?revisar=sin-foto). */
+  initialReview?: ReviewFilter | null;
 };
 
 type ToggleField = 'is_visible' | 'is_available' | 'is_featured';
@@ -50,7 +53,7 @@ const FIELD_KEY: Record<ToggleField, 'isVisible' | 'isAvailable' | 'isFeatured'>
   is_featured: 'isFeatured',
 };
 
-export function ItemsTable({ items: initialItems, categories }: Props) {
+export function ItemsTable({ items: initialItems, categories, initialReview = null }: Props) {
   const t = useT();
   const router = useRouter();
   const confirm = useConfirm();
@@ -58,6 +61,7 @@ export function ItemsTable({ items: initialItems, categories }: Props) {
   const [items, setItems] = useState(initialItems);
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('all');
+  const [review, setReview] = useState<ReviewFilter | 'all'>(initialReview ?? 'all');
   const [menu, setMenu] = useState<{ anchor: HTMLElement; item: ItemRowData } | null>(null);
 
   // Sincroniza con datos frescos del servidor tras router.refresh().
@@ -72,9 +76,10 @@ export function ItemsTable({ items: initialItems, categories }: Props) {
     return items.filter(
       (i) =>
         (category === 'all' || (category === 'none' ? !i.categoryId : i.categoryId === category)) &&
+        (review === 'all' || REVIEW_FILTERS[review].test({ ...i, hasImage: Boolean(i.thumbUrl), hasPrice: i.priceLabel !== null })) &&
         (!q || i.name.toLowerCase().includes(q) || i.sku?.toLowerCase().includes(q)),
     );
-  }, [items, query, category]);
+  }, [items, query, category, review]);
 
   const toggle = (item: ItemRowData, field: ToggleField, value: boolean) => {
     const key = FIELD_KEY[field];
@@ -116,6 +121,23 @@ export function ItemsTable({ items: initialItems, categories }: Props) {
           ))}
           <option value="none">{t('Sin categoría')}</option>
         </TextField>
+        <TextField
+          select
+          value={review}
+          onChange={(e) => setReview(e.target.value as ReviewFilter | 'all')}
+          sx={{ maxWidth: { sm: 200 } }}
+          slotProps={{ select: { native: true }, htmlInput: { 'aria-label': t('Revisar') } }}
+        >
+          <option value="all">{t('Todos los estados')}</option>
+          {Object.entries(REVIEW_FILTERS).map(([key, filter]) => (
+            <option key={key} value={key}>{t(filter.label)}</option>
+          ))}
+        </TextField>
+        {(query || category !== 'all' || review !== 'all') && (
+          <Typography variant="body2" color="text.secondary" sx={{ alignSelf: 'center', whiteSpace: 'nowrap' }} aria-live="polite">
+            {t('{count} de {total}', { count: visibleItems.length, total: items.length })}
+          </Typography>
+        )}
       </Stack>
 
       {visibleItems.length === 0 ? (

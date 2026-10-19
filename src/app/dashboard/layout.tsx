@@ -7,12 +7,14 @@ import { AppI18n } from '@/i18n/AppI18n';
 import { getT } from '@/i18n/server';
 import { canManageCatalog, requireBusinessContext } from '@/lib/auth/session';
 import { catalogUrl } from '@/lib/catalog/view-model';
+import { env } from '@/lib/env';
 import { publicStorageUrl } from '@/lib/utils/storage';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
   return {
-    title: t('Panel'),
+    // Con template: las páginas internas también llevan "· Vitrina" (un título plano lo cortaba).
+    title: { default: t('Panel'), template: `%s · ${env.appName}` },
     robots: { index: false, follow: false },
   };
 }
