@@ -330,5 +330,18 @@ await expectErr('authenticated cannot read rate_limit_events', () => q(`select *
 await as(null);
 await expectErr('anon cannot call rate_limit_consume', () => q(`select public.rate_limit_consume('x', 1000, 1)`), 'permission denied');
 
+// --- Privilegios de funciones (20261021) ---
+await as(A);
+await expectErr('authenticated cannot call trigger functions directly', () => q(`select public.enforce_item_limit()`), 'permission denied');
+await expectErr('authenticated cannot call plan_limit', () => q(`select public.plan_limit($1,'max_items')`, [bizA]), 'permission denied');
+await expectErr('authenticated cannot call require_platform_admin directly', () => q(`select public.require_platform_admin()`), 'permission denied');
+await expectEq('RLS helpers still work for authenticated', () => q(`select public.is_business_member($1) m`, [bizA]).then((r) => r[0].m), true);
+await expectOk('triggers still fire after revoke (item limit + audit)', () => q(`insert into public.categories(business_id, catalog_id, name) values ($1,$2,'Tras revoke') returning id`, [bizA, catA.id]));
+await expectOk('admin RPCs still work (SECURITY DEFINER keeps access)', () => q(`select public.admin_update_catalog($1,'Tienda A',true,false)`, [catA.id]));
+await as(null);
+await expectErr('anon cannot call is_platform_admin', () => q(`select public.is_platform_admin()`), 'permission denied');
+await expectErr('anon cannot call has_business_role', () => q(`select public.has_business_role($1, array['owner'])`, [bizA]), 'permission denied');
+await expectEq('anon still reads the public catalog', () => q(`select public.get_public_catalog('no-existe') c`).then((r) => r[0].c), null);
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);

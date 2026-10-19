@@ -13,7 +13,7 @@ SaaS multi-tenant para que un pequeño negocio (cafetería, ferretería, estudio
 
 | Tema | Decisión | Por qué |
 | --- | --- | --- |
-| Aislamiento multi-tenant | **RLS en todas las tablas (12) + Storage**, claves foráneas compuestas `(business_id, id)` y funciones `SECURITY DEFINER` con `search_path` vacío para lo privilegiado. Las Server Actions validan además permisos y entrada (Zod). | La base de datos es la última línea de defensa: un bug en la app o una llamada directa a la API REST no puede cruzar negocios. 140 pruebas lo verifican sobre Postgres real (PGlite). |
+| Aislamiento multi-tenant | **RLS en todas las tablas (12) + Storage**, claves foráneas compuestas `(business_id, id)` y funciones `SECURITY DEFINER` con `search_path` vacío para lo privilegiado. Las Server Actions validan además permisos y entrada (Zod). | La base de datos es la última línea de defensa: un bug en la app o una llamada directa a la API REST no puede cruzar negocios. 149 pruebas lo verifican sobre Postgres real (PGlite). |
 | Catálogo público | Una sola RPC (`get_public_catalog`) cacheada con ISR + tag por negocio; el rol `anon` no lee tablas. El bundle del sitio público no incluye Zod (43 KB gzip). | Rápido y barato: una visita no cacheada hace una llamada; publicar invalida sólo ese negocio. |
 | Un renderer, dos destinos | El mismo modelo de secciones/temas se dibuja en la web (React) y en PDF (react-pdf), con tokens de diseño compartidos. | El PDF siempre coincide con el sitio sin mantener dos diseños. |
 | Guardado del editor | Todo se edita en memoria y se guarda con una transacción (`save_site`) con detección de conflictos. | Sin estados a medias; deshacer y vista previa son gratuitos. |
@@ -125,6 +125,7 @@ Copia `.env.example` a `.env.local`.
      5. `20261001000000_media_library.sql` (carpetas, nombres, URLs externas, dónde se usa cada imagen y reemplazo en todo el contenido)
      6. `20261005000000_performance.sql` (conteos del panel de administración en SQL; sin ella el panel sigue funcionando con el método anterior, más lento)
      7. `20261020000000_security_hardening.sql` (sólo permisos: las membresías y los catálogos se crean únicamente desde el panel de administración; límite de intentos de login y cupo diario de Garfield)
+     8. `20261021000000_function_privileges.sql` (sólo permisos: quita EXECUTE de funciones internas que no deben llamarse por la API; resuelve las advertencias evitables del *Security Advisor*)
    - Con la CLI: `npx supabase link --project-ref <ref>` y luego `npx supabase db push` (aplica sólo las que falten).
 
    **Si ya tenías una versión anterior funcionando**, ejecuta sólo los archivos que falten. El segundo convierte cada catálogo v1 en un sitio con página "Inicio"; el tercero sólo agrega la columna de atributos; el cuarto **no borra nada**: agrega columnas y tablas, asigna a cada cuenta existente un nombre de usuario (la parte del email antes de la @; si se repite, con un sufijo), deja las cuentas y negocios activos y registra las imágenes que ya estaban en Storage en la biblioteca. El quinto tampoco mueve archivos (ya están en Storage): agrega columnas a la biblioteca, asigna carpeta y nombre a lo existente y registra cualquier imagen referenciada que faltara. Las secciones de productos y la configuración del PDF de versiones anteriores se convierten al nuevo formato al leerlas. No se pierde nada.
@@ -193,7 +194,7 @@ Aplica la migración automáticamente. Usa la *API URL* y la *Publishable key* q
 
 | Capa | Herramienta | Qué cubre |
 | --- | --- | --- |
-| Base de datos (140) | PGlite (Postgres en WASM) con stubs de `auth`/`storage` | Todas las migraciones en orden (incluida la migración de datos v1), RLS por tabla y por rol, Storage, límites de plan, RPCs de administración, auditoría, referencias de medios y límite de intentos. |
+| Base de datos (149) | PGlite (Postgres en WASM) con stubs de `auth`/`storage` | Todas las migraciones en orden (incluida la migración de datos v1), RLS por tabla y por rol, Storage, límites de plan, RPCs de administración, auditoría, referencias de medios y límite de intentos. |
 | Unitarias (182) | `node:test` + `tsx` | Anti-SSRF (incluidas IPv4 escondidas en IPv6), redirecciones seguras, slugs, precios, usuarios, planes, acciones de contacto, paginación, reducer del editor (guardado concurrente), Garfield (router local, ejecutores, proveedores con `fetch` simulado), PDF y equivalencia de optimizaciones. |
 
 Las pruebas no usan red, reloj ni datos aleatorios sin control, así que son deterministas en CI. La cobertura (`npm run test:coverage`) mide los módulos que cargan las pruebas: en la última ejecución, 88 % de líneas y 82 % de ramas sobre 77 módulos (lógica de dominio, seguridad y Garfield). La interfaz (componentes React) no tiene pruebas automatizadas: ver [Limitaciones](#limitaciones-conocidas).
@@ -211,7 +212,7 @@ Las pruebas no usan red, reloj ni datos aleatorios sin control, así que son det
 | Dependency review | En PRs, bloquea dependencias nuevas con vulnerabilidades altas. |
 | Secret scan | gitleaks sobre todo el historial. |
 
-Además: [`codeql.yml`](.github/workflows/codeql.yml) (análisis estático de seguridad, semanal y en PRs) y [`dependabot.yml`](.github/dependabot.yml) (actualizaciones semanales agrupadas). Las acciones están fijadas por SHA y cada job tiene permisos mínimos; ningún job necesita secretos.
+Además: [`codeql.yml`](.github/workflows/codeql.yml) (análisis estático de seguridad, semanal y en PRs), [`dependabot.yml`](.github/dependabot.yml) (actualizaciones semanales agrupadas) y [`keepalive.yml`](.github/workflows/keepalive.yml) (consulta `/api/health` de producción cada 3 días). Las acciones están fijadas por SHA y cada job tiene permisos mínimos; ningún job necesita secretos.
 
 **Configuración manual en GitHub** (no se puede hacer desde el repositorio):
 1. *Settings → Branches → Branch protection* para `main`: exigir los checks `Typecheck & lint`, `Tests`, `Production build`, `Dependency audit` y `Secret scan` (y `Analyze (javascript-typescript)` si usas CodeQL).
@@ -237,14 +238,38 @@ Para reportar un problema de seguridad, ver [`SECURITY.md`](SECURITY.md).
 
 ## Desplegar en Vercel
 
-1. Sube el repositorio a GitHub, GitLab o Bitbucket.
-2. En Vercel: *Add New → Project* → importa el repo (framework: Next.js, sin cambios de build).
-3. En *Environment Variables* agrega `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (sin prefijo `NEXT_PUBLIC_`), `NEXT_PUBLIC_SITE_URL` (tu dominio final) y, si usas Garfield completo, `GEMINI_API_KEY`.
-4. Deploy. Después pon el dominio como *Site URL* en Supabase (*Auth → URL Configuration*).
-5. Opcional: dominio propio en *Settings → Domains*.
+Las funciones corren en `iad1` (Washington D.C., `vercel.json`), junto a una base de Supabase en *East US*: si tu proyecto de Supabase está en otra región, cambia `regions` por la más cercana.
+
+**Antes del primer despliegue (Supabase)**
+1. Aplica todas las migraciones de `supabase/migrations/` (ver [Configurar Supabase](#configurar-supabase)).
+2. *Authentication → Sign In / Providers*: apaga **Allow new users to sign up**. La clave pública viaja en el JavaScript del sitio; con el registro abierto cualquiera podría crear cuentas por la API (nacen deshabilitadas, pero ocupan espacio y pueden llamar funciones autenticadas).
+3. Crea el primer administrador (`npm run admin:create`) si la base es nueva.
+
+**Proyecto en Vercel**
+1. *Add New → Project* → importa el repositorio (framework Next.js, sin cambiar comandos).
+2. *Environment Variables* (Production y Preview):
+
+   | Variable | Valor |
+   | --- | --- |
+   | `NEXT_PUBLIC_SUPABASE_URL` | URL del proyecto |
+   | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Publishable key |
+   | `SUPABASE_SERVICE_ROLE_KEY` | Service role / secret key (sin `NEXT_PUBLIC_`) |
+   | `GEMINI_API_KEY` | Opcional: Garfield con IA |
+   | `NEXT_PUBLIC_SITE_URL` | Opcional: dominio propio. Sin ella se usa el dominio de producción de Vercel. |
+
+   Las variables `NEXT_PUBLIC_*` se fijan al compilar: si las cambias, vuelve a desplegar.
+3. *Deploy*. Cada PR recibe una vista previa y cada merge a `main` despliega producción.
+
+**Después del despliegue**
+1. Verifica `https://<tu-dominio>/api/health` → `{"status":"ok","database":"ok"}`.
+2. Supabase → *Authentication → URL Configuration*: pon el dominio como *Site URL*.
+3. GitHub → *Settings → Secrets and variables → Actions → Variables*: crea `PRODUCTION_URL` con el dominio. El workflow [`keepalive.yml`](.github/workflows/keepalive.yml) consulta `/api/health` cada 3 días para que el plan gratuito de Supabase no pause el proyecto (se pausa tras 7 días sin actividad).
+4. Opcional: dominio propio en *Settings → Domains* (y actualiza `NEXT_PUBLIC_SITE_URL`).
+
+> Las vistas previas de PRs usan la misma base que producción. Vercel las protege con login por defecto (*Deployment Protection*); para separar datos, crea un segundo proyecto de Supabase y usa sus claves sólo en *Preview*.
 
 Notas de costo en el plan gratuito:
-- La generación de PDF corre como función de Node (`maxDuration = 60`). En Hobby, el máximo configurable depende del plan; catálogos de cientos de ítems tardan unos segundos.
+- La generación de PDF corre como función de Node (`maxDuration = 60`); catálogos de cientos de ítems tardan unos segundos.
 - El optimizador de imágenes de Vercel tiene una cuota mensual. Si se agota, usa `NEXT_PUBLIC_IMAGE_OPTIMIZATION=false`.
 - El catálogo público se sirve desde caché (ISR + tag por negocio). Cada visita no cacheada hace **una sola** llamada a Supabase.
 
@@ -255,7 +280,7 @@ Notas de costo en el plan gratuito:
 ```
 supabase/
   migrations/                  v1 (esquema, RLS, Storage) · v2 (páginas, navegación, PDF) · v3 (atributos) · v4 (acceso, roles, auditoría) · v5 (biblioteca) · rendimiento · seguridad
-  tests/rls.test.mjs           140 pruebas de migraciones, aislamiento, roles, auditoría, medios y límites (PGlite)
+  tests/rls.test.mjs           149 pruebas de migraciones, aislamiento, roles, auditoría, medios y límites (PGlite)
 scripts/create-admin.mjs       Crea o promueve el administrador (npm run admin:create)
 tests/                         182 pruebas unitarias (npm run test:unit)
   lib/                         seguridad (SSRF, redirecciones, rutas de Storage) y dominio (slugs, precios, planes, contacto…)
