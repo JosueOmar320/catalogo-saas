@@ -4,6 +4,7 @@ import { CURRENCIES } from '@/lib/catalog/settings';
 import { priceText, priceToNumber } from '@/lib/utils/validation';
 import { uploadedImageSchema } from '@/features/media/schema';
 import { MANUAL_BADGES, MAX_VARIANT_OPTIONS } from '@/lib/catalog/item-attributes';
+import { isTimeZone } from '@/lib/business/schedule';
 import { hexColor } from '@/lib/design/schema-utils';
 
 export const ITEM_TYPES = ['product', 'service'] as const;
@@ -34,6 +35,9 @@ export const itemFormSchema = z
     badges: z.array(z.enum(MANUAL_BADGES)).max(3),
     customBadgeLabel: z.string().trim().max(20),
     customBadgeColor: hexColor,
+    /** Último día de la oferta ("2026-10-31", vacío = sin fecha) y la zona horaria de quien la programa. */
+    saleEndsOn: z.union([z.literal(''), z.string().regex(/^\d{4}-\d{2}-\d{2}$/)]),
+    saleTimeZone: z.string().max(64),
     /** Opciones con precio propio (tamaños, sabores…). Con `variantsEnabled` en false se ignoran. */
     variantsEnabled: z.boolean(),
     variantsLabel: z.string().trim().max(30),
@@ -89,6 +93,7 @@ export function itemFormToAttributes(values: z.output<typeof itemFormSchema>) {
   return {
     badges: values.badges.filter((b) => b !== 'featured' || values.isFeatured),
     variants: values.type === 'product' ? formVariants(values) : null,
+    saleEnds: values.saleEndsOn && priceToNumber(values.compareAtPrice) !== null && isTimeZone(values.saleTimeZone) ? { on: values.saleEndsOn, timeZone: values.saleTimeZone } : null,
     customBadge: values.customBadgeLabel ? { label: values.customBadgeLabel, color: values.customBadgeColor } : null,
     values: values.attributeValues,
   };

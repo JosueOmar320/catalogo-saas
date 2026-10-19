@@ -1,18 +1,22 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Alert, Box, Button, Grid, Stack, Typography } from '@mui/material';
+import { Alert, Box, Button, Checkbox, Divider, FormControlLabel, FormGroup, FormLabel, Grid, InputAdornment, Stack, Typography } from '@mui/material';
 import { useRouter } from 'next/navigation';
-import { useForm, useWatch, type Resolver } from 'react-hook-form';
+import { Controller, useForm, useWatch, type Resolver } from 'react-hook-form';
 import { SwitchControl, TextFieldControl } from '@/components/form/fields';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { updateContact } from '@/features/business/actions';
 import { updateCatalogSettings } from '@/features/catalog/actions';
 import { contactSchema, type BusinessContact } from '@/lib/business/profile';
-import { contactActionsSchema, orderSchema, type ContactActionsConfig, type OrderSettings } from '@/lib/catalog/settings';
+import { contactActionsSchema, orderSchema, PAYMENT_METHODS, type ContactActionsConfig, type OrderSettings } from '@/lib/catalog/settings';
 import { fillTemplate } from '@/lib/contact/actions';
 import { useT } from '@/i18n/client';
 import { useAction } from '@/lib/hooks/use-action';
+import { ScheduleField } from './ScheduleField';
+import { msg } from '@/i18n/translate';
+
+const PAYMENT_LABELS = { cash: msg('Efectivo'), card: msg('Tarjeta'), transfer: msg('Transferencia'), link: msg('Enlace de pago') } as const;
 
 export function ContactForm({ contact, actions, order, businessName }: { contact: BusinessContact; actions: ContactActionsConfig; order: OrderSettings; businessName: string }) {
   const t = useT();
@@ -22,6 +26,9 @@ export function ContactForm({ contact, actions, order, businessName }: { contact
   const actionsForm = useForm<ContactActionsConfig>({ resolver: zodResolver(contactActionsSchema) as Resolver<ContactActionsConfig>, defaultValues: actions });
   const orderForm = useForm<OrderSettings>({ resolver: zodResolver(orderSchema) as Resolver<OrderSettings>, defaultValues: order });
   const orderEnabled = useWatch({ control: orderForm.control, name: 'enabled' });
+  const scheduleEnabled = useWatch({ control: contactForm.control, name: 'schedule.enabled' });
+  const deliveryEnabled = useWatch({ control: orderForm.control, name: 'delivery' });
+  const money = { input: { startAdornment: <InputAdornment position="start">$</InputAdornment> } };
   const message = useWatch({ control: actionsForm.control, name: 'whatsapp.message' });
   const whatsappEnabled = useWatch({ control: actionsForm.control, name: 'whatsapp.enabled' });
 
@@ -49,7 +56,14 @@ export function ContactForm({ contact, actions, order, businessName }: { contact
             <Grid size={{ xs: 12, sm: 8 }}><TextFieldControl control={contactForm.control} name="address" label={t('Dirección')} /></Grid>
             <Grid size={{ xs: 12, sm: 4 }}><TextFieldControl control={contactForm.control} name="city" label={t('Ciudad')} /></Grid>
             <Grid size={12}><TextFieldControl control={contactForm.control} name="mapsUrl" label={t('Enlace de Google Maps')} placeholder="https://maps.app.goo.gl/…" helperText={t('En Google Maps: Compartir → Copiar vínculo. Se usa para el botón de la dirección y para ubicar el pin del mapa.')} /></Grid>
-            <Grid size={12}><TextFieldControl control={contactForm.control} name="hours" label={t('Horarios')} multiline minRows={3} placeholder={t('Lunes a viernes: 9:00 – 18:00\nSábado: 10:00 – 14:00')} /></Grid>
+            <Grid size={12}><ScheduleField form={contactForm} /></Grid>
+            <Grid size={12}>
+              {scheduleEnabled ? (
+                <TextFieldControl control={contactForm.control} name="hours" label={t('Notas del horario (opcional)')} multiline minRows={2} placeholder={t('Días festivos: 9:00 – 14:00')} />
+              ) : (
+                <TextFieldControl control={contactForm.control} name="hours" label={t('Horarios')} multiline minRows={3} placeholder={t('Lunes a viernes: 9:00 – 18:00\nSábado: 10:00 – 14:00')} />
+              )}
+            </Grid>
             <Grid size={12}><TextFieldControl control={contactForm.control} name="additionalInfo" label={t('Información adicional')} multiline minRows={2} placeholder={t('Formas de pago, envíos, estacionamiento…')} helperText={t('Se muestra en la sección de contacto y en el PDF.')} /></Grid>
           </Grid>
           <Stack direction="row" sx={{ justifyContent: 'flex-end', mt: 2 }}>
@@ -117,6 +131,61 @@ export function ContactForm({ contact, actions, order, businessName }: { contact
           />
           <TextFieldControl control={orderForm.control} name="intro" label={t('Saludo del mensaje')} disabled={!orderEnabled} helperText={t('Primera línea del pedido. Variable: {negocio}')} />
           <SwitchControl control={orderForm.control} name="askName" label={t('Pedir el nombre del cliente')} description={t('Campo opcional en el pedido.')} />
+
+          <Divider />
+          <Typography variant="subtitle2">{t('Entrega')}</Typography>
+          <SwitchControl control={orderForm.control} name="pickup" label={t('Recoger en el local')} description={t('El cliente pasa por su pedido.')} />
+          <SwitchControl control={orderForm.control} name="delivery" label={t('Envío a domicilio')} description={t('El cliente escribe su dirección al pedir.')} />
+          {deliveryEnabled && (
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <TextFieldControl control={orderForm.control} name="deliveryFee" label={t('Costo de envío')} inputMode="decimal" slotProps={money} helperText={t('Vacío: se confirma por WhatsApp. 0: gratis.')} />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <TextFieldControl control={orderForm.control} name="freeDeliveryFrom" label={t('Envío gratis desde')} inputMode="decimal" slotProps={money} helperText={t('Opcional: monto del pedido.')} />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <TextFieldControl control={orderForm.control} name="deliveryNote" label={t('Zona o tiempo de entrega')} placeholder={t('Sólo zona centro, 30–45 min')} />
+              </Grid>
+            </Grid>
+          )}
+          <TextFieldControl
+            control={orderForm.control}
+            name="minimumOrder"
+            label={t('Pedido mínimo')}
+            inputMode="decimal"
+            slotProps={money}
+            helperText={t('Opcional: no se puede enviar un pedido menor.')}
+            sx={{ maxWidth: { sm: 260 } }}
+          />
+
+          <Divider />
+          <Controller
+            control={orderForm.control}
+            name="payments"
+            render={({ field }) => (
+              <Box component="fieldset" sx={{ border: 0, p: 0, m: 0 }}>
+                <FormLabel component="legend" sx={{ typography: 'subtitle2', color: 'text.primary' }}>{t('Formas de pago')}</FormLabel>
+                <Typography variant="caption" color="text.secondary" component="p">{t('El cliente elige una al pedir (opcional).')}</Typography>
+                <FormGroup row>
+                  {PAYMENT_METHODS.map((method) => (
+                    <FormControlLabel
+                      key={method}
+                      label={t(PAYMENT_LABELS[method])}
+                      control={
+                        <Checkbox
+                          checked={field.value.includes(method)}
+                          onChange={(event) =>
+                            field.onChange(event.target.checked ? PAYMENT_METHODS.filter((m) => m === method || field.value.includes(m)) : field.value.filter((m) => m !== method))
+                          }
+                        />
+                      }
+                    />
+                  ))}
+                </FormGroup>
+              </Box>
+            )}
+          />
           <Stack direction="row" sx={{ justifyContent: 'flex-end' }}>
             <Button type="submit" variant="contained" disabled={pending || !orderForm.formState.isDirty}>{t('Guardar pedidos')}</Button>
           </Stack>

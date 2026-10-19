@@ -3,18 +3,34 @@
 import { Minus, Plus, ShoppingBag, Trash2, X } from 'lucide-react';
 import { createContext, useCallback, useContext, useId, useMemo, useRef, useState, useSyncExternalStore, type ReactNode, type Ref, type SyntheticEvent } from 'react';
 import { Icon } from '../Icon';
+import { opensText, useOpenStatus } from '../OpenNow';
 import { SiteImage } from '../SiteImage';
 import { useSiteT } from '../SiteI18n';
 import styles from '../site.module.css';
 import type { OrderConfig } from './config';
-import { buildOrderMessage, clampQty, formatAmount, MAX_ORDER_LINES, orderTotal, orderWhatsappHref, type OrderItem, type OrderLine } from './message';
+import { PAYMENT_METHODS, type PaymentMethod } from '@/lib/catalog/settings';
+import {
+  buildOrderMessage,
+  clampQty,
+  effectiveFulfillment,
+  formatAmount,
+  fulfillmentOptions,
+  MAX_ORDER_LINES,
+  orderTotal,
+  orderWhatsappHref,
+  PAYMENT_LABELS,
+  summarizeOrder,
+  type Fulfillment,
+  type OrderItem,
+  type OrderLine,
+} from './message';
 
 /* ------------------------------------------------------------------ Estado */
 
 /** Pedido guardado en el navegador del visitante (localStorage), uno por negocio. */
-type OrderState = { lines: OrderLine[]; name: string; note: string };
+type OrderState = { lines: OrderLine[]; name: string; note: string; fulfillment: Fulfillment | null; address: string; payment: PaymentMethod | null };
 
-const EMPTY: OrderState = { lines: [], name: '', note: '' };
+const EMPTY: OrderState = { lines: [], name: '', note: '', fulfillment: null, address: '', payment: null };
 const cache = new Map<string, OrderState>();
 const listeners = new Map<string, Set<() => void>>();
 
@@ -36,7 +52,9 @@ function sanitize(raw: unknown): OrderState {
       return [{ id, itemId: str(line.itemId, 64) || null, name, qty, sku: str(line.sku, 64) || null, price: numOrNull(line.price), priceLabel: str(line.priceLabel, 60) || null, currency: str(line.currency, 3), url: str(line.url, 500), image: str(line.image, 500) || null }];
     })
     .slice(0, MAX_ORDER_LINES);
-  return { lines, name: str(input.name, 80), note: str(input.note, 500) };
+  const fulfillment = input.fulfillment === 'pickup' || input.fulfillment === 'delivery' ? input.fulfillment : null;
+  const payment = PAYMENT_METHODS.find((method) => method === input.payment) ?? null;
+  return { lines, name: str(input.name, 80), note: str(input.note, 500), fulfillment, address: str(input.address, 300), payment };
 }
 
 function read(key: string): OrderState {
@@ -58,7 +76,7 @@ function notify(key: string) {
 function write(key: string, state: OrderState) {
   cache.set(key, state);
   try {
-    if (state.lines.length || state.name || state.note) localStorage.setItem(key, JSON.stringify(state));
+    if (state.lines.length || state.name || state.note || state.address) localStorage.setItem(key, JSON.stringify(state));
     else localStorage.removeItem(key);
   } catch {}
   notify(key);
@@ -101,7 +119,7 @@ type OrderApi = {
   qtyOf: (id: string) => number;
   add: (item: OrderItem) => void;
   setQty: (id: string, qty: number) => void;
-  update: (patch: Partial<Pick<OrderState, 'name' | 'note'>>) => void;
+  update: (patch: Partial<Omit<OrderState, 'lines'>>) => void;
   clear: () => void;
   open: () => void;
 };
@@ -256,11 +274,35 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
   const titleId = useId();
   // Un mismo pedido abierto dos veces en WhatsApp cuenta una sola vez.
   const tracked = useRef<string | null>(null);
+  const status = useOpenStatus(order?.config.schedule ?? null);
   if (!order) return null;
   const { config, state } = order;
-  const total = orderTotal(state.lines, config.pricing);
-  const message = buildOrderMessage({ lines: state.lines, pricing: config.pricing, intro: config.intro, businessName: config.businessName, customerName: state.name, note: state.note, siteUrl: config.siteUrl, t });
-  const href = state.lines.length ? orderWhatsappHref(config.whatsapp, message) : null;
+  const { options, pricing } = config;
+  const choices = { fulfillment: state.fulfillment, address: state.address, payment: state.payment };
+  const summary = summarizeOrder(state.lines, pricing, options, choices);
+  const { subtotal, delivery, total } = summary;
+  const modes = fulfillmentOptions(options);
+  const fulfillment = effectiveFulfillment(options, state.fulfillment);
+  const money = (value: number) => formatAmount(value, pricing);
+  const message = buildOrderMessage({ lines: state.lines, pricing, intro: config.intro, businessName: config.businessName, customerName: state.name, note: state.note, siteUrl: config.siteUrl, t, options, choices });
+  const href = state.lines.length && !summary.blocker ? orderWhatsappHref(config.whatsapp, message) : null;
+  const blockerText =
+    summary.blocker === 'fulfillment'
+      ? t('Elige cómo quieres recibir tu pedido.')
+      : summary.blocker === 'address'
+        ? t('Escribe la dirección de entrega.')
+        : summary.blocker === 'minimum' && options.minimumOrder !== null && summary.missingForMinimum !== null
+          ? t('El pedido mínimo es de {minimum}: te faltan {amount}.', { minimum: money(options.minimumOrder), amount: money(summary.missingForMinimum) })
+          : null;
+  const deliveryHint =
+    options.deliveryFee === 0
+      ? t('Envío gratis')
+      : [
+          options.deliveryFee !== null ? t('Envío {amount}', { amount: money(options.deliveryFee) }) : t('Costo de envío por confirmar'),
+          options.freeDeliveryFrom !== null ? t('gratis desde {amount}', { amount: money(options.freeDeliveryFrom) }) : null,
+        ]
+          .filter(Boolean)
+          .join(' · ');
   const onSend = () => {
     if (!config.trackSlug) return;
     const key = JSON.stringify(state.lines.map((line) => [line.id, line.qty]));
@@ -292,6 +334,11 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
           <p className={styles.orderEmpty}>{t('Tu pedido está vacío. Agrega productos desde el catálogo.')}</p>
         ) : (
           <>
+            {status && !status.open && (
+              <p className={styles.orderClosed}>
+                {t('{status}. Puedes enviar tu pedido y te respondemos al abrir.', { status: opensText(status, t, pricing.locale) })}
+              </p>
+            )}
             <ul className={styles.orderLines}>
               {state.lines.map((line) => (
                 <li key={line.id}>
@@ -317,15 +364,86 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
               ))}
             </ul>
 
+            {subtotal && delivery && (
+              <dl className={styles.orderBreakdown}>
+                <div>
+                  <dt>{t('Subtotal')}</dt>
+                  <dd>{money(subtotal.value)}</dd>
+                </div>
+                <div>
+                  <dt>{t('Envío')}</dt>
+                  <dd>{delivery.kind === 'fee' ? money(delivery.value) : delivery.kind === 'free' ? t('Gratis') : t('Por confirmar')}</dd>
+                </div>
+              </dl>
+            )}
             {total && (
               <p className={styles.orderTotal}>
                 <span>{t('Total')}</span>
-                <strong>{formatAmount(total.value, config.pricing)}</strong>
+                <strong>{money(total.value)}</strong>
               </p>
             )}
-            {total?.partial && <p className={styles.orderHint}>{t('Algunos precios se confirman por WhatsApp.')}</p>}
+            {subtotal?.partial && <p className={styles.orderHint}>{t('Algunos precios se confirman por WhatsApp.')}</p>}
+            {delivery?.kind === 'confirm' && <p className={styles.orderHint}>{t('El costo de envío se confirma por WhatsApp.')}</p>}
+            {summary.missingForFreeDelivery !== null && summary.missingForFreeDelivery > 0 && (
+              <p className={styles.orderHint}>{t('Te faltan {amount} para el envío gratis.', { amount: money(summary.missingForFreeDelivery) })}</p>
+            )}
 
             <div className={styles.orderFields}>
+              {modes.length > 0 && (
+                <fieldset className={styles.orderChoices}>
+                  <legend>{t('¿Cómo lo recibes?')}</legend>
+                  {modes.length === 1 ? (
+                    <p className={styles.orderFixed}>{fulfillment === 'delivery' ? t('Envío a domicilio') : t('Recoger en el local')}</p>
+                  ) : (
+                    <div className={styles.orderOptions}>
+                      {modes.map((mode) => (
+                        <label key={mode} className={styles.orderOption}>
+                          <input type="radio" name="fulfillment" value={mode} checked={state.fulfillment === mode} onChange={() => order.update({ fulfillment: mode })} />
+                          <span>{mode === 'delivery' ? t('Envío a domicilio') : t('Recoger en el local')}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                  {options.delivery && (fulfillment === 'delivery' || modes.length > 1) && (
+                    <p className={styles.orderHint}>{[deliveryHint, options.deliveryNote].filter(Boolean).join(' · ')}</p>
+                  )}
+                </fieldset>
+              )}
+              {fulfillment === 'delivery' && (
+                <label>
+                  <span>{t('Dirección de entrega')}</span>
+                  <textarea
+                    rows={2}
+                    value={state.address}
+                    maxLength={300}
+                    autoComplete="street-address"
+                    required
+                    placeholder={t('Calle, número, colonia y referencias')}
+                    onChange={(event) => order.update({ address: event.target.value })}
+                  />
+                </label>
+              )}
+              {options.payments.length > 0 && (
+                <fieldset className={styles.orderChoices}>
+                  <legend>{t('Forma de pago')}</legend>
+                  <div className={styles.orderOptions}>
+                    {options.payments.map((method) => (
+                      <label key={method} className={styles.orderOption}>
+                        <input
+                          type="radio"
+                          name="payment"
+                          value={method}
+                          checked={state.payment === method}
+                          onChange={() => order.update({ payment: method })}
+                          // Un segundo clic quita la elección (es opcional).
+                          onClick={() => state.payment === method && order.update({ payment: null })}
+                        />
+                        <span>{t(PAYMENT_LABELS[method])}</span>
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+              )}
               {config.askName && (
                 <label>
                   <span>{t('Tu nombre (opcional)')}</span>
@@ -341,6 +459,15 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
         )}
 
         <footer className={styles.orderFooter}>
+          {state.lines.length > 0 && blockerText && (
+            <>
+              <p className={styles.orderBlocker} role="status">{blockerText}</p>
+              <button type="button" className={`${styles.btn} ${styles.btnBlock}`} data-variant="solid" disabled>
+                <Icon id="message-circle" size={17} />
+                {t('Enviar pedido por WhatsApp')}
+              </button>
+            </>
+          )}
           {href && (
             <a href={href} target="_blank" rel="noopener noreferrer" className={`${styles.btn} ${styles.btnBlock}`} data-variant="solid" onClick={onSend}>
               <Icon id="message-circle" size={17} />

@@ -1,9 +1,10 @@
 import { Clock, Globe, Mail, MapPin, MessageCircle, Phone } from 'lucide-react';
-import { digitsOnly } from '@/lib/business/profile';
+import { digitsOnly, hoursText } from '@/lib/business/profile';
 import { env as appEnv } from '@/lib/env';
 import type { ResolvedNavItem } from '@/lib/site/navigation';
 import type { SiteViewModel } from '@/lib/site/view-model';
 import { BackgroundLayers } from './Background';
+import { OpenNow } from './OpenNow';
 import { siteTranslator } from './site-i18n';
 import { SocialLinks } from './SocialLinks';
 import styles from './site.module.css';
@@ -16,6 +17,7 @@ export function SiteFooter({ site, navItems }: { site: SiteViewModel; navItems: 
   const customBg = footer.background.type !== 'inherit';
   const pageLinks = navItems.filter((i) => i.style === 'link');
   const t = siteTranslator(site.settings.language);
+  const hours = hoursText(contact, site.settings.locale, t('Cerrado'));
   // "Sitio creado con {app}": el enlace va donde está la variable (el orden cambia según el idioma).
   const [brandingBefore, brandingAfter = ''] = t('Sitio creado con {app}').split('{app}');
 
@@ -64,11 +66,16 @@ export function SiteFooter({ site, navItems }: { site: SiteViewModel; navItems: 
             </div>
           )}
 
-          {footer.showHours && contact.hours && (
+          {footer.showHours && hours && (
             <div>
               <p className={styles.footerTitle}>{t('Horarios')}</p>
+              {contact.schedule.enabled && (
+                <p className={styles.openRow}>
+                  <OpenNow schedule={contact.schedule} locale={site.settings.locale} />
+                </p>
+              )}
               <ul className={styles.footerList}>
-                <li><Clock size={16} aria-hidden /><p className={styles.preLine}>{contact.hours}</p></li>
+                <li><Clock size={16} aria-hidden /><p className={styles.preLine}>{hours}</p></li>
               </ul>
             </div>
           )}

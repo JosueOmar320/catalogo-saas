@@ -1,5 +1,6 @@
 import { Link, Text, View } from '@react-pdf/renderer';
 import type { ReactNode } from 'react';
+import { hoursText } from '@/lib/business/profile';
 import { resolveCollection, sortItems } from '@/lib/catalog/collections';
 import type { CatalogCategoryView, CatalogItemView } from '@/lib/catalog/view-model';
 import type { Translator } from '@/i18n/translate';
@@ -426,13 +427,14 @@ export function ContactBlock({ doc, block }: { doc: PdfDoc; block?: PdfBlockOf<'
   const { t, siteT, site } = doc;
   const c = site.business.contact;
   const address = [c.address, c.city].filter(Boolean).join(', ');
+  const hours = hoursText(c, site.settings.locale, siteT('Cerrado'));
   const handle = socialHandle(site);
   const rows = [
     c.whatsapp && { icon: 'message-circle', label: 'WhatsApp', value: c.whatsapp },
     c.phone && { icon: 'phone', label: siteT('Teléfono'), value: c.phone },
     c.email && { icon: 'mail', label: 'Email', value: c.email },
     address && { icon: 'map-pin', label: siteT('Dirección'), value: address },
-    c.hours && { icon: 'clock', label: siteT('Horarios'), value: c.hours },
+    hours && { icon: 'clock', label: siteT('Horarios'), value: hours },
     { icon: 'globe', label: siteT('Sitio'), value: (c.website || site.url).replace(/^https?:\/\//, '') },
   ].filter(Boolean) as { icon: string; label: string; value: string }[];
 

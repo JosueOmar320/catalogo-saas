@@ -2401,6 +2401,51 @@ a.cardLink:hover .cardTitle {
   font-size: calc(var(--fs-base) * 1.5);
 }
 
+.saleEnds {
+  align-self: flex-start;
+  margin-top: -6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--c-primary-soft);
+  color: var(--c-heading);
+  font-size: var(--fs-small);
+  font-weight: 600;
+}
+
+/* Abierto ahora / Cerrado */
+.openRow {
+  display: flex;
+  margin: 0 0 12px;
+}
+
+.openNow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--c-border);
+  font-size: var(--fs-small);
+  color: var(--c-text);
+}
+
+.openDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--c-muted);
+  flex-shrink: 0;
+}
+
+.openNow[data-open='true'] .openDot {
+  background: #16a34a;
+  box-shadow: 0 0 0 3px color-mix(in srgb, #16a34a 25%, transparent);
+}
+
+.openNow[data-open='false'] .openDot {
+  background: #dc2626;
+}
+
 /* Opciones del producto (Tamaño: 12 oz / 16 oz) */
 .variants {
   display: flex;
@@ -4115,7 +4160,7 @@ details[open] > .faqQuestion .faqChevron {
   color: var(--c-muted);
 }
 
-.orderFields input,
+.orderFields input:not([type='radio']),
 .orderFields textarea {
   width: 100%;
   padding: 9px 11px;
@@ -4127,11 +4172,112 @@ details[open] > .faqQuestion .faqChevron {
   resize: vertical;
 }
 
-.orderFields input:focus,
+.orderFields input:not([type='radio']):focus,
 .orderFields textarea:focus {
   outline: 2px solid var(--c-button);
   outline-offset: -1px;
   border-color: transparent;
+}
+
+.orderBreakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--c-border);
+  font-size: var(--fs-small);
+  color: var(--c-muted);
+}
+
+.orderBreakdown div {
+  display: flex;
+  justify-content: space-between;
+}
+
+.orderBreakdown dd {
+  margin: 0;
+  color: var(--c-text);
+}
+
+.orderBreakdown + .orderTotal {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.orderChoices {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.orderChoices legend {
+  padding: 0;
+  margin-bottom: 6px;
+  font-size: var(--fs-small);
+  color: var(--c-muted);
+}
+
+.orderChoices .orderHint {
+  margin: 0;
+}
+
+.orderOptions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.orderFields .orderOption {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--c-border);
+  border-radius: calc(var(--radius) * 0.6);
+  color: var(--c-text);
+  cursor: pointer;
+}
+
+.orderFields .orderOption:has(input:checked) {
+  border-color: var(--c-accent);
+  box-shadow: inset 0 0 0 1px var(--c-accent);
+}
+
+.orderOption input {
+  margin: 0;
+  accent-color: var(--c-accent);
+}
+
+.orderFixed {
+  margin: 0;
+  color: var(--c-text);
+}
+
+.orderClosed {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: calc(var(--radius) * 0.6);
+  background: var(--c-primary-soft);
+  color: var(--c-text);
+  font-size: var(--fs-small);
+}
+
+.orderBlocker {
+  margin: 0;
+  font-size: var(--fs-small);
+  color: var(--c-heading);
+  text-align: center;
+}
+
+.orderFooter .btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .orderFooter {
@@ -4139,6 +4285,17 @@ details[open] > .faqQuestion .faqChevron {
   flex-direction: column;
   align-items: center;
   gap: 8px;
+  /* Fijo abajo: con entrega y pago el panel crece, y el botón de enviar sigue a la vista. */
+  position: sticky;
+  bottom: 0;
+  margin: 0 -20px -20px;
+  padding: 12px 20px 16px;
+  background: var(--c-bg);
+  border-top: 1px solid var(--c-border);
+}
+
+.orderFooter:empty {
+  display: none;
 }
 
 .orderClear {

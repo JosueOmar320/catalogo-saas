@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { LOCALES } from '@/i18n/config';
+import { msg } from '@/i18n/translate';
 
 /**
  * Configuración de comportamiento del catálogo (catalogs.settings).
@@ -38,12 +39,39 @@ export const contactActionsSchema = z.object({
  * Pedido por WhatsApp: el visitante arma una lista con cantidades en el sitio
  * y la envía al WhatsApp del negocio con un mensaje ya escrito. Sólo productos.
  */
+export const PAYMENT_METHODS = ['cash', 'card', 'transfer', 'link'] as const;
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+
+/** Monto opcional: '' o null → sin valor; acepta "1,200.50" o "35,5" escritos en el formulario. */
+const optionalAmount = () =>
+  z
+    .preprocess((value) => {
+      if (value === '' || value === null || value === undefined) return null;
+      if (typeof value !== 'string') return value;
+      const text = value.trim().replace(/\s/g, '');
+      return Number(/^\d+,\d{1,2}$/.test(text) ? text.replace(',', '.') : text.replace(/,/g, ''));
+    }, z.number({ error: msg('Usa un número, ej. 120 o 99.90') }).min(0).max(9_999_999).nullable())
+    .default(null);
+
 export const orderSchema = z.object({
   enabled: z.boolean().default(false),
   /** Primera línea del mensaje. Variables: {negocio}. */
   intro: z.string().trim().max(200).default('Hola {negocio}, quiero hacer este pedido:'),
   /** Pide (opcional) el nombre de quien hace el pedido. */
   askName: z.boolean().default(true),
+  /** Cómo se entrega. Sin ninguna, el pedido no pregunta (como antes). */
+  pickup: z.boolean().default(false),
+  delivery: z.boolean().default(false),
+  /** Costo del envío; null = "se confirma por WhatsApp". */
+  deliveryFee: optionalAmount(),
+  /** Envío gratis desde este subtotal. */
+  freeDeliveryFrom: optionalAmount(),
+  /** Aclaración del envío: zonas, tiempos ("Sólo zona centro, 30–45 min"). */
+  deliveryNote: z.string().trim().max(120).default(''),
+  /** Pedido mínimo (sobre el subtotal). */
+  minimumOrder: optionalAmount(),
+  /** Formas de pago que el cliente puede elegir. */
+  payments: z.array(z.enum(PAYMENT_METHODS)).max(PAYMENT_METHODS.length).default([]),
 });
 
 export const pdfOptionsSchema = z.object({

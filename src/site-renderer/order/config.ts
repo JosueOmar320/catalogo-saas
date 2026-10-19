@@ -1,9 +1,10 @@
+import type { Schedule } from '@/lib/business/schedule';
 import type { CatalogItemView, CatalogVariantsView } from '@/lib/catalog/view-model';
 import type { SiteViewModel } from '@/lib/site/view-model';
 import { digitsOnly } from '@/lib/utils/phone';
 import { defaultText } from '../default-texts';
 import { siteTranslator } from '../site-i18n';
-import type { OrderItem, OrderPricing } from './message';
+import type { OrderItem, OrderOptions, OrderPricing } from './message';
 
 /** Lo que necesita el pedido en el navegador (datos planos: viaja del servidor al cliente). */
 export type OrderConfig = {
@@ -15,6 +16,10 @@ export type OrderConfig = {
   askName: boolean;
   siteUrl: string;
   pricing: OrderPricing;
+  /** Entrega, envío, pedido mínimo y formas de pago. */
+  options: OrderOptions;
+  /** Horario por día (si el negocio lo usa): el panel avisa cuando está cerrado. */
+  schedule: Schedule | null;
   /** Negocio al que se le cuenta el pedido enviado (sólo en el sitio publicado). */
   trackSlug: string | null;
 };
@@ -36,6 +41,16 @@ export function orderConfig(site: SiteViewModel, { track = false }: { track?: bo
     askName: order.askName,
     siteUrl: site.url,
     pricing: { currency, locale, format: priceFormat },
+    options: {
+      pickup: order.pickup,
+      delivery: order.delivery,
+      deliveryFee: order.deliveryFee,
+      freeDeliveryFrom: order.freeDeliveryFrom,
+      deliveryNote: order.deliveryNote,
+      minimumOrder: order.minimumOrder,
+      payments: order.payments,
+    },
+    schedule: site.business.contact.schedule.enabled ? site.business.contact.schedule : null,
     trackSlug: track ? site.business.slug : null,
   };
 }

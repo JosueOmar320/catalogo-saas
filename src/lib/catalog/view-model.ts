@@ -4,6 +4,7 @@ import { publicStorageUrl } from '@/lib/utils/storage';
 import type { ItemType, Tables } from '@/types/database';
 import { parseAttributeValues, type AttributeDef, type AttributeValues } from './attributes';
 import { hasAvailableOption, optionPrice, variantPriceSummary } from './variants';
+import { isSaleOver } from './sale';
 import { parseItemAttributes, type ItemAttributes } from './item-attributes';
 import type { PriceFormat } from './settings';
 
@@ -49,6 +50,8 @@ export type CatalogItemView = {
   url: string;
   /** Opciones (tamaños, sabores…) con su precio ya formateado; null si no tiene. */
   variants: CatalogVariantsView | null;
+  /** Último día de la oferta ("2026-10-31") mientras sigue vigente; null si no tiene fecha. */
+  saleEndsOn: string | null;
 };
 
 export type CatalogVariantsView = {
@@ -85,7 +88,7 @@ export function mapCategories(categories: CategoryInput[]): CatalogCategoryView[
 }
 
 /** Ítems ordenados por categoría (orden del admin) y luego por posición. */
-type MapOptions = { locale: string; attributeDefs?: AttributeDef[]; priceFormat?: PriceFormat };
+type MapOptions = { locale: string; attributeDefs?: AttributeDef[]; priceFormat?: PriceFormat; /** Para decidir si una oferta ya terminó (pruebas). */ now?: Date };
 
 export function mapItems(items: ItemInput[], categories: CatalogCategoryView[], businessSlug: string, options: MapOptions): CatalogItemView[] {
   const order = new Map(categories.map((c, index) => [c.id, index]));
@@ -95,10 +98,12 @@ export function mapItems(items: ItemInput[], categories: CatalogCategoryView[], 
     .sort((a, b) => rank(a.categoryId) - rank(b.categoryId));
 }
 
-function toItemView(item: ItemInput, businessSlug: string, { locale, attributeDefs = [], priceFormat }: MapOptions): CatalogItemView {
+function toItemView(item: ItemInput, businessSlug: string, { locale, attributeDefs = [], priceFormat, now = new Date() }: MapOptions): CatalogItemView {
   const price = item.price === null ? null : Number(item.price);
-  const compareAt = item.compare_at_price === null ? null : Number(item.compare_at_price);
   const attributes = parseItemAttributes(item.attributes);
+  // Una oferta vencida vuelve sola al precio normal: el anterior deja de mostrarse.
+  const saleOver = isSaleOver(attributes.saleEnds, now);
+  const compareAt = item.compare_at_price === null || saleOver ? null : Number(item.compare_at_price);
   const format = (value: number) => formatPrice(value, item.currency, locale, priceFormat);
   // Con opciones, el precio visible es el menor (con "desde" si varían).
   const summary = variantPriceSummary(price, attributes.variants);
@@ -142,5 +147,6 @@ function toItemView(item: ItemInput, businessSlug: string, { locale, attributeDe
         return { id: o.id, name: o.name, price: value, priceLabel: value === null ? null : format(value), sku: o.sku, available: o.available };
       }),
     },
+    saleEndsOn: !attributes.variants && compareAt !== null && price !== null && compareAt > price ? (attributes.saleEnds?.on ?? null) : null,
   };
 }

@@ -81,6 +81,7 @@ function sampleItems(currency: string, url: string): CatalogItemView[] {
     createdAt: new Date(2026, 0, 30 - index).toISOString(),
     // Como en un sitio real: cada ítem con su propia URL (compartir, WhatsApp, SEO).
     url: `${url}/p/ejemplo-${index + 1}`,
+    saleEndsOn: null,
     variants: item.variants
       ? {
           label: item.variants.label,
@@ -214,7 +215,7 @@ type SampleOptions = {
 };
 
 export function buildSampleSite(options: SampleOptions = {}): SiteViewModel {
-  const settings = catalogSettingsSchema.parse({ currency: 'MXN', contactActions: { phone: { enabled: true } }, order: { enabled: true } });
+  const settings = catalogSettingsSchema.parse({ currency: 'MXN', contactActions: { phone: { enabled: true } }, order: { enabled: true, pickup: true, delivery: true, deliveryFee: 35, freeDeliveryFrom: 300, deliveryNote: 'Zona centro, 30–45 min', payments: ['cash', 'card', 'transfer'] } });
   const url = `${env.siteUrl}/demo`;
   const pages = options.pages ?? buildSamplePages();
   return {
@@ -230,7 +231,15 @@ export function buildSampleSite(options: SampleOptions = {}): SiteViewModel {
         email: 'hola@cafeaurora.mx',
         address: 'Av. Álvaro Obregón 120',
         city: 'Ciudad de México',
-        hours: 'Lunes a viernes: 7:30 – 20:00\nSábado y domingo: 8:30 – 18:00',
+        hours: 'Días festivos: 9:00 – 14:00',
+        schedule: {
+          enabled: true,
+          timezone: 'America/Mexico_City',
+          days: [
+            ...Array.from({ length: 5 }, () => ({ open: true, ranges: [{ from: '07:30', to: '20:00' }] })),
+            ...Array.from({ length: 2 }, () => ({ open: true, ranges: [{ from: '08:30', to: '18:00' }] })),
+          ],
+        },
       }),
       socialLinks: [
         { network: 'instagram', url: 'https://instagram.com' },

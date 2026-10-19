@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { SOCIAL_NETWORK_IDS } from '@/lib/social/networks';
 import { msg } from '@/i18n/translate';
+import { scheduleSchema, scheduleText } from './schedule';
 
 const optionalText = (max: number) => z.string().trim().max(max).default('');
 /** Sólo http(s): estas URLs se muestran como enlaces (evita javascript:, data:…). */
@@ -19,7 +20,10 @@ export const contactSchema = z.object({
   mapsUrl: z.union([z.literal(''), webUrl()]).default(''),
   /** Ubicación para el mapa ("lat,lng" o nombre), sacada de `mapsUrl` en el servidor al guardar. */
   mapsLocation: optionalText(120),
+  /** Horario en texto libre; con `schedule` activo, sirve para notas ("Festivos cerrado"). */
   hours: optionalText(400),
+  /** Horario por día: "Abierto ahora" en el sitio y aviso en el pedido. */
+  schedule: scheduleSchema.prefault({}),
   /** Información adicional: formas de pago, envíos, estacionamiento… */
   additionalInfo: optionalText(500),
 });
@@ -52,3 +56,9 @@ export function parseSocialLinks(raw: unknown): SocialLink[] {
 }
 
 export { digitsOnly } from '@/lib/utils/phone';
+
+/** Horario para mostrar: el horario por día (si está activo) y las notas en texto libre. */
+export function hoursText(contact: Pick<BusinessContact, 'hours' | 'schedule'>, locale: string, closedLabel: string): string {
+  if (!contact.schedule.enabled) return contact.hours;
+  return [scheduleText(contact.schedule, locale, closedLabel), contact.hours].filter(Boolean).join('\n');
+}
