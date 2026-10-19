@@ -1,0 +1,6 @@
+# Falsos positivos revisados a mano (gitleaks lee este archivo solo).
+# Formato: <commit>:<archivo>:<regla>:<línea>
+#
+# Valor inventado para firmar enlaces en una prueba unitaria ('secreto-de-prueba-…'),
+# no es una clave real. La prueba ya genera sus claves al azar; queda el commit histórico.
+2d85a0b51534888ce642ae42fdfa6cf4892c8ee7:tests/lib/review-email.test.ts:generic-api-key:45

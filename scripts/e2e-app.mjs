@@ -57,6 +57,10 @@ const env = {
   SUPABASE_SECRET_KEY: local.SECRET_KEY,
   NEXT_PUBLIC_SITE_URL: `http://localhost:${PORT}`,
   AUTH_USERNAME_DOMAIN: 'usuarios.invalid',
+  // Aviso semanal: secreto propio de esta ejecución y sin Resend (modo de prueba, nunca envía correos).
+  CRON_SECRET: randomBytes(24).toString('base64url'),
+  RESEND_API_KEY: '',
+  EMAIL_FROM: '',
   // Garfield en modo básico: sin llamadas a proveedores de IA.
   ASSISTANT_API_KEY: '',
   ANTHROPIC_API_KEY: '',

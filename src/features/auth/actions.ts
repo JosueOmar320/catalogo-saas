@@ -94,3 +94,16 @@ export async function updateAccount(input: AccountValues): Promise<ActionResult>
   revalidatePath('/cuenta');
   return ok(undefined, msg('Datos guardados'));
 }
+
+/** Activa o apaga el aviso semanal de pendientes del catálogo (sólo el propio perfil). */
+export async function updateNotifications(input: { catalogReview: boolean }): Promise<ActionResult> {
+  if (typeof input?.catalogReview !== 'boolean') return fail(msg('Revisa los datos.'));
+  const profile = await getProfile();
+  if (!profile) return fail(msg('Inicia sesión de nuevo.'));
+  const supabase = await createClient();
+  const { error } = await supabase.from('profiles').update({ notify_catalog_review: input.catalogReview }).eq('id', profile.id);
+  if (error) return fail(msg('No se pudo guardar.'));
+  revalidatePath('/cuenta');
+  return ok(undefined, input.catalogReview ? msg('Aviso semanal activado') : msg('Aviso semanal desactivado'));
+}
+
