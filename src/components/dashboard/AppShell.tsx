@@ -1,16 +1,17 @@
 'use client';
 
-import { AppBar, Box, Collapse, Drawer, IconButton, List, ListItemButton, ListItemIcon, ListItemText, Toolbar, Typography } from '@mui/material';
-import { ChevronDown, Menu as MenuIcon } from 'lucide-react';
+import { AppBar, Box, ButtonBase, Collapse, Drawer, IconButton, List, ListItemButton, ListItemIcon, ListItemText, Toolbar, Typography } from '@mui/material';
+import { ChevronDown, Menu as MenuIcon, Search } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { useState, type ComponentProps, type ReactNode } from 'react';
+import { useState, useSyncExternalStore, type ComponentProps, type ReactNode } from 'react';
 import { ColorModeToggle } from '@/components/ui/ColorModeToggle';
 import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
 import { useT } from '@/i18n/client';
 import { env } from '@/lib/env';
 import { BusinessMenu } from './BusinessMenu';
 import { AccountMenu } from './AccountMenu';
+import { CommandPalette, OPEN_PALETTE_EVENT } from './CommandPalette';
 import { ADMIN_NAVIGATION, NAVIGATION } from './navigation';
 import { PublishControl } from './PublishControl';
 
@@ -159,12 +160,13 @@ export function AppShell(props: Props) {
             <IconButton onClick={() => setMobileOpen(true)} sx={{ display: { md: 'none' } }} aria-label={t('Abrir menú')}>
               <MenuIcon size={18} />
             </IconButton>
-            <Box sx={{ flex: 1 }} />
+            <SearchTrigger />
             <LanguageSwitcher />
             <ColorModeToggle />
             {!admin && <PublishControl />}
           </Toolbar>
         </AppBar>
+        <CommandPalette admin={admin} />
         <Box component="main" id="contenido" tabIndex={-1} sx={{ outline: 'none', flex: 1, p: fullWidth ? 2 : { xs: 2, sm: 3 }, pb: fullWidth ? 2 : 12, width: '100%', maxWidth: fullWidth ? 'none' : 1240, mx: 'auto' }}>
           {children}
         </Box>
@@ -172,3 +174,44 @@ export function AppShell(props: Props) {
     </Box>
   );
 }
+
+const noSubscribe = () => () => {};
+
+/** Abre la búsqueda rápida. En escritorio parece un campo con el atajo; en móvil, un ícono. */
+function SearchTrigger() {
+  const t = useT();
+  const shortcut = useSyncExternalStore(noSubscribe, () => (/Mac|iPhone|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl K'), () => 'Ctrl K');
+  const open = () => window.dispatchEvent(new Event(OPEN_PALETTE_EVENT));
+  return (
+    <Box sx={{ flex: 1, display: 'flex' }}>
+      <ButtonBase
+        onClick={open}
+        aria-label={t('Buscar ({shortcut})', { shortcut })}
+        aria-keyshortcuts="Meta+K Control+K"
+        sx={{
+          display: { xs: 'none', sm: 'flex' },
+          alignItems: 'center',
+          gap: 1,
+          width: 280,
+          px: 1.5,
+          py: 0.75,
+          border: 1,
+          borderColor: 'divider',
+          borderRadius: 1.5,
+          color: 'text.secondary',
+          fontSize: 14,
+          justifyContent: 'flex-start',
+          '&:hover': { borderColor: 'text.secondary' },
+        }}
+      >
+        <Search size={15} aria-hidden />
+        <Box component="span" sx={{ flex: 1, textAlign: 'left' }}>{t('Buscar…')}</Box>
+        <Box component="kbd" sx={{ fontFamily: 'inherit', fontSize: 12, border: 1, borderColor: 'divider', borderRadius: 0.75, px: 0.5 }}>{shortcut}</Box>
+      </ButtonBase>
+      <IconButton onClick={open} aria-label={t('Buscar')} sx={{ display: { xs: 'inline-flex', sm: 'none' } }}>
+        <Search size={18} />
+      </IconButton>
+    </Box>
+  );
+}
+

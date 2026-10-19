@@ -14,7 +14,7 @@ export function EmailSettings({ previewHtml, subject, canSend }: { previewHtml: 
   const [open, setOpen] = useState(false);
   return (
     <>
-      <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', rowGap: 1 }}>
+      <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
         <Button variant="outlined" color="inherit" startIcon={<Eye size={14} />} onClick={() => setOpen(true)}>
           {t('Ver el correo de ejemplo')}
         </Button>

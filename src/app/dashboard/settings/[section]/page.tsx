@@ -62,7 +62,7 @@ export default async function SettingsPage({ params }: PageProps<'/dashboard/set
       const items = await listItemsWithImages(ctx);
       const visible = items.filter((i) => i.is_visible).length;
       content = (
-        <PublishingPanel status={ctx.catalog.status} url={url} publishedAt={ctx.catalog.published_at} visibleItems={visible} hiddenItems={items.length - visible} />
+        <PublishingPanel status={ctx.catalog.status} url={url} publishedAt={ctx.catalog.published_at} visibleItems={visible} hiddenItems={items.length - visible} businessName={ctx.business.name} slug={ctx.business.slug} />
       );
       break;
     }

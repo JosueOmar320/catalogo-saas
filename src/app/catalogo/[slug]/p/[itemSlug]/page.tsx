@@ -63,7 +63,7 @@ export default async function ItemPage({ params }: PageProps<'/catalogo/[slug]/p
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }} />
-      <ItemDetail site={site} item={item} backHref={`/catalogo/${slug}`} />
+      <ItemDetail site={site} item={item} backHref={`/catalogo/${slug}`} env={{ mode: 'public', basePath: `/catalogo/${slug}`, currentPageId: null }} />
     </>
   );
 }

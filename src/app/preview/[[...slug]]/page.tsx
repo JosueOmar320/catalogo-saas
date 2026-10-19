@@ -32,7 +32,7 @@ export default async function PreviewPage({ params }: PageProps<'/preview/[[...s
     if (!item) notFound();
     content = (
       <SiteView site={previewSite} env={env}>
-        <ItemDetail site={previewSite} item={item} backHref="/preview" />
+        <ItemDetail site={previewSite} item={item} backHref="/preview" env={env} />
       </SiteView>
     );
   } else {

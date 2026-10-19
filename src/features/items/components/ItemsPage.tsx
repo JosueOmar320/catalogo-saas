@@ -12,6 +12,8 @@ import { formatPrice } from '@/lib/utils/format';
 import type { ItemType } from '@/types/database';
 import type { ReviewFilter } from '../review';
 import { ITEM_TYPE_LABELS } from '../schema';
+import { matchKey } from '@/lib/catalog/csv';
+import { ImportExport } from './ImportExport';
 import { ItemsTable, type ItemRowData } from './ItemsTable';
 
 /** Página de listado compartida por Productos y Servicios. */
@@ -32,6 +34,8 @@ export async function ItemsPage({ type, review }: { type: ItemType; review?: Rev
       categoryId: i.category_id,
       categoryName: i.category_id ? (categoryNames.get(i.category_id) ?? null) : null,
       priceLabel: i.price === null ? null : formatPrice(Number(i.price), i.currency, locale),
+      price: i.price === null ? null : Number(i.price),
+      currency: i.currency,
       thumbUrl: itemThumbnail(i),
       isVisible: i.is_visible,
       isAvailable: i.is_available,
@@ -50,9 +54,12 @@ export async function ItemsPage({ type, review }: { type: ItemType; review?: Rev
             : t('Lo que ofreces como servicio: con precio fijo, "desde" o a cotizar.')
         }
         actions={
-          <LinkButton href={newHref} variant="contained" startIcon={<Plus size={15} />}>
-            {t(labels.newLabel)}
-          </LinkButton>
+          <>
+            <ImportExport existingKeys={items.map(matchKey)} categoryNames={categories.map((c) => c.name)} defaultType={type} />
+            <LinkButton href={newHref} variant="contained" startIcon={<Plus size={15} />}>
+              {t(labels.newLabel)}
+            </LinkButton>
+          </>
         }
       />
       {rows.length === 0 ? (
@@ -71,7 +78,7 @@ export async function ItemsPage({ type, review }: { type: ItemType; review?: Rev
           />
         </SectionCard>
       ) : (
-        <ItemsTable key={review ?? 'all'} items={rows} categories={categories.map(({ id, name }) => ({ id, name }))} initialReview={review} />
+        <ItemsTable key={review ?? 'all'} items={rows} categories={categories.map(({ id, name }) => ({ id, name }))} initialReview={review} locale={locale} />
       )}
     </>
   );

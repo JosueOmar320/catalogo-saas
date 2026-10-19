@@ -146,6 +146,14 @@ const catalog: Catalog = {
   // Nombres por defecto de ítems del menú sin etiqueta
   Enlace: 'Link',
   Email: 'Email',
+  // Ficha: compartir y relacionados
+  'También te puede interesar': 'You may also like',
+  'Compartir por WhatsApp': 'Share on WhatsApp',
+  Compartir: 'Share',
+  'Compartir…': 'Share…',
+  'Copiar enlace': 'Copy link',
+  'Enlace copiado': 'Link copied',
+  'Mira esto: {name}': 'Check this out: {name}',
   // Pedido por WhatsApp
   'Agregar al pedido': 'Add to order',
   Agregar: 'Add',
