@@ -31,9 +31,12 @@ test('el administrador crea un negocio y se asigna como propietario', async ({ p
 
 test('el inicio del panel guía al negocio nuevo', async ({ page }) => {
   await page.goto('/dashboard');
-  await expect(page.getByRole('heading', { level: 1, name: `Hola, ${businessName}` })).toBeVisible();
-  await expect(page.getByText('Primeros pasos')).toBeVisible();
-  await expect(page.getByText('Aún no tienes productos ni servicios')).toBeVisible();
+  // Dentro de <main>: mientras llega el streaming puede haber una copia oculta del contenido.
+  const main = page.getByRole('main');
+  // Primera visita al inicio: en CI el servidor puede tardar más en responder.
+  await expect(main.getByRole('heading', { level: 1, name: `Hola, ${businessName}` })).toBeVisible({ timeout: 15_000 });
+  await expect(main.getByText('Primeros pasos')).toBeVisible();
+  await expect(main.getByText('Aún no tienes productos ni servicios')).toBeVisible();
   await expect(page).toHaveTitle('Inicio · Vitrina');
 });
 
@@ -44,9 +47,10 @@ test('un producto sin foto ni precio aparece en "Revisa tu catálogo"', async ({
   await expect(page).toHaveURL(/\/dashboard\/catalog\/items\/[0-9a-f-]{36}$/);
 
   await page.goto('/dashboard');
-  await expect(page.getByText('1 sin foto: las fotos son lo primero que miran tus clientes.')).toBeVisible();
-  await expect(page.getByText('1 producto(s) sin precio.')).toBeVisible();
-  await expect(page.getByRole('list').getByText(productName)).toBeVisible();
+  const main = page.getByRole('main');
+  await expect(main.getByText('1 sin foto: las fotos son lo primero que miran tus clientes.')).toBeVisible();
+  await expect(main.getByText('1 producto(s) sin precio.')).toBeVisible();
+  await expect(main.getByRole('list').getByText(productName)).toBeVisible();
 
   await page.getByRole('link', { name: 'Revisar: Sin foto' }).click();
   await expect(page).toHaveURL(/\/dashboard\/catalog\/products\?revisar=sin-foto$/);
