@@ -134,15 +134,15 @@ export function GarfieldPanel() {
         }}
       >
         {/* Encabezado */}
-        <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', px: 1.5, py: 1.1, background: `linear-gradient(135deg, #FFF3E3, #FFE6CC)`, borderBottom: 1, borderColor: `${ORANGE}33` }}>
+        <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', px: 1.5, py: 1.1, background: `linear-gradient(135deg, var(--garfield-header-from), var(--garfield-header-to))`, borderBottom: 1, borderColor: `${ORANGE}33` }}>
           <GarfieldAvatar size={36} mood={g.pending ? 'thinking' : 'idle'} ring={false} />
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
               <Typography variant="body1" sx={{ fontWeight: 750 }}>{ASSISTANT.name}</Typography>
-              {g.editor === 'pdf' && <Chip size="small" label="PDF" sx={{ height: 20, fontSize: 11, fontWeight: 700, bgcolor: '#fff' }} />}
+              {g.editor === 'pdf' && <Chip size="small" label="PDF" sx={{ height: 20, fontSize: 11, fontWeight: 700, bgcolor: 'var(--garfield-chip)' }} />}
               {g.mode === 'basic' && (
                 <Tooltip title="Sin IA (o sin cuota por hoy): entiendo pedidos directos. Configura GEMINI_API_KEY (gratis) para conversar libremente.">
-                  <Chip size="small" label="Modo básico" sx={{ height: 20, fontSize: 11, bgcolor: '#fff' }} />
+                  <Chip size="small" label="Modo básico" sx={{ height: 20, fontSize: 11, bgcolor: 'var(--garfield-chip)' }} />
                 </Tooltip>
               )}
             </Stack>
@@ -162,7 +162,7 @@ export function GarfieldPanel() {
         </Stack>
 
         {/* Conversación */}
-        <Box ref={list} sx={{ flex: 1, overflowY: 'auto', px: 1.5, py: 1.5, bgcolor: '#FCFBF9' }} aria-live="polite">
+        <Box ref={list} sx={{ flex: 1, overflowY: 'auto', px: 1.5, py: 1.5, bgcolor: 'var(--garfield-surface)' }} aria-live="polite">
           <AssistantBubble>
             <Typography variant="body2">{ASSISTANT.greeting}</Typography>
           </AssistantBubble>
@@ -171,7 +171,7 @@ export function GarfieldPanel() {
               <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>{suggestions.title}</Typography>
               <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 0.75, mt: 0.75 }}>
                 {suggestions.items.map((s) => (
-                  <Chip key={s.label} label={s.label} onClick={() => void g.send(s.prompt)} variant="outlined" sx={{ bgcolor: '#fff', borderColor: `${ORANGE}55`, '&:hover': { bgcolor: '#FFF4E6' } }} />
+                  <Chip key={s.label} label={s.label} onClick={() => void g.send(s.prompt)} variant="outlined" sx={{ bgcolor: 'var(--garfield-chip)', borderColor: `${ORANGE}55`, '&:hover': { bgcolor: 'var(--garfield-tint)' } }} />
                 ))}
               </Stack>
             </Box>
@@ -264,7 +264,7 @@ function AssistantBubble({ children, mood = 'idle', error }: { children: React.R
   return (
     <Stack direction="row" spacing={1} sx={{ alignItems: 'flex-start', mt: 1.5, animation: `${rise} .25s ease-out` }}>
       <GarfieldAvatar size={32} mood={mood} />
-      <Box sx={{ flex: 1, minWidth: 0, px: 1.5, py: 1, borderRadius: '4px 14px 14px 14px', bgcolor: error ? '#FDECEC' : 'background.paper', border: 1, borderColor: error ? '#F5C2C0' : 'divider' }}>{children}</Box>
+      <Box sx={{ flex: 1, minWidth: 0, px: 1.5, py: 1, borderRadius: '4px 14px 14px 14px', bgcolor: error ? 'var(--garfield-error-bg)' : 'background.paper', border: 1, borderColor: error ? 'var(--garfield-error-border)' : 'divider' }}>{children}</Box>
     </Stack>
   );
 }
@@ -282,7 +282,7 @@ function AssistantEntry({ entry, latest }: { entry: ChatEntry; latest: boolean }
       {latest && entry.suggestions && entry.suggestions.length > 0 && !g.pending && (
         <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
           {entry.suggestions.map((s) => (
-            <Chip key={s} size="small" label={s} onClick={() => void g.send(s)} sx={{ bgcolor: '#FFF4E6', '&:hover': { bgcolor: '#FFE6CC' } }} />
+            <Chip key={s} size="small" label={s} onClick={() => void g.send(s)} sx={{ bgcolor: 'var(--garfield-tint)', '&:hover': { bgcolor: 'var(--garfield-tint-hover)' } }} />
           ))}
         </Stack>
       )}
@@ -304,9 +304,9 @@ function PlanCard({ entry }: { entry: ChatEntry }) {
     : ok.length === 1 ? { delete_page: 'Eliminar página', delete_section: 'Eliminar sección', remove_nav_item: 'Quitar del menú' }[destructiveKinds[0] as 'delete_page'] : 'Aplicar y eliminar';
 
   return (
-    <Box sx={{ mt: 1, border: 1, borderColor: plan.destructive && plan.status === 'proposed' ? '#F5C2C0' : 'divider', borderRadius: 2, overflow: 'hidden' }}>
-      <Box sx={{ px: 1.25, py: 0.75, bgcolor: plan.status === 'applied' ? '#EEF8F1' : plan.destructive && plan.status === 'proposed' ? '#FDF1F0' : '#F7F5F2', display: 'flex', alignItems: 'center', gap: 0.75 }}>
-        {plan.status === 'applied' ? <Check size={14} color="#2E7D4F" /> : plan.needsConfirmation && plan.status === 'proposed' ? <AlertTriangle size={14} color="#C0512B" /> : <Sparkles size={14} color={ORANGE} />}
+    <Box sx={{ mt: 1, border: 1, borderColor: plan.destructive && plan.status === 'proposed' ? 'var(--garfield-error-border)' : 'divider', borderRadius: 2, overflow: 'hidden' }}>
+      <Box sx={{ px: 1.25, py: 0.75, bgcolor: plan.status === 'applied' ? 'var(--garfield-applied-bg)' : plan.destructive && plan.status === 'proposed' ? 'var(--garfield-error-bg)' : 'var(--garfield-neutral-bg)', display: 'flex', alignItems: 'center', gap: 0.75 }}>
+        {plan.status === 'applied' ? <Check size={14} color="var(--garfield-applied-ink)" /> : plan.needsConfirmation && plan.status === 'proposed' ? <AlertTriangle size={14} color="var(--garfield-warn-ink)" /> : <Sparkles size={14} color={ORANGE} />}
         <Typography variant="caption" sx={{ fontWeight: 700 }}>
           {{ proposed: plan.needsConfirmation ? 'Necesito tu confirmación' : 'He preparado estos cambios', applied: 'Cambios aplicados al borrador', cancelled: 'Cancelado', undone: 'Cambios deshechos', failed: 'No pude aplicar estos cambios', expired: 'Propuesta anterior (vencida)' }[plan.status]}
         </Typography>
@@ -314,7 +314,7 @@ function PlanCard({ entry }: { entry: ChatEntry }) {
       <Box component="ul" sx={{ listStyle: 'none', m: 0, px: 1.25, py: 0.75 }}>
         {plan.steps.map((step, i) => (
           <Box component="li" key={i} sx={{ display: 'flex', gap: 0.75, alignItems: 'flex-start', py: 0.25 }}>
-            <Box sx={{ mt: '3px', flex: 'none', color: step.status === 'error' ? 'error.main' : step.risk === 'confirm' ? '#C0512B' : step.kind === 'catalog' ? '#2F54D6' : '#2E7D4F' }}>
+            <Box sx={{ mt: '3px', flex: 'none', color: step.status === 'error' ? 'error.main' : step.risk === 'confirm' ? 'var(--garfield-warn-ink)' : step.kind === 'catalog' ? 'var(--garfield-catalog-ink)' : 'var(--garfield-applied-ink)' }}>
               {step.status === 'error' ? <X size={13} /> : step.risk === 'confirm' ? <AlertTriangle size={13} /> : step.kind === 'catalog' ? <Database size={13} /> : <Check size={13} />}
             </Box>
             <Box sx={{ minWidth: 0 }}>
@@ -362,7 +362,7 @@ export function GarfieldPreviewBanner() {
     <Alert
       severity="warning"
       icon={<GarfieldAvatar size={24} ring={false} />}
-      sx={{ mb: 1.5, py: 0, alignItems: 'center', bgcolor: '#FFF4E6', border: 1, borderColor: `${ORANGE}55` }}
+      sx={{ mb: 1.5, py: 0, alignItems: 'center', bgcolor: 'var(--garfield-tint)', border: 1, borderColor: `${ORANGE}55` }}
       action={
         <Stack direction="row" spacing={0.5}>
           <Button size="small" color="inherit" onClick={g.exitPreview}>Salir</Button>
@@ -380,11 +380,11 @@ export function GarfieldPreviewBanner() {
 export function GarfieldHint({ text, prompt, action = 'Pedírselo a Garfield' }: { text: string; prompt: string; action?: string }) {
   const g = useGarfield();
   return (
-    <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', p: 1.25, borderRadius: 2, bgcolor: '#FFF7ED', border: 1, borderColor: `${ORANGE}40` }}>
+    <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', p: 1.25, borderRadius: 2, bgcolor: 'var(--garfield-callout)', border: 1, borderColor: `${ORANGE}40` }}>
       <GarfieldAvatar size={34} />
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Typography variant="caption" component="p" sx={{ lineHeight: 1.35 }}>{text}</Typography>
-        <Button size="small" onClick={() => g.ask(prompt)} sx={{ px: 0, minWidth: 0, color: '#B8560B', fontWeight: 700 }}>{action} →</Button>
+        <Button size="small" onClick={() => g.ask(prompt)} sx={{ px: 0, minWidth: 0, color: 'var(--garfield-link)', fontWeight: 700 }}>{action} →</Button>
       </Box>
     </Stack>
   );

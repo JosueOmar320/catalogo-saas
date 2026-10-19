@@ -152,10 +152,10 @@ export function PdfPreview({ blob, page, onPage, pageLabel, onPageClick, busy }:
             <Tooltip title="Acercar"><ToggleButton value={1.5} aria-label="150%"><ZoomIn size={14} /></ToggleButton></Tooltip>
           </ToggleButtonGroup>
         </Stack>
-        <Box ref={stage} sx={{ position: 'relative', flex: 1, minHeight: { xs: '60vh', md: 0 }, overflow: 'auto', bgcolor: '#E9E9EE', borderRadius: 2, p: 3, display: 'flex', justifyContent: zoom === 'fit' ? 'center' : 'flex-start', alignItems: 'flex-start' }}>
+        <Box ref={stage} sx={(theme) => ({ position: 'relative', flex: 1, minHeight: { xs: '60vh', md: 0 }, overflow: 'auto', bgcolor: '#E9E9EE', ...theme.applyStyles('dark', { bgcolor: '#0A0B0E' }), borderRadius: 2, p: 3, display: 'flex', justifyContent: zoom === 'fit' ? 'center' : 'flex-start', alignItems: 'flex-start' })}>
           {pdf && pages > 0 && <PageCanvas key={`${current}-${pageWidth}`} pdf={pdf} number={current} width={pageWidth} />}
           {(busy || !pdf) && (
-            <Stack spacing={1} sx={{ position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center', bgcolor: pdf ? 'rgba(233,233,238,.55)' : 'transparent' }}>
+            <Stack spacing={1} sx={(theme) => ({ position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center', bgcolor: pdf ? 'rgba(233,233,238,.55)' : 'transparent', ...(pdf ? theme.applyStyles('dark', { bgcolor: 'rgba(10,11,14,.6)' }) : {}) })}>
               <CircularProgress size={26} />
               <Typography variant="body2" color="text.secondary">Generando vista previa…</Typography>
             </Stack>

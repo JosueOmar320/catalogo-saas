@@ -393,7 +393,7 @@ export function PdfStudio({ catalogId, initial, site, enabled, canManage = true 
             }}
           />
         ) : (
-          <Stack sx={{ height: '100%', alignItems: 'center', justifyContent: 'center', bgcolor: '#E9E9EE', borderRadius: 2 }}>
+          <Stack sx={(theme) => ({ height: '100%', alignItems: 'center', justifyContent: 'center', bgcolor: '#E9E9EE', ...theme.applyStyles('dark', { bgcolor: '#0A0B0E' }), borderRadius: 2 })}>
             <Typography variant="body2" color="text.secondary">La exportación a PDF no está incluida en tu plan.</Typography>
           </Stack>
         )}

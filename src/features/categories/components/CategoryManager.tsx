@@ -99,7 +99,7 @@ export function CategoryManager({ categories: initial }: { categories: CategoryR
           renderItem={(category) => (
             <Box>
               <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-                <Avatar variant="rounded" src={publicStorageUrl(category.imagePath) ?? undefined} sx={{ width: 36, height: 36, bgcolor: '#F1F1F3', color: 'text.disabled' }}>
+                <Avatar variant="rounded" src={publicStorageUrl(category.imagePath) ?? undefined} sx={{ width: 36, height: 36, bgcolor: 'action.hover', color: 'text.disabled' }}>
                   <ImageIcon size={16} />
                 </Avatar>
                 <Box sx={{ flex: 1, minWidth: 0 }}>

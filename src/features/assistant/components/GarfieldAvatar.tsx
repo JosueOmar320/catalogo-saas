@@ -42,7 +42,7 @@ export function GarfieldAvatar({ size = 40, mood = 'idle', ring = true, sx }: { 
         height: size,
         flex: 'none',
         borderRadius: '50%',
-        bgcolor: ring ? '#FFF4E6' : 'transparent',
+        bgcolor: ring ? 'var(--garfield-tint)' : 'transparent',
         boxShadow: ring ? `inset 0 0 0 1.5px ${ORANGE}33` : 'none',
         display: 'grid',
         placeItems: 'center',

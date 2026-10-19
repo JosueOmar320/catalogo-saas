@@ -19,3 +19,48 @@ body {
 img {
   max-width: 100%;
 }
+
+/*
+ * Modo oscuro de la app (panel, admin, login, landing): InitColorSchemeScript
+ * pone la clase `dark` en <html>. El sitio público no usa estas variables.
+ */
+.dark {
+  --checker: #23262d;
+}
+
+/* Paleta de Garfield (asistente del panel): cálida en claro, tonos tostados en oscuro. */
+:root {
+  --garfield-header-from: #fff3e3;
+  --garfield-header-to: #ffe6cc;
+  --garfield-surface: #fcfbf9;
+  --garfield-chip: #ffffff;
+  --garfield-tint: #fff4e6;
+  --garfield-tint-hover: #ffe6cc;
+  --garfield-callout: #fff7ed;
+  --garfield-link: #b8560b;
+  --garfield-error-bg: #fdecec;
+  --garfield-error-border: #f5c2c0;
+  --garfield-applied-bg: #eef8f1;
+  --garfield-applied-ink: #2e7d4f;
+  --garfield-neutral-bg: #f7f5f2;
+  --garfield-warn-ink: #c0512b;
+  --garfield-catalog-ink: #2f54d6;
+}
+
+.dark {
+  --garfield-header-from: #2a1e12;
+  --garfield-header-to: #33230f;
+  --garfield-surface: #121317;
+  --garfield-chip: #1c1e23;
+  --garfield-tint: #2a1e12;
+  --garfield-tint-hover: #3a2914;
+  --garfield-callout: #241a10;
+  --garfield-link: #f5a55a;
+  --garfield-error-bg: #3a1717;
+  --garfield-error-border: #6b2a2a;
+  --garfield-applied-bg: #12301f;
+  --garfield-applied-ink: #4ade80;
+  --garfield-neutral-bg: #1c1e23;
+  --garfield-warn-ink: #f08a5d;
+  --garfield-catalog-ink: #7c9bff;
+}

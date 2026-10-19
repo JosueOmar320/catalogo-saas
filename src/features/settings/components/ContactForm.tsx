@@ -73,7 +73,7 @@ export function ContactForm({ contact, actions, businessName }: { contact: Busin
                 <TextFieldControl control={actionsForm.control} name="whatsapp.message" label="Mensaje" multiline minRows={2} helperText="Variables: {producto} {precio} {sku} {url} {negocio}" />
               </Grid>
             </Grid>
-            <Typography variant="caption" color="text.secondary" component="p" sx={{ mt: 1, p: 1.25, bgcolor: '#F4F4F5', borderRadius: 1 }}>
+            <Typography variant="caption" color="text.secondary" component="p" sx={{ mt: 1, p: 1.25, bgcolor: 'action.hover', borderRadius: 1 }}>
               Ejemplo: {example}
             </Typography>
           </Box>

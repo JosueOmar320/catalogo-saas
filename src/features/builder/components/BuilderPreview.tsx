@@ -74,7 +74,7 @@ export function BuilderPreview({ site, pageId, selectedSectionId, device, onDevi
       </Stack>
       {banner}
       {notice && <Alert severity="info" sx={{ mb: 1.5, py: 0 }}>{notice}</Alert>}
-      <Box sx={{ flex: 1, minHeight: 0, bgcolor: '#E9E9EE', borderRadius: 2, p: device === 'desktop' ? 0 : 2, display: 'flex', justifyContent: 'center', overflow: 'hidden' }}>
+      <Box sx={(theme) => ({ flex: 1, minHeight: 0, bgcolor: '#E9E9EE', ...theme.applyStyles('dark', { bgcolor: '#0A0B0E' }), borderRadius: 2, p: device === 'desktop' ? 0 : 2, display: 'flex', justifyContent: 'center', overflow: 'hidden' })}>
         <Box
           ref={frame}
           onClickCapture={handleClick}

@@ -1,4 +1,6 @@
 import type { Metadata, Viewport } from 'next';
+import InitColorSchemeScript from '@mui/material/InitColorSchemeScript';
+import { COLOR_SCHEME_ATTRIBUTE, MODE_STORAGE_KEY } from '@/components/providers/color-mode';
 import { env } from '@/lib/env';
 import './globals.css';
 
@@ -18,8 +20,13 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es">
-      <body>{children}</body>
+    // suppressHydrationWarning: el script de abajo agrega la clase light/dark al <html> antes de hidratar.
+    <html lang="es" suppressHydrationWarning>
+      <body>
+        {/* Modo claro/oscuro de la app antes del primer pintado (sin destello). El sitio público no lo usa. */}
+        <InitColorSchemeScript attribute={COLOR_SCHEME_ATTRIBUTE} modeStorageKey={MODE_STORAGE_KEY} defaultMode="system" />
+        {children}
+      </body>
     </html>
   );
 }
