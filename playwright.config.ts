@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import { ADMIN_STATE } from './e2e/app/session';
 
 /**
  * Pruebas end-to-end (navegador real) sobre el build de producción.
@@ -8,9 +9,14 @@ import { defineConfig, devices } from '@playwright/test';
  *
  * Las de e2e/public no necesitan Supabase (landing, demo, pedido por WhatsApp):
  * corren igual en CI sin secretos.
+ *
+ * Las de e2e/app (login, admin, panel, sitio publicado) necesitan sesión:
+ * corren con `npm run test:e2e:app`, que levanta Supabase LOCAL en Docker y
+ * define E2E_APP=1 (ver scripts/e2e-app.mjs).
  */
 const PORT = Number(process.env.E2E_PORT ?? 3100);
 const baseURL = process.env.E2E_BASE_URL ?? `http://localhost:${PORT}`;
+const APP = process.env.E2E_APP === '1';
 
 export default defineConfig({
   testDir: './e2e',
@@ -25,10 +31,15 @@ export default defineConfig({
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
-  projects: [
-    { name: 'desktop', use: { ...devices['Desktop Chrome'] }, testIgnore: /\.mobile\.spec\.ts$/ },
-    { name: 'mobile', use: { ...devices['Pixel 7'] }, testMatch: /\.mobile\.spec\.ts$/ },
-  ],
+  projects: APP
+    ? [
+        { name: 'app-setup', testMatch: /app\/.*\.setup\.ts$/ },
+        { name: 'app', testMatch: /app\/.*\.spec\.ts$/, dependencies: ['app-setup'], use: { ...devices['Desktop Chrome'], storageState: ADMIN_STATE } },
+      ]
+    : [
+        { name: 'desktop', use: { ...devices['Desktop Chrome'] }, testMatch: /public\/.*(?<!\.mobile)\.spec\.ts$/ },
+        { name: 'mobile', use: { ...devices['Pixel 7'] }, testMatch: /public\/.*\.mobile\.spec\.ts$/ },
+      ],
   webServer: process.env.E2E_BASE_URL
     ? undefined
     : {
