@@ -131,6 +131,8 @@ type ProfileRow = Timestamps & {
   last_login_at: string | null;
   /** Idioma preferido de la app (es | en); null = el del navegador. */
   locale: string | null;
+  /** Recibe el aviso semanal de pendientes del catálogo (activado por defecto). */
+  notify_catalog_review: boolean;
   max_businesses: number | null;
   created_by: string | null;
 };
@@ -194,6 +196,15 @@ type OrderItemStatsDailyRow = {
   units: number;
 };
 
+/** Avisos por correo enviados (sólo los usa el servidor con la service role). */
+type NotificationLogRow = {
+  id: number;
+  user_id: string;
+  business_id: string;
+  kind: 'catalog_review';
+  sent_at: string;
+};
+
 /** Inserción: columnas con default son opcionales. */
 type InsertOf<Row, Required extends keyof Row> = Pick<Row, Required> & Partial<Omit<Row, Required>>;
 
@@ -231,6 +242,7 @@ export type Database = {
       media_assets: Table<MediaAssetRow, 'business_id' | 'path'>;
       order_stats_daily: Table<OrderStatsDailyRow, 'business_id' | 'day'>;
       order_item_stats_daily: Table<OrderItemStatsDailyRow, 'business_id' | 'day' | 'item_id'>;
+      notification_log: Table<NotificationLogRow, 'user_id' | 'business_id' | 'kind'>;
     };
     Views: { [_ in never]: never };
     Functions: {

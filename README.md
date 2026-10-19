@@ -83,6 +83,7 @@ Documentación adicional:
 | Atributos personalizados | El negocio define sus propios atributos (texto, número con unidad, opciones, sí/no, lista) y decide si se filtran y si aparecen en tarjetas, ficha y PDF. Se completan en cada ítem. |
 | PDF | Garfield integrado ("cuatro productos por página", "logo arriba a la izquierda y número de página abajo", "que parezca un catálogo de lujo"). Vista previa con miniaturas, zoom y clic para abrir el bloque de cada página. Páginas de imagen a sangre, promocional y contraportada. Estilo propio del PDF (fuentes, colores, tamaño, densidad) que por defecto hereda del sitio. Constructor por bloques: portada, índice automático (con números de página y enlaces), catálogo por categorías, colecciones, tabla comparativa, página de información, galería (incluso hexagonal), cualquier página del sitio, contacto con notas y saltos de página. 11 plantillas como presets (Comercial, Catálogo clásico, Editorial, Minimal, Folleto de servicios, Ficha técnica, Menú, Moderno, Lujo, Corporativo, Folleto de producto). Portada con 7 composiciones, textos (antetítulo, fecha, versión, texto adicional), imagen con forma, fondo, overlay y decoración. Categorías como título, banda con imagen, portada de página completa o capítulo numerado. N ítems por página, categoría en página nueva. Encabezado y pie en 3–4 estilos (línea, título, banda con @redes). Esquinas decorativas, destellos y marco. A4/Carta/A5, orientación, márgenes, fondo, ahorro de tinta. Vista previa real con selector de página. |
 | Pedidos por WhatsApp | El visitante arma una lista con cantidades y la envía al WhatsApp del negocio con el mensaje y el total ya escritos (en el idioma del sitio). El inicio del panel muestra los pedidos enviados en los últimos 30 días: total, unidades, valor estimado con los precios del catálogo, pedidos por día y lo más pedido. Sólo se guardan contadores diarios por negocio y producto; nada del visitante (ni nombre, ni nota, ni el mensaje). |
+| Aviso semanal por correo | Los lunes (Vercel Cron), un resumen a propietarios y administradores de negocios con productos sin foto, sin precio o sin categoría (los mismos criterios de "Revisa tu catálogo"), en el idioma de cada persona. Sólo llega si hay pendientes y una vez por semana. Activado por defecto para quien tiene email de contacto; baja con un clic (enlace firmado y cabecera `List-Unsubscribe`) y se reactiva en *Mi cuenta*. Sin Resend configurado corre en modo de prueba. Vista previa y envío de prueba en *Admin → Configuración*. |
 | Formato de precio | Texto previo ("VALOR:"), símbolo o código de moneda, antes o después ("365 C$"), decimales. |
 | Negocio | Nombre, logo, slogan, descripción, contacto, horarios, información adicional y redes: se reutilizan en navbar, footer, secciones, PDF y SEO. |
 | Acceso controlado | Sin registro público: las cuentas las crea un administrador. Inicio de sesión con **usuario y contraseña** (el email es opcional y no se pide). Roles ADMIN / USER guardados en la base de datos y validados en RLS, funciones SQL y Server Actions; nadie puede darse ADMIN desde el navegador. Cuentas y negocios se pueden suspender. |
@@ -108,6 +109,9 @@ Copia `.env.example` a `.env.local`.
 | `ASSISTANT_ROUTING` | No | `local-first` (por defecto: lo simple se resuelve sin IA), `llm-first` (todo al modelo) o `local-only` (nunca usa IA). |
 | `SUPABASE_SERVICE_ROLE_KEY` | Sí (para iniciar sesión con usuario y para `/admin`) | Service role / secret key (Project Settings → API). **Sólo servidor.** Se usa únicamente para: convertir el nombre de usuario en la cuenta de Auth al iniciar sesión, y crear/editar cuentas desde el panel de administración (API de Auth Admin). Todo lo demás corre con la sesión del usuario y RLS. También acepta `SUPABASE_SECRET_KEY`. |
 | `AUTH_USERNAME_DOMAIN` | No | Dominio de los emails internos que Supabase Auth necesita (`usuario@usuarios.invalid` por defecto). Nunca se envían correos a esas direcciones. Si lo cambias, hazlo antes de crear usuarios. |
+| `RESEND_API_KEY` | No | Clave de [Resend](https://resend.com) para el aviso semanal por correo. **Sólo servidor.** |
+| `EMAIL_FROM` | No | Remitente del aviso, de un dominio verificado en Resend: `Vitrina <avisos@tudominio.com>`. |
+| `CRON_SECRET` | No | Secreto aleatorio (16+ caracteres, `openssl rand -base64 32`). Vercel lo envía al llamar al cron y firma los enlaces de baja. Sin estas tres variables, el aviso corre en modo de prueba (calcula, no envía). |
 | `SUPABASE_PROJECT_ID` | No | Solo para `npm run db:types`. |
 
 > La service role key **nunca** llega al navegador (módulo `server-only`) y no se usa para leer ni escribir datos de negocio: esas operaciones siguen pasando por RLS con la sesión del usuario.
@@ -197,10 +201,10 @@ Aplica la migración automáticamente. Usa la *API URL* y la *Publishable key* q
 
 | Capa | Herramienta | Qué cubre |
 | --- | --- | --- |
-| Base de datos (168) | PGlite (Postgres en WASM) con stubs de `auth`/`storage` | Todas las migraciones en orden (incluida la migración de datos v1), RLS por tabla y por rol, Storage, límites de plan, RPCs de administración, auditoría, referencias de medios, límite de intentos y contadores de pedidos (sólo la service role escribe; cuenta únicamente productos disponibles del catálogo publicado). |
-| Unitarias (197) | `node:test` + `tsx` | Anti-SSRF (incluidas IPv4 escondidas en IPv6), redirecciones seguras, slugs, precios, usuarios, planes, acciones de contacto, paginación, reducer del editor (guardado concurrente), Garfield (router local, ejecutores, proveedores con `fetch` simulado), PDF, pedido por WhatsApp (total, mensaje y resumen de 30 días), catálogo de traducciones y equivalencia de optimizaciones. |
-| End-to-end (19) | Playwright (Chromium, escritorio y móvil) sobre `next build` + `next start` | Landing en español/inglés (Accept-Language y selector que se recuerda), modo claro/oscuro, pedido por WhatsApp completo en la demo (cantidades, total, mensaje de wa.me, persistencia, vaciar, Escape), ficha de producto, servicios y agotados sin pedido, la demo no cuenta pedidos, validaciones de `/api/orders` (cuerpo, tamaño, origen), móvil sin desbordes, redirección al login y respuestas 404. Sin Supabase: corren igual en CI. |
-| End-to-end con sesión (9) | Playwright + Supabase local (Docker, `supabase/config.toml`) con la base reiniciada en cada ejecución | Login (correcto, contraseña incorrecta, regreso a la página pedida), el admin crea un negocio y se asigna, inicio del panel, producto sin foto/precio en "Revisa tu catálogo" y su filtro, publicar y que un visitante anónimo lo pida por WhatsApp en el sitio real (el pedido se cuenta y aparece en el inicio del panel), e idioma guardado en el perfil que se aplica al entrar desde otro navegador. |
+| Base de datos (175) | PGlite (Postgres en WASM) con stubs de `auth`/`storage` | Todas las migraciones en orden (incluida la migración de datos v1), RLS por tabla y por rol, Storage, límites de plan, RPCs de administración, auditoría, referencias de medios, límite de intentos, contadores de pedidos (sólo la service role escribe; cuenta únicamente productos disponibles del catálogo publicado) y preferencias y registro del aviso por correo. |
+| Unitarias (202) | `node:test` + `tsx` | Anti-SSRF (incluidas IPv4 escondidas en IPv6), redirecciones seguras, slugs, precios, usuarios, planes, acciones de contacto, paginación, reducer del editor (guardado concurrente), Garfield (router local, ejecutores, proveedores con `fetch` simulado), PDF, pedido por WhatsApp (total, mensaje y resumen de 30 días), aviso por correo (contenido, escapado, idioma y enlaces de baja firmados), catálogo de traducciones y equivalencia de optimizaciones. |
+| End-to-end (21) | Playwright (Chromium, escritorio y móvil) sobre `next build` + `next start` | Landing en español/inglés (Accept-Language y selector que se recuerda), modo claro/oscuro, pedido por WhatsApp completo en la demo (cantidades, total, mensaje de wa.me, persistencia, vaciar, Escape), ficha de producto, servicios y agotados sin pedido, la demo no cuenta pedidos, validaciones de `/api/orders` (cuerpo, tamaño, origen), cron y baja del aviso sin secreto o con enlace inválido, móvil sin desbordes, redirección al login y respuestas 404. Sin Supabase: corren igual en CI. |
+| End-to-end con sesión (10) | Playwright + Supabase local (Docker, `supabase/config.toml`) con la base reiniciada en cada ejecución | Login (correcto, contraseña incorrecta, regreso a la página pedida), el admin crea un negocio y se asigna, inicio del panel, producto sin foto/precio en "Revisa tu catálogo" y su filtro, publicar y que un visitante anónimo lo pida por WhatsApp en el sitio real (el pedido se cuenta y aparece en el inicio del panel), a quién le llega el aviso semanal y la baja con el enlace del correo y su reactivación en Mi cuenta, e idioma guardado en el perfil que se aplica al entrar desde otro navegador. |
 
 Las pruebas no usan red, reloj ni datos aleatorios sin control, así que son deterministas en CI. La cobertura (`npm run test:coverage`) mide los módulos que cargan las pruebas: en la última ejecución, 88 % de líneas y 82 % de ramas sobre 77 módulos (lógica de dominio, seguridad y Garfield). Las E2E cubren los flujos públicos y los principales con sesión; las pantallas de edición (editor del sitio, estudio de PDF, medios) se prueban a mano: ver [Limitaciones](#limitaciones-conocidas).
 
@@ -263,6 +267,7 @@ Las funciones corren en `iad1` (Washington D.C., `vercel.json`), junto a una bas
    | `SUPABASE_SERVICE_ROLE_KEY` | Service role / secret key (sin `NEXT_PUBLIC_`) |
    | `GEMINI_API_KEY` | Opcional: Garfield con IA |
    | `NEXT_PUBLIC_SITE_URL` | Opcional: dominio propio. Sin ella se usa el dominio de producción de Vercel. |
+   | `RESEND_API_KEY`, `EMAIL_FROM`, `CRON_SECRET` | Opcional: aviso semanal por correo (ver abajo). |
 
    Las variables `NEXT_PUBLIC_*` se fijan al compilar: si las cambias, vuelve a desplegar.
 3. *Deploy*. Cada PR recibe una vista previa y cada merge a `main` despliega producción.
@@ -272,6 +277,7 @@ Las funciones corren en `iad1` (Washington D.C., `vercel.json`), junto a una bas
 2. Supabase → *Authentication → URL Configuration*: pon el dominio como *Site URL*.
 3. GitHub → *Settings → Secrets and variables → Actions → Variables*: crea `PRODUCTION_URL` con el dominio. El workflow [`keepalive.yml`](.github/workflows/keepalive.yml) consulta `/api/health` cada 3 días para que el plan gratuito de Supabase no pause el proyecto (se pausa tras 7 días sin actividad).
 4. Opcional: dominio propio en *Settings → Domains* (y actualiza `NEXT_PUBLIC_SITE_URL`).
+5. Opcional, aviso semanal por correo: en [Resend](https://resend.com) verifica tu dominio (registros DNS) y crea una API key; en Vercel define `RESEND_API_KEY` y `CRON_SECRET` como *Secret* y `EMAIL_FROM` (de ese dominio), sólo en *Production*. El cron de `vercel.json` corre los lunes a las 15:00 UTC. En *Admin → Configuración* revisa el estado y envíate una prueba.
 
 > Las vistas previas de PRs usan la misma base que producción. Vercel las protege con login por defecto (*Deployment Protection*); para separar datos, crea un segundo proyecto de Supabase y usa sus claves sólo en *Preview*.
 
@@ -287,15 +293,15 @@ Notas de costo en el plan gratuito:
 ```
 supabase/
   migrations/                  v1 (esquema, RLS, Storage) · v2 (páginas, navegación, PDF) · v3 (atributos) · v4 (acceso, roles, auditoría) · v5 (biblioteca) · rendimiento · seguridad
-  tests/rls.test.mjs           168 pruebas de migraciones, aislamiento, roles, auditoría, medios y límites (PGlite)
+  tests/rls.test.mjs           175 pruebas de migraciones, aislamiento, roles, auditoría, medios y límites (PGlite)
 scripts/create-admin.mjs       Crea o promueve el administrador (npm run admin:create)
-tests/                         197 pruebas unitarias (npm run test:unit)
+tests/                         202 pruebas unitarias (npm run test:unit)
   lib/                         seguridad (SSRF, redirecciones, rutas de Storage) y dominio (slugs, precios, planes, contacto…)
   builder/                     reducer del editor (guardado con cambios concurrentes)
   assistant/                   Garfield: router local, ejecutores sitio/PDF, proveedores, herramientas, plantillas
 .github/                       CI (ci.yml), CodeQL y Dependabot
-e2e/public/                    19 pruebas end-to-end sin sesión (npm run test:e2e)
-e2e/app/                       9 pruebas end-to-end con sesión sobre Supabase local (npm run test:e2e:app)
+e2e/public/                    21 pruebas end-to-end sin sesión (npm run test:e2e)
+e2e/app/                       10 pruebas end-to-end con sesión sobre Supabase local (npm run test:e2e:app)
 playwright.config.ts           Proyectos escritorio, móvil y app; levanta el build de producción
 scripts/e2e-app.mjs            Levanta Supabase local, reinicia la base, crea el admin de prueba y corre las E2E con sesión
 supabase/config.toml           Supabase local para las E2E (sólo base, auth, API y storage)

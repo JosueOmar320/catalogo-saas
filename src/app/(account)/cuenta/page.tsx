@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { AccountForms } from '@/features/auth/components/AccountForms';
 import { getT } from '@/i18n/server';
 import { getProfile, isPlatformAdmin, requireUser } from '@/lib/auth/session';
+import { createClient } from '@/lib/supabase/server';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
@@ -17,6 +18,8 @@ export default async function AccountPage() {
   if (!profile || profile.status !== 'active') redirect('/login?error=disabled');
   const admin = isPlatformAdmin(profile);
   const t = await getT();
+  // Aparte de getProfile: si la columna aún no existe (migración pendiente), la página sigue funcionando.
+  const { data: prefs } = await (await createClient()).from('profiles').select('notify_catalog_review').eq('id', profile.id).maybeSingle();
   return (
     <>
       <PageHeader
@@ -29,7 +32,7 @@ export default async function AccountPage() {
           </Stack>
         }
       />
-      <AccountForms username={profile.username} fullName={profile.full_name ?? ''} email={profile.email} />
+      <AccountForms username={profile.username} fullName={profile.full_name ?? ''} email={profile.email} catalogReview={prefs ? prefs.notify_catalog_review : null} />
     </>
   );
 }

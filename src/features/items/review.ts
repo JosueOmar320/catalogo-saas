@@ -17,3 +17,28 @@ export type ReviewFilter = keyof typeof REVIEW_FILTERS;
 export type ReviewableItem = { hasImage: boolean; hasPrice: boolean; categoryId: string | null; isAvailable: boolean; isVisible: boolean };
 
 export const isReviewFilter = (value: unknown): value is ReviewFilter => typeof value === 'string' && Object.hasOwn(REVIEW_FILTERS, value);
+
+export type ReviewInput = ReviewableItem & { type: 'product' | 'service' };
+
+/** Orden en que se muestran; los tres primeros son pendientes "accionables" (el aviso por correo sólo resume ésos). */
+export const REVIEW_ORDER: ReviewFilter[] = ['sin-foto', 'sin-precio', 'sin-categoria', 'agotados', 'ocultos'];
+export const ACTIONABLE_REVIEW: ReviewFilter[] = ['sin-foto', 'sin-precio', 'sin-categoria'];
+
+/**
+ * Cuántos ítems caen en cada filtro (y cuántos de ellos son productos, para
+ * enlazar a la lista donde hay más). "Sin precio" sólo cuenta productos: un
+ * servicio "a cotizar" es válido. "Sin categoría" sólo si el catálogo tiene categorías.
+ */
+export function countReview(items: ReviewInput[], hasCategories: boolean): Record<ReviewFilter, { count: number; products: number }> {
+  const result = Object.fromEntries(REVIEW_ORDER.map((filter) => [filter, { count: 0, products: 0 }])) as Record<ReviewFilter, { count: number; products: number }>;
+  for (const item of items) {
+    for (const filter of REVIEW_ORDER) {
+      if (filter === 'sin-precio' && item.type !== 'product') continue;
+      if (filter === 'sin-categoria' && !hasCategories) continue;
+      if (!REVIEW_FILTERS[filter].test(item)) continue;
+      result[filter].count++;
+      if (item.type === 'product') result[filter].products++;
+    }
+  }
+  return result;
+}

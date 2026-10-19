@@ -38,3 +38,17 @@ test.describe('/api/orders (aviso de pedido enviado)', () => {
     expect(response.status()).toBe(204);
   });
 });
+
+test.describe('aviso semanal por correo (sin sesión)', () => {
+  test('el cron no responde sin el secreto', async ({ request }) => {
+    expect((await request.get('/api/cron/catalog-review')).status()).toBe(401);
+    expect((await request.get('/api/cron/catalog-review', { headers: { authorization: 'Bearer cualquier-cosa-larga-123' } })).status()).toBe(401);
+  });
+
+  test('la baja con un enlace inválido no hace nada', async ({ page, request }) => {
+    await page.goto('/baja?token=falso');
+    await expect(page.getByRole('heading', { name: 'Este enlace no es válido' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Dejar de recibirlo' })).toHaveCount(0);
+    expect((await request.post('/api/email/unsubscribe?token=falso', { form: { 'List-Unsubscribe': 'One-Click' } })).status()).toBe(400);
+  });
+});

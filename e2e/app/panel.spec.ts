@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { unsubscribeToken } from '../../src/lib/email/links';
 import { admin, login } from './session';
 
 /**
@@ -92,6 +93,54 @@ test('el inicio del panel cuenta el pedido enviado', async ({ page }) => {
   const main = page.getByRole('main');
   await expect(main.getByText('Lo más pedido', { exact: true })).toBeVisible();
   await expect(main.getByRole('listitem').filter({ hasText: `${productName} · 1 unidad` })).toBeVisible();
+});
+
+test('aviso semanal: a quién le llega y la baja con el enlace del correo', async ({ page, browser, request }) => {
+  const cron = async () => {
+    const response = await request.get('/api/cron/catalog-review?dry=1', { headers: { authorization: `Bearer ${process.env.CRON_SECRET}` } });
+    expect(response.status()).toBe(200);
+    return response.json();
+  };
+  expect((await request.get('/api/cron/catalog-review')).status()).toBe(401);
+  expect((await request.get('/api/cron/catalog-review', { headers: { authorization: 'Bearer incorrecto-pero-largo-123' } })).status()).toBe(401);
+
+  // Sin email de contacto nadie lo recibe (aunque el negocio tenga pendientes).
+  expect(await cron()).toMatchObject({ dryRun: true, candidates: 0, due: 0 });
+
+  // El admin agrega su email de contacto.
+  await page.goto('/admin/usuarios');
+  await page.getByRole('row', { name: new RegExp(`@${admin.username}`) }).click();
+  await expect(page).toHaveURL(/\/admin\/usuarios\/[0-9a-f-]{36}$/);
+  const userId = page.url().split('/').pop()!;
+  await page.getByLabel('Email (opcional)').fill('e2e-admin@example.com');
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click();
+  await expect(page.getByText('Usuario guardado')).toBeVisible();
+  // Producto sin foto ni precio → le corresponde el aviso (modo de prueba: no se envía).
+  expect(await cron()).toMatchObject({ dryRun: true, candidates: 1, due: 1, sent: 0 });
+
+  // Baja desde el enlace del correo, sin sesión: visitar no cambia nada; hay que confirmar.
+  const visitor = await browser.newContext(ANONYMOUS);
+  const mail = await visitor.newPage();
+  await mail.goto(`/baja?token=${encodeURIComponent(unsubscribeToken(userId, process.env.CRON_SECRET!))}`);
+  await expect(mail.getByRole('heading', { name: '¿Dejar de recibir el aviso semanal?' })).toBeVisible();
+  expect(await cron()).toMatchObject({ due: 1 });
+  await mail.getByRole('button', { name: 'Dejar de recibirlo' }).click();
+  await expect(mail.getByRole('heading', { name: 'Listo, ya no recibirás el aviso semanal' })).toBeVisible();
+  expect(await cron()).toMatchObject({ candidates: 0, due: 0 });
+
+  // Un enlace manipulado no sirve.
+  await mail.goto(`/baja?token=${encodeURIComponent(unsubscribeToken('aaaaaaaa-0000-4000-8000-000000000001', process.env.CRON_SECRET!))}x`);
+  await expect(mail.getByRole('heading', { name: 'Este enlace no es válido' })).toBeVisible();
+  await visitor.close();
+
+  // Se reactiva en Mi cuenta.
+  await page.goto('/cuenta');
+  const toggle = page.getByRole('switch', { name: /Aviso semanal de mi catálogo/ });
+  await expect(toggle).not.toBeChecked();
+  await toggle.click();
+  await expect(toggle).toBeChecked();
+  await expect(page.getByText('Aviso semanal activado')).toBeVisible();
+  expect(await cron()).toMatchObject({ due: 1 });
 });
 
 test('el idioma elegido se guarda en el perfil y vuelve al iniciar sesión', async ({ page, browser }) => {

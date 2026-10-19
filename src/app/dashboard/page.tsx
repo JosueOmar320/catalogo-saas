@@ -9,7 +9,7 @@ import { LinkCard } from '@/components/ui/LinkCard';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { itemThumbnail, listCategories, listItemsWithImages, listPages } from '@/features/catalog/queries';
-import { REVIEW_FILTERS, type ReviewFilter } from '@/features/items/review';
+import { countReview, REVIEW_FILTERS, REVIEW_ORDER, type ReviewFilter } from '@/features/items/review';
 import { OrderStatsChart } from '@/features/orders/components/OrderStatsChart';
 import { getOrderStats } from '@/features/orders/queries';
 import { getLocale, getT } from '@/i18n/server';
@@ -47,19 +47,15 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
   const completed = steps.filter((s) => s.done).length;
   const setupDone = completed === steps.length;
 
-  // Revisión: lo que conviene completar, con enlace al listado ya filtrado.
-  // Sin precio sólo cuenta productos: un servicio "a cotizar" es válido.
-  const reviewable = items.map((i) => ({ type: i.type, hasImage: i.images.length > 0, hasPrice: i.price !== null, categoryId: i.category_id, isAvailable: i.is_available, isVisible: i.is_visible }));
-  const issues = (['sin-foto', 'sin-precio', 'sin-categoria', 'agotados', 'ocultos'] as ReviewFilter[])
-    .map((filter) => {
-      const pool = filter === 'sin-precio' ? reviewable.filter((i) => i.type === 'product') : filter === 'sin-categoria' && categories.length === 0 ? [] : reviewable;
-      const matching = pool.filter(REVIEW_FILTERS[filter].test);
-      // Enlaza a la lista donde hay más casos (productos o servicios).
-      const productHits = matching.filter((i) => i.type === 'product').length;
-      const list = productHits >= matching.length - productHits ? 'products' : 'services';
-      return { filter, count: matching.length, href: `/dashboard/catalog/${list}?revisar=${filter}` };
-    })
-    .filter((issue) => issue.count > 0);
+  // Revisión: lo que conviene completar, con enlace a la lista (productos o servicios) donde hay más casos.
+  const review = countReview(
+    items.map((i) => ({ type: i.type, hasImage: i.images.length > 0, hasPrice: i.price !== null, categoryId: i.category_id, isAvailable: i.is_available, isVisible: i.is_visible })),
+    categories.length > 0,
+  );
+  const issues = REVIEW_ORDER.filter((filter) => review[filter].count > 0).map((filter) => {
+    const { count, products } = review[filter];
+    return { filter, count, href: `/dashboard/catalog/${products >= count - products ? 'products' : 'services'}?revisar=${filter}` };
+  });
   const ISSUE_TEXT: Record<ReviewFilter, (count: number) => string> = {
     'sin-foto': (count) => t('{count} sin foto: las fotos son lo primero que miran tus clientes.', { count }),
     'sin-precio': (count) => t('{count} producto(s) sin precio.', { count }),

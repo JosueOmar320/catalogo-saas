@@ -395,5 +395,17 @@ await as(B);
 await expectEq('other business cannot read A order stats', () => q(`select count(*)::int n from public.order_stats_daily where business_id=$1`, [bizA]).then((r) => r[0].n), 0);
 await expectEq('other business cannot read A product stats', () => q(`select count(*)::int n from public.order_item_stats_daily where business_id=$1`, [bizA]).then((r) => r[0].n), 0);
 
+// --- Aviso semanal por correo (20261024) ---
+await as(A);
+await expectEq('weekly notice is on by default', () => q(`select notify_catalog_review n from public.profiles where id=$1`, [A]).then((r) => r[0].n), true);
+await expectEq('user can turn off own weekly notice', () => q(`update public.profiles set notify_catalog_review=false where id=$1 returning notify_catalog_review n`, [A]).then((r) => r[0].n), false);
+await expectEq('user cannot change another user notice', async () => (await db.query(`update public.profiles set notify_catalog_review=false where id=$1`, [B])).affectedRows, 0);
+await expectErr('authenticated cannot read notification_log', () => q(`select * from public.notification_log`), 'permission denied');
+await expectErr('authenticated cannot write notification_log', () => q(`insert into public.notification_log(user_id, business_id, kind) values ($1,$2,'catalog_review')`, [A, bizA]), 'permission denied');
+await as(null);
+await expectErr('anon cannot read notification_log', () => q(`select * from public.notification_log`), 'permission denied');
+await db.exec('reset role');
+await expectErr('notification kind is restricted', () => q(`insert into public.notification_log(user_id, business_id, kind) values ($1,$2,'spam')`, [A, bizA]), 'check constraint');
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);

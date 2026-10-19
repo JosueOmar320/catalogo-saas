@@ -1,19 +1,22 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, Stack, TextField } from '@mui/material';
+import { Alert, Button, FormControlLabel, Stack, Switch, TextField, Typography } from '@mui/material';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { TextFieldControl } from '@/components/form/fields';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { useT } from '@/i18n/client';
 import { useAction } from '@/lib/hooks/use-action';
-import { changePassword, updateAccount } from '../actions';
+import { changePassword, updateAccount, updateNotifications } from '../actions';
 import { accountSchema, changePasswordSchema, type AccountValues, type ChangePasswordValues } from '../schema';
 
-export function AccountForms({ username, fullName, email }: { username: string; fullName: string; email: string | null }) {
+/** catalogReview: preferencia del aviso semanal; null = aún no disponible (no se muestra). */
+export function AccountForms({ username, fullName, email, catalogReview }: { username: string; fullName: string; email: string | null; catalogReview: boolean | null }) {
   const t = useT();
   const { run, pending } = useAction();
   const account = useForm<AccountValues>({ resolver: zodResolver(accountSchema), defaultValues: { fullName } });
+  const [weekly, setWeekly] = useState(catalogReview ?? false);
   const password = useForm<ChangePasswordValues>({ resolver: zodResolver(changePasswordSchema), defaultValues: { currentPassword: '', password: '', confirm: '' } });
 
   return (
@@ -28,6 +31,38 @@ export function AccountForms({ username, fullName, email }: { username: string; 
           </Stack>
         </Stack>
       </SectionCard>
+      {catalogReview !== null && (
+        <SectionCard title={t('Avisos por correo')}>
+          <Stack spacing={1.5} sx={{ pb: 2 }}>
+            <FormControlLabel
+              sx={{ alignItems: 'flex-start', m: 0, gap: 1.25, justifyContent: 'space-between' }}
+              labelPlacement="start"
+              control={
+                <Switch
+                  checked={weekly}
+                  disabled={pending || !email}
+                  onChange={(event) => {
+                    const value = event.target.checked;
+                    setWeekly(value);
+                    void run(() => updateNotifications({ catalogReview: value })).then((result) => {
+                      if (!result?.ok) setWeekly(!value);
+                    });
+                  }}
+                />
+              }
+              label={
+                <span>
+                  <Typography variant="body2" component="span" sx={{ display: 'block', fontWeight: 600 }}>{t('Aviso semanal de mi catálogo')}</Typography>
+                  <Typography variant="caption" color="text.secondary" component="span">
+                    {t('Los lunes, si tus negocios tienen productos sin foto, sin precio o sin categoría. Si todo está completo, no llega nada.')}
+                  </Typography>
+                </span>
+              }
+            />
+            {!email && <Alert severity="info">{t('Para recibirlo necesitas un email de contacto. Pídele al administrador que lo agregue a tu usuario.')}</Alert>}
+          </Stack>
+        </SectionCard>
+      )}
       <SectionCard title={t('Contraseña')}>
         <Stack
           component="form"
