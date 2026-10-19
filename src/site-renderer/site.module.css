@@ -330,8 +330,21 @@
   top: 0;
 }
 
+/*
+ * Marca para detectar el scroll (IntersectionObserver, sin listeners): ocupa
+ * media altura del header y la devuelve con margen negativo, así no mueve nada.
+ * Pequeños desplazamientos (o el rebote de iOS) no cambian el header.
+ */
+.headerSentinel {
+  display: block;
+  height: calc(var(--header-h) * 0.5);
+  margin-bottom: calc(var(--header-h) * -0.5);
+  pointer-events: none;
+}
+
 /* Header superpuesto al hero: margen negativo para que el hero quede debajo. */
 .header[data-overlay='true'] {
+  --header-fade: 0.35s cubic-bezier(0.4, 0, 0.2, 1);
   margin-bottom: calc(var(--header-h) * -1);
   --c-heading: #ffffff;
   --c-text: #ffffff;
@@ -398,14 +411,51 @@
   border-bottom: 1px solid var(--t-border);
 }
 
-.header[data-style='transparent'][data-overlay='true'] .headerSurface {
+/*
+ * Sobre el hero: un velo oscuro suave (legibilidad del texto blanco) y la
+ * superficie sólida oculta. Al hacer scroll las dos capas se cruzan por
+ * opacidad (un degradado no se puede animar a un color) con la misma duración
+ * que el color del texto, así fondo y texto cambian juntos y sin saltos.
+ * Sólo cambian opacidad y color: ni altura ni posición.
+ */
+.header[data-overlay='true']::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
   background: linear-gradient(to bottom, rgba(0, 0, 0, 0.35), transparent);
-  border-bottom-color: transparent;
+  pointer-events: none;
+  transition: opacity var(--header-fade);
 }
 
-.header[data-style='transparent'][data-overlay='true'][data-scrolled='true'] .headerSurface {
-  background: var(--c-surface);
-  box-shadow: 0 1px 0 var(--t-border);
+.header[data-overlay='true'] .headerSurface {
+  opacity: 0;
+  transition: opacity var(--header-fade);
+}
+
+.header[data-overlay='true'][data-scrolled='true']::before {
+  opacity: 0;
+}
+
+.header[data-overlay='true'][data-scrolled='true'] .headerSurface {
+  opacity: 1;
+}
+
+.header[data-overlay='true'],
+.header[data-overlay='true'] :is(.brandName, .navLink, .menuToggle, .iconButton) {
+  transition:
+    color var(--header-fade),
+    border-color var(--header-fade),
+    background-color 0.15s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .header[data-overlay='true']::before,
+  .header[data-overlay='true'] .headerSurface,
+  .header[data-overlay='true'],
+  .header[data-overlay='true'] :is(.brandName, .navLink, .menuToggle, .iconButton) {
+    transition: none;
+  }
 }
 
 .header[data-style='dark'] {
@@ -558,6 +608,8 @@
   --c-heading: var(--t-heading);
   --c-text: var(--t-text);
   --c-border: var(--t-border);
+  /* Color propio: si heredara el del header, en el header superpuesto se vería el fundido blanco → oscuro. */
+  color: var(--c-heading);
 }
 
 .mobilePanel .navLink {

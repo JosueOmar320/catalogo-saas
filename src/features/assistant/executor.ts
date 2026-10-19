@@ -14,6 +14,7 @@ import { deepMerge, isPlainObject, type PlainObject } from '@/lib/utils/object';
 import { slugify } from '@/lib/utils/slug';
 import { collectMediaPaths } from '@/lib/utils/storage';
 import { builderReducer, type BuilderAction, type BuilderState } from '../builder/reducer';
+import { foldText } from '@/lib/utils/text';
 
 /**
  * Ejecutor de Garfield AI: convierte acciones propuestas por el modelo en
@@ -67,12 +68,7 @@ const fail = (message: string): never => {
   throw new StepError(message);
 };
 
-const normalize = (value: string) =>
-  value
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .trim();
+const normalize = (value: string) => foldText(value).trim();
 
 const sectionLabel = (section: Section) => {
   const title = (section.content as { title?: string }).title;
@@ -441,10 +437,12 @@ export function planAssistantActions(initial: BuilderState, actions: AssistantAc
       }
       case 'duplicate_section': {
         const { page, section } = findSection(a.section, a.page);
+        const before = new Set(page.sections.map((x) => x.id));
         dispatch({ type: 'duplicateSection', sectionId: section.id, pageId: page.id });
-        const copyId = s.selectedSectionId!;
+        // La copia es la sección nueva de la página (no se asume cuál quedó seleccionada).
+        const copy = s.pages.find((p) => p.id === page.id)?.sections.find((x) => !before.has(x.id)) ?? fail(`No se pudo duplicar ${sectionLabel(section)}.`);
+        const copyId = copy.id;
         if (a.content) {
-          const copy = locate(copyId)!.section;
           dispatch({ type: 'updateSection', section: validSection(deepMerge(copy as unknown as PlainObject, { content: a.content })), pageId: page.id });
         }
         if (a.as) sectionAliases.set(a.as, copyId);

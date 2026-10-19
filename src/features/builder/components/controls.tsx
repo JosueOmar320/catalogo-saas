@@ -8,7 +8,6 @@ import {
   Button,
   ButtonBase,
   IconButton,
-  InputAdornment,
   MenuItem,
   Popover,
   Slider,
@@ -475,8 +474,4 @@ export function BackgroundEditor({ value, onChange, allowInherit = true, inherit
       )}
     </Stack>
   );
-}
-
-export function NumberAdornment({ children }: { children: ReactNode }) {
-  return <InputAdornment position="end">{children}</InputAdornment>;
 }

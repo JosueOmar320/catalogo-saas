@@ -110,6 +110,8 @@ export function PdfStudio({ catalogId, initial, site, enabled, canManage = true 
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abort = useRef<AbortController | null>(null);
+  // Al salir del estudio se cancela la vista previa en curso (el servidor deja de generar un PDF que nadie verá).
+  useEffect(() => () => abort.current?.abort(), []);
   const toast = useToast();
   const { run, pending } = useAction();
   const wide = useMediaQuery(useTheme().breakpoints.up('lg'));

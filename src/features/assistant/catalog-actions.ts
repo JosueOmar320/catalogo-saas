@@ -13,6 +13,7 @@ import { setBusinessLogo } from '@/features/business/actions';
 import { deleteItem, saveItem } from '@/features/items/actions';
 import { emptyItemValues, itemToFormValues } from '@/features/items/defaults';
 import type { ItemFormValues } from '@/features/items/schema';
+import { foldText } from '@/lib/utils/text';
 
 /**
  * Aplica las acciones de CATÁLOGO que propuso Garfield (productos y
@@ -25,7 +26,7 @@ import type { ItemFormValues } from '@/features/items/schema';
 export type CatalogStepResult = { label: string; ok: boolean; error?: string };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-const norm = (v: string) => v.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+const norm = (v: string) => foldText(v).trim();
 const priceText = (v: number | null | undefined) => (v === null || v === undefined ? '' : String(Math.round(v * 100) / 100));
 
 export async function applyCatalogActions(raw: unknown[]): Promise<ActionResult<{ results: CatalogStepResult[]; aliases: Record<string, string> }>> {
@@ -52,9 +53,14 @@ export async function applyCatalogActions(raw: unknown[]): Promise<ActionResult<
     }
     if (UUID.test(ref) && list.some((x) => x.id === ref)) return ref;
     const key = norm(ref);
-    const found = list.find((x) => norm(x.name) === key) ?? list.find((x) => norm(x.name).includes(key));
-    if (!found) throw new Error(`No encuentro ${what} "${ref}".`);
-    return found.id;
+    const exact = list.find((x) => norm(x.name) === key);
+    if (exact) return exact.id;
+    // Coincidencia parcial sólo si es única: "Té" no debe elegir al azar entre "Té verde" y "Té negro"
+    // (estas acciones también borran y editan).
+    const partial = key ? list.filter((x) => norm(x.name).includes(key)) : [];
+    if (partial.length === 1) return partial[0].id;
+    if (partial.length > 1) throw new Error(`Hay varios con "${ref}" (${partial.slice(0, 4).map((x) => `"${x.name}"`).join(', ')}). Dime el nombre completo.`);
+    throw new Error(`No encuentro ${what} "${ref}".`);
   };
 
   const results: CatalogStepResult[] = [];

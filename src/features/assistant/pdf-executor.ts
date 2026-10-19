@@ -3,6 +3,7 @@ import { presentation, PRODUCT_LAYOUT_META } from '@/lib/catalog/presentation';
 import { createPdfBlock, PDF_BLOCK_META, PDF_TEMPLATE_META, pdfSettingsSchema, applyTemplate, parsePdfSettings, type PdfBlock, type PdfBlockType, type PdfSettings } from '@/lib/pdf/settings';
 import { deepMerge } from '@/lib/utils/object';
 import { collectMediaPaths } from '@/lib/utils/storage';
+import { foldText } from '@/lib/utils/text';
 
 /**
  * Ejecutor PURO de las acciones de Garfield en el estudio de PDF: recibe la
@@ -27,7 +28,7 @@ class StepError extends Error {}
 const fail = (message: string): never => {
   throw new StepError(message);
 };
-const norm = (v: string) => v.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+const norm = (v: string) => foldText(v).trim();
 const PRODUCT_BLOCKS = new Set<PdfBlockType>(['catalog', 'products']);
 type Obj = Record<string, unknown>;
 

@@ -6,12 +6,15 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
+    "lint": "eslint",
+    "test": "npm run test:unit && npm run test:db",
+    "test:unit": "node --conditions=react-server --import tsx --test \"tests/**/*.test.ts\"",
+    "pretest:coverage": "node -e \"require('node:fs').mkdirSync('coverage',{recursive:true})\"",
+    "test:coverage": "node --conditions=react-server --import tsx --test --experimental-test-coverage --test-coverage-include=\"src/**\" --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info \"tests/**/*.test.ts\"",
     "test:db": "node supabase/tests/rls.test.mjs",
-    "db:types": "npx supabase gen types typescript --project-id \"$SUPABASE_PROJECT_ID\" --schema public > src/types/database.generated.ts",
     "check": "npm run typecheck && npm run lint && npm run test:unit && npm run test:db",
-    "test:unit": "node --conditions=react-server --import tsx --test tests/**/*.test.ts",
+    "db:types": "npx supabase gen types typescript --project-id \"$SUPABASE_PROJECT_ID\" --schema public > src/types/database.generated.ts",
     "admin:create": "node --env-file=.env.local scripts/create-admin.mjs"
   },
   "dependencies": {
@@ -27,8 +30,8 @@
     "@supabase/supabase-js": "^2.117.2",
     "lucide": "^1.48.0",
     "lucide-react": "^1.48.0",
-    "next": "16.3.6",
-    "pdfjs-dist": "^5.7.284",
+    "next": "16.3.8",
+    "pdfjs-dist": "^6.4.299",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-hook-form": "^7.89.0",
@@ -42,11 +45,11 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.3.6",
+    "eslint-config-next": "16.3.8",
     "tsx": "^4.23.15",
     "typescript": "^5"
   },
   "engines": {
-    "node": ">=20.9"
+    "node": ">=22"
   }
 }

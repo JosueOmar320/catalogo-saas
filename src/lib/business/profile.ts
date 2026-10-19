@@ -2,6 +2,8 @@ import { z } from 'zod';
 import { SOCIAL_NETWORK_IDS } from '@/lib/social/networks';
 
 const optionalText = (max: number) => z.string().trim().max(max).default('');
+/** Sólo http(s): estas URLs se muestran como enlaces (evita javascript:, data:…). */
+const webUrl = () => z.url({ protocol: /^https?$/, error: 'Usa una URL que empiece con https://' });
 
 /** Datos de contacto del negocio (businesses.contact). */
 export const contactSchema = z.object({
@@ -12,8 +14,8 @@ export const contactSchema = z.object({
   email: z.union([z.literal(''), z.email('Email inválido')]).default(''),
   address: optionalText(200),
   city: optionalText(80),
-  website: z.union([z.literal(''), z.url('URL inválida')]).default(''),
-  mapsUrl: z.union([z.literal(''), z.url('URL inválida')]).default(''),
+  website: z.union([z.literal(''), webUrl()]).default(''),
+  mapsUrl: z.union([z.literal(''), webUrl()]).default(''),
   /** Ubicación para el mapa ("lat,lng" o nombre), sacada de `mapsUrl` en el servidor al guardar. */
   mapsLocation: optionalText(120),
   hours: optionalText(400),
@@ -25,15 +27,19 @@ export type BusinessContact = z.output<typeof contactSchema>;
 
 export const socialLinkSchema = z.object({
   network: z.enum(SOCIAL_NETWORK_IDS),
-  url: z.url('URL inválida').max(300),
+  url: webUrl().max(300),
 });
 
 export const socialLinksSchema = z.array(socialLinkSchema).max(12);
 export type SocialLink = z.output<typeof socialLinkSchema>;
 
+/** Lee el contacto guardado. Un campo inválido (p. ej. de una versión anterior) se descarta sin perder los demás. */
 export function parseContact(raw: unknown): BusinessContact {
-  const result = contactSchema.safeParse(raw ?? {});
-  return result.success ? result.data : contactSchema.parse({});
+  const input: Record<string, unknown> = raw && typeof raw === 'object' && !Array.isArray(raw) ? { ...raw } : {};
+  const result = contactSchema.safeParse(input);
+  if (result.success) return result.data;
+  for (const issue of result.error.issues) delete input[String(issue.path[0])];
+  return contactSchema.safeParse(input).data ?? contactSchema.parse({});
 }
 
 export function parseSocialLinks(raw: unknown): SocialLink[] {

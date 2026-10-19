@@ -34,7 +34,8 @@ export function ImageField({ label, description, kind, value, onChange, aspectRa
   const handleFile = async (file: File | undefined) => {
     if (!file) return;
     setBusy(true);
-    setLocalPreview(URL.createObjectURL(file));
+    const objectUrl = URL.createObjectURL(file);
+    setLocalPreview(objectUrl);
     try {
       const uploaded = await uploadImage(file, businessId, kind);
       await onChange(uploaded.path);
@@ -42,6 +43,7 @@ export function ImageField({ label, description, kind, value, onChange, aspectRa
       toast.error(error instanceof UploadError ? error.message : 'No se pudo subir la imagen.');
     } finally {
       setLocalPreview(null);
+      URL.revokeObjectURL(objectUrl);
       setBusy(false);
       if (inputRef.current) inputRef.current.value = '';
     }

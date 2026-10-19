@@ -213,9 +213,18 @@ Igual que la v1 (RLS, FKs compuestas, privilegios por columna, Storage por carpe
 
 ## Rendimiento
 
-- **Sin zod en el navegador del sitio público**: los componentes de `site-renderer/` importan lógica de módulos `*-core.ts` sin esquemas (`background-core`, `collections-core`, `attributes-core`, `price`, `find-home`, `type-roles`, `utils/phone`). Los módulos con esquema los re-exportan, así el resto del código no cambia. Al agregar lógica que use el sitio público, ponla en el módulo sin zod.
+- **Sin zod en el navegador del sitio público**: los componentes de `site-renderer/` importan lógica de módulos `*-core.ts` sin esquemas (`background-core`, `collections-core`, `attributes-core`, `price`, `type-roles`, `utils/phone`, `utils/text`). Los módulos con esquema los re-exportan, así el resto del código no cambia. Al agregar lógica que use el sitio público, ponla en el módulo sin zod.
 - **Consultas sin límite de 1000 filas**: `lib/supabase/paginate.ts` (`fetchAllRows`) pagina lecturas que pueden crecer; nunca usar `.in()` con listas de ids sin acotar (la URL se corta cerca de 450 uuids).
 - **Panel admin**: conteos con `admin_catalog_counts()` y `admin_stats()` (migración `20261005000000_performance.sql`), con respaldo al método anterior si la migración no está aplicada.
 - **Vista previa del builder**: las secciones se memorizan (`PageView.tsx`) y sólo se re-renderizan si cambia su contenido o algo del sitio que las afecta.
 - **PDF**: caché de imágenes LRU (64 MB, 10 min) en `features/pdf/images.ts`.
+
+## Seguridad (auditoría oct-2026)
+
+- **Permisos en tres capas**: proxy (sesión) → Server Action (`requireBusinessContext` / `requirePlatformAdmin`, Zod, rol) → RLS. Las operaciones privilegiadas (crear negocios, asignar personas, crear catálogos) sólo existen como funciones `SECURITY DEFINER` que verifican al administrador; no hay políticas que permitan hacerlo directo por la API REST (migración `20261020000000_security_hardening.sql`).
+- **Límite de intentos compartido** (`lib/security/rate-limit.ts` + `rate_limit_consume`): tabla en Postgres con candado por clave, sólo ejecutable con la service role. Lo usan el login (por cuenta y por IP), el cambio de contraseña y el cupo diario de Garfield. Si la base no responde deja pasar y lo registra (no bloquea el login por una falla del límite).
+- **Descargas externas** (`lib/net/safe-fetch.ts`): `BlockList` de Node por familia + extracción de IPv4 dentro de IPv6 (mapped, compatible, 6to4, NAT64); Teredo bloqueado. Las descargas a hosts fijos (Storage propio, fuentes) tampoco siguen redirecciones y tienen tope de tamaño (`readBodyCapped`). Las fuentes del PDF usan una versión fija de Fontsource.
+- **Borrado de archivos fail-closed** (`releaseStorageObjects`): si alguna consulta de referencias falla, no se borra nada.
+- **Cabeceras** en `next.config.ts` (CSP mínima sin nonces, anti-clickjacking, nosniff, Referrer/Permissions-Policy, HSTS en producción).
+- **Errores**: `error.tsx` por segmento (panel y administración conservan la navegación) y `global-error.tsx`; usan `retry()` (vuelve a pedir al servidor) y muestran el `digest` para encontrar el error en los logs.
 

@@ -38,8 +38,9 @@ function PageCanvas({ pdf, number, width, className }: { pdf: PDFDocumentProxy; 
     let cancelled = false;
     let task: { cancel: () => void; promise: Promise<unknown> } | null = null;
     void (async () => {
-      const page = await pdf.getPage(number);
-      if (cancelled || !ref.current) return;
+      // Si el documento se liberó (llegó un PDF nuevo), getPage falla: no es un error.
+      const page = await pdf.getPage(number).catch(() => null);
+      if (!page || cancelled || !ref.current) return;
       const base = page.getViewport({ scale: 1 });
       const ratio = typeof window === 'undefined' ? 1 : Math.min(window.devicePixelRatio || 1, 2);
       const viewport = page.getViewport({ scale: (width / base.width) * ratio });
@@ -70,17 +71,13 @@ export function PdfPreview({ blob, page, onPage, pageLabel, onPageClick, busy }:
   useEffect(() => {
     if (!blob) return;
     let cancelled = false;
-    let loaded: PDFDocumentProxy | null = null;
     void (async () => {
       try {
         const lib = await loadPdfjs();
-        loaded = await lib.getDocument({ data: new Uint8Array(await blob.arrayBuffer()) }).promise;
-        if (cancelled) return void loaded.destroy();
+        const loaded = await lib.getDocument({ data: new Uint8Array(await blob.arrayBuffer()) }).promise;
+        if (cancelled) return void loaded.loadingTask.destroy();
         setFailed(false);
-        setPdf((old) => {
-          void old?.destroy();
-          return loaded;
-        });
+        setPdf(loaded);
       } catch {
         if (!cancelled) setFailed(true);
       }
@@ -89,6 +86,11 @@ export function PdfPreview({ blob, page, onPage, pageLabel, onPageClick, busy }:
       cancelled = true;
     };
   }, [blob]);
+
+  // Libera el documento anterior (memoria del worker de pdf.js) al cambiar de PDF o al desmontar.
+  useEffect(() => {
+    return () => void pdf?.loadingTask.destroy();
+  }, [pdf]);
 
   // Ancho disponible para "ajustar a la pantalla".
   useEffect(() => {

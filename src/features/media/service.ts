@@ -1,5 +1,5 @@
 import 'server-only';
-import { safeDownload, SafeFetchError } from '@/lib/net/safe-fetch';
+import { readBodyCapped, safeDownload, SafeFetchError } from '@/lib/net/safe-fetch';
 import { supabaseStorage, type StorageProvider } from '@/lib/storage/provider';
 import type { ServerSupabase } from '@/lib/supabase/server';
 import { isExternalMediaUrl, isPathOwnedBy, publicStorageUrl } from '@/lib/utils/storage';
@@ -59,6 +59,7 @@ export async function listMedia(scope: MediaScope, raw: MediaFilters = {}): Prom
   if (f.folder !== 'all') query = query.eq('folder', f.folder);
   if (f.source === 'external') query = query.eq('storage_provider', 'external');
   else if (f.source !== 'all') query = query.eq('source', f.source);
+  if (f.storedOnly) query = query.neq('storage_provider', 'external');
   const words = clean(f.query).split(/\s+/).filter((w) => w.length > 1).slice(0, 5);
   for (const word of words) query = query.or(`name.ilike.%${word}%,alt.ilike.%${word}%,original_name.ilike.%${word}%`);
   query =
@@ -324,9 +325,9 @@ export async function generateMissingThumbnails(scope: MediaScope, limit = 12): 
     const url = storage.publicUrl(row.path);
     if (!url) continue;
     try {
-      const response = await fetch(url, { signal: AbortSignal.timeout(15_000) });
+      const response = await fetch(url, { redirect: 'error', signal: AbortSignal.timeout(15_000) });
       if (!response.ok) continue;
-      const processed = await processImage(new Uint8Array(await response.arrayBuffer()));
+      const processed = await processImage(await readBodyCapped(response));
       // Imagen chica: no necesita miniatura; se marca con su propia ruta para no reintentar.
       const thumbPath = processed.thumb ? row.path.replace(/(\.[a-z0-9]+)?$/i, `-thumb.${processed.thumb.extension}`) : row.path;
       if (processed.thumb) await storage.upload(thumbPath, processed.thumb.data, processed.thumb.mime);

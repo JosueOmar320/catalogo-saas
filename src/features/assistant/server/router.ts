@@ -3,6 +3,7 @@ import { parseModeActions } from '@/lib/assistant/modes';
 import { pdfRulesRespond } from './pdf-rules';
 import { rulesRespond } from './rules';
 import { ProviderError, QuotaExceededError, type AssistantModel, type ModelInput, type ModelResult } from './types';
+import { foldText } from '@/lib/utils/text';
 
 /**
  * Router de Garfield: decide quién resuelve cada pedido.
@@ -43,7 +44,7 @@ export function splitClauses(raw: string): string[] {
     .slice(0, 8);
 }
 
-const norm = (v: string) => v.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const norm = foldText;
 
 /** Pedidos que piden redactar o diseñar algo nuevo: mejor con un modelo de lenguaje. */
 export function isCreative(raw: string, actions: Record<string, unknown>[]): boolean {

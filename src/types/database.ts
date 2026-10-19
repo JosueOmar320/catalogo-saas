@@ -245,6 +245,7 @@ export type Database = {
       get_public_catalog: { Args: { p_business_slug: string }; Returns: Json };
       admin_catalog_counts: { Args: Record<string, never>; Returns: { catalog_id: string; pages: number; items: number }[] };
       admin_stats: { Args: Record<string, never>; Returns: Json };
+      rate_limit_consume: { Args: { p_key: string; p_limit: number; p_window_seconds: number }; Returns: boolean };
       media_references: { Args: { p_business: string; p_path: string }; Returns: { place: string; ref_id: string; label: string }[] };
       replace_media_references: { Args: { p_business: string; p_old: string; p_new: string; p_new_thumb?: string | null }; Returns: number };
       save_site: {

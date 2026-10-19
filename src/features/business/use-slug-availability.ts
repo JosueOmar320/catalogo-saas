@@ -15,15 +15,16 @@ export const SLUG_STATUS_TEXT: Record<SlugStatus, string> = {
 
 /** Verifica (con debounce) si una dirección de catálogo está libre. */
 export function useSlugAvailability(slug: string, currentSlug?: string): SlugStatus {
-  const [result, setResult] = useState<{ slug: string; available: boolean } | null>(null);
+  const [result, setResult] = useState<{ slug: string; available: boolean | null } | null>(null);
   const shouldCheck = BUSINESS_SLUG_PATTERN.test(slug) && slug !== currentSlug;
 
   useEffect(() => {
     if (!shouldCheck) return;
     let cancelled = false;
     const timer = setTimeout(async () => {
-      const response = await checkSlugAvailability(slug);
-      if (!cancelled) setResult({ slug, available: response.ok && response.data.available });
+      // Si la verificación falla (sin conexión), no se afirma nada: la base valida al guardar.
+      const available = await checkSlugAvailability(slug).then((r) => (r.ok ? r.data.available : null)).catch(() => null);
+      if (!cancelled) setResult({ slug, available });
     }, 400);
     return () => {
       cancelled = true;
@@ -33,5 +34,6 @@ export function useSlugAvailability(slug: string, currentSlug?: string): SlugSta
 
   if (!shouldCheck) return 'idle';
   if (result?.slug !== slug) return 'checking';
+  if (result.available === null) return 'idle';
   return result.available ? 'ok' : 'taken';
 }

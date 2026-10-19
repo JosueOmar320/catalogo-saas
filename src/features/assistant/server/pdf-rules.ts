@@ -1,6 +1,7 @@
 import type { AssistantContext } from '@/lib/assistant/context';
 import type { ProductLayout } from '@/lib/catalog/presentation';
 import type { PdfTemplateId } from '@/lib/pdf/settings';
+import { foldText } from '@/lib/utils/text';
 
 /**
  * Intérprete local del MODO PDF (sin IA): pedidos directos del estudio de
@@ -10,10 +11,7 @@ import type { PdfTemplateId } from '@/lib/pdf/settings';
 type Out = { message: string; actions: Record<string, unknown>[]; suggestions: string[] };
 
 const norm = (value: string) =>
-  value
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
+  foldText(value)
     .replace(/[¿?¡!.,;]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();

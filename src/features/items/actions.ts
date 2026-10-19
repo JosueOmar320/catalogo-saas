@@ -4,7 +4,6 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { requireBusinessContext, type BusinessContext } from '@/lib/auth/session';
 import { invalidatePublicCatalog } from '@/lib/catalog/cache';
-import { env } from '@/lib/env';
 import { isWithinLimit } from '@/lib/plans/entitlements';
 import { dbErrorMessage, fail, ok, type ActionResult } from '@/lib/utils/result';
 import { slugify, withRandomSuffix } from '@/lib/utils/slug';
@@ -217,18 +216,15 @@ export async function duplicateItem(id: string): Promise<ActionResult<{ id: stri
     .single();
   if (error) return fail(dbErrorMessage(error));
 
-  const { data: images } = await ctx.supabase.from('catalog_item_images').select('*').eq('item_id', id).order('position');
-  const bucket = ctx.supabase.storage.from(env.storageBucket);
-  for (const image of images ?? []) {
-    const newPath = `${ctx.business.id}/items/${crypto.randomUUID()}.${image.storage_path.split('.').pop()}`;
-    const newThumb = image.thumb_path ? `${ctx.business.id}/items/${crypto.randomUUID()}.${image.thumb_path.split('.').pop()}` : null;
-    const copied = await bucket.copy(image.storage_path, newPath);
-    if (copied.error) continue;
-    if (image.thumb_path && newThumb) await bucket.copy(image.thumb_path, newThumb);
-    const { id: _imgId, created_at: _ic, updated_at: _iu, ...imageRest } = image;
-    await ctx.supabase
-      .from('catalog_item_images')
-      .insert({ ...imageRest, item_id: copy.id, storage_path: newPath, thumb_path: newThumb });
+  // Las fotos se comparten (misma ruta), como en el resto de la biblioteca: no se copian archivos.
+  // Es seguro: un archivo sólo se borra cuando ningún ítem, página ni categoría lo usa (media_references).
+  const { data: images, error: imagesError } = await ctx.supabase.from('catalog_item_images').select('*').eq('item_id', id).order('position');
+  const rows = (images ?? []).map(({ id: _imgId, created_at: _ic, updated_at: _iu, ...image }) => ({ ...image, item_id: copy.id }));
+  const { error: insertError } = imagesError ? { error: imagesError } : rows.length ? await ctx.supabase.from('catalog_item_images').insert(rows) : { error: null };
+  if (insertError) {
+    // Sin fotos la copia quedaría incompleta: se deshace en vez de dejarla a medias.
+    await ctx.supabase.from('catalog_items').delete().eq('id', copy.id).eq('catalog_id', ctx.catalog.id);
+    return fail(dbErrorMessage(insertError, 'No se pudo duplicar el ítem.'));
   }
 
   afterChange(ctx);
