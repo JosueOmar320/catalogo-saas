@@ -248,6 +248,14 @@ const catalog: Catalog = {
   'Ya no están disponibles y se quitaron del pedido: {names}.': 'No longer available and removed from your order: {names}.',
   '¿Agregas algo más?': 'Anything else?',
   'Agregar {name}': 'Add {name}',
+  // Extras, notas y horario del producto
+  'Se pide de {from} a {to}': 'Order from {from} to {to}',
+  'elige 1': 'choose 1',
+  'hasta {count}': 'up to {count}',
+  '{name} se pide de {from} a {to}. Quítalo o vuelve en ese horario.': '{name} can be ordered from {from} to {to}. Remove it or come back then.',
+  'Agregar nota': 'Add note',
+  'Ej. sin cebolla': 'E.g. no onion',
+  'Nota para {name}': 'Note for {name}',
 };
 
 export default catalog;

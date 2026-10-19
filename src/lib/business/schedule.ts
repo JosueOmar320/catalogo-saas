@@ -97,6 +97,14 @@ export function openStatus(schedule: Schedule, now: Date): OpenStatus {
   return { open: false, opensAt: { inDays: startDay - day, day: ((startDay % 7) + 7) % 7, time: toTime(next[0]) } };
 }
 
+/** ¿Ahora está dentro de un horario del día ("07:00"–"12:00"; si `to` ≤ `from`, cruza la medianoche)? */
+export function withinHours(hours: { from: string; to: string }, timeZone: string, now: Date): boolean {
+  const { minutes } = zonedNow(now, timeZone);
+  const from = toMinutes(hours.from);
+  const to = toMinutes(hours.to);
+  return from < to ? minutes >= from && minutes < to : minutes >= from || minutes < to;
+}
+
 /** "09:00" → "9:00" (como se escribe un horario). */
 export const shortTime = (value: string) => value.replace(/^0(\d)/, '$1');
 

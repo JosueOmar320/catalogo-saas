@@ -33,6 +33,39 @@ export const variantsSchema = z
   .nullable()
   .default(null);
 
+/**
+ * Extras opcionales (Shot extra +$12, Leche de almendra +$8): el cliente elige
+ * ninguno o varios (hasta `max`) y su precio se suma al del producto.
+ */
+export const extraOptionSchema = z.object({
+  id: z.string().min(1).max(40),
+  name: z.string().trim().min(1).max(40),
+  price: z.number().min(0).max(99_999_999).default(0),
+  available: z.boolean().default(true),
+});
+
+export const MAX_EXTRA_OPTIONS = 20;
+
+export const extrasSchema = z
+  .object({
+    label: z.string().trim().min(1).max(30),
+    /** Cuántos puede elegir (null = todos los que quiera). */
+    max: z.number().int().min(1).max(MAX_EXTRA_OPTIONS).nullable().default(null),
+    options: z.array(extraOptionSchema).min(1).max(MAX_EXTRA_OPTIONS),
+  })
+  .nullable()
+  .default(null);
+
+export type ItemExtras = NonNullable<z.output<typeof extrasSchema>>;
+
+/** Horario del día en que se puede pedir (desayunos 7:00–12:00); en la zona horaria del negocio. */
+export const orderHoursSchema = z
+  .object({ from: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/), to: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/) })
+  .nullable()
+  .default(null);
+
+export type OrderHours = NonNullable<z.output<typeof orderHoursSchema>>;
+
 export type VariantOption = z.output<typeof variantOptionSchema>;
 export type ItemVariants = NonNullable<z.output<typeof variantsSchema>>;
 
@@ -43,6 +76,8 @@ export const itemAttributesSchema = z.object({
     .nullable()
     .default(null),
   variants: variantsSchema,
+  extras: extrasSchema,
+  orderHours: orderHoursSchema,
   /** Fin de la oferta (precio anterior): después se vuelve al precio normal. */
   saleEnds: saleEndsSchema,
 });
@@ -59,6 +94,8 @@ export function parseItemAttributes(raw: unknown): ItemAttributes {
     badges: z.array(z.enum(MANUAL_BADGES)).catch([]).parse(partial.badges),
     customBadge: itemAttributesSchema.shape.customBadge.catch(null).parse(partial.customBadge),
     variants: variantsSchema.catch(null).parse(partial.variants),
+    extras: extrasSchema.catch(null).parse(partial.extras),
+    orderHours: orderHoursSchema.catch(null).parse(partial.orderHours),
     saleEnds: saleEndsSchema.catch(null).parse(partial.saleEnds),
   };
 }

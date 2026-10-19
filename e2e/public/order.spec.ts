@@ -258,6 +258,40 @@ test.describe('Pedido por WhatsApp', () => {
     await expect(dialog.getByRole('group', { name: 'Cantidad de Producto viejo' })).toHaveCount(0);
   });
 
+  test('extras en la ficha: se suman al precio, respetan el máximo y van en el nombre de la línea', async ({ page }) => {
+    await page.goto('/demo/p/ejemplo-2');
+    await page.getByRole('radio', { name: '16 oz' }).click();
+    const extras = page.getByRole('group', { name: /Extras/ });
+    await extras.getByRole('checkbox', { name: /Shot extra/ }).check();
+    await extras.getByRole('checkbox', { name: /Canela/ }).check();
+    await expect(page.getByText('$90', { exact: true })).toBeVisible(); // 78 + 12 + 0
+    // Máximo 2: el tercero queda deshabilitado.
+    await expect(extras.getByRole('checkbox', { name: /Leche de almendra/ })).toBeDisabled();
+    await page.getByRole('button', { name: 'Agregar al pedido' }).click();
+    await expect(page.getByRole('group', { name: 'Cantidad de Latte de avena (16 oz) + Shot extra, Canela' })).toBeVisible();
+
+    await orderButton(page).click();
+    const dialog = page.getByRole('dialog', { name: 'Tu pedido' });
+    await dialog.getByRole('button', { name: 'Agregar nota' }).click();
+    await dialog.getByRole('textbox', { name: 'Nota para Latte de avena (16 oz) + Shot extra, Canela' }).fill('poca espuma');
+    await dialog.getByRole('radio', { name: 'Recoger en el local' }).check();
+    const text = await whatsappMessage(page);
+    expect(text).toContain('• 1 × Latte de avena (16 oz) + Shot extra, Canela (CAF-002) — $90\n   Nota: poca espuma');
+  });
+
+  test('un producto con horario sólo se agrega dentro de ese horario', async ({ page }) => {
+    // 15:00 en Ciudad de México: el pan de masa madre se pide de 8:00 a 13:00.
+    await page.clock.setFixedTime(new Date('2026-10-19T21:00:00Z'));
+    await page.goto('/demo/menu');
+    const bread = card(page, 'Pan de masa madre');
+    await expect(bread.getByRole('button', { name: 'Se pide de 8:00 a 13:00' })).toBeDisabled();
+    // 9:00: ya se puede.
+    await page.clock.setFixedTime(new Date('2026-10-19T15:00:00Z'));
+    await page.reload();
+    await card(page, 'Pan de masa madre').getByRole('button', { name: 'Agregar al pedido' }).click();
+    await expect(orderButton(page)).toContainText('$120');
+  });
+
   test('los servicios y los productos agotados no se agregan al pedido', async ({ page }) => {
     await page.goto('/demo/menu');
     await expect(card(page, 'Rol de canela')).toBeVisible();

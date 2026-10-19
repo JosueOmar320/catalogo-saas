@@ -1,5 +1,5 @@
 import type { Schedule } from '@/lib/business/schedule';
-import type { CatalogItemView, CatalogVariantsView } from '@/lib/catalog/view-model';
+import type { CatalogExtrasView, CatalogItemView, CatalogVariantsView } from '@/lib/catalog/view-model';
 import type { SiteViewModel } from '@/lib/site/view-model';
 import { digitsOnly } from '@/lib/utils/phone';
 import { defaultText } from '../default-texts';
@@ -28,6 +28,10 @@ export type OrderConfig = {
   suggestions: OrderItem[];
   /** Pedidos en pausa (vacaciones…), o null. */
   pause: OrderPause | null;
+  /** Productos que sólo se piden en un horario del día (por id de producto). */
+  orderHours: Record<string, { from: string; to: string }>;
+  /** Zona horaria del negocio (la de su horario por día; vacía = la del visitante). */
+  timeZone: string;
   /** Horario por día (si el negocio lo usa): el panel avisa cuando está cerrado. */
   schedule: Schedule | null;
   /** Negocio al que se le cuenta el pedido enviado (sólo en el sitio publicado). */
@@ -66,6 +70,8 @@ export function orderConfig(site: SiteViewModel, { track = false }: { track?: bo
     couponScope: site.business.slug,
     catalog: catalogIndex(site),
     suggestions: suggestions(site),
+    orderHours: Object.fromEntries(site.items.flatMap((item) => (item.orderHours && orderable(site, item) ? [[item.id, item.orderHours]] : []))),
+    timeZone: site.business.contact.schedule.timezone,
     pause: order.paused ? { until: order.pausedUntil, timeZone: order.pauseTimeZone, message: order.pauseMessage } : null,
     schedule: site.business.contact.schedule.enabled ? site.business.contact.schedule : null,
     trackSlug: track ? site.business.slug : null,
@@ -89,23 +95,33 @@ export function toOrderItem(item: CatalogItemView): OrderItem {
   };
 }
 
-/** Línea del pedido para una opción: su propio id, nombre "Producto (Opción)" y precio. */
-export function variantOrderItem(
-  item: Pick<CatalogItemView, 'id' | 'name' | 'sku' | 'currency' | 'url' | 'images'>,
-  option: CatalogVariantsView['options'][number],
-): OrderItem {
+type LineSource = Pick<CatalogItemView, 'id' | 'name' | 'sku' | 'currency' | 'url' | 'images' | 'price' | 'priceLabel'>;
+type ExtraOption = CatalogExtrasView['options'][number];
+
+/**
+ * Línea del pedido para lo que eligió el cliente: la opción (si tiene) y los
+ * extras. Id "producto:opción+extra1+extra2" (extras ordenados: la misma
+ * elección es la misma línea), nombre "Latte (16 oz) + Shot extra, Canela" y
+ * precio = opción (o producto) + extras.
+ */
+export function optionOrderItem(item: LineSource, option: CatalogVariantsView['options'][number] | null, extras: ExtraOption[] = []): OrderItem {
+  const chosen = [...extras].sort((a, b) => a.id.localeCompare(b.id));
+  const base = option ? option.price : item.price;
   return {
-    id: `${item.id}:${option.id}`,
+    id: `${item.id}${option ? `:${option.id}` : ''}${chosen.map((extra) => `+${extra.id}`).join('')}`,
     itemId: item.id,
-    name: `${item.name} (${option.name})`,
-    sku: option.sku ?? item.sku,
-    price: option.price,
-    priceLabel: option.priceLabel,
+    name: `${item.name}${option ? ` (${option.name})` : ''}${chosen.length ? ` + ${chosen.map((extra) => extra.name).join(', ')}` : ''}`,
+    sku: option?.sku ?? item.sku,
+    price: base === null ? null : Math.round((base + chosen.reduce((sum, extra) => sum + extra.price, 0)) * 100) / 100,
+    priceLabel: chosen.length ? null : option ? option.priceLabel : item.priceLabel,
     currency: item.currency,
     url: item.url,
     image: item.images[0]?.thumbUrl ?? null,
   };
 }
+
+/** Línea del pedido para una opción: su propio id, nombre "Producto (Opción)" y precio. */
+export const variantOrderItem = (item: LineSource, option: CatalogVariantsView['options'][number]) => optionOrderItem(item, option);
 
 const MAX_SUGGESTIONS = 6;
 
@@ -116,12 +132,14 @@ function catalogIndex(site: SiteViewModel): CatalogIndex {
     if (item.variants) {
       for (const option of item.variants.options) if (option.available) index[`${item.id}:${option.id}`] = [option.price, option.priceLabel];
     } else index[item.id] = [item.price, item.priceLabel];
+    // Cada extra disponible: "producto+extra" → su precio (se suma al de la línea).
+    for (const extra of item.extras?.options ?? []) if (extra.available) index[`${item.id}+${extra.id}`] = [extra.price, null];
   }
   return index;
 }
 
 /** Destacados primero y después el resto, en el orden del catálogo; sólo con precio y sin opciones que elegir. */
 function suggestions(site: SiteViewModel): OrderItem[] {
-  const candidates = site.items.filter((item) => orderable(site, item) && !item.variants && item.price !== null);
+  const candidates = site.items.filter((item) => orderable(site, item) && !item.variants && !item.orderHours && item.price !== null);
   return [...candidates.filter((i) => i.isFeatured), ...candidates.filter((i) => !i.isFeatured)].slice(0, MAX_SUGGESTIONS).map(toOrderItem);
 }

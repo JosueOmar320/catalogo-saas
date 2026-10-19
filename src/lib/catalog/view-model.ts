@@ -50,8 +50,18 @@ export type CatalogItemView = {
   url: string;
   /** Opciones (tamaños, sabores…) con su precio ya formateado; null si no tiene. */
   variants: CatalogVariantsView | null;
+  /** Extras opcionales con su precio ("+$12" ya formateado); null si no tiene. */
+  extras: CatalogExtrasView | null;
+  /** Horario del día en que se puede pedir (desayunos); null = siempre. */
+  orderHours: { from: string; to: string } | null;
   /** Último día de la oferta ("2026-10-31") mientras sigue vigente; null si no tiene fecha. */
   saleEndsOn: string | null;
+};
+
+export type CatalogExtrasView = {
+  label: string;
+  max: number | null;
+  options: { id: string; name: string; price: number; priceLabel: string | null; available: boolean }[];
 };
 
 export type CatalogVariantsView = {
@@ -147,6 +157,12 @@ function toItemView(item: ItemInput, businessSlug: string, { locale, attributeDe
         return { id: o.id, name: o.name, price: value, priceLabel: value === null ? null : format(value), sku: o.sku, available: o.available };
       }),
     },
+    extras: attributes.extras && {
+      label: attributes.extras.label,
+      max: attributes.extras.max,
+      options: attributes.extras.options.map((o) => ({ id: o.id, name: o.name, price: o.price, priceLabel: o.price > 0 ? format(o.price) : null, available: o.available })),
+    },
+    orderHours: attributes.orderHours,
     saleEndsOn: !attributes.variants && compareAt !== null && price !== null && compareAt > price ? (attributes.saleEnds?.on ?? null) : null,
   };
 }

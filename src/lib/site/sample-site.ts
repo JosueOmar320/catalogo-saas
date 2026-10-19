@@ -40,15 +40,17 @@ type SampleItem = {
   attrs?: CatalogItemView['attributes'];
   /** Opciones con precio propio (null = precio del producto). */
   variants?: { label: string; options: [name: string, price: number | null][] };
+  extras?: { label: string; max: number | null; options: [name: string, price: number][] };
+  orderHours?: { from: string; to: string };
 };
 
 const ITEMS: SampleItem[] = [
   { name: 'Espresso doble', category: 0, short: 'Intenso, con notas a cacao y frutos rojos.', price: 45, photo: '1510591509098-f4fdc6d0ff04', featured: true, sku: 'CAF-001', badges: ['popular'], attrs: { origen: 'Chiapas', tamano: '2 oz' } },
-  { name: 'Latte de avena', category: 0, short: 'Espresso con bebida de avena texturizada.', price: 68, photo: '1461023058943-07fcbe16d735', sku: 'CAF-002', note: 'desde', badges: ['new'], attrs: { origen: 'Veracruz', tamano: '12 oz' }, variants: { label: 'Tamaño', options: [['12 oz', null], ['16 oz', 78]] } },
+  { name: 'Latte de avena', category: 0, short: 'Espresso con bebida de avena texturizada.', price: 68, photo: '1461023058943-07fcbe16d735', sku: 'CAF-002', note: 'desde', badges: ['new'], attrs: { origen: 'Veracruz', tamano: '12 oz' }, variants: { label: 'Tamaño', options: [['12 oz', null], ['16 oz', 78]] }, extras: { label: 'Extras', max: 2, options: [['Shot extra', 12], ['Leche de almendra', 8], ['Canela', 0]] } },
   { name: 'Cold brew', category: 0, short: 'Extracción en frío por 18 horas. Suave y dulce.', price: 72, compareAt: 85, photo: '1517701604599-bb29b565090c', featured: true, sku: 'CAF-003', attrs: { origen: 'Chiapas', tamano: '16 oz' } },
   { name: 'Café en grano 340 g', category: 0, short: 'Chiapas, lavado. Ideal para filtrado.', price: 290, photo: '1559056199-641a0ac8b55e', sku: 'CAF-010', note: 'bolsa', featured: true, attrs: { origen: 'Chiapas', tamano: '340 g', incluye: ['Molienda a elección', 'Fecha de tueste en la bolsa'] } },
   { name: 'Croissant de mantequilla', category: 1, short: 'Hojaldre francés con 27 capas.', price: 48, photo: '1555507036-ab1f4038808a', featured: true, sku: 'PAN-001', badges: ['popular'] },
-  { name: 'Pan de masa madre', category: 1, short: 'Fermentación lenta de 36 horas.', price: 120, photo: '1509440159596-0249088772ff', sku: 'PAN-002' },
+  { name: 'Pan de masa madre', category: 1, short: 'Fermentación lenta de 36 horas. Sale del horno a las 8:00.', price: 120, photo: '1509440159596-0249088772ff', sku: 'PAN-002', orderHours: { from: '08:00', to: '13:00' } },
   { name: 'Rol de canela', category: 1, short: 'Con glaseado de queso crema.', price: 55, photo: '1509365465985-25d11c17e812', available: false, sku: 'PAN-003' },
   { name: 'Catering para eventos', type: 'service', category: 2, short: 'Barra de café móvil con barista para tu evento.', price: 4500, note: 'desde', photo: '1511920170033-f8396924c348', attrs: { duracion: 4, incluye: ['Barista profesional', 'Máquina de espresso', '100 bebidas'] } },
   { name: 'Taller de barismo', type: 'service', category: 2, short: 'Aprende extracción y arte latte en 3 horas.', price: 950, note: 'por persona', photo: '1442512595331-e89e73853f31', badges: ['new'], attrs: { duracion: 3, incluye: ['Materiales', 'Certificado'] } },
@@ -82,6 +84,14 @@ function sampleItems(currency: string, url: string): CatalogItemView[] {
     // Como en un sitio real: cada ítem con su propia URL (compartir, WhatsApp, SEO).
     url: `${url}/p/ejemplo-${index + 1}`,
     saleEndsOn: null,
+    extras: item.extras
+      ? {
+          label: item.extras.label,
+          max: item.extras.max,
+          options: item.extras.options.map(([name, price], i) => ({ id: `x${i + 1}`, name, price, priceLabel: price > 0 ? formatPrice(price, currency) : null, available: true })),
+        }
+      : null,
+    orderHours: item.orderHours ?? null,
     variants: item.variants
       ? {
           label: item.variants.label,

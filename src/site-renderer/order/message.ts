@@ -27,7 +27,7 @@ export type OrderItem = {
   image: string | null;
 };
 
-export type OrderLine = OrderItem & { qty: number };
+export type OrderLine = OrderItem & { qty: number; /** Indicación del cliente para esta línea ("sin cebolla"). */ note?: string };
 
 /** Formato de precios del sitio (moneda, locale y formato del catálogo). */
 export type OrderPricing = { currency: string; locale: string; format: PriceFormat };
@@ -75,12 +75,18 @@ export type CatalogIndex = Record<string, [price: number | null, priceLabel: str
 export function refreshLines(lines: OrderLine[], catalog: CatalogIndex): { lines: OrderLine[]; removed: string[] } {
   const removed: string[] = [];
   const fresh = lines.flatMap((line) => {
-    const current = catalog[line.id];
-    if (!current) {
+    // "producto:opción+extra1+extra2": la base y cada extra deben seguir disponibles.
+    const [base, ...extras] = line.id.split('+');
+    const itemId = base.split(':')[0];
+    const current = catalog[base];
+    const extraPrices = extras.map((extra) => catalog[`${itemId}+${extra}`]);
+    if (!current || extraPrices.some((extra) => !extra)) {
       removed.push(line.name);
       return [];
     }
-    const [price, priceLabel] = current;
+    const sum = extraPrices.reduce((total, extra) => total + (extra![0] ?? 0), 0);
+    const price = current[0] === null ? null : Math.round((current[0] + sum) * 100) / 100;
+    const priceLabel = extras.length ? null : current[1];
     return [price === line.price && priceLabel === line.priceLabel ? line : { ...line, price, priceLabel }];
   });
   return { lines: removed.length || fresh.some((line, i) => line !== lines[i]) ? fresh : lines, removed };
@@ -265,7 +271,8 @@ export function buildOrderMessage({ lines, pricing, intro, businessName, custome
         : line.priceLabel
           ? ` — ${line.priceLabel}`
           : ` ${t('(precio por confirmar)')}`;
-    return `• ${line.qty} × ${line.name}${sku}${price}`;
+    const note = line.note?.trim();
+    return `• ${line.qty} × ${line.name}${sku}${price}${note ? `\n   ${t('Nota: {note}', { note })}` : ''}`;
   });
 
   const { subtotal, delivery, discount, total } = summarizeOrder(lines, pricing, options, choices, now);

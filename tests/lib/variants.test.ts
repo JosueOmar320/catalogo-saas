@@ -1,12 +1,16 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { emptyItemValues } from '@/features/items/defaults';
-import { formVariants, itemFormSchema, itemFormToAttributes } from '@/features/items/schema';
+import { formExtras, formVariants, itemFormSchema, itemFormToAttributes } from '@/features/items/schema';
+import { withinHours } from '@/lib/business/schedule';
+import { catalogSettingsSchema } from '@/lib/catalog/settings';
 import { parseItemAttributes, type ItemVariants } from '@/lib/catalog/item-attributes';
 import { variantPriceSummary } from '@/lib/catalog/variants';
 import { mapItems, type ItemInput } from '@/lib/catalog/view-model';
 import { buildSampleSite } from '@/lib/site/sample-site';
-import { variantOrderItem } from '@/site-renderer/order/config';
+import { optionOrderItem, orderConfig, variantOrderItem } from '@/site-renderer/order/config';
+import { buildOrderMessage, refreshLines } from '@/site-renderer/order/message';
+import { siteTranslator } from '@/site-renderer/site-i18n';
 
 const option = (id: string, price: number | null, available = true) => ({ id, name: id, price, sku: null, available });
 const variants = (...options: ReturnType<typeof option>[]): ItemVariants => ({ label: 'Tamaño', options });
@@ -124,5 +128,81 @@ describe('Opciones del producto: catálogo y pedido', () => {
     assert.equal(line.name, 'Latte de avena (16 oz)');
     assert.equal(line.price, 78);
     assert.notEqual(line.id, variantOrderItem(latte, latte.variants!.options[0]).id);
+  });
+});
+
+describe('Extras, notas y horario del producto', () => {
+  it('cada combinación de opción y extras es una línea con precio sumado (el orden de los extras no importa)', () => {
+    const latte = buildSampleSite().items.find((i) => i.name === 'Latte de avena')!;
+    const [shot, almond, cinnamon] = latte.extras!.options;
+    const large = latte.variants!.options[1];
+    const a = optionOrderItem(latte, large, [almond, shot]);
+    const b = optionOrderItem(latte, large, [shot, almond]);
+    assert.equal(a.id, b.id);
+    assert.equal(a.id, `${latte.id}:v2+x1+x2`);
+    assert.equal(a.name, 'Latte de avena (16 oz) + Shot extra, Leche de almendra');
+    assert.equal(a.price, 98); // 78 + 12 + 8
+    assert.equal(a.itemId, latte.id);
+    assert.equal(optionOrderItem(latte, large, [cinnamon]).price, 78); // gratis
+    assert.equal(optionOrderItem(latte, large).id, `${latte.id}:v2`);
+  });
+
+  it('el pedido guardado con extras se actualiza; si un extra ya no está, la línea sale', () => {
+    const site = buildSampleSite();
+    const config = orderConfig(site)!;
+    const latte = site.items.find((i) => i.name === 'Latte de avena')!;
+    const line = { ...optionOrderItem(latte, latte.variants!.options[0], [latte.extras!.options[0]]), qty: 1 };
+    assert.equal(config.catalog[`${latte.id}+x1`]?.[0], 12);
+    assert.deepEqual(refreshLines([{ ...line, price: 1 }], config.catalog).lines.map((l) => l.price), [80]); // 68 + 12
+    const gone = refreshLines([{ ...line, id: `${latte.id}:v1+x9` }], config.catalog);
+    assert.deepEqual([gone.lines.length, gone.removed], [0, [line.name]]);
+  });
+
+  it('la nota de cada producto va en el mensaje, debajo de su línea', () => {
+    const text = buildOrderMessage({
+      lines: [{ id: 'a', name: 'Chilaquiles', sku: null, price: 90, priceLabel: '$90', currency: 'MXN', url: '', image: null, qty: 1, note: ' sin cebolla ' }],
+      pricing: { currency: 'MXN', locale: 'es-MX', format: catalogSettingsSchema.parse({}).priceFormat },
+      intro: 'Hola',
+      businessName: 'Café',
+      siteUrl: 'https://x.test',
+      t: siteTranslator('es'),
+    });
+    assert.match(text, /• 1 × Chilaquiles — \$90\n {3}Nota: sin cebolla\n/);
+  });
+
+  it('horario del producto: dentro o fuera (también cruzando la medianoche), y no se sugiere', () => {
+    const at = (iso: string) => new Date(iso);
+    const tz = 'America/Mexico_City';
+    assert.equal(withinHours({ from: '08:00', to: '13:00' }, tz, at('2026-10-19T15:00:00Z')), true); // 9:00
+    assert.equal(withinHours({ from: '08:00', to: '13:00' }, tz, at('2026-10-19T19:00:00Z')), false); // 13:00
+    assert.equal(withinHours({ from: '22:00', to: '02:00' }, tz, at('2026-10-20T07:00:00Z')), true); // 1:00
+    const site = buildSampleSite();
+    const config = orderConfig(site)!;
+    const bread = site.items.find((i) => i.name === 'Pan de masa madre')!;
+    assert.deepEqual(config.orderHours[bread.id], { from: '08:00', to: '13:00' });
+    assert.equal(config.timeZone, tz);
+    assert.ok(!config.suggestions.some((s) => s.id === bread.id));
+  });
+
+  it('el formulario guarda extras (sin precio = gratis, máximo acotado) y el horario sólo en productos', () => {
+    const values = itemFormSchema.parse({
+      ...emptyItemValues('product', 'MXN'),
+      name: 'Latte',
+      extrasEnabled: true,
+      extrasLabel: ' Extras ',
+      extrasMax: '9',
+      extras: [
+        { id: 'a', name: 'Shot', price: '12', available: true },
+        { id: 'b', name: 'Canela', price: '', available: true },
+        { id: 'c', name: ' ', price: '5', available: true },
+      ],
+      orderHoursEnabled: true,
+      orderHoursFrom: '07:00',
+      orderHoursTo: '12:00',
+    });
+    assert.deepEqual(formExtras(values), { label: 'Extras', max: 2, options: [{ id: 'a', name: 'Shot', price: 12, available: true }, { id: 'b', name: 'Canela', price: 0, available: true }] });
+    assert.deepEqual(itemFormToAttributes(values).orderHours, { from: '07:00', to: '12:00' });
+    assert.equal(itemFormToAttributes({ ...values, type: 'service' }).extras, null);
+    assert.equal(itemFormSchema.safeParse({ ...emptyItemValues('product', 'MXN'), name: 'X', orderHoursEnabled: true, orderHoursFrom: '09:00', orderHoursTo: '09:00' }).success, false);
   });
 });
