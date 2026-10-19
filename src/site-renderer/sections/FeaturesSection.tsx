@@ -1,16 +1,18 @@
 import { Icon } from '../Icon';
 import { gridVars, Placeholder, SectionFrame, SectionHead } from '../SectionFrame';
+import { siteTranslator } from '../site-i18n';
 import styles from '../site.module.css';
 import type { SectionProps } from './types';
 
 export function FeaturesSection({ section, site, env }: SectionProps<'features'>) {
   const { content } = section;
+  const t = siteTranslator(site.settings.language);
   if (content.items.length === 0 && env.mode === 'public') return null;
   const center = content.alignment === 'center';
   return (
     <SectionFrame section={section} theme={site.theme}>
       <SectionHead eyebrow={content.eyebrow} title={content.title} subtitle={content.subtitle} center={center} />
-      <Placeholder show={content.items.length === 0}>Agrega beneficios con ícono desde el editor.</Placeholder>
+      <Placeholder show={content.items.length === 0}>{t('Agrega beneficios con ícono desde el editor.')}</Placeholder>
       <div
         className={`${styles.features} ${content.layout === 'inline' ? '' : styles.grid}`}
         data-layout={content.layout}

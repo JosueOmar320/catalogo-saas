@@ -17,7 +17,7 @@ export function actionSchemaFor(mode: AssistantMode): z.ZodType {
 
 export function responseSchemaFor(mode: AssistantMode) {
   return z.object({
-    message: z.string().max(2000).describe('Respuesta breve y amable en español, en la voz de Garfield.'),
+    message: z.string().max(2000).describe('Respuesta breve y amable en el idioma del usuario (español si no se indica otro), en la voz de Garfield.'),
     actions: z.array(actionSchemaFor(mode)).max(40).describe('Acciones a ejecutar. Vacío si sólo conversas o necesitas preguntar algo.'),
     suggestions: z.array(z.string().max(60)).max(4).describe('Hasta 4 siguientes pasos cortos que el usuario podría pedir.'),
   });

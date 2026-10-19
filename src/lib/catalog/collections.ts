@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { fieldFactory } from '@/lib/design/schema-utils';
+import { msg } from '@/i18n/translate';
 import { SORT_OPTIONS } from './collections-core';
 
 /**
@@ -10,15 +11,15 @@ export const COLLECTION_SOURCES = ['all', 'featured', 'new', 'sale', 'popular', 
 export type CollectionSource = (typeof COLLECTION_SOURCES)[number];
 
 export const COLLECTION_LABELS: Record<CollectionSource, string> = {
-  all: 'Todos',
-  featured: 'Destacados',
-  new: 'Nuevos',
-  sale: 'En oferta',
-  popular: 'Populares',
-  latest: 'Más recientes',
-  category: 'De una categoría',
-  attribute: 'Por atributo (marca, material…)',
-  manual: 'Elegidos a mano',
+  all: msg('Todos'),
+  featured: msg('Destacados'),
+  new: msg('Nuevos'),
+  sale: msg('En oferta'),
+  popular: msg('Populares'),
+  latest: msg('Más recientes'),
+  category: msg('De una categoría'),
+  attribute: msg('Por atributo (marca, material…)'),
+  manual: msg('Elegidos a mano'),
 };
 
 function build(lenient: boolean) {

@@ -7,16 +7,20 @@ import { LinkButton } from '@/components/ui/LinkButton';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { listCategories, listItemsWithImages, listPages } from '@/features/catalog/queries';
+import { getLocale, getT } from '@/i18n/server';
 import { requireBusinessContext } from '@/lib/auth/session';
 import { parseContact } from '@/lib/business/profile';
 import { catalogUrl } from '@/lib/catalog/view-model';
 import { formatDate } from '@/lib/utils/format';
 
-export const metadata: Metadata = { title: 'Inicio' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT();
+  return { title: t('Inicio') };
+}
 
 export default async function DashboardHome({ searchParams }: PageProps<'/dashboard'>) {
   const ctx = await requireBusinessContext();
-  const [{ welcome }, categories, items, pages] = await Promise.all([searchParams, listCategories(ctx), listItemsWithImages(ctx), listPages(ctx)]);
+  const [{ welcome }, categories, items, pages, t, locale] = await Promise.all([searchParams, listCategories(ctx), listItemsWithImages(ctx), listPages(ctx), getT(), getLocale()]);
   const contact = parseContact(ctx.business.contact);
   const products = items.filter((i) => i.type === 'product').length;
   const services = items.length - products;
@@ -24,39 +28,39 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
   const published = ctx.catalog.status === 'published';
 
   const steps = [
-    { done: Boolean(ctx.business.logo_path), label: 'Sube tu logo', href: '/dashboard/sitio?panel=design' },
-    { done: ctx.catalog.theme !== null && (ctx.catalog.theme as { version?: number }).version === 2, label: 'Elige el diseño de tu sitio', href: '/dashboard/sitio?panel=design' },
-    { done: Boolean(contact.whatsapp || contact.phone || contact.email), label: 'Agrega tus datos de contacto', href: '/dashboard/settings/contacto' },
-    { done: categories.length > 0, label: 'Crea tu primera categoría', href: '/dashboard/catalog/categories' },
-    { done: items.some((i) => i.images.length > 0), label: 'Agrega un producto o servicio con foto', href: '/dashboard/catalog/items/new?type=product' },
-    { done: published, label: 'Publica tu catálogo', href: '/dashboard/settings/publicacion' },
+    { done: Boolean(ctx.business.logo_path), label: t('Sube tu logo'), href: '/dashboard/sitio?panel=design' },
+    { done: ctx.catalog.theme !== null && (ctx.catalog.theme as { version?: number }).version === 2, label: t('Elige el diseño de tu sitio'), href: '/dashboard/sitio?panel=design' },
+    { done: Boolean(contact.whatsapp || contact.phone || contact.email), label: t('Agrega tus datos de contacto'), href: '/dashboard/settings/contacto' },
+    { done: categories.length > 0, label: t('Crea tu primera categoría'), href: '/dashboard/catalog/categories' },
+    { done: items.some((i) => i.images.length > 0), label: t('Agrega un producto o servicio con foto'), href: '/dashboard/catalog/items/new?type=product' },
+    { done: published, label: t('Publica tu catálogo'), href: '/dashboard/settings/publicacion' },
   ];
   const completed = steps.filter((s) => s.done).length;
 
   const stats = [
-    { label: 'Productos', value: products, icon: Package, href: '/dashboard/catalog/products' },
-    { label: 'Servicios', value: services, icon: Wrench, href: '/dashboard/catalog/services' },
-    { label: 'Categorías', value: categories.length, icon: FolderTree, href: '/dashboard/catalog/categories' },
+    { label: t('Productos'), value: products, icon: Package, href: '/dashboard/catalog/products' },
+    { label: t('Servicios'), value: services, icon: Wrench, href: '/dashboard/catalog/services' },
+    { label: t('Categorías'), value: categories.length, icon: FolderTree, href: '/dashboard/catalog/categories' },
   ];
 
   return (
     <>
       <PageHeader
-        title={`Hola, ${ctx.business.name}`}
-        description="Administra tu catálogo, personaliza su diseño y compártelo con tus clientes."
+        title={t('Hola, {name}', { name: ctx.business.name })}
+        description={t('Administra tu catálogo, personaliza su diseño y compártelo con tus clientes.')}
       />
 
       {welcome && (
         <Alert severity="success" sx={{ mb: 3 }}>
-          ¡Tu negocio está listo! Sigue los pasos de abajo para completar tu catálogo.
+          {t('¡Tu negocio está listo! Sigue los pasos de abajo para completar tu catálogo.')}
         </Alert>
       )}
 
       <Grid container spacing={2.5}>
         <Grid size={{ xs: 12, lg: 7 }}>
           <SectionCard
-            title="Primeros pasos"
-            description={completed === steps.length ? 'Completaste la configuración inicial.' : `${completed} de ${steps.length} completados`}
+            title={t('Primeros pasos')}
+            description={completed === steps.length ? t('Completaste la configuración inicial.') : t('{completed} de {total} completados', { completed, total: steps.length })}
           >
             <LinearProgress variant="determinate" value={(completed / steps.length) * 100} sx={{ height: 6, borderRadius: 3, mb: 2 }} />
             <Stack spacing={0.5}>
@@ -70,7 +74,7 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
                   </Typography>
                   {!step.done && (
                     <LinkButton href={step.href} variant="outlined" color="inherit">
-                      Ir
+                      {t('Ir')}
                     </LinkButton>
                   )}
                 </Stack>
@@ -81,16 +85,16 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
 
         <Grid size={{ xs: 12, lg: 5 }}>
           <Stack spacing={2.5}>
-            <SectionCard title="Tu catálogo" description={`Estado: ${STATUS_LABELS[ctx.catalog.status].label}`}>
+            <SectionCard title={t('Tu catálogo')} description={t('Estado: {status}', { status: t(STATUS_LABELS[ctx.catalog.status].label) })}>
               <CopyField value={catalogUrl(ctx.business.slug)} openable={published} />
               <Typography variant="caption" color="text.secondary" component="p" sx={{ mt: 1 }}>
                 {published && ctx.catalog.published_at
-                  ? `Publicado el ${formatDate(ctx.catalog.published_at)}. Los cambios se reflejan al instante.`
-                  : 'Publica el catálogo para que este enlace funcione.'}
+                  ? t('Publicado el {date}. Los cambios se reflejan al instante.', { date: formatDate(ctx.catalog.published_at, locale) })
+                  : t('Publica el catálogo para que este enlace funcione.')}
               </Typography>
               {hidden > 0 && (
                 <Typography variant="caption" color="text.secondary" component="p">
-                  {hidden} ítem(s) ocultos no se muestran al público.
+                  {t('{count} ítem(s) ocultos no se muestran al público.', { count: hidden })}
                 </Typography>
               )}
             </SectionCard>
@@ -107,13 +111,13 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
               ))}
             </Grid>
 
-            <SectionCard title="Tu sitio web" description={`${pages.length} página(s): ${pages.map((p) => p.title).join(', ') || 'ninguna'}.`}>
+            <SectionCard title={t('Tu sitio web')} description={t('{count} página(s): {pages}.', { count: pages.length, pages: pages.map((p) => p.title).join(', ') || t('ninguna') })}>
               <Stack direction="row" spacing={1}>
                 <LinkButton href="/dashboard/sitio" variant="contained" startIcon={<Palette size={14} />}>
-                  Abrir el editor
+                  {t('Abrir el editor')}
                 </LinkButton>
                 <LinkButton href="/dashboard/export/pdf" variant="outlined" color="inherit">
-                  Catálogo en PDF
+                  {t('Catálogo en PDF')}
                 </LinkButton>
               </Stack>
             </SectionCard>

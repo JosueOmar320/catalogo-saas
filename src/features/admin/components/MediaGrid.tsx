@@ -5,14 +5,18 @@ import { Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useConfirm } from '@/components/feedback/ConfirmProvider';
+import { useT } from '@/i18n/client';
+import { msg } from '@/i18n/translate';
 import { useAction } from '@/lib/hooks/use-action';
 import { deleteMedia } from '../actions';
-import { formatDay, matches, SearchField } from './common';
+import { matches, SearchField, useDateFormat } from './common';
 
 type Item = { id: string; url: string; alt: string; businessName: string; source: string; createdAt: string; width: number | null; height: number | null };
-const SOURCE: Record<string, string> = { upload: 'Subida', import: 'Importada', stock: 'Banco libre', chat: 'Chat' };
+const SOURCE: Record<string, string> = { upload: msg('Subida'), import: msg('Importada'), stock: msg('Banco libre'), chat: msg('Chat') };
 
 export function MediaGrid({ items }: { items: Item[] }) {
+  const t = useT();
+  const { formatDay } = useDateFormat();
   const [query, setQuery] = useState('');
   const router = useRouter();
   const confirm = useConfirm();
@@ -20,9 +24,9 @@ export function MediaGrid({ items }: { items: Item[] }) {
   const list = items.filter((i) => matches(query, i.alt, i.businessName));
   return (
     <Stack spacing={1.5}>
-      <SearchField value={query} onChange={setQuery} placeholder="Buscar por negocio o descripción" />
+      <SearchField value={query} onChange={setQuery} placeholder={t('Buscar por negocio o descripción')} />
       {list.length === 0 ? (
-        <Typography color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>No hay imágenes.</Typography>
+        <Typography color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>{t('No hay imágenes.')}</Typography>
       ) : (
         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 1.5 }}>
           {list.map((m) => (
@@ -31,14 +35,19 @@ export function MediaGrid({ items }: { items: Item[] }) {
               <Stack direction="row" sx={{ p: 1, alignItems: 'flex-start' }}>
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                   <Typography variant="caption" sx={{ fontWeight: 600 }} noWrap component="p">{m.businessName}</Typography>
-                  <Typography variant="caption" color="text.secondary" noWrap component="p">{m.alt || 'Sin descripción'} · {formatDay(m.createdAt)}</Typography>
-                  <Chip size="small" label={SOURCE[m.source] ?? m.source} sx={{ mt: 0.5, height: 20, fontSize: 11 }} />
+                  <Typography variant="caption" color="text.secondary" noWrap component="p">{m.alt || t('Sin descripción')} · {formatDay(m.createdAt)}</Typography>
+                  <Chip size="small" label={SOURCE[m.source] ? t(SOURCE[m.source]) : m.source} sx={{ mt: 0.5, height: 20, fontSize: 11 }} />
                 </Box>
-                <Tooltip title="Quitar de la biblioteca">
+                <Tooltip title={t('Quitar de la biblioteca')}>
                   <IconButton
                     size="small"
                     onClick={async () => {
-                      const ok = await confirm({ title: '¿Quitar la imagen de la biblioteca?', description: 'Deja de aparecer para elegirla. Si ya se usa en un sitio, seguirá visible allí.', confirmLabel: 'Quitar', destructive: true });
+                      const ok = await confirm({
+                        title: t('¿Quitar la imagen de la biblioteca?'),
+                        description: t('Deja de aparecer para elegirla. Si ya se usa en un sitio, seguirá visible allí.'),
+                        confirmLabel: t('Quitar'),
+                        destructive: true,
+                      });
                       if (ok) void run(() => deleteMedia(m.id), { onSuccess: () => router.refresh() });
                     }}
                   >

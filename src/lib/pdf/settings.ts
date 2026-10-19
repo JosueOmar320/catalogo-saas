@@ -3,6 +3,7 @@ import { collection, lenientCollectionSchema, SORT_OPTIONS } from '@/lib/catalog
 import { lenientPresentationSchema, presentation, type Presentation, type ProductLayout } from '@/lib/catalog/presentation';
 import { buildBackgroundSchema } from '@/lib/design/background';
 import { fieldFactory, hexColor } from '@/lib/design/schema-utils';
+import { msg } from '@/i18n/translate';
 
 /**
  * Configuración del PDF (catalogs.pdf), v2: constructor de catálogos por
@@ -24,17 +25,17 @@ export const PDF_TEMPLATES = ['commercial', 'catalog', 'editorial', 'minimal', '
 export type PdfTemplateId = (typeof PDF_TEMPLATES)[number];
 
 export const PDF_TEMPLATE_META: Record<PdfTemplateId, { label: string; description: string }> = {
-  commercial: { label: 'Comercial', description: 'Portada con banda de color, ondas decorativas, precios destacados y pie con redes.' },
-  catalog: { label: 'Catálogo clásico', description: 'Portada con foto, índice, categorías con imagen y cuadrícula de tarjetas.' },
-  editorial: { label: 'Editorial', description: 'Como una revista: portada dividida, capítulos numerados y filas alternadas.' },
-  minimal: { label: 'Minimal', description: 'Mucho aire, líneas finas y lista compacta con miniaturas.' },
-  brochure: { label: 'Folleto de servicios', description: 'Portada a sangre, zigzag con imágenes en arco y pocas piezas por página.' },
-  technical: { label: 'Ficha técnica', description: 'Fichas con especificaciones, códigos, tabla comparativa y numeración.' },
-  menu: { label: 'Menú / Lista de precios', description: 'Dos columnas con puntos guía hasta el precio y ornamentos.' },
-  modern: { label: 'Moderno', description: 'Bloques de color, etiquetas de categoría y precios en píldora.' },
-  luxury: { label: 'Lujo', description: 'Marcos dobles, ornamentos y tipografía espaciada.' },
-  corporate: { label: 'Corporativo', description: 'Sobrio y ordenado: banda de color, encabezado con logo, fichas con códigos y contraportada.' },
-  productBrochure: { label: 'Folleto de producto', description: 'Pocos productos con mucho protagonismo: fotos grandes, página promocional y contraportada.' },
+  commercial: { label: msg('Comercial'), description: msg('Portada con banda de color, ondas decorativas, precios destacados y pie con redes.') },
+  catalog: { label: msg('Catálogo clásico'), description: msg('Portada con foto, índice, categorías con imagen y cuadrícula de tarjetas.') },
+  editorial: { label: msg('Editorial'), description: msg('Como una revista: portada dividida, capítulos numerados y filas alternadas.') },
+  minimal: { label: msg('Minimal'), description: msg('Mucho aire, líneas finas y lista compacta con miniaturas.') },
+  brochure: { label: msg('Folleto de servicios'), description: msg('Portada a sangre, zigzag con imágenes en arco y pocas piezas por página.') },
+  technical: { label: msg('Ficha técnica'), description: msg('Fichas con especificaciones, códigos, tabla comparativa y numeración.') },
+  menu: { label: msg('Menú / Lista de precios'), description: msg('Dos columnas con puntos guía hasta el precio y ornamentos.') },
+  modern: { label: msg('Moderno'), description: msg('Bloques de color, etiquetas de categoría y precios en píldora.') },
+  luxury: { label: msg('Lujo'), description: msg('Marcos dobles, ornamentos y tipografía espaciada.') },
+  corporate: { label: msg('Corporativo'), description: msg('Sobrio y ordenado: banda de color, encabezado con logo, fichas con códigos y contraportada.') },
+  productBrochure: { label: msg('Folleto de producto'), description: msg('Pocos productos con mucho protagonismo: fotos grandes, página promocional y contraportada.') },
 };
 
 /* ------------------------------------------------------------ Opciones */
@@ -42,47 +43,47 @@ export const PDF_TEMPLATE_META: Record<PdfTemplateId, { label: string; descripti
 export const COVER_LAYOUTS = ['imageTop', 'fullImage', 'split', 'band', 'centered', 'framed', 'minimal'] as const;
 export type CoverLayout = (typeof COVER_LAYOUTS)[number];
 export const COVER_LAYOUT_LABELS: Record<CoverLayout, string> = {
-  imageTop: 'Foto arriba',
-  fullImage: 'Foto a sangre',
-  split: 'Dividida',
-  band: 'Banda de color',
-  centered: 'Centrada',
-  framed: 'Con marco',
-  minimal: 'Sólo texto',
+  imageTop: msg('Foto arriba'),
+  fullImage: msg('Foto a sangre'),
+  split: msg('Dividida'),
+  band: msg('Banda de color'),
+  centered: msg('Centrada'),
+  framed: msg('Con marco'),
+  minimal: msg('Sólo texto'),
 };
 
 export const DECORATIONS = ['none', 'waves', 'blobs', 'lines', 'dots'] as const;
-export const DECORATION_LABELS: Record<(typeof DECORATIONS)[number], string> = { none: 'Ninguna', waves: 'Ondas', blobs: 'Formas orgánicas', lines: 'Líneas', dots: 'Puntos' };
+export const DECORATION_LABELS: Record<(typeof DECORATIONS)[number], string> = { none: msg('Ninguna'), waves: msg('Ondas'), blobs: msg('Formas orgánicas'), lines: msg('Líneas'), dots: msg('Puntos') };
 
 export const CATEGORY_STYLES = ['simple', 'image', 'hero', 'editorial'] as const;
 export const CATEGORY_STYLE_LABELS: Record<(typeof CATEGORY_STYLES)[number], string> = {
-  simple: 'Título simple',
-  image: 'Banda con imagen',
-  hero: 'Portada de categoría (página completa)',
-  editorial: 'Capítulo numerado',
+  simple: msg('Título simple'),
+  image: msg('Banda con imagen'),
+  hero: msg('Portada de categoría (página completa)'),
+  editorial: msg('Capítulo numerado'),
 };
 
 export const PDF_BLOCK_TYPES = ['cover', 'toc', 'catalog', 'products', 'comparison', 'text', 'gallery', 'image', 'promo', 'page', 'contact', 'backCover', 'pageBreak'] as const;
 export type PdfBlockType = (typeof PDF_BLOCK_TYPES)[number];
 
 export const PDF_BLOCK_META: Record<PdfBlockType, { label: string; description: string }> = {
-  cover: { label: 'Portada', description: 'Primera página: logo, título, imagen y datos.' },
-  toc: { label: 'Índice', description: 'Contenido con números de página y enlaces.' },
-  catalog: { label: 'Catálogo por categorías', description: 'Todos los ítems agrupados por categoría.' },
-  products: { label: 'Colección de productos', description: 'Destacados, ofertas, una marca, elegidos a mano…' },
-  comparison: { label: 'Tabla comparativa', description: 'Compara ítems por precio y atributos.' },
-  text: { label: 'Página de información', description: 'Texto libre con imagen: nosotros, políticas, garantía.' },
-  gallery: { label: 'Galería', description: 'Fotos de tus ítems o imágenes propias.' },
-  image: { label: 'Página de imagen', description: 'Una foto grande o a página completa, con texto opcional encima.' },
-  promo: { label: 'Página promocional', description: 'Oferta o novedad destacada: titular, imagen, etiqueta de descuento y llamado a la acción.' },
-  page: { label: 'Página del sitio', description: 'Una página de tu sitio adaptada a impresión.' },
-  contact: { label: 'Contacto', description: 'Datos de contacto, redes y notas (formas de pago, políticas).' },
-  backCover: { label: 'Contraportada', description: 'Última página: logo, mensaje de cierre y datos de contacto.' },
-  pageBreak: { label: 'Salto de página', description: 'Lo que sigue empieza en una página nueva.' },
+  cover: { label: msg('Portada'), description: msg('Primera página: logo, título, imagen y datos.') },
+  toc: { label: msg('Índice'), description: msg('Contenido con números de página y enlaces.') },
+  catalog: { label: msg('Catálogo por categorías'), description: msg('Todos los ítems agrupados por categoría.') },
+  products: { label: msg('Colección de productos'), description: msg('Destacados, ofertas, una marca, elegidos a mano…') },
+  comparison: { label: msg('Tabla comparativa'), description: msg('Compara ítems por precio y atributos.') },
+  text: { label: msg('Página de información'), description: msg('Texto libre con imagen: nosotros, políticas, garantía.') },
+  gallery: { label: msg('Galería'), description: msg('Fotos de tus ítems o imágenes propias.') },
+  image: { label: msg('Página de imagen'), description: msg('Una foto grande o a página completa, con texto opcional encima.') },
+  promo: { label: msg('Página promocional'), description: msg('Oferta o novedad destacada: titular, imagen, etiqueta de descuento y llamado a la acción.') },
+  page: { label: msg('Página del sitio'), description: msg('Una página de tu sitio adaptada a impresión.') },
+  contact: { label: msg('Contacto'), description: msg('Datos de contacto, redes y notas (formas de pago, políticas).') },
+  backCover: { label: msg('Contraportada'), description: msg('Última página: logo, mensaje de cierre y datos de contacto.') },
+  pageBreak: { label: msg('Salto de página'), description: msg('Lo que sigue empieza en una página nueva.') },
 };
 
 export const PDF_DENSITIES = ['compact', 'normal', 'airy'] as const;
-export const PDF_DENSITY_LABELS: Record<(typeof PDF_DENSITIES)[number], string> = { compact: 'Compacto', normal: 'Normal', airy: 'Amplio' };
+export const PDF_DENSITY_LABELS: Record<(typeof PDF_DENSITIES)[number], string> = { compact: msg('Compacto'), normal: msg('Normal'), airy: msg('Espacioso') };
 
 /* ------------------------------------------------------------ Esquemas */
 

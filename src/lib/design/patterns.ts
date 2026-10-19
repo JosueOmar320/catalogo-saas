@@ -1,3 +1,5 @@
+import { msg } from '@/i18n/translate';
+
 /**
  * Patrones y texturas descritos como geometría. La misma descripción se
  * convierte en SVG (web, como data URI) y en figuras de react-pdf (PDF):
@@ -26,18 +28,18 @@ function specks(count: number, size: number, seed: number): PatternShape[] {
 }
 
 export const PATTERNS: Record<PatternId, PatternDef> = {
-  dots: { label: 'Puntos', tile: 20, shapes: [{ kind: 'circle', cx: 10, cy: 10, r: 1.6 }] },
+  dots: { label: msg('Puntos'), tile: 20, shapes: [{ kind: 'circle', cx: 10, cy: 10, r: 1.6 }] },
   grid: {
-    label: 'Cuadrícula',
+    label: msg('Cuadrícula'),
     tile: 24,
     shapes: [
       { kind: 'line', x1: 0, y1: 0, x2: 24, y2: 0, width: 1 },
       { kind: 'line', x1: 0, y1: 0, x2: 0, y2: 24, width: 1 },
     ],
   },
-  lines: { label: 'Líneas', tile: 14, shapes: [{ kind: 'line', x1: 0, y1: 7, x2: 14, y2: 7, width: 1 }] },
+  lines: { label: msg('Líneas'), tile: 14, shapes: [{ kind: 'line', x1: 0, y1: 7, x2: 14, y2: 7, width: 1 }] },
   diagonal: {
-    label: 'Diagonal',
+    label: msg('Diagonal'),
     tile: 16,
     shapes: [
       { kind: 'line', x1: 0, y1: 16, x2: 16, y2: 0, width: 1.2 },
@@ -46,7 +48,7 @@ export const PATTERNS: Record<PatternId, PatternDef> = {
     ],
   },
   cross: {
-    label: 'Cruces',
+    label: msg('Cruces'),
     tile: 28,
     shapes: [
       { kind: 'line', x1: 10, y1: 14, x2: 18, y2: 14, width: 1.4 },
@@ -54,17 +56,17 @@ export const PATTERNS: Record<PatternId, PatternDef> = {
     ],
   },
   checks: {
-    label: 'Cuadros',
+    label: msg('Cuadros'),
     tile: 32,
     shapes: [
       { kind: 'rect', x: 0, y: 0, w: 16, h: 16 },
       { kind: 'rect', x: 16, y: 16, w: 16, h: 16 },
     ],
   },
-  waves: { label: 'Ondas', tile: 40, shapes: [{ kind: 'path', d: 'M0 20 Q 10 10 20 20 T 40 20', width: 1.3 }] },
-  zigzag: { label: 'Zigzag', tile: 24, shapes: [{ kind: 'path', d: 'M0 16 L6 8 L12 16 L18 8 L24 16', width: 1.3 }] },
+  waves: { label: msg('Ondas'), tile: 40, shapes: [{ kind: 'path', d: 'M0 20 Q 10 10 20 20 T 40 20', width: 1.3 }] },
+  zigzag: { label: msg('Zigzag'), tile: 24, shapes: [{ kind: 'path', d: 'M0 16 L6 8 L12 16 L18 8 L24 16', width: 1.3 }] },
   linen: {
-    label: 'Lino',
+    label: msg('Lino'),
     tile: 6,
     texture: true,
     shapes: [
@@ -72,7 +74,7 @@ export const PATTERNS: Record<PatternId, PatternDef> = {
       { kind: 'line', x1: 1.5, y1: 0, x2: 1.5, y2: 6, width: 0.6 },
     ],
   },
-  paper: { label: 'Papel', tile: 60, texture: true, shapes: specks(26, 60, 7) },
+  paper: { label: msg('Papel'), tile: 60, texture: true, shapes: specks(26, 60, 7) },
 };
 
 /** SVG de una baldosa del patrón (web). */

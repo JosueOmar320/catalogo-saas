@@ -21,6 +21,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { useConfirm } from '@/components/feedback/ConfirmProvider';
+import { useT } from '@/i18n/client';
 import { useAction } from '@/lib/hooks/use-action';
 import { deleteItem, duplicateItem, toggleItemField } from '../actions';
 
@@ -50,6 +51,7 @@ const FIELD_KEY: Record<ToggleField, 'isVisible' | 'isAvailable' | 'isFeatured'>
 };
 
 export function ItemsTable({ items: initialItems, categories }: Props) {
+  const t = useT();
   const router = useRouter();
   const confirm = useConfirm();
   const { run } = useAction();
@@ -87,9 +89,9 @@ export function ItemsTable({ items: initialItems, categories }: Props) {
   const handleDelete = async (item: ItemRowData) => {
     setMenu(null);
     const ok = await confirm({
-      title: `¿Eliminar "${item.name}"?`,
-      description: 'Dejará de mostrarse en el catálogo. Esta acción no se puede deshacer desde el panel.',
-      confirmLabel: 'Eliminar',
+      title: t('¿Eliminar "{name}"?', { name: item.name }),
+      description: t('Dejará de mostrarse en el catálogo. Esta acción no se puede deshacer desde el panel.'),
+      confirmLabel: t('Eliminar'),
       destructive: true,
     });
     if (!ok) return;
@@ -101,24 +103,24 @@ export function ItemsTable({ items: initialItems, categories }: Props) {
     <Paper variant="outlined">
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ p: 1.5, borderBottom: 1, borderColor: 'divider' }}>
         <TextField
-          placeholder="Buscar por nombre o código"
+          placeholder={t('Buscar por nombre o código')}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           sx={{ maxWidth: { sm: 320 } }}
           slotProps={{ input: { startAdornment: <InputAdornment position="start"><Search size={15} /></InputAdornment> } }}
         />
         <TextField select value={category} onChange={(e) => setCategory(e.target.value)} sx={{ maxWidth: { sm: 220 } }} slotProps={{ select: { native: true } }}>
-          <option value="all">Todas las categorías</option>
+          <option value="all">{t('Todas las categorías')}</option>
           {categories.map((c) => (
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
-          <option value="none">Sin categoría</option>
+          <option value="none">{t('Sin categoría')}</option>
         </TextField>
       </Stack>
 
       {visibleItems.length === 0 ? (
         <Typography variant="body2" color="text.secondary" sx={{ p: 4, textAlign: 'center' }}>
-          No hay resultados para este filtro.
+          {t('No hay resultados para este filtro.')}
         </Typography>
       ) : (
         <Box component="ul" sx={{ listStyle: 'none', m: 0, p: 0 }}>
@@ -134,20 +136,20 @@ export function ItemsTable({ items: initialItems, categories }: Props) {
               <Box component={Link} href={`/dashboard/catalog/items/${item.id}`} sx={{ flex: 1, minWidth: 0, color: 'inherit', textDecoration: 'none', '&:hover .name': { textDecoration: 'underline' } }}>
                 <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
                   <Typography className="name" variant="body2" noWrap sx={{ fontWeight: 600 }}>{item.name}</Typography>
-                  {item.isFeatured && <Star size={13} fill="#F59E0B" color="#F59E0B" aria-label="Destacado" />}
+                  {item.isFeatured && <Star size={13} fill="#F59E0B" color="#F59E0B" aria-label={t('Destacado')} />}
                 </Stack>
                 <Typography variant="caption" color="text.secondary" noWrap component="p">
-                  {[item.categoryName ?? 'Sin categoría', item.sku].filter(Boolean).join(' · ')}
+                  {[item.categoryName ?? t('Sin categoría'), item.sku].filter(Boolean).join(' · ')}
                 </Typography>
               </Box>
-              {!item.isAvailable && <Chip label="Agotado" variant="outlined" sx={{ display: { xs: 'none', sm: 'inline-flex' } }} />}
+              {!item.isAvailable && <Chip label={t('Agotado')} variant="outlined" sx={{ display: { xs: 'none', sm: 'inline-flex' } }} />}
               <Typography variant="body2" sx={{ width: 96, textAlign: 'right', display: { xs: 'none', sm: 'block' }, fontVariantNumeric: 'tabular-nums' }}>
                 {item.priceLabel ?? '—'}
               </Typography>
-              <Tooltip title={item.isVisible ? 'Visible en el catálogo' : 'Oculto'}>
-                <Switch checked={item.isVisible} onChange={(e) => toggle(item, 'is_visible', e.target.checked)} slotProps={{ input: { 'aria-label': 'Visible en el catálogo' } }} />
+              <Tooltip title={item.isVisible ? t('Visible en el catálogo') : t('Oculto')}>
+                <Switch checked={item.isVisible} onChange={(e) => toggle(item, 'is_visible', e.target.checked)} slotProps={{ input: { 'aria-label': t('Visible en el catálogo') } }} />
               </Tooltip>
-              <IconButton onClick={(e) => setMenu({ anchor: e.currentTarget, item })} aria-label={`Acciones de ${item.name}`}>
+              <IconButton onClick={(e) => setMenu({ anchor: e.currentTarget, item })} aria-label={t('Acciones de {name}', { name: item.name })}>
                 <MoreHorizontal size={16} />
               </IconButton>
             </Box>
@@ -158,19 +160,19 @@ export function ItemsTable({ items: initialItems, categories }: Props) {
       <Menu anchorEl={menu?.anchor} open={Boolean(menu)} onClose={() => setMenu(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }} transformOrigin={{ vertical: 'top', horizontal: 'right' }}>
         {menu && [
           <MenuItem key="edit" component={Link} href={`/dashboard/catalog/items/${menu.item.id}`}>
-            <ListItemIcon><Pencil size={15} /></ListItemIcon>Editar
+            <ListItemIcon><Pencil size={15} /></ListItemIcon>{t('Editar')}
           </MenuItem>,
           <MenuItem key="dup" onClick={() => { const id = menu.item.id; setMenu(null); void run(() => duplicateItem(id), { onSuccess: () => router.refresh() }); }}>
-            <ListItemIcon><Copy size={15} /></ListItemIcon>Duplicar
+            <ListItemIcon><Copy size={15} /></ListItemIcon>{t('Duplicar')}
           </MenuItem>,
           <MenuItem key="feat" onClick={() => { const it = menu.item; setMenu(null); toggle(it, 'is_featured', !it.isFeatured); }}>
-            <ListItemIcon><Star size={15} /></ListItemIcon>{menu.item.isFeatured ? 'Quitar de destacados' : 'Destacar'}
+            <ListItemIcon><Star size={15} /></ListItemIcon>{menu.item.isFeatured ? t('Quitar de destacados') : t('Destacar')}
           </MenuItem>,
           <MenuItem key="avail" onClick={() => { const it = menu.item; setMenu(null); toggle(it, 'is_available', !it.isAvailable); }}>
-            <ListItemIcon><PackageX size={15} /></ListItemIcon>{menu.item.isAvailable ? 'Marcar como agotado' : 'Marcar como disponible'}
+            <ListItemIcon><PackageX size={15} /></ListItemIcon>{menu.item.isAvailable ? t('Marcar como agotado') : t('Marcar como disponible')}
           </MenuItem>,
           <MenuItem key="del" onClick={() => void handleDelete(menu.item)} sx={{ color: 'error.main' }}>
-            <ListItemIcon sx={{ color: 'inherit' }}><Trash2 size={15} /></ListItemIcon>Eliminar
+            <ListItemIcon sx={{ color: 'inherit' }}><Trash2 size={15} /></ListItemIcon>{t('Eliminar')}
           </MenuItem>,
         ]}
       </Menu>

@@ -9,6 +9,7 @@ import { ContactActions } from './ContactActions';
 import { itemPath, type RenderEnv } from './env';
 import { PriceTag } from './PriceTag';
 import { SiteImage } from './SiteImage';
+import { siteTranslator, siteYesNo } from './site-i18n';
 import styles from './site.module.css';
 
 /**
@@ -88,7 +89,7 @@ export function ItemMedia({ item, className, sizes, priority, shape, frame, inde
 
 /** Atributos del ítem como "Origen: Chiapas · Tamaño: 12 oz". */
 export function ItemAttributes({ item, site, mode, className }: { item: CatalogItemView; site: SiteViewModel; mode: 'card' | 'all'; className?: string }) {
-  const attrs = visibleAttributes(item.attributes, site.attributeDefs, mode === 'card' ? 'card' : 'detail').filter((a) => !a.list || mode === 'all');
+  const attrs = visibleAttributes(item.attributes, site.attributeDefs, mode === 'card' ? 'card' : 'detail', siteYesNo(site.settings.language)).filter((a) => !a.list || mode === 'all');
   if (attrs.length === 0) return null;
   return (
     <ul className={`${styles.attrList} ${className ?? ''}`}>
@@ -107,6 +108,7 @@ export function ItemCard({ item, site, env, options = {} }: { item: CatalogItemV
   const style = options.style ?? cards.style;
   const imagePosition = options.imagePosition ?? cards.imagePosition;
   const f = resolveFields(site, options.fields);
+  const t = siteTranslator(site.settings.language);
 
   return (
     <article
@@ -121,7 +123,7 @@ export function ItemCard({ item, site, env, options = {} }: { item: CatalogItemV
         {f.image && (
           <div className={styles.mediaWrap}>
             <ItemMedia item={item} className={styles.cardMedia} sizes={options.sizes ?? '(max-width: 600px) 50vw, 300px'} priority={options.priority} shape={options.shape} frame={options.frame} />
-            {f.badges && <Badges item={item} theme={site.theme} />}
+            {f.badges && <Badges item={item} theme={site.theme} t={t} />}
           </div>
         )}
         <div className={styles.cardBody}>
@@ -129,14 +131,14 @@ export function ItemCard({ item, site, env, options = {} }: { item: CatalogItemV
           <h3 className={styles.cardTitle}>{item.name}</h3>
           {f.description && item.shortDescription && <p className={styles.cardDesc}>{item.shortDescription}</p>}
           {f.attributes !== 'none' && <ItemAttributes item={item} site={site} mode={f.attributes} />}
-          {f.sku && item.sku && <span className={styles.cardMeta}>Código: {item.sku}</span>}
-          {f.price && <PriceTag item={item} compare={f.compareAt} discount={f.discount} />}
-          {f.availability && !item.isAvailable && <span className={styles.availability}>No disponible</span>}
+          {f.sku && item.sku && <span className={styles.cardMeta}>{t('Código: {sku}', { sku: item.sku })}</span>}
+          {f.price && <PriceTag item={item} t={t} compare={f.compareAt} discount={f.discount} />}
+          {f.availability && !item.isAvailable && <span className={styles.availability}>{t('No disponible')}</span>}
         </div>
       </ItemLink>
       {f.button && item.isAvailable && (
         <div className={styles.cardActions}>
-          <ContactActions site={site} item={item} show="primary" small block appearance={cards.button === 'none' ? 'solid' : cards.button} shortLabel="Consultar" />
+          <ContactActions site={site} item={item} show="primary" small block appearance={cards.button === 'none' ? 'solid' : cards.button} shortLabel={t('Consultar')} />
         </div>
       )}
     </article>

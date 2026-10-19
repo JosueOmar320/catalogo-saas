@@ -6,6 +6,7 @@ import { requireBusinessContext } from '@/lib/auth/session';
 import { invalidatePublicCatalog } from '@/lib/catalog/cache';
 import { dbErrorMessage, fail, ok, type ActionResult } from '@/lib/utils/result';
 import { parseInput } from '@/lib/utils/validation';
+import { msg } from '@/i18n/translate';
 
 const reorderSchema = z.object({
   table: z.enum(['categories', 'catalog_items', 'catalog_item_images']),
@@ -18,8 +19,8 @@ export async function reorder(input: z.input<typeof reorderSchema>): Promise<Act
   const parsed = parseInput(reorderSchema, input);
   if (!parsed.success) return parsed.result;
   const { error } = await ctx.supabase.rpc('reorder_rows', { p_table: parsed.data.table, p_ids: parsed.data.ids });
-  if (error) return fail(dbErrorMessage(error, 'No se pudo guardar el orden.'));
+  if (error) return fail(dbErrorMessage(error, msg('No se pudo guardar el orden.')));
   invalidatePublicCatalog(ctx.business.slug);
   revalidatePath('/dashboard', 'layout');
-  return ok(undefined, 'Orden guardado');
+  return ok(undefined, msg('Orden guardado'));
 }

@@ -2,25 +2,40 @@
 
 import { Box, Chip, InputAdornment, TextField } from '@mui/material';
 import { Search } from 'lucide-react';
+import { useMemo } from 'react';
+import { useLocale, useT } from '@/i18n/client';
+import { msg } from '@/i18n/translate';
 
-const DATE = new Intl.DateTimeFormat('es', { dateStyle: 'medium' });
-const DATETIME = new Intl.DateTimeFormat('es', { dateStyle: 'medium', timeStyle: 'short' });
+type DateValue = string | null | undefined;
 
-export const formatDay = (value: string | null | undefined) => (value ? DATE.format(new Date(value)) : '—');
-export const formatMoment = (value: string | null | undefined) => (value ? DATETIME.format(new Date(value)) : 'Nunca');
+/** Fechas en el idioma activo de la app. */
+export function useDateFormat() {
+  const t = useT();
+  const locale = useLocale();
+  return useMemo(() => {
+    const day = new Intl.DateTimeFormat(locale, { dateStyle: 'medium' });
+    const moment = new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' });
+    return {
+      formatDay: (value: DateValue) => (value ? day.format(new Date(value)) : '—'),
+      formatMoment: (value: DateValue) => (value ? moment.format(new Date(value)) : t('Nunca')),
+    };
+  }, [locale, t]);
+}
 
-export function StatusChip({ status }: { status: 'active' | 'disabled' | 'suspended' | 'inactive' | 'published' | 'draft' | 'unpublished' }) {
-  const map = {
-    active: { label: 'Activo', color: 'success' },
-    disabled: { label: 'Desactivado', color: 'default' },
-    suspended: { label: 'Suspendido', color: 'warning' },
-    inactive: { label: 'Inactivo', color: 'default' },
-    published: { label: 'Publicado', color: 'success' },
-    draft: { label: 'Borrador', color: 'default' },
-    unpublished: { label: 'Despublicado', color: 'default' },
-  } as const;
-  const { label, color } = map[status];
-  return <Chip size="small" label={label} color={color} variant={color === 'default' ? 'outlined' : 'filled'} sx={{ fontWeight: 600 }} />;
+const STATUS = {
+  active: { label: msg('Activo'), color: 'success' },
+  disabled: { label: msg('Desactivado'), color: 'default' },
+  suspended: { label: msg('Suspendido'), color: 'warning' },
+  inactive: { label: msg('Inactivo'), color: 'default' },
+  published: { label: msg('Publicado'), color: 'success' },
+  draft: { label: msg('Borrador'), color: 'default' },
+  unpublished: { label: msg('Despublicado'), color: 'default' },
+} as const;
+
+export function StatusChip({ status }: { status: keyof typeof STATUS }) {
+  const t = useT();
+  const { label, color } = STATUS[status];
+  return <Chip size="small" label={t(label)} color={color} variant={color === 'default' ? 'outlined' : 'filled'} sx={{ fontWeight: 600 }} />;
 }
 
 export function SearchField({ value, onChange, placeholder }: { value: string; onChange: (value: string) => void; placeholder: string }) {

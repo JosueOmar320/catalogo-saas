@@ -1,12 +1,14 @@
 import type { CSSProperties } from 'react';
+import type { Translator } from '@/i18n/translate';
 import type { CatalogItemView } from '@/lib/catalog/view-model';
 import { readableOn } from '@/lib/design/color';
 import type { ThemeConfig } from '@/lib/design/theme';
 import { resolveBadges } from '@/lib/site/resolve';
+import { defaultText } from './default-texts';
 import styles from './site.module.css';
 
-/** `inline`: dentro del flujo del texto (listas, zigzag) en lugar de sobre la imagen. */
-export function Badges({ item, theme, inline }: { item: CatalogItemView; theme: ThemeConfig; inline?: boolean }) {
+/** `inline`: dentro del flujo del texto (listas, zigzag) en lugar de sobre la imagen. `t`: idioma del sitio para las etiquetas de fábrica. */
+export function Badges({ item, theme, t, inline }: { item: CatalogItemView; theme: ThemeConfig; t: Translator; inline?: boolean }) {
   const badges = resolveBadges(item, theme);
   if (badges.length === 0) return null;
   const { style, shape, position } = theme.badges;
@@ -20,7 +22,7 @@ export function Badges({ item, theme, inline }: { item: CatalogItemView; theme: 
           data-shape={shape}
           style={{ '--badge': badge.color, '--badge-text': readableOn(badge.color) } as CSSProperties}
         >
-          {badge.label}
+          {defaultText(badge.label, t)}
         </span>
       ))}
     </div>

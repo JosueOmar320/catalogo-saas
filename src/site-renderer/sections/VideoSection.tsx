@@ -1,5 +1,6 @@
 import { parseVideoUrl } from '@/lib/site/video';
 import { Placeholder, SectionFrame, SectionHead } from '../SectionFrame';
+import { siteTranslator } from '../site-i18n';
 import styles from '../site.module.css';
 import type { SectionProps } from './types';
 
@@ -7,6 +8,7 @@ const RATIO = { '16:9': '16 / 9', '4:3': '4 / 3', '1:1': '1 / 1', '9:16': '9 / 1
 
 export function VideoSection({ section, site, env }: SectionProps<'video'>) {
   const { content } = section;
+  const t = siteTranslator(site.settings.language);
   const video = content.url ? parseVideoUrl(content.url, { autoplay: content.autoplay }) : null;
   if (!video && env.mode === 'public') return null;
   const player = video && (
@@ -29,7 +31,7 @@ export function VideoSection({ section, site, env }: SectionProps<'video'>) {
   return (
     <SectionFrame section={section} theme={site.theme}>
       {!split && <SectionHead eyebrow={content.eyebrow} title={content.title} subtitle={content.subtitle} center />}
-      <Placeholder show={!video}>{content.url ? 'El enlace no es un video de YouTube, Vimeo, .mp4 o .webm.' : 'Pega el enlace de un video de YouTube, Vimeo o un archivo .mp4.'}</Placeholder>
+      <Placeholder show={!video}>{content.url ? t('El enlace no es un video de YouTube, Vimeo, .mp4 o .webm.') : t('Pega el enlace de un video de YouTube, Vimeo o un archivo .mp4.')}</Placeholder>
       {split ? (
         <div className={styles.videoSplit}>
           <div>

@@ -343,5 +343,12 @@ await expectErr('anon cannot call is_platform_admin', () => q(`select public.is_
 await expectErr('anon cannot call has_business_role', () => q(`select public.has_business_role($1, array['owner'])`, [bizA]), 'permission denied');
 await expectEq('anon still reads the public catalog', () => q(`select public.get_public_catalog('no-existe') c`).then((r) => r[0].c), null);
 
+// --- Idioma del perfil (20261022) ---
+await as(A);
+await expectEq('user can set own language', () => q(`update public.profiles set locale='en' where id=$1 returning locale`, [A]).then((r) => r[0].locale), 'en');
+await expectErr('only es/en are valid languages', () => q(`update public.profiles set locale='fr' where id=$1`, [A]), 'check constraint');
+await expectEq('user cannot change another profile language', async () => (await db.query(`update public.profiles set locale='en' where id=$1`, [B])).affectedRows, 0);
+await expectErr('locale grant does not open other columns', () => q(`update public.profiles set platform_role='admin' where id=$1`, [B]), 'permission denied');
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);

@@ -4,6 +4,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { LinkButton } from '@/components/ui/LinkButton';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { SectionCard } from '@/components/ui/SectionCard';
+import { getT } from '@/i18n/server';
 import { itemThumbnail, listCategories, listItemsWithImages } from '@/features/catalog/queries';
 import { requireBusinessContext } from '@/lib/auth/session';
 import { parseCatalogSettings } from '@/lib/catalog/settings';
@@ -15,6 +16,7 @@ import { ItemsTable, type ItemRowData } from './ItemsTable';
 /** Página de listado compartida por Productos y Servicios. */
 export async function ItemsPage({ type }: { type: ItemType }) {
   const ctx = await requireBusinessContext();
+  const t = await getT();
   const [categories, items] = await Promise.all([listCategories(ctx), listItemsWithImages(ctx)]);
   const { locale } = parseCatalogSettings(ctx.catalog.settings);
   const labels = ITEM_TYPE_LABELS[type];
@@ -40,15 +42,15 @@ export async function ItemsPage({ type }: { type: ItemType }) {
   return (
     <>
       <PageHeader
-        title={labels.plural}
+        title={t(labels.plural)}
         description={
           type === 'product'
-            ? 'Artículos que vendes: con precio, fotos y disponibilidad.'
-            : 'Lo que ofreces como servicio: con precio fijo, "desde" o a cotizar.'
+            ? t('Artículos que vendes: con precio, fotos y disponibilidad.')
+            : t('Lo que ofreces como servicio: con precio fijo, "desde" o a cotizar.')
         }
         actions={
           <LinkButton href={newHref} variant="contained" startIcon={<Plus size={15} />}>
-            {labels.newLabel}
+            {t(labels.newLabel)}
           </LinkButton>
         }
       />
@@ -56,12 +58,12 @@ export async function ItemsPage({ type }: { type: ItemType }) {
         <SectionCard>
           <EmptyState
             icon={type === 'product' ? Package : Wrench}
-            title={`Aún no tienes ${labels.plural.toLowerCase()}`}
-            description="Crear uno toma menos de un minuto: nombre, precio y una foto."
+            title={type === 'product' ? t('Aún no tienes productos') : t('Aún no tienes servicios')}
+            description={t('Crear uno toma menos de un minuto: nombre, precio y una foto.')}
             action={
               <Box>
                 <LinkButton href={newHref} variant="contained" startIcon={<Plus size={15} />}>
-                  {labels.newLabel}
+                  {t(labels.newLabel)}
                 </LinkButton>
               </Box>
             }

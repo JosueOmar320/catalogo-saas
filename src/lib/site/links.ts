@@ -12,7 +12,11 @@ export type LinkContext = {
   pages: Pick<SitePage, 'id' | 'slug' | 'isHome'>[];
   contact: BusinessContact;
   businessName: string;
+  /** Textos por defecto en el idioma del sitio (si faltan, español). */
+  texts?: LinkTexts;
 };
+
+export type LinkTexts = { whatsappMessage: string; url: string; phone: string; email: string };
 
 export function pagePath(basePath: string, page: Pick<SitePage, 'slug' | 'isHome'>): string {
   return page.isHome ? basePath || '/' : `${basePath}/${page.slug}`;
@@ -35,7 +39,7 @@ export function resolveLink(target: LinkTarget, ctx: LinkContext): { href: strin
     case 'whatsapp': {
       const number = digitsOnly(ctx.contact.whatsapp).replace('+', '');
       if (!number) return null;
-      const text = target.message.trim() || `Hola ${ctx.businessName}, quisiera más información.`;
+      const text = target.message.trim() || ctx.texts?.whatsappMessage || `Hola ${ctx.businessName}, quisiera más información.`;
       return { href: `https://wa.me/${number}?text=${encodeURIComponent(text)}`, external: true };
     }
     case 'phone': {

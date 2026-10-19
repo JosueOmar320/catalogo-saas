@@ -2,7 +2,9 @@
 
 import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
 import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
+import { useT } from '@/i18n/client';
 
+/** Textos ya traducidos por quien pide la confirmación (con t()). */
 type ConfirmOptions = {
   title: string;
   description?: string;
@@ -16,6 +18,7 @@ const ConfirmContext = createContext<ConfirmFn | null>(null);
 
 /** Confirmación sólo para acciones destructivas o irreversibles. */
 export function ConfirmProvider({ children }: { children: ReactNode }) {
+  const t = useT();
   const [options, setOptions] = useState<ConfirmOptions | null>(null);
   const resolver = useRef<((value: boolean) => void) | null>(null);
 
@@ -44,10 +47,10 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
         )}
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button color="inherit" onClick={() => close(false)}>
-            Cancelar
+            {t('Cancelar')}
           </Button>
           <Button variant="contained" color={options?.destructive ? 'error' : 'primary'} onClick={() => close(true)} autoFocus>
-            {options?.confirmLabel ?? 'Confirmar'}
+            {options?.confirmLabel ?? t('Confirmar')}
           </Button>
         </DialogActions>
       </Dialog>

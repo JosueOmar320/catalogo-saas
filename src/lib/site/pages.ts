@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { buildBackgroundSchema } from '@/lib/design/background';
 import { fieldFactory } from '@/lib/design/schema-utils';
+import { msg } from '@/i18n/translate';
 import { parseSections, sectionSchema, type Section } from './section-schemas';
 
 export const PAGE_SLUG_PATTERN = /^[a-z0-9]([a-z0-9-]{0,58}[a-z0-9])?$/;
@@ -38,11 +39,11 @@ export type PageSeo = z.output<typeof pageSeoSchema>;
 /** Página tal como la edita el builder y la guarda save_site. */
 export const pageSchema = z.object({
   id: z.uuid(),
-  title: z.string().trim().min(1, 'Escribe un nombre').max(80),
+  title: z.string().trim().min(1, msg('Escribe un nombre')).max(80),
   slug: z
     .string()
-    .regex(PAGE_SLUG_PATTERN, 'Usa letras minúsculas, números y guiones')
-    .refine((s) => !RESERVED_PAGE_SLUGS.includes(s), 'Esa dirección está reservada'),
+    .regex(PAGE_SLUG_PATTERN, msg('Usa letras minúsculas, números y guiones'))
+    .refine((s) => !RESERVED_PAGE_SLUGS.includes(s), msg('Esa dirección está reservada')),
   template: z.enum(PAGE_TEMPLATES).default('custom'),
   isHome: z.boolean(),
   isPublished: z.boolean(),

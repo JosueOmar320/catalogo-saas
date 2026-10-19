@@ -5,6 +5,7 @@ import { requireBusinessContext, type BusinessContext } from '@/lib/auth/session
 import { invalidatePublicCatalog } from '@/lib/catalog/cache';
 import { dbErrorMessage, fail, ok, type ActionResult } from '@/lib/utils/result';
 import { parseInput, uuidSchema } from '@/lib/utils/validation';
+import { msg } from '@/i18n/translate';
 import { isValidMediaPath, releaseStorageObjects } from '@/features/media/server';
 import { categoryFormSchema, type CategoryFormValues } from './schema';
 
@@ -17,7 +18,7 @@ export async function createCategory(input: CategoryFormValues): Promise<ActionR
   const ctx = await requireBusinessContext();
   const parsed = parseInput(categoryFormSchema, input);
   if (!parsed.success) return parsed.result;
-  if (!isValidMediaPath(ctx, parsed.data.imagePath)) return fail('Imagen inválida.');
+  if (!isValidMediaPath(ctx, parsed.data.imagePath)) return fail(msg('Imagen inválida.'));
 
   const { data: last } = await ctx.supabase
     .from('categories')
@@ -43,15 +44,15 @@ export async function createCategory(input: CategoryFormValues): Promise<ActionR
     .single();
   if (error) return fail(dbErrorMessage(error));
   afterChange(ctx);
-  return ok({ id: data.id }, 'Categoría creada');
+  return ok({ id: data.id }, msg('Categoría creada'));
 }
 
 export async function updateCategory(id: string, input: CategoryFormValues): Promise<ActionResult> {
   const ctx = await requireBusinessContext();
-  if (!uuidSchema.safeParse(id).success) return fail('Categoría inválida.');
+  if (!uuidSchema.safeParse(id).success) return fail(msg('Categoría inválida.'));
   const parsed = parseInput(categoryFormSchema, input);
   if (!parsed.success) return parsed.result;
-  if (!isValidMediaPath(ctx, parsed.data.imagePath)) return fail('Imagen inválida.');
+  if (!isValidMediaPath(ctx, parsed.data.imagePath)) return fail(msg('Imagen inválida.'));
 
   const { data: current } = await ctx.supabase
     .from('categories')
@@ -59,7 +60,7 @@ export async function updateCategory(id: string, input: CategoryFormValues): Pro
     .eq('id', id)
     .eq('catalog_id', ctx.catalog.id)
     .maybeSingle();
-  if (!current) return fail('La categoría ya no existe.');
+  if (!current) return fail(msg('La categoría ya no existe.'));
 
   const { error } = await ctx.supabase
     .from('categories')
@@ -75,12 +76,12 @@ export async function updateCategory(id: string, input: CategoryFormValues): Pro
     await releaseStorageObjects(ctx, [current.image_path]);
   }
   afterChange(ctx);
-  return ok(undefined, 'Categoría actualizada');
+  return ok(undefined, msg('Categoría actualizada'));
 }
 
 export async function setCategoryActive(id: string, isActive: boolean): Promise<ActionResult> {
   const ctx = await requireBusinessContext();
-  if (!uuidSchema.safeParse(id).success) return fail('Categoría inválida.');
+  if (!uuidSchema.safeParse(id).success) return fail(msg('Categoría inválida.'));
   const { error } = await ctx.supabase
     .from('categories')
     .update({ is_active: isActive })
@@ -88,13 +89,13 @@ export async function setCategoryActive(id: string, isActive: boolean): Promise<
     .eq('catalog_id', ctx.catalog.id);
   if (error) return fail(dbErrorMessage(error));
   afterChange(ctx);
-  return ok(undefined, isActive ? 'Categoría visible' : 'Categoría oculta');
+  return ok(undefined, isActive ? msg('Categoría visible') : msg('Categoría oculta'));
 }
 
 /** Borra la categoría (lógicamente). Sus ítems pasan a "Sin categoría". */
 export async function deleteCategory(id: string): Promise<ActionResult> {
   const ctx = await requireBusinessContext();
-  if (!uuidSchema.safeParse(id).success) return fail('Categoría inválida.');
+  if (!uuidSchema.safeParse(id).success) return fail(msg('Categoría inválida.'));
   const { error: itemsError } = await ctx.supabase
     .from('catalog_items')
     .update({ category_id: null })
@@ -108,5 +109,5 @@ export async function deleteCategory(id: string): Promise<ActionResult> {
     .eq('catalog_id', ctx.catalog.id);
   if (error) return fail(dbErrorMessage(error));
   afterChange(ctx);
-  return ok(undefined, 'Categoría eliminada');
+  return ok(undefined, msg('Categoría eliminada'));
 }

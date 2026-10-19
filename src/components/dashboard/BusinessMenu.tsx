@@ -5,6 +5,7 @@ import { Check, ChevronsUpDown } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { switchBusiness } from '@/features/business/actions';
+import { useT } from '@/i18n/client';
 import { useAction } from '@/lib/hooks/use-action';
 import { AccountMenuItems } from './AccountMenu';
 
@@ -18,6 +19,7 @@ type Props = {
 
 /** Selector de negocio (los asignados por el administrador) + cuenta. */
 export function BusinessMenu({ current, businesses, username, isAdmin, planName }: Props) {
+  const t = useT();
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const router = useRouter();
   const { run } = useAction();
@@ -33,12 +35,12 @@ export function BusinessMenu({ current, businesses, username, isAdmin, planName 
         </Avatar>
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography variant="body2" noWrap sx={{ fontWeight: 600 }}>{current.name}</Typography>
-          <Typography variant="caption" color="text.secondary" noWrap component="p">Plan {planName}</Typography>
+          <Typography variant="caption" color="text.secondary" noWrap component="p">{t('Plan {name}', { name: planName })}</Typography>
         </Box>
         <ChevronsUpDown size={14} />
       </ButtonBase>
       <AccountMenuItems anchor={anchor} onClose={() => setAnchor(null)} isAdmin={isAdmin} showDashboard={false}>
-        <Typography variant="overline" color="text.secondary" sx={{ px: 2 }}>Negocios</Typography>
+        <Typography variant="overline" color="text.secondary" sx={{ px: 2 }}>{t('Negocios')}</Typography>
         {businesses.map((b) => (
           <MenuItem
             key={b.id}

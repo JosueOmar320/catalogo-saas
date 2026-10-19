@@ -4,19 +4,21 @@ import { digitsOnly } from '@/lib/business/profile';
 import { ContactActions } from '../ContactActions';
 import { SectionFrame, SectionHead } from '../SectionFrame';
 import { SocialLinks } from '../SocialLinks';
+import { siteTranslator } from '../site-i18n';
 import styles from '../site.module.css';
 import type { SectionProps } from './types';
 
 export function ContactSection({ section, site, env }: SectionProps<'contact'>) {
   const { content } = section;
   const { contact } = site.business;
+  const t = siteTranslator(site.settings.language);
   const address = [contact.address, contact.city].filter(Boolean).join(', ');
   const rows = [
     content.showWhatsapp && contact.whatsapp && { key: 'wa', icon: MessageCircle, label: 'WhatsApp', value: contact.whatsapp, href: `https://wa.me/${digitsOnly(contact.whatsapp).replace('+', '')}` },
-    content.showPhone && contact.phone && { key: 'tel', icon: Phone, label: 'Teléfono', value: contact.phone, href: `tel:${digitsOnly(contact.phone)}` },
+    content.showPhone && contact.phone && { key: 'tel', icon: Phone, label: t('Teléfono'), value: contact.phone, href: `tel:${digitsOnly(contact.phone)}` },
     content.showEmail && contact.email && { key: 'mail', icon: Mail, label: 'Email', value: contact.email, href: `mailto:${contact.email}` },
-    content.showAddress && address && { key: 'addr', icon: MapPin, label: 'Dirección', value: address, href: contact.mapsUrl || undefined },
-    content.showHours && contact.hours && { key: 'hours', icon: Clock, label: 'Horarios', value: contact.hours, href: undefined },
+    content.showAddress && address && { key: 'addr', icon: MapPin, label: t('Dirección'), value: address, href: contact.mapsUrl || undefined },
+    content.showHours && contact.hours && { key: 'hours', icon: Clock, label: t('Horarios'), value: contact.hours, href: undefined },
   ].filter(Boolean) as { key: string; icon: typeof Phone; label: string; value: string; href?: string }[];
 
   const mapSrc = content.showMap ? mapEmbedSrc(contact) : null;
@@ -52,7 +54,7 @@ export function ContactSection({ section, site, env }: SectionProps<'contact'>) 
         </ul>
       )}
       {contact.additionalInfo && <p className={`${styles.muted} ${styles.preLine} ${styles.spaceTop}`}>{contact.additionalInfo}</p>}
-      {!hasAnything && <div className={styles.placeholder}>Completa tus datos en Configuración › Información de contacto.</div>}
+      {!hasAnything && <div className={styles.placeholder}>{t('Completa tus datos en Configuración › Información de contacto.')}</div>}
       {content.showActions && (
         <div className={`${styles.btnRow} ${styles.spaceTop} ${center ? styles.centerRow : ''}`}>
           <ContactActions site={site} />
@@ -70,7 +72,7 @@ export function ContactSection({ section, site, env }: SectionProps<'contact'>) 
     <SectionFrame section={section} theme={site.theme}>
       <div className={styles.contactLayout} data-layout={content.layout}>
         {info}
-        {mapSrc && <iframe className={styles.map} src={mapSrc} title={`Mapa de ${site.business.name}`} loading="lazy" referrerPolicy="no-referrer-when-downgrade" />}
+        {mapSrc && <iframe className={styles.map} src={mapSrc} title={t('Mapa de {name}', { name: site.business.name })} loading="lazy" referrerPolicy="no-referrer-when-downgrade" />}
       </div>
     </SectionFrame>
   );

@@ -3,6 +3,8 @@
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { getT } from '@/i18n/server';
+import { msg } from '@/i18n/translate';
 import { ACTIVE_BUSINESS_COOKIE, requirePlatformAdmin } from '@/lib/auth/session';
 import { internalAuthEmail } from '@/lib/auth/username';
 import { contactSchema } from '@/lib/business/profile';
@@ -60,11 +62,11 @@ export async function createUser(input: CreateUserValues): Promise<ActionResult<
   const { supabase, userId } = await requirePlatformAdmin();
   const parsed = parseInput(createUserSchema, input);
   if (!parsed.success) return parsed.result;
-  if (!isServiceRoleConfigured()) return fail('Configura SUPABASE_SERVICE_ROLE_KEY en el servidor para crear usuarios.');
+  if (!isServiceRoleConfigured()) return fail(msg('Configura SUPABASE_SERVICE_ROLE_KEY en el servidor para crear usuarios.'));
   const values = parsed.data;
 
   const { data: taken } = await supabase.from('profiles').select('id').eq('username', values.username).maybeSingle();
-  if (taken) return fail('Ese usuario ya existe.', { username: ['Ese usuario ya existe'] });
+  if (taken) return fail(msg('Ese usuario ya existe.'), { username: [msg('Ese usuario ya existe')] });
 
   const admin = createAdminClient();
   const { data, error } = await admin.auth.admin.createUser({
@@ -76,9 +78,9 @@ export async function createUser(input: CreateUserValues): Promise<ActionResult<
     app_metadata: { provisioned: true, username: values.username, contact_email: values.email || null, created_by: userId },
   });
   if (error || !data.user) {
-    if (error?.code === 'weak_password') return fail('La contraseña es muy débil.', { password: ['Usa una contraseña más fuerte'] });
-    if (error?.code === 'email_exists' || error?.code === 'user_already_exists') return fail('Ese usuario ya existe.', { username: ['Ese usuario ya existe'] });
-    return fail('No se pudo crear el usuario.');
+    if (error?.code === 'weak_password') return fail(msg('La contraseña es muy débil.'), { password: [msg('Usa una contraseña más fuerte')] });
+    if (error?.code === 'email_exists' || error?.code === 'user_already_exists') return fail(msg('Ese usuario ya existe.'), { username: [msg('Ese usuario ya existe')] });
+    return fail(msg('No se pudo crear el usuario.'));
   }
   const id = data.user.id;
 
@@ -98,25 +100,26 @@ export async function createUser(input: CreateUserValues): Promise<ActionResult<
     if (deleteError) console.error('[admin] no se pudo revertir la creación del usuario', { id, code: deleteError.code });
     return fail(message);
   };
-  if (profileError) return rollback(dbErrorMessage(profileError, 'No se pudo completar el perfil del usuario.'));
+  if (profileError) return rollback(dbErrorMessage(profileError, msg('No se pudo completar el perfil del usuario.')));
 
   for (const assignment of values.assignments) {
     const { error: assignError } = await supabase.rpc('admin_set_business_member', { p_business: assignment.businessId, p_user: id, p_role: assignment.role });
-    if (assignError) return rollback(dbErrorMessage(assignError, 'No se pudo asignar un negocio.'));
+    if (assignError) return rollback(dbErrorMessage(assignError, msg('No se pudo asignar un negocio.')));
   }
   await audit(supabase, 'user.create', id, { username: values.username, role: values.role });
   refresh('/admin/usuarios');
-  return ok({ id }, `Usuario @${values.username} creado`);
+  const t = await getT();
+  return ok({ id }, t('Usuario @{username} creado', { username: values.username }));
 }
 
 export async function updateUser(id: string, input: UpdateUserValues): Promise<ActionResult> {
   const { supabase } = await requirePlatformAdmin();
-  if (!isUuid(id)) return fail('El usuario no existe.');
+  if (!isUuid(id)) return fail(msg('El usuario no existe.'));
   const parsed = parseInput(updateUserSchema, input);
   if (!parsed.success) return parsed.result;
   const values = parsed.data;
   const { data: before } = await supabase.from('profiles').select('status').eq('id', id).single();
-  if (!before) return fail('El usuario no existe.');
+  if (!before) return fail(msg('El usuario no existe.'));
 
   const { error } = await supabase.rpc('admin_update_profile', {
     p_user: id,
@@ -134,44 +137,45 @@ export async function updateUser(id: string, input: UpdateUserValues): Promise<A
     if (banError) {
       refresh('/admin/usuarios');
       // RLS ya aplica el estado (sin acceso a datos); avisar que el inicio de sesión no cambió.
-      return fail('El estado se guardó, pero no se pudo actualizar el inicio de sesión. Intenta guardar de nuevo.');
+      return fail(msg('El estado se guardó, pero no se pudo actualizar el inicio de sesión. Intenta guardar de nuevo.'));
     }
   }
   refresh('/admin/usuarios');
-  return ok(undefined, values.status === 'disabled' && before.status !== 'disabled' ? 'Usuario desactivado' : 'Usuario guardado');
+  return ok(undefined, values.status === 'disabled' && before.status !== 'disabled' ? msg('Usuario desactivado') : msg('Usuario guardado'));
 }
 
 export async function resetUserPassword(id: string, input: { password: string }): Promise<ActionResult> {
   const { supabase } = await requirePlatformAdmin();
-  if (!isUuid(id)) return fail('El usuario no existe.');
+  if (!isUuid(id)) return fail(msg('El usuario no existe.'));
   const parsed = parseInput(resetPasswordSchema, input);
   if (!parsed.success) return parsed.result;
-  if (!isServiceRoleConfigured()) return fail('Configura SUPABASE_SERVICE_ROLE_KEY en el servidor.');
+  if (!isServiceRoleConfigured()) return fail(msg('Configura SUPABASE_SERVICE_ROLE_KEY en el servidor.'));
   const { data: profile } = await supabase.from('profiles').select('username').eq('id', id).single();
-  if (!profile) return fail('El usuario no existe.');
+  if (!profile) return fail(msg('El usuario no existe.'));
   const { error } = await createAdminClient().auth.admin.updateUserById(id, { password: parsed.data.password });
-  if (error) return fail(error.code === 'weak_password' ? 'La contraseña es muy débil.' : 'No se pudo cambiar la contraseña.');
+  if (error) return fail(error.code === 'weak_password' ? msg('La contraseña es muy débil.') : msg('No se pudo cambiar la contraseña.'));
   await audit(supabase, 'user.password_reset', id, { username: profile.username });
-  return ok(undefined, `Contraseña de @${profile.username} actualizada`);
+  const t = await getT();
+  return ok(undefined, t('Contraseña de @{username} actualizada', { username: profile.username }));
 }
 
 export async function setMembership(businessId: string, userId: string, role: MemberRole): Promise<ActionResult> {
   const { supabase } = await requirePlatformAdmin();
-  if (!isUuid(businessId, userId)) return fail('Datos inválidos.');
-  if (!(MEMBER_ROLES as readonly string[]).includes(role)) return fail('Rol inválido.');
+  if (!isUuid(businessId, userId)) return fail(msg('Datos inválidos.'));
+  if (!(MEMBER_ROLES as readonly string[]).includes(role)) return fail(msg('Rol inválido.'));
   const { error } = await supabase.rpc('admin_set_business_member', { p_business: businessId, p_user: userId, p_role: role });
   if (error) return fail(dbErrorMessage(error));
   refresh('/admin/usuarios', '/admin/negocios');
-  return ok(undefined, 'Acceso asignado');
+  return ok(undefined, msg('Acceso asignado'));
 }
 
 export async function removeMembership(businessId: string, userId: string): Promise<ActionResult> {
   const { supabase } = await requirePlatformAdmin();
-  if (!isUuid(businessId, userId)) return fail('Datos inválidos.');
+  if (!isUuid(businessId, userId)) return fail(msg('Datos inválidos.'));
   const { error } = await supabase.rpc('admin_remove_business_member', { p_business: businessId, p_user: userId });
   if (error) return fail(dbErrorMessage(error));
   refresh('/admin/usuarios', '/admin/negocios');
-  return ok(undefined, 'Acceso quitado');
+  return ok(undefined, msg('Acceso quitado'));
 }
 
 /* ------------------------------------------------------------ Negocios */
@@ -194,7 +198,7 @@ export async function createBusiness(input: CreateBusinessValues): Promise<Actio
     p_catalog_theme: theme as Json,
     p_catalog_settings: settings as Json,
   });
-  if (error || !businessId) return fail(dbErrorMessage(error, 'No se pudo crear el negocio.'), error?.message.includes('slug') ? { slug: ['Esa dirección ya está en uso'] } : undefined);
+  if (error || !businessId) return fail(dbErrorMessage(error, msg('No se pudo crear el negocio.')), error?.message.includes('slug') ? { slug: [msg('Esa dirección ya está en uso')] } : undefined);
 
   const { data: catalog } = await supabase.from('catalogs').select('id').eq('business_id', businessId).eq('is_default', true).single();
   let starterSaved = false;
@@ -205,7 +209,11 @@ export async function createBusiness(input: CreateBusinessValues): Promise<Actio
   }
   refresh('/admin/negocios', '/admin/catalogos');
   // El negocio existe igual; sin sitio inicial, el editor arranca con uno de ejemplo sin guardar.
-  return ok({ id: businessId }, starterSaved ? `Negocio «${values.name}» creado` : `Negocio «${values.name}» creado (el sitio inicial no se pudo guardar: créalo desde el editor)`);
+  const t = await getT();
+  return ok(
+    { id: businessId },
+    starterSaved ? t('Negocio «{name}» creado', { name: values.name }) : t('Negocio «{name}» creado (el sitio inicial no se pudo guardar: créalo desde el editor)', { name: values.name }),
+  );
 }
 
 export async function updateBusiness(id: string, input: UpdateBusinessValues): Promise<ActionResult> {
@@ -214,11 +222,11 @@ export async function updateBusiness(id: string, input: UpdateBusinessValues): P
   if (!parsed.success) return parsed.result;
   const { data: before } = await supabase.from('businesses').select('slug').eq('id', id).single();
   const { error } = await supabase.rpc('admin_update_business', { p_business: id, p_name: parsed.data.name, p_slug: parsed.data.slug, p_plan_id: parsed.data.planId, p_status: parsed.data.status });
-  if (error) return fail(dbErrorMessage(error), error.message.includes('slug') ? { slug: ['Esa dirección ya está en uso'] } : undefined);
+  if (error) return fail(dbErrorMessage(error), error.message.includes('slug') ? { slug: [msg('Esa dirección ya está en uso')] } : undefined);
   if (before) invalidatePublicCatalog(before.slug);
   invalidatePublicCatalog(parsed.data.slug);
   refresh('/admin/negocios');
-  return ok(undefined, parsed.data.status === 'suspended' ? 'Negocio guardado (suspendido)' : 'Negocio guardado');
+  return ok(undefined, parsed.data.status === 'suspended' ? msg('Negocio guardado (suspendido)') : msg('Negocio guardado'));
 }
 
 /** Abre el negocio en el editor (el admin opera con permisos de dueño; queda auditado). */
@@ -234,13 +242,13 @@ export async function openBusiness(id: string): Promise<void> {
 
 export async function createCatalog(businessId: string, name: string): Promise<ActionResult> {
   const { supabase } = await requirePlatformAdmin();
-  if (!isUuid(businessId)) return fail('El negocio no existe.');
+  if (!isUuid(businessId)) return fail(msg('El negocio no existe.'));
   const clean = name.trim().slice(0, 120);
-  if (!clean) return fail('Escribe un nombre.');
+  if (!clean) return fail(msg('Escribe un nombre.'));
   const { error } = await supabase.rpc('admin_create_catalog', { p_business: businessId, p_name: clean });
   if (error) return fail(dbErrorMessage(error));
   refresh('/admin/catalogos', '/admin/negocios');
-  return ok(undefined, 'Catálogo creado');
+  return ok(undefined, msg('Catálogo creado'));
 }
 
 export async function updateCatalog(id: string, input: UpdateCatalogValues): Promise<ActionResult> {
@@ -255,18 +263,18 @@ export async function updateCatalog(id: string, input: UpdateCatalogValues): Pro
     if (business) invalidatePublicCatalog(business.slug);
   }
   refresh('/admin/catalogos', '/admin/negocios');
-  return ok(undefined, parsed.data.isActive ? 'Catálogo guardado' : 'Catálogo desactivado');
+  return ok(undefined, parsed.data.isActive ? msg('Catálogo guardado') : msg('Catálogo desactivado'));
 }
 
 /* ------------------------------------------------------------ Medios */
 
 export async function deleteMedia(id: string): Promise<ActionResult> {
   const { supabase } = await requirePlatformAdmin();
-  if (!isUuid(id)) return fail('La imagen no existe.');
+  if (!isUuid(id)) return fail(msg('La imagen no existe.'));
   const { data: asset } = await supabase.from('media_assets').select('path, thumb_path').eq('id', id).single();
-  if (!asset) return fail('La imagen no existe.');
+  if (!asset) return fail(msg('La imagen no existe.'));
   const { error } = await supabase.from('media_assets').update({ deleted_at: new Date().toISOString() }).eq('id', id);
   if (error) return fail(dbErrorMessage(error));
   refresh('/admin/medios');
-  return ok(undefined, 'Imagen quitada de la biblioteca');
+  return ok(undefined, msg('Imagen quitada de la biblioteca'));
 }

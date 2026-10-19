@@ -31,6 +31,8 @@ import type { SitePage } from '@/lib/site/pages';
 import type { ButtonConfig, Columns, LinkTarget } from '@/lib/site/section-schemas';
 import { mediaUrl } from '@/lib/utils/storage';
 import { Icon } from '@/site-renderer/Icon';
+import { useT } from '@/i18n/client';
+import { msg } from '@/i18n/translate';
 
 /* ------------------------------------------------------------ Agrupadores */
 
@@ -49,11 +51,12 @@ export function Group({ title, description, children }: { title?: string; descri
 }
 
 /** Opciones avanzadas plegadas: la interfaz muestra primero lo esencial. */
-export function Advanced({ title = 'Opciones avanzadas', children, defaultOpen = false }: { title?: string; children: ReactNode; defaultOpen?: boolean }) {
+export function Advanced({ title, children, defaultOpen = false }: { title?: string; children: ReactNode; defaultOpen?: boolean }) {
+  const t = useT();
   return (
     <Accordion disableGutters elevation={0} defaultExpanded={defaultOpen} sx={{ bgcolor: 'transparent', '&:before': { display: 'none' }, borderBottom: 1, borderColor: 'divider' }}>
       <AccordionSummary expandIcon={<ChevronDown size={16} />} sx={{ px: 0, minHeight: 44 }}>
-        <Typography variant="h4">{title}</Typography>
+        <Typography variant="h4">{title ?? t('Opciones avanzadas')}</Typography>
       </AccordionSummary>
       <AccordionDetails sx={{ px: 0, pt: 0, pb: 2 }}>
         <Stack spacing={1.5}>{children}</Stack>
@@ -150,16 +153,17 @@ export function MediaInput({ label, value, onChange, description, aspect = '4 / 
 /* ------------------------------------------------------------ Texto enriquecido */
 
 const RICH_TOOLS = [
-  { title: 'Negrita', action: 'bold', icon: <Bold size={14} /> },
-  { title: 'Cursiva', action: 'italic', icon: <Italic size={14} /> },
-  { title: 'Lista', action: 'list', icon: <List size={14} /> },
-  { title: 'Lista numerada', action: 'ordered', icon: <ListOrdered size={14} /> },
-  { title: 'Enlace', action: 'link', icon: <Link2 size={14} /> },
-  { title: 'Subtítulo', action: 'heading', icon: <Typography sx={{ fontSize: 12, fontWeight: 700 }}>H</Typography> },
+  { title: msg('Negrita'), action: 'bold', icon: <Bold size={14} /> },
+  { title: msg('Cursiva'), action: 'italic', icon: <Italic size={14} /> },
+  { title: msg('Lista'), action: 'list', icon: <List size={14} /> },
+  { title: msg('Lista numerada'), action: 'ordered', icon: <ListOrdered size={14} /> },
+  { title: msg('Enlace'), action: 'link', icon: <Link2 size={14} /> },
+  { title: msg('Subtítulo'), action: 'heading', icon: <Typography sx={{ fontSize: 12, fontWeight: 700 }}>H</Typography> },
 ] as const;
 
 /** Textarea con barra mínima: **negrita**, *cursiva*, listas y enlaces. */
 export function RichTextInput({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  const t = useT();
   const ref = useRef<HTMLTextAreaElement>(null);
   const wrap = (before: string, after = before, placeholder = 'texto') => {
     const el = ref.current;
@@ -193,8 +197,8 @@ export function RichTextInput({ label, value, onChange }: { label: string; value
         <Typography variant="body2" sx={{ fontWeight: 500 }}>{label}</Typography>
         <Stack direction="row">
           {RICH_TOOLS.map((tool) => (
-            <Tooltip key={tool.title} title={tool.title}>
-              <IconButton size="small" onClick={() => apply(tool.action)} aria-label={tool.title}>{tool.icon}</IconButton>
+            <Tooltip key={tool.title} title={t(tool.title)}>
+              <IconButton size="small" onClick={() => apply(tool.action)} aria-label={t(tool.title)}>{tool.icon}</IconButton>
             </Tooltip>
           ))}
         </Stack>
@@ -207,29 +211,30 @@ export function RichTextInput({ label, value, onChange }: { label: string; value
 /* ------------------------------------------------------------ Íconos */
 
 export function IconPicker({ value, onChange }: { value: string; onChange: (value: (typeof ICON_IDS)[number]) => void }) {
+  const t = useT();
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const [query, setQuery] = useState('');
-  const list = ICON_IDS.filter((id) => !query || ICONS[id].label.toLowerCase().includes(query.toLowerCase()) || id.includes(query.toLowerCase()));
+  const list = ICON_IDS.filter((id) => !query || t(ICONS[id].label).toLowerCase().includes(query.toLowerCase()) || id.includes(query.toLowerCase()));
   return (
     <>
-      <Tooltip title="Cambiar ícono">
-        <ButtonBase onClick={(e) => setAnchor(e.currentTarget)} sx={{ width: 40, height: 40, borderRadius: 1, border: 1, borderColor: 'divider', flexShrink: 0 }} aria-label="Elegir ícono">
+      <Tooltip title={t('Cambiar ícono')}>
+        <ButtonBase onClick={(e) => setAnchor(e.currentTarget)} sx={{ width: 40, height: 40, borderRadius: 1, border: 1, borderColor: 'divider', flexShrink: 0 }} aria-label={t('Elegir ícono')}>
           <Icon id={value} size={20} />
         </ButtonBase>
       </Tooltip>
       <Popover open={Boolean(anchor)} anchorEl={anchor} onClose={() => setAnchor(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}>
         <Box sx={{ p: 1.5, width: 300 }}>
-          <TextField placeholder="Buscar ícono" value={query} onChange={(e) => setQuery(e.target.value)} autoFocus />
+          <TextField placeholder={t('Buscar ícono')} value={query} onChange={(e) => setQuery(e.target.value)} autoFocus />
           <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 0.5, mt: 1, maxHeight: 240, overflowY: 'auto' }}>
             {list.map((id) => (
-              <Tooltip key={id} title={ICONS[id].label}>
+              <Tooltip key={id} title={t(ICONS[id].label)}>
                 <ButtonBase
                   onClick={() => {
                     onChange(id);
                     setAnchor(null);
                   }}
                   sx={{ height: 36, borderRadius: 1, bgcolor: id === value ? 'primary.light' : 'transparent', '&:hover': { bgcolor: 'action.hover' } }}
-                  aria-label={ICONS[id].label}
+                  aria-label={t(ICONS[id].label)}
                 >
                   <Icon id={id} size={18} />
                 </ButtonBase>
@@ -245,43 +250,45 @@ export function IconPicker({ value, onChange }: { value: string; onChange: (valu
 /* ------------------------------------------------------------ Enlaces y botones */
 
 const LINK_KINDS: { value: LinkTarget['kind']; label: string }[] = [
-  { value: 'none', label: 'Sin enlace' },
-  { value: 'page', label: 'Página del sitio' },
+  { value: 'none', label: msg('Sin enlace') },
+  { value: 'page', label: msg('Página del sitio') },
   { value: 'whatsapp', label: 'WhatsApp' },
-  { value: 'phone', label: 'Llamada' },
-  { value: 'email', label: 'Email' },
-  { value: 'url', label: 'Enlace externo' },
+  { value: 'phone', label: msg('Llamada') },
+  { value: 'email', label: msg('Email') },
+  { value: 'url', label: msg('Enlace externo') },
 ];
 
 export function LinkEditor({ value, onChange, pages }: { value: LinkTarget; onChange: (value: LinkTarget) => void; pages: SitePage[] }) {
+  const t = useT();
   return (
     <Stack spacing={1.25}>
-      <SelectInput label="Al hacer clic" value={value.kind} options={LINK_KINDS} onChange={(kind) => onChange({ ...value, kind })} />
+      <SelectInput label={t('Al hacer clic')} value={value.kind} options={LINK_KINDS.map((o) => ({ ...o, label: t(o.label) }))} onChange={(kind) => onChange({ ...value, kind })} />
       {value.kind === 'page' && (
-        <SelectInput label="Página" value={value.pageId} options={[{ value: '', label: 'Elige una página' }, ...pages.map((p) => ({ value: p.id, label: p.title }))]} onChange={(pageId) => onChange({ ...value, pageId })} />
+        <SelectInput label={t('Página')} value={value.pageId} options={[{ value: '', label: t('Elige una página') }, ...pages.map((p) => ({ value: p.id, label: p.title }))]} onChange={(pageId) => onChange({ ...value, pageId })} />
       )}
       {value.kind === 'url' && <TextInput label="URL" value={value.url} placeholder="https://" onChange={(url) => onChange({ ...value, url })} />}
-      {value.kind === 'whatsapp' && <TextInput label="Mensaje inicial (opcional)" value={value.message} onChange={(message) => onChange({ ...value, message })} maxLength={300} />}
+      {value.kind === 'whatsapp' && <TextInput label={t('Mensaje inicial (opcional)')} value={value.message} onChange={(message) => onChange({ ...value, message })} maxLength={300} />}
     </Stack>
   );
 }
 
 export function ButtonEditor({ label, value, onChange, pages }: { label: string; value: ButtonConfig; onChange: (value: ButtonConfig) => void; pages: SitePage[] }) {
+  const t = useT();
   return (
     <Box sx={{ p: 1.5, border: 1, borderColor: 'divider', borderRadius: 1.5 }}>
       <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em' }}>{label}</Typography>
       <Stack spacing={1.25} sx={{ mt: 1 }}>
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
           <IconPicker value={value.icon || 'arrow-right'} onChange={(icon) => onChange({ ...value, icon })} />
-          <TextInput label="Texto del botón" value={value.label} placeholder="Vacío = sin botón" onChange={(text) => onChange({ ...value, label: text })} maxLength={40} />
+          <TextInput label={t('Texto del botón')} value={value.label} placeholder={t('Vacío = sin botón')} onChange={(text) => onChange({ ...value, label: text })} maxLength={40} />
         </Stack>
         {value.icon && (
-          <Button size="small" color="inherit" sx={{ alignSelf: 'flex-start' }} onClick={() => onChange({ ...value, icon: '' })}>Quitar ícono</Button>
+          <Button size="small" color="inherit" sx={{ alignSelf: 'flex-start' }} onClick={() => onChange({ ...value, icon: '' })}>{t('Quitar ícono')}</Button>
         )}
         {value.label && (
           <>
             <LinkEditor value={value.link} onChange={(link) => onChange({ ...value, link })} pages={pages} />
-            <Segmented label="Estilo" value={value.variant} onChange={(variant) => onChange({ ...value, variant })} options={[{ value: 'primary', label: 'Principal' }, { value: 'secondary', label: 'Secundario' }]} />
+            <Segmented label={t('Estilo')} value={value.variant} onChange={(variant) => onChange({ ...value, variant })} options={[{ value: 'primary', label: t('Principal') }, { value: 'secondary', label: t('Secundario') }]} />
           </>
         )}
       </Stack>
@@ -292,6 +299,7 @@ export function ButtonEditor({ label, value, onChange, pages }: { label: string;
 /* ------------------------------------------------------------ Columnas responsive */
 
 export function ColumnsEditor({ value, onChange, maxDesktop = 6 }: { value: Columns; onChange: (value: Columns) => void; maxDesktop?: number }) {
+  const t = useT();
   const row = (icon: ReactNode, key: keyof Columns, max: number) => (
     <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
       <Box sx={{ color: 'text.secondary', display: 'flex', width: 20 }}>{icon}</Box>
@@ -304,7 +312,7 @@ export function ColumnsEditor({ value, onChange, maxDesktop = 6 }: { value: Colu
   );
   return (
     <Box>
-      <Typography variant="body2" sx={{ fontWeight: 500, mb: 1 }}>Columnas por dispositivo</Typography>
+      <Typography variant="body2" sx={{ fontWeight: 500, mb: 1 }}>{t('Columnas por dispositivo')}</Typography>
       <Stack spacing={0.75}>
         {row(<Monitor size={16} />, 'desktop', maxDesktop)}
         {row(<Tablet size={16} />, 'tablet', 4)}
@@ -333,15 +341,16 @@ export function ListEditor<T extends object>({
   max?: number;
   itemTitle: (item: T, index: number) => string;
 }) {
+  const t = useT();
   return (
     <Stack spacing={1}>
       {items.map((item, index) => (
         <Box key={(item as { id?: string }).id ?? index} sx={{ border: 1, borderColor: 'divider', borderRadius: 1.5, p: 1.25 }}>
           <Stack direction="row" sx={{ alignItems: 'center', mb: 1 }}>
             <Typography variant="caption" sx={{ fontWeight: 600, flex: 1 }} noWrap>{itemTitle(item, index)}</Typography>
-            <IconButton size="small" disabled={index === 0} onClick={() => onChange(moveItem(items, index, index - 1))} aria-label="Subir"><ChevronUp size={14} /></IconButton>
-            <IconButton size="small" disabled={index === items.length - 1} onClick={() => onChange(moveItem(items, index, index + 1))} aria-label="Bajar"><ChevronDown size={14} /></IconButton>
-            <IconButton size="small" onClick={() => onChange(items.filter((_, i) => i !== index))} aria-label="Quitar"><Trash2 size={14} /></IconButton>
+            <IconButton size="small" disabled={index === 0} onClick={() => onChange(moveItem(items, index, index - 1))} aria-label={t('Mover arriba')}><ChevronUp size={14} /></IconButton>
+            <IconButton size="small" disabled={index === items.length - 1} onClick={() => onChange(moveItem(items, index, index + 1))} aria-label={t('Mover abajo')}><ChevronDown size={14} /></IconButton>
+            <IconButton size="small" onClick={() => onChange(items.filter((_, i) => i !== index))} aria-label={t('Quitar')}><Trash2 size={14} /></IconButton>
           </Stack>
           <Stack spacing={1.25}>{renderItem(item, (next) => onChange(items.map((it, i) => (i === index ? next : it))))}</Stack>
         </Box>
@@ -358,80 +367,81 @@ export function ListEditor<T extends object>({
 /* ------------------------------------------------------------ Fondos */
 
 const BG_LABELS: Record<(typeof BACKGROUND_TYPES)[number], string> = {
-  inherit: 'Heredado',
-  color: 'Color',
-  gradient: 'Degradado',
-  image: 'Imagen',
-  pattern: 'Patrón',
-  video: 'Video',
+  inherit: msg('Heredado'),
+  color: msg('Color'),
+  gradient: msg('Degradado'),
+  image: msg('Imagen'),
+  pattern: msg('Patrón'),
+  video: msg('Video'),
 };
 
 /**
  * Editor de fondo reutilizable (global, página, sección, header, footer, PDF).
  * `allowInherit` muestra la opción "Heredado" (usa el fondo del nivel superior).
  */
-export function BackgroundEditor({ value, onChange, allowInherit = true, inheritLabel = 'Heredado', allowVideo = false }: { value: Background; onChange: (value: Background) => void; allowInherit?: boolean; inheritLabel?: string; allowVideo?: boolean }) {
-  const types = BACKGROUND_TYPES.filter((t) => (allowInherit || t !== 'inherit') && (allowVideo || t !== 'video' || value.type === 'video'));
+export function BackgroundEditor({ value, onChange, allowInherit = true, inheritLabel, allowVideo = false }: { value: Background; onChange: (value: Background) => void; allowInherit?: boolean; inheritLabel?: string; allowVideo?: boolean }) {
+  const t = useT();
+  const types = BACKGROUND_TYPES.filter((type) => (allowInherit || type !== 'inherit') && (allowVideo || type !== 'video' || value.type === 'video'));
   const set = (patch: Partial<Background>) => onChange({ ...value, ...patch });
   return (
     <Stack spacing={1.5}>
       <ToggleButtonGroup size="small" exclusive value={value.type} onChange={(_, type) => type && set({ type })} sx={{ flexWrap: 'wrap' }}>
-        {types.map((t) => (
-          <ToggleButton key={t} value={t} sx={{ textTransform: 'none', px: 1.1, py: 0.35, fontSize: 12.5 }}>
-            {t === 'inherit' ? inheritLabel : BG_LABELS[t]}
+        {types.map((type) => (
+          <ToggleButton key={type} value={type} sx={{ textTransform: 'none', px: 1.1, py: 0.35, fontSize: 12.5 }}>
+            {type === 'inherit' ? (inheritLabel ?? t(BG_LABELS.inherit)) : t(BG_LABELS[type])}
           </ToggleButton>
         ))}
       </ToggleButtonGroup>
 
       {(value.type === 'color' || value.type === 'pattern' || value.type === 'image' || value.type === 'video') && (
-        <ColorInput label={value.type === 'color' ? 'Color' : value.type === 'video' ? 'Color mientras carga (y en el PDF)' : 'Color base'} value={value.color} onChange={(color) => set({ color })} />
+        <ColorInput label={value.type === 'color' ? t('Color') : value.type === 'video' ? t('Color mientras carga (y en el PDF)') : t('Color base')} value={value.color} onChange={(color) => set({ color })} />
       )}
 
       {value.type === 'video' && (
         <TextInput
-          label="Enlace del video (.mp4 o .webm)"
+          label={t('Enlace del video (.mp4 o .webm)')}
           value={value.video.url}
           placeholder="https://…/video.mp4"
-          helper="Se reproduce en silencio y en bucle. Usa el overlay para que el texto se lea bien."
+          helper={t('Se reproduce en silencio y en bucle. Usa el overlay para que el texto se lea bien.')}
           onChange={(url) => set({ video: { url: url.trim() } })}
         />
       )}
 
       {value.type === 'gradient' && (
         <>
-          <Segmented label="Tipo" value={value.gradient.kind} onChange={(kind) => set({ gradient: { ...value.gradient, kind } })} options={[{ value: 'linear', label: 'Lineal' }, { value: 'radial', label: 'Radial' }]} />
-          <ColorInput label="Desde" value={value.gradient.from} onChange={(from) => set({ gradient: { ...value.gradient, from } })} />
-          <ColorInput label="Hasta" value={value.gradient.to} onChange={(to) => set({ gradient: { ...value.gradient, to } })} />
+          <Segmented label={t('Tipo')} value={value.gradient.kind} onChange={(kind) => set({ gradient: { ...value.gradient, kind } })} options={[{ value: 'linear', label: t('Lineal') }, { value: 'radial', label: t('Radial') }]} />
+          <ColorInput label={t('Desde')} value={value.gradient.from} onChange={(from) => set({ gradient: { ...value.gradient, from } })} />
+          <ColorInput label={t('Hasta')} value={value.gradient.to} onChange={(to) => set({ gradient: { ...value.gradient, to } })} />
           {value.gradient.kind === 'linear' && (
-            <SliderInput label="Dirección" value={value.gradient.angle} min={0} max={360} step={15} format={(v) => `${v}°`} onChange={(angle) => set({ gradient: { ...value.gradient, angle } })} />
+            <SliderInput label={t('Dirección')} value={value.gradient.angle} min={0} max={360} step={15} format={(v) => `${v}°`} onChange={(angle) => set({ gradient: { ...value.gradient, angle } })} />
           )}
         </>
       )}
 
       {value.type === 'image' && (
         <>
-          <MediaInput label="Imagen de fondo" value={value.image.path} onChange={(path) => set({ image: { ...value.image, path } })} aspect="16 / 9" width={140} />
+          <MediaInput label={t('Imagen de fondo')} value={value.image.path} onChange={(path) => set({ image: { ...value.image, path } })} aspect="16 / 9" width={140} />
           <SelectInput
-            label="Posición"
+            label={t('Posición')}
             value={value.image.position}
             onChange={(position) => set({ image: { ...value.image, position } })}
             options={[
-              { value: 'center', label: 'Centro' },
-              { value: 'top', label: 'Arriba' },
-              { value: 'bottom', label: 'Abajo' },
-              { value: 'left', label: 'Izquierda' },
-              { value: 'right', label: 'Derecha' },
-              { value: 'top left', label: 'Arriba a la izquierda' },
-              { value: 'top right', label: 'Arriba a la derecha' },
-              { value: 'bottom left', label: 'Abajo a la izquierda' },
-              { value: 'bottom right', label: 'Abajo a la derecha' },
+              { value: 'center', label: t('Centro') },
+              { value: 'top', label: t('Arriba') },
+              { value: 'bottom', label: t('Abajo') },
+              { value: 'left', label: t('Izquierda') },
+              { value: 'right', label: t('Derecha') },
+              { value: 'top left', label: t('Arriba a la izquierda') },
+              { value: 'top right', label: t('Arriba a la derecha') },
+              { value: 'bottom left', label: t('Abajo a la izquierda') },
+              { value: 'bottom right', label: t('Abajo a la derecha') },
             ]}
           />
-          <Advanced title="Ajustes de imagen">
-            <Segmented label="Tamaño" value={value.image.size} onChange={(size) => set({ image: { ...value.image, size } })} options={[{ value: 'cover', label: 'Cubrir' }, { value: 'contain', label: 'Contener' }, { value: 'auto', label: 'Original' }]} />
-            <SwitchRow label="Repetir (mosaico)" checked={value.image.repeat} onChange={(repeat) => set({ image: { ...value.image, repeat } })} />
-            <SwitchRow label="Fija al hacer scroll (parallax)" checked={value.image.fixed} onChange={(fixed) => set({ image: { ...value.image, fixed } })} />
-            <SliderInput label="Opacidad de la imagen" value={value.image.opacity} min={0} max={100} format={(v) => `${v}%`} onChange={(opacity) => set({ image: { ...value.image, opacity } })} />
+          <Advanced title={t('Ajustes de imagen')}>
+            <Segmented label={t('Tamaño')} value={value.image.size} onChange={(size) => set({ image: { ...value.image, size } })} options={[{ value: 'cover', label: t('Cubrir') }, { value: 'contain', label: t('Contener') }, { value: 'auto', label: t('Original') }]} />
+            <SwitchRow label={t('Repetir (mosaico)')} checked={value.image.repeat} onChange={(repeat) => set({ image: { ...value.image, repeat } })} />
+            <SwitchRow label={t('Fija al hacer scroll (parallax)')} checked={value.image.fixed} onChange={(fixed) => set({ image: { ...value.image, fixed } })} />
+            <SliderInput label={t('Opacidad de la imagen')} value={value.image.opacity} min={0} max={100} format={(v) => `${v}%`} onChange={(opacity) => set({ image: { ...value.image, opacity } })} />
           </Advanced>
         </>
       )}
@@ -442,10 +452,10 @@ export function BackgroundEditor({ value, onChange, allowInherit = true, inherit
             {PATTERN_IDS.map((id) => {
               const { svg, size } = patternSvg(id, '#333333', 0.55, 0.8);
               return (
-                <Tooltip key={id} title={PATTERNS[id].label}>
+                <Tooltip key={id} title={t(PATTERNS[id].label)}>
                   <ButtonBase
                     onClick={() => set({ pattern: { ...value.pattern, id } })}
-                    aria-label={PATTERNS[id].label}
+                    aria-label={t(PATTERNS[id].label)}
                     sx={{
                       height: 44,
                       borderRadius: 1,
@@ -460,16 +470,16 @@ export function BackgroundEditor({ value, onChange, allowInherit = true, inherit
               );
             })}
           </Box>
-          <ColorInput label="Color del patrón" value={value.pattern.color} onChange={(color) => set({ pattern: { ...value.pattern, color } })} />
-          <SliderInput label="Intensidad" value={value.pattern.opacity} min={2} max={60} format={(v) => `${v}%`} onChange={(opacity) => set({ pattern: { ...value.pattern, opacity } })} />
-          <SliderInput label="Escala" value={value.pattern.scale} min={0.5} max={3} step={0.1} format={(v) => `${v.toFixed(1)}×`} onChange={(scale) => set({ pattern: { ...value.pattern, scale } })} />
+          <ColorInput label={t('Color del patrón')} value={value.pattern.color} onChange={(color) => set({ pattern: { ...value.pattern, color } })} />
+          <SliderInput label={t('Intensidad')} value={value.pattern.opacity} min={2} max={60} format={(v) => `${v}%`} onChange={(opacity) => set({ pattern: { ...value.pattern, opacity } })} />
+          <SliderInput label={t('Escala')} value={value.pattern.scale} min={0.5} max={3} step={0.1} format={(v) => `${v.toFixed(1)}×`} onChange={(scale) => set({ pattern: { ...value.pattern, scale } })} />
         </>
       )}
 
       {(value.type === 'image' || value.type === 'gradient' || value.type === 'pattern' || value.type === 'video') && (
         <>
-          <ColorInput label="Color del overlay" value={value.overlay.color} onChange={(color) => set({ overlay: { ...value.overlay, color } })} />
-          <SliderInput label="Overlay (oscurecer/aclarar)" value={value.overlay.opacity} min={0} max={90} format={(v) => `${v}%`} onChange={(opacity) => set({ overlay: { ...value.overlay, opacity } })} />
+          <ColorInput label={t('Color del overlay')} value={value.overlay.color} onChange={(color) => set({ overlay: { ...value.overlay, color } })} />
+          <SliderInput label={t('Overlay (oscurecer/aclarar)')} value={value.overlay.opacity} min={0} max={90} format={(v) => `${v}%`} onChange={(opacity) => set({ overlay: { ...value.overlay, opacity } })} />
         </>
       )}
     </Stack>

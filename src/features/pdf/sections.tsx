@@ -234,7 +234,7 @@ function PdfSection({ section, doc }: { section: Section; doc: PdfDoc }) {
             {section.content.layout === 'split' && section.content.body && <Text style={{ fontSize: t.size.small, color: ink ?? t.colors.text, lineHeight: 1.45 }}>{section.content.body}</Text>}
           </View>
           <View style={{ alignItems: 'center' }}>{player}</View>
-          <Text style={{ fontSize: t.size.tiny, color: ink ?? t.colors.mutedText, textAlign: 'center' }}>Ver video: {section.content.url.replace(/^https:\/\/(www\.)?/, '')}</Text>
+          <Text style={{ fontSize: t.size.tiny, color: ink ?? t.colors.mutedText, textAlign: 'center' }}>{doc.siteT('Ver video: {url}', { url: section.content.url.replace(/^https:\/\/(www\.)?/, '') })}</Text>
         </View>
       );
     }
@@ -432,7 +432,7 @@ function PdfColumns({ doc, section, ink }: { doc: PdfDoc; section: Extract<Secti
       case 'spacer':
         return <View key={b.id} style={{ height: { sm: 6, md: 12, lg: 20 }[b.size] }} />;
       case 'video':
-        return b.url ? <Link key={b.id} src={b.url} style={{ fontSize: t.size.small, color: ink ?? t.colors.accent }}>▶ Ver video</Link> : null;
+        return b.url ? <Link key={b.id} src={b.url} style={{ fontSize: t.size.small, color: ink ?? t.colors.accent }}>{doc.siteT('▶ Ver video')}</Link> : null;
     }
   };
   return (

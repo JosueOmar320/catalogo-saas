@@ -14,6 +14,7 @@ import { tocEntries } from './blocks';
 import { FONT_IDS, type FontId } from '@/lib/design/fonts';
 import { SitePdfDocument } from './SitePdfDocument';
 import { pdfTokens } from './tokens';
+import { siteTranslator } from '@/site-renderer/site-i18n';
 
 type Options = {
   /** Vista previa: limita la cantidad de ítems para generar rápido. */
@@ -76,6 +77,7 @@ export async function renderSitePdf(site: SiteViewModel, settings: PdfSettings, 
   const t = pdfTokens(site.theme, settings, fonts);
   const doc: PdfDoc = {
     t,
+    siteT: siteTranslator(site.settings.language),
     theme: site.theme,
     images,
     site: { ...site, items },

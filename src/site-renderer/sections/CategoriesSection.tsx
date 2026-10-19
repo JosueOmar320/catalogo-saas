@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { resolveLink } from '@/lib/site/links';
 import { gridVars, Placeholder, SectionFrame, SectionHead } from '../SectionFrame';
 import { SiteImage } from '../SiteImage';
+import { siteTranslator } from '../site-i18n';
 import styles from '../site.module.css';
 import type { SectionProps } from './types';
 
@@ -18,6 +19,7 @@ function Tag(props: { href?: string; className: string; children: ReactNode; pag
 
 export function CategoriesSection({ section, site, env, links }: SectionProps<'categories'>) {
   const { content } = section;
+  const t = siteTranslator(site.settings.language);
   const counts = new Map<string, number>();
   for (const item of site.items) if (item.categoryId) counts.set(item.categoryId, (counts.get(item.categoryId) ?? 0) + 1);
   const selected = content.categoryIds.length
@@ -27,12 +29,12 @@ export function CategoriesSection({ section, site, env, links }: SectionProps<'c
 
   const target = content.linkPageId ? resolveLink({ kind: 'page', pageId: content.linkPageId, url: '', message: '', newTab: false }, links) : null;
   const hrefFor = (id: string) => (target ? `${target.href}?categoria=${id}` : undefined);
-  const count = (id: string) => (content.showCount ? <span className={styles.count}>{counts.get(id) ?? 0} ítems</span> : null);
+  const count = (id: string) => (content.showCount ? <span className={styles.count}>{(counts.get(id) ?? 0) === 1 ? t('1 ítem') : t('{count} ítems', { count: counts.get(id) ?? 0 })}</span> : null);
 
   return (
     <SectionFrame section={section} theme={site.theme}>
       <SectionHead eyebrow={content.eyebrow} title={content.title} subtitle={content.subtitle} />
-      <Placeholder show={selected.length === 0}>Crea categorías y asígnales ítems para que aparezcan aquí.</Placeholder>
+      <Placeholder show={selected.length === 0}>{t('Crea categorías y asígnales ítems para que aparezcan aquí.')}</Placeholder>
 
       {content.display === 'list' ? (
         <div className={styles.catList}>

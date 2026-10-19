@@ -1,11 +1,18 @@
 import type { AnyAction } from '@/lib/assistant/modes';
 import type { AssistantContext } from '@/lib/assistant/context';
+import type { Locale } from '@/i18n/config';
 
 export type ChatMessage = { role: 'user' | 'assistant'; content: string };
 /** Herramientas de servidor disponibles en esta conversación (consultas y media). */
 export type ToolSpec = { name: string; description: string; inputSchema: Record<string, unknown>; signature: string };
 export type ToolRunner = { specs: ToolSpec[]; run: (name: string, args: unknown) => Promise<{ ok: true; result: unknown } | { ok: false; error: string }> };
-export type ModelInput = { messages: ChatMessage[]; context: AssistantContext; tools?: ToolRunner };
+export type ModelInput = {
+  messages: ChatMessage[];
+  context: AssistantContext;
+  tools?: ToolRunner;
+  /** Idioma de la app del usuario: el modelo le responde en ese idioma (por defecto, español). */
+  locale?: Locale;
+};
 
 /** Rondas máximas de herramientas antes de exigir la respuesta final. */
 export const MAX_TOOL_ROUNDS = 5;

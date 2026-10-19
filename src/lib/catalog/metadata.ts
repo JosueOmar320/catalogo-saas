@@ -14,7 +14,7 @@ export function siteMetadata(site: SiteViewModel): Metadata {
     description,
     icons: site.faviconUrl ? { icon: site.faviconUrl, apple: site.faviconUrl } : undefined,
     robots: site.seo.noindex ? { index: false, follow: false } : undefined,
-    openGraph: { type: 'website', siteName: site.business.name, locale: 'es', description, images: image ? [{ url: image }] : undefined },
+    openGraph: { type: 'website', siteName: site.business.name, locale: site.settings.language === 'en' ? 'en_US' : 'es_ES', description, images: image ? [{ url: image }] : undefined },
   };
 }
 

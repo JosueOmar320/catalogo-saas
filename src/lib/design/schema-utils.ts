@@ -1,6 +1,7 @@
 import { z } from 'zod';
+import { msg } from '@/i18n/translate';
 
-export const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Usa un color hexadecimal, ej. #1A1A1A');
+export const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, msg('Usa un color hexadecimal, ej. #1A1A1A'));
 
 /**
  * Crea un campo con default. En modo tolerante, un valor inválido guardado

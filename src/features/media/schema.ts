@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { msg } from '@/i18n/translate';
 import type { MediaFolder, MediaSource, StorageProviderId } from '@/types/database';
 
 export const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
@@ -25,14 +26,14 @@ export type UploadedImage = z.input<typeof uploadedImageSchema>;
 
 export const MEDIA_FOLDERS = ['images', 'logos', 'products', 'backgrounds', 'banners', 'other'] as const satisfies readonly MediaFolder[];
 export const MEDIA_FOLDER_LABELS: Record<MediaFolder, string> = {
-  images: 'Imágenes',
-  logos: 'Logos',
-  products: 'Productos',
-  backgrounds: 'Fondos',
-  banners: 'Banners',
-  other: 'Otros',
+  images: msg('Imágenes'),
+  logos: msg('Logos'),
+  products: msg('Productos'),
+  backgrounds: msg('Fondos'),
+  banners: msg('Banners'),
+  other: msg('Otros'),
 };
-export const MEDIA_SOURCE_LABELS: Record<MediaSource, string> = { upload: 'Subida', import: 'Importada', stock: 'Banco libre', chat: 'Chat de Garfield' };
+export const MEDIA_SOURCE_LABELS: Record<MediaSource, string> = { upload: msg('Subida'), import: msg('Importada'), stock: msg('Banco libre'), chat: msg('Chat de Garfield') };
 export const MEDIA_SORTS = ['recent', 'oldest', 'name', 'size'] as const;
 export type MediaSort = (typeof MEDIA_SORTS)[number];
 
@@ -72,7 +73,7 @@ export const mediaFiltersSchema = z.object({
 export type MediaFilters = z.input<typeof mediaFiltersSchema>;
 
 export const mediaPatchSchema = z.object({
-  name: z.string().trim().min(1, 'Ponle un nombre').max(200).optional(),
+  name: z.string().trim().min(1, msg('Ponle un nombre')).max(200).optional(),
   alt: z.string().trim().max(200).optional(),
   folder: z.enum(MEDIA_FOLDERS).optional(),
   tags: z.array(z.string().trim().min(1).max(30)).max(20).optional(),
@@ -80,7 +81,7 @@ export const mediaPatchSchema = z.object({
 export type MediaPatch = z.input<typeof mediaPatchSchema>;
 
 export const addFromUrlSchema = z.object({
-  url: z.url({ protocol: /^https$/, error: 'Usa una URL https' }).max(1000),
+  url: z.url({ protocol: /^https$/, error: msg('Usa una URL https') }).max(1000),
   mode: z.enum(['import', 'external']).default('import'),
   name: z.string().trim().max(200).default(''),
   alt: z.string().trim().max(200).default(''),

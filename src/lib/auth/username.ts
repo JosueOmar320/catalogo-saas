@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { msg } from '@/i18n/translate';
 
 /**
  * Nombre de usuario: la identidad de acceso. Supabase Auth necesita un email
@@ -12,7 +13,7 @@ export const usernameSchema = z
   .string()
   .trim()
   .toLowerCase()
-  .regex(USERNAME_PATTERN, 'De 3 a 32 caracteres: letras minúsculas, números, punto, guion o guion bajo.');
+  .regex(USERNAME_PATTERN, msg('De 3 a 32 caracteres: letras minúsculas, números, punto, guion o guion bajo.'));
 
 export function internalAuthEmail(username: string): string {
   const domain = (process.env.AUTH_USERNAME_DOMAIN || 'usuarios.invalid').replace(/^@/, '');

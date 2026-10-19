@@ -129,6 +129,8 @@ type ProfileRow = Timestamps & {
   platform_role: PlatformRole;
   status: UserStatus;
   last_login_at: string | null;
+  /** Idioma preferido de la app (es | en); null = el del navegador. */
+  locale: string | null;
   max_businesses: number | null;
   created_by: string | null;
 };

@@ -52,7 +52,7 @@ type Segment = { kind: 'flow'; items: FlowItem[] } | { kind: 'page'; block: PdfB
  * al final ni un bloque vacío: así no aparecen páginas en blanco.
  */
 export function SitePdfDocument({ doc }: { doc: PdfDoc }) {
-  const { t, settings, site } = doc;
+  const { t, siteT, settings, site } = doc;
   const enabled = settings.blocks.filter((b) => b.enabled);
   const cover = enabled[0]?.type === 'cover' || enabled.some((b) => b.type === 'cover');
   const toc = enabled.find((b) => b.type === 'toc');
@@ -93,7 +93,7 @@ export function SitePdfDocument({ doc }: { doc: PdfDoc }) {
   };
 
   return (
-    <Document title={`${site.business.name} · Catálogo`} author={site.business.name} creator={env.appName} producer={env.appName} language="es">
+    <Document title={siteT('{name} · Catálogo', { name: site.business.name })} author={site.business.name} creator={env.appName} producer={env.appName} language={site.settings.language}>
       {cover && (
         <Page {...pageProps} style={{ fontFamily: t.fonts.body, color: t.colors.text, backgroundColor: t.colors.paper }}>
           <PdfCover doc={doc} />

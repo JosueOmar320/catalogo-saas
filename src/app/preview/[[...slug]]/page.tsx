@@ -3,10 +3,14 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ItemDetail, SiteView } from '@/site-renderer';
 import { getSiteForAdmin } from '@/features/catalog/queries';
+import { getT } from '@/i18n/server';
 import { requireBusinessContext } from '@/lib/auth/session';
 import styles from '../preview.module.css';
 
-export const metadata: Metadata = { title: 'Vista previa', robots: { index: false, follow: false } };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT();
+  return { title: t('Vista previa'), robots: { index: false, follow: false } };
+}
 
 /**
  * Vista previa privada del sitio guardado (incluye páginas ocultas y el
@@ -14,6 +18,7 @@ export const metadata: Metadata = { title: 'Vista previa', robots: { index: fals
  */
 export default async function PreviewPage({ params }: PageProps<'/preview/[[...slug]]'>) {
   const ctx = await requireBusinessContext();
+  const t = await getT();
   const { slug } = await params;
   const site = await getSiteForAdmin(ctx);
   const published = ctx.catalog.status === 'published';
@@ -40,9 +45,9 @@ export default async function PreviewPage({ params }: PageProps<'/preview/[[...s
     <>
       <div className={styles.banner}>
         <span>
-          <strong>Vista previa</strong> · {published ? 'Tu sitio está publicado.' : 'Sólo tú puedes ver esta página.'}
+          <strong>{t('Vista previa')}</strong> · {published ? t('Tu sitio está publicado.') : t('Sólo tú puedes ver esta página.')}
         </span>
-        <Link href="/dashboard/sitio">Volver al editor</Link>
+        <Link href="/dashboard/sitio">{t('Volver al editor')}</Link>
       </div>
       {content}
     </>

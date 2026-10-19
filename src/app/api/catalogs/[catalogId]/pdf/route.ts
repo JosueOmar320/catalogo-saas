@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { getSiteForAdmin } from '@/features/catalog/queries';
 import { renderSitePdf } from '@/features/pdf/render';
+import { getT } from '@/i18n/server';
 import { getBusinessContext, type BusinessContext } from '@/lib/auth/session';
 import { parsePdfSettings, pdfSettingsSchema, type PdfSettings } from '@/lib/pdf/settings';
 import { collectMediaPaths } from '@/lib/utils/storage';
@@ -14,12 +15,13 @@ export const maxDuration = 60;
 const PREVIEW_MAX_ITEMS = 60;
 
 async function authorize(catalogId: string): Promise<BusinessContext | NextResponse> {
+  const t = await getT();
   const ctx = await getBusinessContext();
-  if (!ctx) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  if (!ctx) return NextResponse.json({ error: t('No autorizado') }, { status: 401 });
   // El catálogo debe pertenecer al negocio resuelto en el servidor.
-  if (ctx.catalog.id !== catalogId) return NextResponse.json({ error: 'No encontrado' }, { status: 404 });
+  if (ctx.catalog.id !== catalogId) return NextResponse.json({ error: t('No encontrado') }, { status: 404 });
   if (!ctx.entitlements.features.pdf_export) {
-    return NextResponse.json({ error: 'La exportación a PDF no está incluida en tu plan.' }, { status: 403 });
+    return NextResponse.json({ error: t('La exportación a PDF no está incluida en tu plan.') }, { status: 403 });
   }
   return ctx;
 }
@@ -27,7 +29,8 @@ async function authorize(catalogId: string): Promise<BusinessContext | NextRespo
 async function respond(ctx: BusinessContext, settings: PdfSettings, { download, preview }: { download: boolean; preview: boolean }) {
   // El servidor descarga las imágenes: sólo archivos del negocio o URLs externas de su biblioteca (y éstas, con descarga segura).
   if ((await invalidMediaRefs(ctx, collectMediaPaths(settings))).length > 0) {
-    return NextResponse.json({ error: 'Imagen inválida en la configuración.' }, { status: 400 });
+    const t = await getT();
+    return NextResponse.json({ error: t('Imagen inválida en la configuración.') }, { status: 400 });
   }
   const site = await getSiteForAdmin(ctx);
   const pdf = await renderSitePdf(site, settings, { maxItems: preview ? PREVIEW_MAX_ITEMS : undefined });
@@ -59,6 +62,9 @@ export async function POST(request: NextRequest, { params }: RouteContext<'/api/
   if (ctx instanceof NextResponse) return ctx;
   const body = (await request.json().catch(() => null)) as { settings?: unknown; preview?: boolean } | null;
   const parsed = pdfSettingsSchema.safeParse(body?.settings);
-  if (!parsed.success) return NextResponse.json({ error: 'Configuración inválida' }, { status: 400 });
+  if (!parsed.success) {
+    const t = await getT();
+    return NextResponse.json({ error: t('Configuración inválida') }, { status: 400 });
+  }
   return respond(ctx, parsed.data, { download: !body?.preview, preview: Boolean(body?.preview) });
 }

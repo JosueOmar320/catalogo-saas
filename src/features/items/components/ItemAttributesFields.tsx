@@ -1,6 +1,7 @@
 'use client';
 
 import { Autocomplete, Chip, Grid, InputAdornment, MenuItem, TextField } from '@mui/material';
+import { useT } from '@/i18n/client';
 import type { AttributeDef, AttributeValue } from '@/lib/catalog/attributes';
 
 type Values = Record<string, AttributeValue>;
@@ -10,6 +11,7 @@ type Values = Record<string, AttributeValue>;
  * Duración…). Cada tipo tiene su control; vacío = sin valor.
  */
 export function ItemAttributesFields({ defs, value, onChange }: { defs: AttributeDef[]; value: Values; onChange: (value: Values) => void }) {
+  const t = useT();
   const set = (id: string, v: AttributeValue | null) => {
     const next = { ...value };
     if (v === null || v === '' || (Array.isArray(v) && v.length === 0)) delete next[id];
@@ -40,7 +42,7 @@ export function ItemAttributesFields({ defs, value, onChange }: { defs: Attribut
             field = (
               <TextField select fullWidth label={def.name} value={typeof current === 'string' ? current : ''} onChange={(e) => set(def.id, e.target.value || null)}>
                 <MenuItem value="">
-                  <em>Sin valor</em>
+                  <em>{t('Sin valor')}</em>
                 </MenuItem>
                 {def.options.map((o) => (
                   <MenuItem key={o} value={o}>{o}</MenuItem>
@@ -52,10 +54,10 @@ export function ItemAttributesFields({ defs, value, onChange }: { defs: Attribut
             field = (
               <TextField select fullWidth label={def.name} value={typeof current === 'boolean' ? String(current) : ''} onChange={(e) => set(def.id, e.target.value === '' ? null : e.target.value === 'true')}>
                 <MenuItem value="">
-                  <em>Sin valor</em>
+                  <em>{t('Sin valor')}</em>
                 </MenuItem>
-                <MenuItem value="true">Sí</MenuItem>
-                <MenuItem value="false">No</MenuItem>
+                <MenuItem value="true">{t('Sí')}</MenuItem>
+                <MenuItem value="false">{t('No')}</MenuItem>
               </TextField>
             );
             break;
@@ -73,7 +75,7 @@ export function ItemAttributesFields({ defs, value, onChange }: { defs: Attribut
                     return <Chip key={key} label={option} size="small" {...rest} />;
                   })
                 }
-                renderInput={(params) => <TextField {...params} label={def.name} placeholder="Escribe y presiona Enter" />}
+                renderInput={(params) => <TextField {...params} label={def.name} placeholder={t('Escribe y presiona Enter')} />}
               />
             );
             break;

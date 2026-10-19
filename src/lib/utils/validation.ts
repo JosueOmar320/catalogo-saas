@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { msg } from '@/i18n/translate';
 import { fail, type ActionResult } from './result';
 
 /** Valida la entrada de una Server Action y devuelve errores por campo. */
@@ -11,7 +12,7 @@ export function parseInput<S extends z.ZodType>(
   const flat = z.flattenError(parsed.error);
   return {
     success: false,
-    result: fail('Revisa los campos marcados.', flat.fieldErrors as Record<string, string[] | undefined>),
+    result: fail(msg('Revisa los campos marcados.'), flat.fieldErrors as Record<string, string[] | undefined>),
   };
 }
 
@@ -19,7 +20,7 @@ export function parseInput<S extends z.ZodType>(
 export const priceText = z
   .string()
   .trim()
-  .refine((v) => v === '' || /^\d{1,10}([.,]\d{1,2})?$/.test(v), 'Usa un número, ej. 120 o 99.90');
+  .refine((v) => v === '' || /^\d{1,10}([.,]\d{1,2})?$/.test(v), msg('Usa un número, ej. 120 o 99.90'));
 
 export function priceToNumber(value: string): number | null {
   return value.trim() === '' ? null : Number(value.replace(',', '.'));

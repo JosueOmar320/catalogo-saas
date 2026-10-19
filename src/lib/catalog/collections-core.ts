@@ -1,3 +1,4 @@
+import { msg } from '@/i18n/translate';
 import type { Collection } from './collections';
 import type { CatalogItemView } from './view-model';
 
@@ -9,12 +10,12 @@ export const SORT_OPTIONS = ['custom', 'name', 'priceAsc', 'priceDesc', 'newest'
 export type SortOption = (typeof SORT_OPTIONS)[number];
 
 export const SORT_LABELS: Record<SortOption, string> = {
-  custom: 'Orden personalizado',
-  name: 'Nombre (A–Z)',
-  priceAsc: 'Precio: menor a mayor',
-  priceDesc: 'Precio: mayor a menor',
-  newest: 'Más recientes',
-  featured: 'Destacados primero',
+  custom: msg('Orden personalizado'),
+  name: msg('Nombre (A–Z)'),
+  priceAsc: msg('Precio: menor a mayor'),
+  priceDesc: msg('Precio: mayor a menor'),
+  newest: msg('Más recientes'),
+  featured: msg('Destacados primero'),
 };
 
 export function sortItems(items: CatalogItemView[], sort: SortOption): CatalogItemView[] {

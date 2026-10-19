@@ -4,12 +4,16 @@ import { AttributesManager } from '@/features/attributes/components/AttributesMa
 import { listItemsWithImages } from '@/features/catalog/queries';
 import { requireBusinessContext } from '@/lib/auth/session';
 import { parseAttributeDefs } from '@/lib/catalog/attributes';
+import { getT } from '@/i18n/server';
 
-export const metadata: Metadata = { title: 'Atributos' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT();
+  return { title: t('Atributos') };
+}
 
 export default async function AttributesPage() {
   const ctx = await requireBusinessContext();
-  const items = await listItemsWithImages(ctx);
+  const [items, t] = await Promise.all([listItemsWithImages(ctx), getT()]);
   // Cuántos ítems tienen un valor para cada atributo.
   const usage: Record<string, number> = {};
   for (const item of items) {
@@ -18,7 +22,7 @@ export default async function AttributesPage() {
   }
   return (
     <>
-      <PageHeader title="Atributos" description="Define los datos que describen tus productos y servicios: marca, material, tamaño, duración, lo que incluye… Tú decides cuáles." />
+      <PageHeader title={t('Atributos')} description={t('Define los datos que describen tus productos y servicios: marca, material, tamaño, duración, lo que incluye… Tú decides cuáles.')} />
       <AttributesManager initial={parseAttributeDefs(ctx.catalog.attribute_defs)} usage={usage} />
     </>
   );

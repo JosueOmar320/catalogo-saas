@@ -1,5 +1,6 @@
 import { applyPreset, getPreset } from '@/lib/design/presets';
 import type { ThemeConfig } from '@/lib/design/theme';
+import { msg } from '@/i18n/translate';
 import { PAGE_BLUEPRINT_DEFS, type PageBlueprintId } from './blueprints';
 import { columnPreset } from './column-presets';
 import { navigationFromPages, type NavigationConfig } from './navigation';
@@ -42,8 +43,8 @@ const steps = (title = '¿Cómo trabajamos?') => createSection('columns', { titl
 
 export const SITE_TEMPLATES: Record<SiteTemplateId, SiteTemplate> = {
   restaurant: {
-    label: 'Restaurante',
-    description: 'Portada con foto, categorías, platos destacados, menú con precios, galería, opiniones y ubicación.',
+    label: msg('Restaurante'),
+    description: msg('Portada con foto, categorías, platos destacados, menú con precios, galería, opiniones y ubicación.'),
     preset: 'restaurant',
     pages: [
       {
@@ -66,8 +67,8 @@ export const SITE_TEMPLATES: Record<SiteTemplateId, SiteTemplate> = {
     ],
   },
   corporate: {
-    label: 'Corporativo',
-    description: 'Empresa seria y confiable: nosotros, cifras, servicios, equipo, clientes, opiniones y contacto.',
+    label: msg('Corporativo'),
+    description: msg('Empresa seria y confiable: nosotros, cifras, servicios, equipo, clientes, opiniones y contacto.'),
     preset: 'corporate',
     pages: [
       {
@@ -92,8 +93,8 @@ export const SITE_TEMPLATES: Record<SiteTemplateId, SiteTemplate> = {
     ],
   },
   services: {
-    label: 'Servicios profesionales',
-    description: 'Servicios, por qué elegirnos, proceso de trabajo, opiniones, equipo y llamado a la acción.',
+    label: msg('Servicios profesionales'),
+    description: msg('Servicios, por qué elegirnos, proceso de trabajo, opiniones, equipo y llamado a la acción.'),
     preset: 'modern',
     pages: [
       {
@@ -116,8 +117,8 @@ export const SITE_TEMPLATES: Record<SiteTemplateId, SiteTemplate> = {
     ],
   },
   store: {
-    label: 'Tienda',
-    description: 'Estilo e-commerce: portada, categorías, destacados, ofertas, todos los productos y newsletter.',
+    label: msg('Tienda'),
+    description: msg('Estilo e-commerce: portada, categorías, destacados, ofertas, todos los productos y newsletter.'),
     preset: 'colorful',
     pages: [
       {
@@ -141,8 +142,8 @@ export const SITE_TEMPLATES: Record<SiteTemplateId, SiteTemplate> = {
     ],
   },
   productCatalog: {
-    label: 'Catálogo de productos',
-    description: 'Catálogo completo con buscador y filtros, destacados y contacto. Ideal para distribuidores.',
+    label: msg('Catálogo de productos'),
+    description: msg('Catálogo completo con buscador y filtros, destacados y contacto. Ideal para distribuidores.'),
     preset: 'minimal',
     pages: [
       {
@@ -161,8 +162,8 @@ export const SITE_TEMPLATES: Record<SiteTemplateId, SiteTemplate> = {
     ],
   },
   portfolio: {
-    label: 'Portafolio',
-    description: 'Trabajos en galería, sobre mí, servicios y contacto. Para fotógrafos, diseñadores y artistas.',
+    label: msg('Portafolio'),
+    description: msg('Trabajos en galería, sobre mí, servicios y contacto. Para fotógrafos, diseñadores y artistas.'),
     preset: 'fashion',
     pages: [
       {
@@ -184,8 +185,8 @@ export const SITE_TEMPLATES: Record<SiteTemplateId, SiteTemplate> = {
     ],
   },
   agency: {
-    label: 'Agencia',
-    description: 'Moderno y audaz: propuesta de valor, servicios en tarjetas, proceso, cifras, clientes y CTA.',
+    label: msg('Agencia'),
+    description: msg('Moderno y audaz: propuesta de valor, servicios en tarjetas, proceso, cifras, clientes y CTA.'),
     preset: 'dark',
     pages: [
       {
@@ -207,8 +208,8 @@ export const SITE_TEMPLATES: Record<SiteTemplateId, SiteTemplate> = {
     ],
   },
   landing: {
-    label: 'Landing page',
-    description: 'Una sola página para vender algo: hero, beneficios, imagen + texto, opiniones, precios, CTA y contacto.',
+    label: msg('Landing page'),
+    description: msg('Una sola página para vender algo: hero, beneficios, imagen + texto, opiniones, precios, CTA y contacto.'),
     preset: 'modern',
     pages: [
       {
@@ -236,14 +237,14 @@ export const SITE_TEMPLATES: Record<SiteTemplateId, SiteTemplate> = {
     ],
   },
   minimal: {
-    label: 'Minimal',
-    description: 'Pocas secciones, mucho aire: portada, texto, productos y contacto.',
+    label: msg('Minimal'),
+    description: msg('Pocas secciones, mucho aire: portada, texto, productos y contacto.'),
     preset: 'minimal',
     pages: [{ key: 'home', blueprint: 'home' }, { key: 'products', blueprint: 'products' }, { key: 'contact', blueprint: 'contact' }],
   },
   elegant: {
-    label: 'Elegante',
-    description: 'Tipografía con serifa y tonos sobrios: portada, historia, destacados, galería y contacto.',
+    label: msg('Elegante'),
+    description: msg('Tipografía con serifa y tonos sobrios: portada, historia, destacados, galería y contacto.'),
     preset: 'elegant',
     pages: [
       {

@@ -59,7 +59,7 @@ export function resolveNavigation(nav: NavigationConfig, pages: SitePage[], ctx:
     }
     const link = resolveLink({ kind: item.kind, pageId: '', url: item.url, message: '', newTab: item.newTab }, ctx);
     if (!link) return [];
-    return [{ id: item.id, label: item.label || DEFAULT_LABELS[item.kind], href: link.href, external: link.external, style: item.style, pageId: null }];
+    return [{ id: item.id, label: item.label || (item.kind === 'whatsapp' ? DEFAULT_LABELS.whatsapp : ctx.texts?.[item.kind]) || DEFAULT_LABELS[item.kind], href: link.href, external: link.external, style: item.style, pageId: null }];
   });
 }
 

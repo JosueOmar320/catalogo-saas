@@ -1,17 +1,19 @@
 import { ChevronDown } from 'lucide-react';
 import { Placeholder, SectionFrame, SectionHead } from '../SectionFrame';
+import { siteTranslator } from '../site-i18n';
 import styles from '../site.module.css';
 import type { SectionProps } from './types';
 
 /** Preguntas frecuentes con <details>: accesible y sin JavaScript. */
 export function FaqSection({ section, site, env }: SectionProps<'faq'>) {
   const { content } = section;
+  const t = siteTranslator(site.settings.language);
   const items = content.items.filter((i) => i.question.trim());
   if (items.length === 0 && env.mode === 'public') return null;
   return (
     <SectionFrame section={section} theme={site.theme}>
       <SectionHead eyebrow={content.eyebrow} title={content.title} subtitle={content.subtitle} center={content.layout !== 'twoColumns'} />
-      <Placeholder show={items.length === 0}>Agrega preguntas y respuestas desde el editor.</Placeholder>
+      <Placeholder show={items.length === 0}>{t('Agrega preguntas y respuestas desde el editor.')}</Placeholder>
       <div className={styles.faq} data-layout={content.layout}>
         {items.map((item, i) =>
           content.layout === 'accordion' ? (

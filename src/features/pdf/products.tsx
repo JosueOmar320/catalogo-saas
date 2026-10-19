@@ -50,8 +50,8 @@ function Desc({ c, item, lines = 3, center, full, color }: { c: Ctx; item: Catal
 function Meta({ c, item, center, color }: { c: Ctx; item: CatalogItemView; center?: boolean; color?: string }) {
   const parts = [
     c.f.category && item.categoryId ? c.doc.categoryNames.get(item.categoryId) : null,
-    c.f.sku && item.sku ? `Cód. ${item.sku}` : null,
-    c.f.availability && !item.isAvailable ? 'No disponible' : null,
+    c.f.sku && item.sku ? c.doc.siteT('Cód. {sku}', { sku: item.sku }) : null,
+    c.f.availability && !item.isAvailable ? c.doc.siteT('No disponible') : null,
   ].filter(Boolean);
   return parts.length ? <Text style={{ fontSize: c.doc.t.size.tiny, color: color ?? c.doc.t.colors.mutedText, marginTop: 3, textAlign: center ? 'center' : 'left' }}>{parts.join(' · ')}</Text> : null;
 }
@@ -90,13 +90,13 @@ function Attrs({ c, item, center, color, list }: { c: Ctx; item: CatalogItemView
 
 function Price({ c, item, size, center, color }: { c: Ctx; item: CatalogItemView; size?: number; center?: boolean; color?: string }) {
   if (!c.f.price) return null;
-  const { t, skin } = c.doc;
+  const { t, siteT, skin } = c.doc;
   const percent = c.f.discount ? discountPercent(item) : null;
   if (skin.price !== 'text' && item.priceLabel) {
     const pill = skin.price === 'pill';
     return (
       <View style={{ flexDirection: 'row', justifyContent: center ? 'center' : 'flex-start', marginTop: 5, alignItems: 'baseline', gap: 4 }}>
-        {item.priceNote === 'desde' && <Text style={{ fontSize: t.size.tiny, color: color ?? t.colors.mutedText }}>desde</Text>}
+        {item.priceNote === 'desde' && <Text style={{ fontSize: t.size.tiny, color: color ?? t.colors.mutedText }}>{siteT('desde')}</Text>}
         <Text
           style={{
             fontFamily: t.fonts.price,
@@ -198,7 +198,7 @@ function MinimalCard({ c, item, width }: { c: Ctx; item: CatalogItemView; width:
       {c.f.image && <PdfShapedPicture ctx={c.doc} url={pictureUrl(item, false)} width={imgW} height={imgH} shape={c.p.shape} frame={c.p.frame} style={{ marginBottom: 6 }} />}
       <Name c={c} item={item} center={center} />
       <Price c={c} item={item} center={center} />
-      {c.f.availability && !item.isAvailable && <Text style={{ fontSize: c.doc.t.size.tiny, color: c.doc.t.colors.error, marginTop: 2 }}>No disponible</Text>}
+      {c.f.availability && !item.isAvailable && <Text style={{ fontSize: c.doc.t.size.tiny, color: c.doc.t.colors.error, marginTop: 2 }}>{c.doc.siteT('No disponible')}</Text>}
     </View>
   );
 }
@@ -221,10 +221,10 @@ function comparisonRows(c: Ctx, items: CatalogItemView[], width: number): ReactE
   const values = (item: CatalogItemView) => new Map(pdfAttributes(c.doc, item, 'all').map((a) => [a.id, a.list ? a.list.join(', ') : a.value]));
   const header = (
     <View key="head" wrap={false} style={{ flexDirection: 'row', paddingVertical: 6, backgroundColor: t.colors.soft, borderRadius: t.radius * 0.4 }}>
-      {cell(nameW, 'Producto', 'n', true)}
-      {c.f.price ? cell(priceW, 'Precio', 'p', true) : null}
+      {cell(nameW, c.doc.siteT('Producto'), 'n', true)}
+      {c.f.price ? cell(priceW, c.doc.siteT('Precio'), 'p', true) : null}
       {defs.map((d) => cell(attrW, d.name, d.id, true))}
-      {c.f.sku ? cell(skuW, 'Código', 's', true) : null}
+      {c.f.sku ? cell(skuW, c.doc.siteT('Código'), 's', true) : null}
     </View>
   );
   return [

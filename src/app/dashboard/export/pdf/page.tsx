@@ -1,10 +1,14 @@
 import type { Metadata } from 'next';
 import { getSiteForAdmin } from '@/features/catalog/queries';
 import { PdfStudio } from '@/features/pdf/components/PdfStudio';
+import { getT } from '@/i18n/server';
 import { canManageCatalog, requireBusinessContext } from '@/lib/auth/session';
 import { parsePdfSettings } from '@/lib/pdf/settings';
 
-export const metadata: Metadata = { title: 'Catálogo en PDF' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT();
+  return { title: t('Catálogo en PDF') };
+}
 
 export default async function ExportPdfPage() {
   const ctx = await requireBusinessContext();

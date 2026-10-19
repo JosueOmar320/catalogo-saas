@@ -2,16 +2,20 @@ import type { Metadata } from 'next';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { CatalogsTable } from '@/features/admin/components/CatalogsTable';
 import { listCatalogs } from '@/features/admin/queries';
+import { getT } from '@/i18n/server';
 import { requirePlatformAdmin } from '@/lib/auth/session';
 
-export const metadata: Metadata = { title: 'Catálogos' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT();
+  return { title: t('Catálogos') };
+}
 
 export default async function AdminCatalogsPage() {
   const { supabase } = await requirePlatformAdmin();
-  const catalogs = await listCatalogs(supabase);
+  const [catalogs, t] = await Promise.all([listCatalogs(supabase), getT()]);
   return (
     <>
-      <PageHeader title="Catálogos" description="Un catálogo inactivo deja de publicarse aunque el negocio lo tenga publicado. Para crear uno, entra al negocio." />
+      <PageHeader title={t('Catálogos')} description={t('Un catálogo inactivo deja de publicarse aunque el negocio lo tenga publicado. Para crear uno, entra al negocio.')} />
       <CatalogsTable
         catalogs={catalogs.map((c) => ({
           id: c.id,

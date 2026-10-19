@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { useT } from '@/i18n/client';
+import { msg } from '@/i18n/translate';
 import { buildAssistantContext } from '@/lib/assistant/context';
 import { buildPdfContext } from '@/lib/assistant/pdf-context';
 import type { PdfAction } from '@/lib/assistant/pdf-actions';
@@ -26,18 +28,18 @@ const s = (label: string, prompt = label) => ({ label, prompt });
 function pdfSuggestions(settings: PdfSettings, selectedBlockId: string | null): SuggestionSet {
   const block = settings.blocks.find((b) => b.id === selectedBlockId);
   if (block?.type === 'catalog' || block?.type === 'products') {
-    return { title: '¿Cómo mostramos los productos?', items: [s('🔢 4 por página', 'Quiero cuatro productos por página'), s('📰 Dos columnas', 'Usa un layout de dos columnas para los productos'), s('📑 Portada por categoría', 'Agrega una página de categoría antes de cada grupo de productos'), s('💲 Lista de precios', 'Muestra los productos como lista de precios')] };
+    return { title: msg('¿Cómo mostramos los productos?'), items: [s(msg('🔢 4 por página'), msg('Quiero cuatro productos por página')), s(msg('📰 Dos columnas'), msg('Usa un layout de dos columnas para los productos')), s(msg('📑 Portada por categoría'), msg('Agrega una página de categoría antes de cada grupo de productos')), s(msg('💲 Lista de precios'), msg('Muestra los productos como lista de precios'))] };
   }
   if (block?.type === 'cover') {
-    return { title: '¿Mejoramos la portada?', items: [s('✨ Más elegante', 'Quiero que la portada sea más elegante'), s('🖼️ Con foto', 'Pon una foto de mi biblioteca en la portada'), s('🔤 Título', 'Cambia el título de la portada por "Catálogo 2026"')] };
+    return { title: msg('¿Mejoramos la portada?'), items: [s(msg('✨ Más elegante'), msg('Quiero que la portada sea más elegante')), s(msg('🖼️ Con foto'), msg('Pon una foto de mi biblioteca en la portada')), s(msg('🔤 Título'), msg('Cambia el título de la portada por "Catálogo 2026"'))] };
   }
   return {
-    title: 'Pídeme algo para el PDF',
+    title: msg('Pídeme algo para el PDF'),
     items: [
-      s('💎 Catálogo de lujo', 'Quiero que el PDF parezca un catálogo de lujo'),
-      s('🏷️ Logo y números', 'Agrega el logo arriba a la izquierda y el número de página abajo'),
-      s('🔢 4 por página', 'Quiero cuatro productos por página'),
-      s('📕 Contraportada', 'Agrega una contraportada'),
+      s(msg('💎 Catálogo de lujo'), msg('Quiero que el PDF parezca un catálogo de lujo')),
+      s(msg('🏷️ Logo y números'), msg('Agrega el logo arriba a la izquierda y el número de página abajo')),
+      s(msg('🔢 4 por página'), msg('Quiero cuatro productos por página')),
+      s(msg('📕 Contraportada'), msg('Agrega una contraportada')),
     ],
   };
 }
@@ -51,6 +53,7 @@ export function PdfGarfieldProvider({ settings, onChange, selectedBlockId, onSel
     selectedRef.current = selectedBlockId;
   }, [settings, selectedBlockId]);
   const suggestions = useMemo(() => pdfSuggestions(settings, selectedBlockId), [settings, selectedBlockId]);
+  const t = useT();
 
   const adapter = useMemo<GarfieldAdapter>(
     () => ({
@@ -71,7 +74,7 @@ export function PdfGarfieldProvider({ settings, onChange, selectedBlockId, onSel
           pdf: buildPdfContext(settingsRef.current, selectedRef.current),
         }),
       plan: (actions, allowedMedia) => {
-        const plan = planPdfActions(settingsRef.current, actions as PdfAction[], { selectedBlockId: selectedRef.current, allowedMedia });
+        const plan = planPdfActions(settingsRef.current, actions as PdfAction[], { selectedBlockId: selectedRef.current, allowedMedia, t });
         return {
           next: plan.next,
           steps: plan.steps.map(({ label, status, risk, error }) => ({ label, status, risk, error, kind: 'pdf' as const })),
@@ -96,7 +99,7 @@ export function PdfGarfieldProvider({ settings, onChange, selectedBlockId, onSel
       restore: (snapshot) => onChange(snapshot as PdfSettings),
       preview: (next) => onPreview(next as PdfSettings | null),
     }),
-    [onChange, onPreview, onSelectBlock, site, suggestions],
+    [onChange, onPreview, onSelectBlock, site, suggestions, t],
   );
 
   return <GarfieldEngine adapter={adapter}>{children}</GarfieldEngine>;

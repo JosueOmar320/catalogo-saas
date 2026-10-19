@@ -12,6 +12,7 @@ import { TextFieldControl } from '@/components/form/fields';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SortableList } from '@/components/ui/SortableList';
 import { reorder } from '@/features/catalog/reorder-actions';
+import { useT } from '@/i18n/client';
 import { useAction } from '@/lib/hooks/use-action';
 import { publicStorageUrl } from '@/lib/utils/storage';
 import { createCategory, deleteCategory, setCategoryActive, updateCategory } from '../actions';
@@ -27,6 +28,7 @@ export type CategoryRow = {
 };
 
 export function CategoryManager({ categories: initial }: { categories: CategoryRow[] }) {
+  const t = useT();
   const router = useRouter();
   const confirm = useConfirm();
   const { run, pending } = useAction();
@@ -62,11 +64,11 @@ export function CategoryManager({ categories: initial }: { categories: CategoryR
 
   const remove = async (category: CategoryRow) => {
     const ok = await confirm({
-      title: `¿Eliminar "${category.name}"?`,
+      title: t('¿Eliminar "{name}"?', { name: category.name }),
       description: category.itemCount
-        ? `Sus ${category.itemCount} ítem(s) no se borran: quedarán como "Sin categoría".`
-        : 'La categoría está vacía.',
-      confirmLabel: 'Eliminar',
+        ? t('Sus {count} ítem(s) no se borran: quedarán como "Sin categoría".', { count: category.itemCount })
+        : t('La categoría está vacía.'),
+      confirmLabel: t('Eliminar'),
       destructive: true,
     });
     if (!ok) return;
@@ -78,18 +80,18 @@ export function CategoryManager({ categories: initial }: { categories: CategoryR
     <Paper variant="outlined">
       <Stack direction="row" spacing={1} component="form" onSubmit={(e) => { e.preventDefault(); add(); }} sx={{ p: 1.5, borderBottom: 1, borderColor: 'divider' }}>
         <TextField
-          placeholder="Nombre de la nueva categoría (ej. Bebidas)"
+          placeholder={t('Nombre de la nueva categoría (ej. Bebidas)')}
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
-          slotProps={{ htmlInput: { maxLength: 80, 'aria-label': 'Nueva categoría' } }}
+          slotProps={{ htmlInput: { maxLength: 80, 'aria-label': t('Nueva categoría') } }}
         />
         <Button type="submit" variant="contained" startIcon={<Plus size={15} />} disabled={pending || !newName.trim()} sx={{ flexShrink: 0 }}>
-          Agregar
+          {t('Agregar')}
         </Button>
       </Stack>
 
       {categories.length === 0 ? (
-        <EmptyState icon={FolderTree} title="Sin categorías todavía" description="Las categorías agrupan tus ítems y forman el menú del catálogo. Ej.: Bebidas, Postres, Servicios." />
+        <EmptyState icon={FolderTree} title={t('Sin categorías todavía')} description={t('Las categorías agrupan tus ítems y forman el menú del catálogo. Ej.: Bebidas, Postres, Servicios.')} />
       ) : (
         <SortableList
           items={categories}
@@ -107,19 +109,19 @@ export function CategoryManager({ categories: initial }: { categories: CategoryR
                     {category.name}
                   </Typography>
                   <Typography variant="caption" color="text.secondary" noWrap component="p">
-                    {category.itemCount} ítem(s){category.isActive ? '' : ' · Oculta'}
+                    {category.isActive ? t('{count} ítem(s)', { count: category.itemCount }) : t('{count} ítem(s) · Oculta', { count: category.itemCount })}
                   </Typography>
                 </Box>
-                <Tooltip title={category.isActive ? 'Visible' : 'Oculta'}>
-                  <Switch checked={category.isActive} onChange={(e) => toggleActive(category, e.target.checked)} slotProps={{ input: { 'aria-label': 'Visible' } }} />
+                <Tooltip title={category.isActive ? t('Visible') : t('Oculta')}>
+                  <Switch checked={category.isActive} onChange={(e) => toggleActive(category, e.target.checked)} slotProps={{ input: { 'aria-label': t('Visible') } }} />
                 </Tooltip>
-                <Tooltip title="Editar">
-                  <IconButton onClick={() => setEditingId(editingId === category.id ? null : category.id)} aria-label="Editar">
+                <Tooltip title={t('Editar')}>
+                  <IconButton onClick={() => setEditingId(editingId === category.id ? null : category.id)} aria-label={t('Editar')}>
                     <Pencil size={15} />
                   </IconButton>
                 </Tooltip>
-                <Tooltip title="Eliminar">
-                  <IconButton onClick={() => void remove(category)} aria-label="Eliminar">
+                <Tooltip title={t('Eliminar')}>
+                  <IconButton onClick={() => void remove(category)} aria-label={t('Eliminar')}>
                     <Trash2 size={15} />
                   </IconButton>
                 </Tooltip>
@@ -136,6 +138,7 @@ export function CategoryManager({ categories: initial }: { categories: CategoryR
 }
 
 function CategoryEditor({ category, onDone }: { category: CategoryRow; onDone: () => void }) {
+  const t = useT();
   const router = useRouter();
   const { run, pending } = useAction();
   const { control, handleSubmit, setError } = useForm<CategoryFormValues>({
@@ -163,15 +166,15 @@ function CategoryEditor({ category, onDone }: { category: CategoryRow; onDone: (
       )}
       sx={{ pt: 2, pb: 1, pl: { sm: 6 } }}
     >
-      <TextFieldControl control={control} name="name" label="Nombre" />
-      <TextFieldControl control={control} name="description" label="Descripción" multiline minRows={2} helperText="Opcional. Se muestra bajo el título de la sección." />
+      <TextFieldControl control={control} name="name" label={t('Nombre')} />
+      <TextFieldControl control={control} name="description" label={t('Descripción')} multiline minRows={2} helperText={t('Opcional. Se muestra bajo el título de la sección.')} />
       <Controller
         control={control}
         name="imagePath"
         render={({ field }) => (
           <ImageField
-            label="Imagen"
-            description="Opcional."
+            label={t('Imagen')}
+            description={t('Opcional.')}
             kind="category"
             value={publicStorageUrl(field.value)}
             onChange={(path) => field.onChange(path)}
@@ -180,8 +183,8 @@ function CategoryEditor({ category, onDone }: { category: CategoryRow; onDone: (
         )}
       />
       <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
-        <Button color="inherit" onClick={onDone}>Cancelar</Button>
-        <Button type="submit" variant="contained" disabled={pending}>Guardar</Button>
+        <Button color="inherit" onClick={onDone}>{t('Cancelar')}</Button>
+        <Button type="submit" variant="contained" disabled={pending}>{t('Guardar')}</Button>
       </Stack>
     </Stack>
   );

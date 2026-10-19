@@ -1,16 +1,17 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { msg } from '@/i18n/translate';
 import { BUSINESS_SLUG_PATTERN } from '@/lib/utils/slug';
 import { checkSlugAvailability } from './actions';
 
 export type SlugStatus = 'idle' | 'checking' | 'ok' | 'taken';
 
 export const SLUG_STATUS_TEXT: Record<SlugStatus, string> = {
-  idle: 'Letras minúsculas, números y guiones.',
-  checking: 'Verificando…',
-  ok: '¡Disponible!',
-  taken: 'Esa dirección ya está en uso.',
+  idle: msg('Letras minúsculas, números y guiones.'),
+  checking: msg('Verificando…'),
+  ok: msg('¡Disponible!'),
+  taken: msg('Esa dirección ya está en uso.'),
 };
 
 /** Verifica (con debounce) si una dirección de catálogo está libre. */

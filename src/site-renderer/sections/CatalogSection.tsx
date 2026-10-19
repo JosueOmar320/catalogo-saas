@@ -2,21 +2,40 @@
 
 import { ChevronLeft, ChevronRight, PackageSearch, Search, SlidersHorizontal } from 'lucide-react';
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
-import { SORT_LABELS, SORT_OPTIONS, sortItems, type SortOption } from '@/lib/catalog/collections-core';
+import type { Translator } from '@/i18n/translate';
+import { SORT_OPTIONS, sortItems, type SortOption } from '@/lib/catalog/collections-core';
 import { attributeFilterOptions, EMPTY_FILTERS, filterItems, groupByCategory, type BadgeFilter, type CatalogFilters } from '../filter';
 import { ItemCard } from '../ItemCard';
 import { ProductCollection } from '../ProductCollection';
 import { gridVars, SectionFrame, SectionHead } from '../SectionFrame';
+import { useSiteT } from '../SiteI18n';
 import styles from '../site.module.css';
 import type { SectionProps } from './types';
 
-const PUBLIC_SORT_LABELS: Record<SortOption, string> = { ...SORT_LABELS, custom: 'Recomendados' };
-const BADGE_FILTERS: { value: BadgeFilter; label: string }[] = [
-  { value: 'all', label: 'Todos' },
-  { value: 'featured', label: 'Destacados' },
-  { value: 'new', label: 'Nuevos' },
-  { value: 'sale', label: 'En oferta' },
-  { value: 'popular', label: 'Populares' },
+/** Orden que elige el visitante, en el idioma del sitio ("custom" es el orden del negocio). */
+function sortLabel(option: SortOption, t: Translator): string {
+  switch (option) {
+    case 'custom':
+      return t('Recomendados');
+    case 'name':
+      return t('Nombre (A–Z)');
+    case 'priceAsc':
+      return t('Precio: menor a mayor');
+    case 'priceDesc':
+      return t('Precio: mayor a menor');
+    case 'newest':
+      return t('Más recientes');
+    case 'featured':
+      return t('Destacados primero');
+  }
+}
+
+const badgeFilters = (t: Translator): { value: BadgeFilter; label: string }[] => [
+  { value: 'all', label: t('Todos') },
+  { value: 'featured', label: t('Destacados') },
+  { value: 'new', label: t('Nuevos') },
+  { value: 'sale', label: t('En oferta') },
+  { value: 'popular', label: t('Populares') },
 ];
 
 /**
@@ -26,6 +45,7 @@ const BADGE_FILTERS: { value: BadgeFilter; label: string }[] = [
 export function CatalogSection({ section, site, env }: SectionProps<'catalog'>) {
   const { content } = section;
   const { filters: cfg, pagination } = content;
+  const t = useSiteT();
   const [filters, setFilters] = useState<CatalogFilters>(EMPTY_FILTERS);
   // null = orden por defecto de la sección (así la preview refleja cambios del editor).
   const [userSort, setUserSort] = useState<SortOption | null>(null);
@@ -83,7 +103,7 @@ export function CatalogSection({ section, site, env }: SectionProps<'catalog'>) 
   const current = Math.min(page, pageCount);
   const visible = !paged ? filtered : pagination.mode === 'pages' ? filtered.slice((current - 1) * perPage, current * perPage) : filtered.slice(0, current * perPage);
   const remaining = filtered.length - visible.length;
-  const groups = content.groupByCategory && !query.trim() && sort === 'custom' ? groupByCategory(visible, site.categories) : [{ id: 'all', title: null, description: null, items: visible }];
+  const groups = content.groupByCategory && !query.trim() && sort === 'custom' ? groupByCategory(visible, site.categories, t('Otros')) : [{ id: 'all', title: null, description: null, items: visible }];
   const activeCount = [filters.priceMin !== null || filters.priceMax !== null, filters.badge !== 'all', filters.onlyAvailable, ...Object.values(filters.attrs).map(Boolean)].filter(Boolean).length;
 
   const update = (patch: Partial<CatalogFilters>) => {
@@ -116,15 +136,15 @@ export function CatalogSection({ section, site, env }: SectionProps<'catalog'>) 
           <div className={styles.toolbarRow}>
             {cfg.search && (
               <label className={styles.search}>
-                <span className={styles.visuallyHidden}>Buscar</span>
+                <span className={styles.visuallyHidden}>{t('Buscar')}</span>
                 <Search size={16} className={styles.searchIcon} aria-hidden />
-                <input type="search" className={styles.searchInput} placeholder="Buscar por nombre o código" value={filters.query} onChange={(e) => update({ query: e.target.value })} />
+                <input type="search" className={styles.searchInput} placeholder={t('Buscar por nombre o código')} value={filters.query} onChange={(e) => update({ query: e.target.value })} />
               </label>
             )}
-            <nav className={styles.chips} aria-label="Categorías">
+            <nav className={styles.chips} aria-label={t('Categorías')}>
               {showCategoryChips && (
                 <>
-                  <Chip active={filters.categoryId === 'all'} onClick={() => update({ categoryId: 'all' })}>Todo</Chip>
+                  <Chip active={filters.categoryId === 'all'} onClick={() => update({ categoryId: 'all' })}>{t('Todo')}</Chip>
                   {usedCategories.map((c) => (
                     <Chip key={c.id} active={filters.categoryId === c.id} onClick={() => update({ categoryId: c.id })}>{c.name}</Chip>
                   ))}
@@ -133,20 +153,20 @@ export function CatalogSection({ section, site, env }: SectionProps<'catalog'>) 
               {showTypes && (
                 <>
                   {showCategoryChips && <span className={styles.chipDivider} aria-hidden />}
-                  <Chip active={filters.type === 'product'} onClick={() => update({ type: filters.type === 'product' ? 'all' : 'product' })}>Productos</Chip>
-                  <Chip active={filters.type === 'service'} onClick={() => update({ type: filters.type === 'service' ? 'all' : 'service' })}>Servicios</Chip>
+                  <Chip active={filters.type === 'product'} onClick={() => update({ type: filters.type === 'product' ? 'all' : 'product' })}>{t('Productos')}</Chip>
+                  <Chip active={filters.type === 'service'} onClick={() => update({ type: filters.type === 'service' ? 'all' : 'service' })}>{t('Servicios')}</Chip>
                 </>
               )}
             </nav>
             <div className={styles.toolbarEnd}>
               {panelFilters && (
                 <button type="button" className={`${styles.chip} ${activeCount > 0 ? styles.chipActive : ''}`} aria-expanded={panelOpen} onClick={() => setPanelOpen((o) => !o)}>
-                  <SlidersHorizontal size={14} aria-hidden /> Filtros{activeCount > 0 ? ` (${activeCount})` : ''}
+                  <SlidersHorizontal size={14} aria-hidden /> {activeCount > 0 ? t('Filtros ({count})', { count: activeCount }) : t('Filtros')}
                 </button>
               )}
               {showSort && (
                 <label className={styles.selectWrap}>
-                  <span className={styles.visuallyHidden}>Ordenar</span>
+                  <span className={styles.visuallyHidden}>{t('Ordenar')}</span>
                   <select
                     className={styles.select}
                     value={sort}
@@ -156,7 +176,7 @@ export function CatalogSection({ section, site, env }: SectionProps<'catalog'>) 
                     }}
                   >
                     {SORT_OPTIONS.filter((o) => hasPrices || (o !== 'priceAsc' && o !== 'priceDesc')).map((o) => (
-                      <option key={o} value={o}>{PUBLIC_SORT_LABELS[o]}</option>
+                      <option key={o} value={o}>{sortLabel(o, t)}</option>
                     ))}
                   </select>
                 </label>
@@ -168,19 +188,19 @@ export function CatalogSection({ section, site, env }: SectionProps<'catalog'>) 
             <div className={styles.filterPanel}>
               {showPrice && (
                 <fieldset className={styles.filterField}>
-                  <legend>Precio</legend>
+                  <legend>{t('Precio')}</legend>
                   <div className={styles.priceRange}>
-                    <input type="number" inputMode="decimal" min={0} placeholder="Mín." className={styles.select} value={filters.priceMin ?? ''} onChange={(e) => update({ priceMin: e.target.value === '' ? null : Number(e.target.value) })} />
+                    <input type="number" inputMode="decimal" min={0} placeholder={t('Mín.')} className={styles.select} value={filters.priceMin ?? ''} onChange={(e) => update({ priceMin: e.target.value === '' ? null : Number(e.target.value) })} />
                     <span aria-hidden>–</span>
-                    <input type="number" inputMode="decimal" min={0} placeholder="Máx." className={styles.select} value={filters.priceMax ?? ''} onChange={(e) => update({ priceMax: e.target.value === '' ? null : Number(e.target.value) })} />
+                    <input type="number" inputMode="decimal" min={0} placeholder={t('Máx.')} className={styles.select} value={filters.priceMax ?? ''} onChange={(e) => update({ priceMax: e.target.value === '' ? null : Number(e.target.value) })} />
                   </div>
                 </fieldset>
               )}
               {cfg.badges && (
                 <label className={styles.filterField}>
-                  <span>Mostrar</span>
+                  <span>{t('Mostrar')}</span>
                   <select className={styles.select} value={filters.badge} onChange={(e) => update({ badge: e.target.value as BadgeFilter })}>
-                    {BADGE_FILTERS.map((b) => (
+                    {badgeFilters(t).map((b) => (
                       <option key={b.value} value={b.value}>{b.label}</option>
                     ))}
                   </select>
@@ -190,9 +210,9 @@ export function CatalogSection({ section, site, env }: SectionProps<'catalog'>) 
                 <label key={def.id} className={styles.filterField}>
                   <span>{def.name}</span>
                   <select className={styles.select} value={filters.attrs[def.id] ?? ''} onChange={(e) => update({ attrs: { ...filters.attrs, [def.id]: e.target.value } })}>
-                    <option value="">Todos</option>
+                    <option value="">{t('Todos')}</option>
                     {options.map((o) => (
-                      <option key={o} value={o}>{o}{def.unit && def.type === 'number' ? ` ${def.unit}` : ''}</option>
+                      <option key={o} value={o}>{def.type === 'boolean' ? yesNo(o, t) : o}{def.unit && def.type === 'number' ? ` ${def.unit}` : ''}</option>
                     ))}
                   </select>
                 </label>
@@ -200,12 +220,12 @@ export function CatalogSection({ section, site, env }: SectionProps<'catalog'>) 
               {showAvailability && (
                 <label className={styles.filterToggle}>
                   <input type="checkbox" checked={filters.onlyAvailable} onChange={(e) => update({ onlyAvailable: e.target.checked })} />
-                  Sólo disponibles
+                  {t('Sólo disponibles')}
                 </label>
               )}
               {activeCount > 0 && (
                 <button type="button" className={styles.linkButton} onClick={() => update({ priceMin: null, priceMax: null, badge: 'all', onlyAvailable: false, attrs: {} })}>
-                  Limpiar filtros
+                  {t('Limpiar filtros')}
                 </button>
               )}
             </div>
@@ -216,7 +236,7 @@ export function CatalogSection({ section, site, env }: SectionProps<'catalog'>) 
       {featured.length > 0 && (
         <div className={styles.catalogGroup}>
           <div className={styles.catalogGroupHead}>
-            <h3 className={styles.h3}>Destacados</h3>
+            <h3 className={styles.h3}>{t('Destacados')}</h3>
           </div>
           <div className={styles.carousel} style={gridVars({ desktop: 3, tablet: 2, mobile: 1 })}>
             {featured.map((item, i) => (
@@ -228,15 +248,15 @@ export function CatalogSection({ section, site, env }: SectionProps<'catalog'>) 
 
       {isSearching && filtered.length > 0 && (
         <p className={styles.resultCount} aria-live="polite">
-          {filtered.length} {filtered.length === 1 ? 'resultado' : 'resultados'}
+          {filtered.length === 1 ? t('1 resultado') : t('{count} resultados', { count: filtered.length })}
         </p>
       )}
 
       {filtered.length === 0 ? (
         <div className={styles.empty}>
           <PackageSearch size={36} strokeWidth={1.5} aria-hidden />
-          <p className={styles.emptyTitle}>{items.length === 0 ? 'Muy pronto' : 'Sin resultados'}</p>
-          <p>{items.length === 0 ? 'Estamos preparando nuestro catálogo.' : 'Prueba con otra búsqueda, categoría o filtro.'}</p>
+          <p className={styles.emptyTitle}>{items.length === 0 ? t('Muy pronto') : t('Sin resultados')}</p>
+          <p>{items.length === 0 ? t('Estamos preparando nuestro catálogo.') : t('Prueba con otra búsqueda, categoría o filtro.')}</p>
         </div>
       ) : (
         groups.map((group) => (
@@ -253,8 +273,8 @@ export function CatalogSection({ section, site, env }: SectionProps<'catalog'>) 
       )}
 
       {pagination.mode === 'pages' && pageCount > 1 && (
-        <nav className={styles.pager} aria-label="Paginación">
-          <button type="button" className={styles.chip} disabled={current === 1} onClick={() => goTo(current - 1)} aria-label="Página anterior">
+        <nav className={styles.pager} aria-label={t('Paginación')}>
+          <button type="button" className={styles.chip} disabled={current === 1} onClick={() => goTo(current - 1)} aria-label={t('Página anterior')}>
             <ChevronLeft size={16} aria-hidden />
           </button>
           {pageNumbers(current, pageCount).map((n, i) =>
@@ -266,7 +286,7 @@ export function CatalogSection({ section, site, env }: SectionProps<'catalog'>) 
               </button>
             ),
           )}
-          <button type="button" className={styles.chip} disabled={current === pageCount} onClick={() => goTo(current + 1)} aria-label="Página siguiente">
+          <button type="button" className={styles.chip} disabled={current === pageCount} onClick={() => goTo(current + 1)} aria-label={t('Página siguiente')}>
             <ChevronRight size={16} aria-hidden />
           </button>
         </nav>
@@ -275,12 +295,17 @@ export function CatalogSection({ section, site, env }: SectionProps<'catalog'>) 
       {(pagination.mode === 'loadMore' || pagination.mode === 'infinite') && remaining > 0 && (
         <div className={styles.sectionFoot} ref={sentinel}>
           <button type="button" className={`${styles.chip} ${styles.loadMore}`} onClick={() => setPage(current + 1)}>
-            Ver más ({remaining})
+            {t('Ver más ({count})', { count: remaining })}
           </button>
         </div>
       )}
     </SectionFrame>
   );
+}
+
+/** Valor de un atributo sí/no: el valor ('Sí'/'No') filtra; el texto va en el idioma del sitio. */
+function yesNo(value: string, t: Translator): string {
+  return value === 'Sí' ? t('Sí') : value === 'No' ? t('No') : value;
 }
 
 /** 1 … 4 5 6 … 12 */

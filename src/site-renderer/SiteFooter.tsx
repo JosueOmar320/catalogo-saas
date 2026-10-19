@@ -4,6 +4,7 @@ import { env as appEnv } from '@/lib/env';
 import type { ResolvedNavItem } from '@/lib/site/navigation';
 import type { SiteViewModel } from '@/lib/site/view-model';
 import { BackgroundLayers } from './Background';
+import { siteTranslator } from './site-i18n';
 import { SocialLinks } from './SocialLinks';
 import styles from './site.module.css';
 
@@ -14,6 +15,9 @@ export function SiteFooter({ site, navItems }: { site: SiteViewModel; navItems: 
   const hasContact = Boolean(contact.phone || contact.whatsapp || contact.email || address || contact.website);
   const customBg = footer.background.type !== 'inherit';
   const pageLinks = navItems.filter((i) => i.style === 'link');
+  const t = siteTranslator(site.settings.language);
+  // "Sitio creado con {app}": el enlace va donde está la variable (el orden cambia según el idioma).
+  const [brandingBefore, brandingAfter = ''] = t('Sitio creado con {app}').split('{app}');
 
   return (
     <footer className={`${styles.footer} ${styles.layered}`} data-style={footer.style} data-custom-bg={customBg}>
@@ -32,7 +36,7 @@ export function SiteFooter({ site, navItems }: { site: SiteViewModel; navItems: 
 
           {footer.showNav && pageLinks.length > 1 && footer.style !== 'simple' && (
             <div>
-              <p className={styles.footerTitle}>Páginas</p>
+              <p className={styles.footerTitle}>{t('Páginas')}</p>
               <ul className={styles.footerList}>
                 {pageLinks.map((item) => (
                   <li key={item.id}>
@@ -45,7 +49,7 @@ export function SiteFooter({ site, navItems }: { site: SiteViewModel; navItems: 
 
           {footer.showContact && hasContact && (
             <div>
-              <p className={styles.footerTitle}>Contacto</p>
+              <p className={styles.footerTitle}>{t('Contacto')}</p>
               <ul className={styles.footerList}>
                 {contact.whatsapp && (
                   <li><MessageCircle size={16} aria-hidden /><a href={`https://wa.me/${digitsOnly(contact.whatsapp).replace('+', '')}`} target="_blank" rel="noopener noreferrer">{contact.whatsapp}</a></li>
@@ -62,7 +66,7 @@ export function SiteFooter({ site, navItems }: { site: SiteViewModel; navItems: 
 
           {footer.showHours && contact.hours && (
             <div>
-              <p className={styles.footerTitle}>Horarios</p>
+              <p className={styles.footerTitle}>{t('Horarios')}</p>
               <ul className={styles.footerList}>
                 <li><Clock size={16} aria-hidden /><p className={styles.preLine}>{contact.hours}</p></li>
               </ul>
@@ -74,7 +78,9 @@ export function SiteFooter({ site, navItems }: { site: SiteViewModel; navItems: 
           <span>© {new Date().getFullYear()} {site.business.name}</span>
           {site.showBranding && (
             <span>
-              Sitio creado con <a href={appEnv.siteUrl} target="_blank" rel="noopener">{appEnv.appName}</a>
+              {brandingBefore}
+              <a href={appEnv.siteUrl} target="_blank" rel="noopener">{appEnv.appName}</a>
+              {brandingAfter}
             </span>
           )}
         </div>

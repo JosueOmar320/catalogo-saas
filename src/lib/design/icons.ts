@@ -6,6 +6,7 @@ import {
   Smartphone, Smile, Sparkles, Star, Stethoscope, Store, Sun, Tag, Target, ThumbsUp, Timer, Truck, User, Users, Utensils,
   Wallet, Wifi, Wrench, Zap, Play, CircleHelp, ChartColumn, Image as ImageIcon, Megaphone, TrendingUp, Columns3,
 } from 'lucide';
+import { msg } from '@/i18n/translate';
 
 /**
  * Iconos disponibles para el usuario (sin subir imágenes). Se guardan por id
@@ -15,26 +16,26 @@ import {
 export type IconNode = [tag: string, attrs: Record<string, string | number>][];
 
 const ICON_LIST = [
-  ['phone', 'Teléfono', Phone], ['message-circle', 'Mensaje', MessageCircle], ['mail', 'Email', Mail],
-  ['map-pin', 'Ubicación', MapPin], ['map', 'Mapa', Map], ['clock', 'Horario', Clock], ['globe', 'Web', Globe],
-  ['truck', 'Envío', Truck], ['shield-check', 'Garantía', ShieldCheck], ['star', 'Estrella', Star], ['heart', 'Corazón', Heart],
-  ['award', 'Premio', Award], ['badge-check', 'Verificado', BadgeCheck], ['sparkles', 'Brillo', Sparkles], ['leaf', 'Natural', Leaf],
-  ['coffee', 'Café', Coffee], ['utensils', 'Comida', Utensils], ['pizza', 'Pizza', Pizza], ['cake', 'Pastel', Cake],
-  ['shopping-bag', 'Bolsa', ShoppingBag], ['shopping-cart', 'Carrito', ShoppingCart], ['gift', 'Regalo', Gift], ['tag', 'Etiqueta', Tag],
-  ['percent', 'Descuento', Percent], ['credit-card', 'Tarjeta', CreditCard], ['wallet', 'Pago', Wallet], ['package', 'Paquete', Package],
-  ['wrench', 'Reparación', Wrench], ['hammer', 'Construcción', Hammer], ['scissors', 'Corte', Scissors], ['paintbrush', 'Pintura', Paintbrush],
-  ['camera', 'Foto', Camera], ['calendar', 'Calendario', Calendar], ['calendar-check', 'Reserva', CalendarCheck], ['users', 'Equipo', Users],
-  ['user', 'Persona', User], ['smile', 'Sonrisa', Smile], ['thumbs-up', 'Aprobado', ThumbsUp], ['zap', 'Rápido', Zap],
-  ['rocket', 'Lanzamiento', Rocket], ['target', 'Objetivo', Target], ['lightbulb', 'Idea', Lightbulb], ['circle-check', 'Listo', CircleCheck],
-  ['check', 'Check', Check], ['house', 'Hogar', House], ['building', 'Empresa', Building2], ['store', 'Tienda', Store], ['car', 'Auto', Car],
-  ['plane', 'Viaje', Plane], ['dumbbell', 'Gimnasio', Dumbbell], ['stethoscope', 'Salud', Stethoscope], ['graduation-cap', 'Educación', GraduationCap],
-  ['book-open', 'Libro', BookOpen], ['music', 'Música', Music], ['wifi', 'Wi-Fi', Wifi], ['recycle', 'Reciclaje', Recycle], ['sun', 'Sol', Sun],
-  ['flame', 'Fuego', Flame], ['droplet', 'Agua', Droplet], ['baby', 'Bebé', Baby], ['dog', 'Mascotas', Dog], ['shirt', 'Ropa', Shirt],
-  ['gem', 'Joya', Gem], ['crown', 'Premium', Crown], ['handshake', 'Acuerdo', Handshake], ['headphones', 'Soporte', Headphones],
-  ['laptop', 'Computadora', Laptop], ['smartphone', 'Celular', Smartphone], ['clipboard-list', 'Lista', ClipboardList], ['timer', 'Tiempo', Timer],
-  ['arrow-right', 'Flecha', ArrowRight], ['info', 'Información', Info], ['quote', 'Cita', Quote],
-  ['play', 'Video', Play], ['circle-help', 'Pregunta', CircleHelp], ['chart', 'Estadística', ChartColumn], ['image', 'Imagen', ImageIcon],
-  ['megaphone', 'Anuncio', Megaphone], ['trending-up', 'Crecimiento', TrendingUp], ['columns', 'Columnas', Columns3],
+  ['phone', msg('Teléfono'), Phone], ['message-circle', msg('Mensaje'), MessageCircle], ['mail', msg('Email'), Mail],
+  ['map-pin', msg('Ubicación'), MapPin], ['map', msg('Mapa'), Map], ['clock', msg('Horario'), Clock], ['globe', msg('Web'), Globe],
+  ['truck', msg('Envío'), Truck], ['shield-check', msg('Garantía'), ShieldCheck], ['star', msg('Estrella'), Star], ['heart', msg('Corazón'), Heart],
+  ['award', msg('Premio'), Award], ['badge-check', msg('Verificado'), BadgeCheck], ['sparkles', msg('Brillo'), Sparkles], ['leaf', msg('Natural'), Leaf],
+  ['coffee', msg('Café'), Coffee], ['utensils', msg('Comida'), Utensils], ['pizza', msg('Pizza'), Pizza], ['cake', msg('Pastel'), Cake],
+  ['shopping-bag', msg('Bolsa'), ShoppingBag], ['shopping-cart', msg('Carrito'), ShoppingCart], ['gift', msg('Regalo'), Gift], ['tag', msg('Etiqueta'), Tag],
+  ['percent', msg('Descuento'), Percent], ['credit-card', msg('Tarjeta'), CreditCard], ['wallet', msg('Pago'), Wallet], ['package', msg('Paquete'), Package],
+  ['wrench', msg('Reparación'), Wrench], ['hammer', msg('Construcción'), Hammer], ['scissors', msg('Corte'), Scissors], ['paintbrush', msg('Pintura'), Paintbrush],
+  ['camera', msg('Foto'), Camera], ['calendar', msg('Calendario'), Calendar], ['calendar-check', msg('Reserva'), CalendarCheck], ['users', msg('Equipo'), Users],
+  ['user', msg('Persona'), User], ['smile', msg('Sonrisa'), Smile], ['thumbs-up', msg('Aprobado'), ThumbsUp], ['zap', msg('Rápido'), Zap],
+  ['rocket', msg('Lanzamiento'), Rocket], ['target', msg('Objetivo'), Target], ['lightbulb', msg('Idea'), Lightbulb], ['circle-check', msg('Listo'), CircleCheck],
+  ['check', msg('Check'), Check], ['house', msg('Hogar'), House], ['building', msg('Empresa'), Building2], ['store', msg('Tienda'), Store], ['car', msg('Automóvil'), Car],
+  ['plane', msg('Viaje'), Plane], ['dumbbell', msg('Gimnasio'), Dumbbell], ['stethoscope', msg('Salud'), Stethoscope], ['graduation-cap', msg('Educación'), GraduationCap],
+  ['book-open', msg('Libro'), BookOpen], ['music', msg('Música'), Music], ['wifi', msg('Wi-Fi'), Wifi], ['recycle', msg('Reciclaje'), Recycle], ['sun', msg('Sol'), Sun],
+  ['flame', msg('Fuego'), Flame], ['droplet', msg('Agua'), Droplet], ['baby', msg('Bebé'), Baby], ['dog', msg('Mascotas'), Dog], ['shirt', msg('Ropa'), Shirt],
+  ['gem', msg('Joya'), Gem], ['crown', msg('Premium'), Crown], ['handshake', msg('Acuerdo'), Handshake], ['headphones', msg('Soporte'), Headphones],
+  ['laptop', msg('Computadora'), Laptop], ['smartphone', msg('Teléfono celular'), Smartphone], ['clipboard-list', msg('Lista'), ClipboardList], ['timer', msg('Tiempo'), Timer],
+  ['arrow-right', msg('Flecha'), ArrowRight], ['info', msg('Información'), Info], ['quote', msg('Cita'), Quote],
+  ['play', msg('Video'), Play], ['circle-help', msg('Pregunta'), CircleHelp], ['chart', msg('Estadística'), ChartColumn], ['image', msg('Imagen'), ImageIcon],
+  ['megaphone', msg('Anuncio'), Megaphone], ['trending-up', msg('Crecimiento'), TrendingUp], ['columns', msg('Columnas'), Columns3],
 ] as const;
 
 export type IconId = (typeof ICON_LIST)[number][0];

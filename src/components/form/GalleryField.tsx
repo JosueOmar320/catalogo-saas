@@ -9,6 +9,7 @@ import { moveItem } from '@/components/ui/SortableList';
 import { UploadError, uploadImage } from '@/features/media/client';
 import { MediaLibraryDialog } from '@/features/media/components/MediaLibraryDialog';
 import { ACCEPTED_IMAGE_TYPES, MAX_UPLOAD_BYTES, type MediaRecord, type UploadedImage } from '@/features/media/schema';
+import { useT } from '@/i18n/client';
 import { publicStorageUrl } from '@/lib/utils/storage';
 
 type Props = {
@@ -31,6 +32,7 @@ function toUploaded(record: MediaRecord): UploadedImage {
  * La primera imagen es la principal.
  */
 export function GalleryField({ value, onChange }: Props) {
+  const t = useT();
   const { businessId, maxImagesPerItem } = useDashboard();
   const toast = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -41,7 +43,7 @@ export function GalleryField({ value, onChange }: Props) {
   const addFiles = async (files: File[]) => {
     const accepted = files.slice(0, Math.max(0, remaining));
     if (accepted.length < files.length) {
-      toast.info(`Tu plan permite ${maxImagesPerItem} imágenes por ítem.`);
+      toast.info(t('Tu plan permite {count} imágenes por ítem.', { count: maxImagesPerItem ?? 0 }));
     }
     if (accepted.length === 0) return;
     setUploading((n) => n + accepted.length);
@@ -51,7 +53,7 @@ export function GalleryField({ value, onChange }: Props) {
     setUploading((n) => n - accepted.length);
     const uploaded = results.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []));
     const failed = results.find((r): r is PromiseRejectedResult => r.status === 'rejected');
-    if (failed) toast.error(failed.reason instanceof UploadError ? failed.reason.message : 'Alguna imagen no se pudo subir.');
+    if (failed) toast.error(failed.reason instanceof UploadError ? t(failed.reason.message) : t('Alguna imagen no se pudo subir.'));
     if (uploaded.length) onChange([...value, ...uploaded]);
     if (inputRef.current) inputRef.current.value = '';
   };
@@ -78,35 +80,35 @@ export function GalleryField({ value, onChange }: Props) {
               sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
             />
             {index === 0 && (
-              <Chip label="Principal" color="primary" sx={{ position: 'absolute', top: 6, left: 6, height: 20, fontSize: 11 }} />
+              <Chip label={t('Principal')} color="primary" sx={{ position: 'absolute', top: 6, left: 6, height: 20, fontSize: 11 }} />
             )}
             <Stack
               className="tile-actions"
               direction="row"
               sx={{ position: 'absolute', bottom: 0, left: 0, right: 0, justifyContent: 'center', bgcolor: 'rgba(0,0,0,0.55)', opacity: { xs: 1, md: 0 }, transition: 'opacity .15s' }}
             >
-              <Tooltip title="Mover a la izquierda">
+              <Tooltip title={t('Mover a la izquierda')}>
                 <span>
-                  <IconButton sx={{ color: '#fff' }} disabled={index === 0} onClick={() => onChange(moveItem(value, index, index - 1))} aria-label="Mover a la izquierda">
+                  <IconButton sx={{ color: '#fff' }} disabled={index === 0} onClick={() => onChange(moveItem(value, index, index - 1))} aria-label={t('Mover a la izquierda')}>
                     <ChevronLeft size={15} />
                   </IconButton>
                 </span>
               </Tooltip>
               {index !== 0 && (
-                <Tooltip title="Hacer principal">
-                  <IconButton sx={{ color: '#fff' }} onClick={() => onChange(moveItem(value, index, 0))} aria-label="Hacer principal">
+                <Tooltip title={t('Hacer principal')}>
+                  <IconButton sx={{ color: '#fff' }} onClick={() => onChange(moveItem(value, index, 0))} aria-label={t('Hacer principal')}>
                     <Star size={15} />
                   </IconButton>
                 </Tooltip>
               )}
-              <Tooltip title="Quitar">
-                <IconButton sx={{ color: '#fff' }} onClick={() => onChange(value.filter((_, i) => i !== index))} aria-label="Quitar imagen">
+              <Tooltip title={t('Quitar')}>
+                <IconButton sx={{ color: '#fff' }} onClick={() => onChange(value.filter((_, i) => i !== index))} aria-label={t('Quitar imagen')}>
                   <Trash2 size={15} />
                 </IconButton>
               </Tooltip>
-              <Tooltip title="Mover a la derecha">
+              <Tooltip title={t('Mover a la derecha')}>
                 <span>
-                  <IconButton sx={{ color: '#fff' }} disabled={index === value.length - 1} onClick={() => onChange(moveItem(value, index, index + 1))} aria-label="Mover a la derecha">
+                  <IconButton sx={{ color: '#fff' }} disabled={index === value.length - 1} onClick={() => onChange(moveItem(value, index, index + 1))} aria-label={t('Mover a la derecha')}>
                     <ChevronRight size={15} />
                   </IconButton>
                 </span>
@@ -127,7 +129,7 @@ export function GalleryField({ value, onChange }: Props) {
             sx={{ ...TILE, borderRadius: 1.5, border: 1, borderStyle: 'dashed', borderColor: 'divider', flexDirection: 'column', gap: 0.5, color: 'text.secondary', '&:hover': { borderColor: 'primary.main', color: 'primary.main' } }}
           >
             <ImagePlus size={20} />
-            <Typography variant="caption">Subir</Typography>
+            <Typography variant="caption">{t('Subir')}</Typography>
           </ButtonBase>
         )}
         {remaining > 0 && (
@@ -136,13 +138,13 @@ export function GalleryField({ value, onChange }: Props) {
             sx={{ ...TILE, borderRadius: 1.5, border: 1, borderStyle: 'dashed', borderColor: 'divider', flexDirection: 'column', gap: 0.5, color: 'text.secondary', '&:hover': { borderColor: 'primary.main', color: 'primary.main' } }}
           >
             <Images size={20} />
-            <Typography variant="caption">Biblioteca</Typography>
+            <Typography variant="caption">{t('Biblioteca')}</Typography>
           </ButtonBase>
         )}
       </Box>
       <Typography variant="caption" color="text.secondary" component="p" sx={{ mt: 1 }}>
-        JPG, PNG o WebP. Se optimizan automáticamente. Arrastra archivos aquí o usa el botón.
-        {maxImagesPerItem !== null && ` Máximo ${maxImagesPerItem} por ítem.`}
+        {t('JPG, PNG o WebP. Se optimizan automáticamente. Arrastra archivos aquí o usa el botón.')}
+        {maxImagesPerItem !== null && ` ${t('Máximo {count} por ítem.', { count: maxImagesPerItem })}`}
       </Typography>
       <input
         ref={inputRef}
@@ -160,7 +162,7 @@ export function GalleryField({ value, onChange }: Props) {
         initialFolder="products"
         onSelectMany={(records) => {
           const fresh = records.filter((r) => !value.some((v) => v.path === r.path)).slice(0, Math.max(0, remaining));
-          if (fresh.length < records.length && remaining !== Infinity && records.length > remaining) toast.info(`Tu plan permite ${maxImagesPerItem} imágenes por ítem.`);
+          if (fresh.length < records.length && remaining !== Infinity && records.length > remaining) toast.info(t('Tu plan permite {count} imágenes por ítem.', { count: maxImagesPerItem ?? 0 }));
           onChange([...value, ...fresh.map(toUploaded)]);
         }}
       />

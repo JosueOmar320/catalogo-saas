@@ -2,8 +2,10 @@ import { Link, Text, View } from '@react-pdf/renderer';
 import type { ReactNode } from 'react';
 import { resolveCollection, sortItems } from '@/lib/catalog/collections';
 import type { CatalogCategoryView, CatalogItemView } from '@/lib/catalog/view-model';
-import { PDF_BLOCK_META, type PdfBlock, type PdfBlockOf } from '@/lib/pdf/settings';
+import type { Translator } from '@/i18n/translate';
+import type { PdfBlock, PdfBlockOf, PdfBlockType } from '@/lib/pdf/settings';
 import { mediaUrl } from '@/lib/utils/storage';
+import { defaultText } from '@/site-renderer/default-texts';
 import { groupByCategory } from '@/site-renderer/filter';
 import { socialHandle } from './chrome';
 import { pdfAttributes, type PdfDoc } from './doc';
@@ -32,6 +34,28 @@ export function Anchor({ doc, id }: { doc: PdfDoc; id: string }) {
 
 export type TocEntry = { id: string; label: string; level: 0 | 1 };
 
+/** Nombre de un bloque sin título (para el índice), en el idioma del negocio. */
+function blockLabel(type: Exclude<PdfBlockType, 'cover' | 'toc' | 'pageBreak' | 'catalog' | 'page'>, siteT: Translator): string {
+  switch (type) {
+    case 'products':
+      return siteT('Colección de productos');
+    case 'comparison':
+      return siteT('Tabla comparativa');
+    case 'text':
+      return siteT('Página de información');
+    case 'gallery':
+      return siteT('Galería');
+    case 'image':
+      return siteT('Página de imagen');
+    case 'promo':
+      return siteT('Página promocional');
+    case 'contact':
+      return siteT('Contacto');
+    case 'backCover':
+      return siteT('Contraportada');
+  }
+}
+
 /** Entradas del índice: bloques con título y, si se pide, sus categorías. */
 export function tocEntries(doc: PdfDoc, blocks: PdfBlock[], withCategories: boolean): TocEntry[] {
   return blocks.flatMap((b): TocEntry[] => {
@@ -42,23 +66,23 @@ export function tocEntries(doc: PdfDoc, blocks: PdfBlock[], withCategories: bool
         return [];
       case 'catalog': {
         const cats = withCategories ? catalogGroups(doc, b).flatMap((g) => (g.title ? [{ id: `${b.id}-${g.id}`, label: g.title, level: (b.title ? 1 : 0) as 0 | 1 }] : [])) : [];
-        return [...(b.title || cats.length === 0 ? [{ id: b.id, label: b.title || 'Catálogo', level: 0 as const }] : []), ...cats];
+        return [...(b.title || cats.length === 0 ? [{ id: b.id, label: b.title || doc.siteT('Catálogo'), level: 0 as const }] : []), ...cats];
       }
       case 'page': {
         const page = doc.site.pages.find((p) => p.id === b.pageId);
         return page ? [{ id: b.id, label: page.title, level: 0 }] : [];
       }
       default:
-        return [{ id: b.id, label: b.title || PDF_BLOCK_META[b.type].label, level: 0 }];
+        return [{ id: b.id, label: b.title || blockLabel(b.type, doc.siteT), level: 0 }];
     }
   });
 }
 
 export function TocBlock({ doc, block, entries }: { doc: PdfDoc; block: PdfBlockOf<'toc'>; entries: TocEntry[] }) {
-  const { t, skin } = doc;
+  const { t, siteT, skin } = doc;
   return (
     <View>
-      <Text style={{ ...headingStyle(doc, t.size.h1), textAlign: skin.center ? 'center' : 'left', marginBottom: 6 }}>{block.title}</Text>
+      <Text style={{ ...headingStyle(doc, t.size.h1), textAlign: skin.center ? 'center' : 'left', marginBottom: 6 }}>{defaultText(block.title, siteT)}</Text>
       {skin.center ? <PdfOrnament ctx={doc} /> : <View style={{ height: 2, width: 50, backgroundColor: t.colors.accent }} />}
       <View style={{ marginTop: 22 }}>
         {entries.map((e) => (
@@ -97,7 +121,7 @@ function SimpleCategoryHeading({ doc, title, description, index }: { doc: PdfDoc
     case 'pill':
       return (
         <View style={{ marginBottom: 12 }}>
-          <Text style={{ alignSelf: 'flex-start', fontSize: t.size.tiny, fontWeight: 700, color: t.colors.onAccent, backgroundColor: t.colors.accent, borderRadius: 10, paddingVertical: 3, paddingHorizontal: 9, textTransform: 'uppercase', letterSpacing: 1 }}>Categoría</Text>
+          <Text style={{ alignSelf: 'flex-start', fontSize: t.size.tiny, fontWeight: 700, color: t.colors.onAccent, backgroundColor: t.colors.accent, borderRadius: 10, paddingVertical: 3, paddingHorizontal: 9, textTransform: 'uppercase', letterSpacing: 1 }}>{doc.siteT('Categoría')}</Text>
           <Text style={{ ...headingStyle(doc, t.size.h2 * 1.1), marginTop: 6 }}>{title}</Text>
           {desc}
         </View>
@@ -193,7 +217,7 @@ function HeroCategoryPage({ doc, category, title, description, count, index, blo
       <Text style={{ fontSize: t.size.small, letterSpacing: 3, textTransform: 'uppercase', color: t.colors.accent, marginTop: 22, textAlign: 'center' }}>{String(index + 1).padStart(2, '0')}</Text>
       <Text style={{ ...headingStyle(doc, t.size.h1 * 1.35), textAlign: 'center', marginTop: 4 }}>{title}</Text>
       {description && <Text style={{ fontSize: t.size.base * 1.1, color: t.colors.mutedText, textAlign: 'center', marginTop: 8, lineHeight: 1.45, paddingHorizontal: t.contentWidth * 0.1 }}>{description}</Text>}
-      <Text style={{ fontSize: t.size.small, color: t.colors.mutedText, textAlign: 'center', marginTop: 10 }}>{count} {count === 1 ? 'opción' : 'opciones'}</Text>
+      <Text style={{ fontSize: t.size.small, color: t.colors.mutedText, textAlign: 'center', marginTop: 10 }}>{count === 1 ? doc.siteT('1 opción') : doc.siteT('{count} opciones', { count })}</Text>
     </View>
   );
 }
@@ -244,13 +268,13 @@ export function catalogItems(doc: PdfDoc, block: PdfBlockOf<'catalog'>): Catalog
 
 export function catalogGroups(doc: PdfDoc, block: PdfBlockOf<'catalog'>) {
   const categories = block.categoryIds.length ? block.categoryIds.flatMap((id) => doc.site.categories.filter((c) => c.id === id)) : doc.site.categories;
-  return groupByCategory(catalogItems(doc, block), categories);
+  return groupByCategory(catalogItems(doc, block), categories, doc.siteT('Otros'));
 }
 
 export function CatalogBlock({ doc, block }: { doc: PdfDoc; block: PdfBlockOf<'catalog'> }) {
   const { t } = doc;
   const groups = catalogGroups(doc, block);
-  if (groups.length === 0) return <Text style={{ color: t.colors.mutedText, textAlign: 'center', marginTop: 60 }}>Aún no hay ítems visibles.</Text>;
+  if (groups.length === 0) return <Text style={{ color: t.colors.mutedText, textAlign: 'center', marginTop: 60 }}>{doc.siteT('Aún no hay ítems visibles.')}</Text>;
   const title = <BlockTitle doc={doc} title={block.title} subtitle={block.subtitle} />;
   const hero = block.categoryStyle === 'hero';
 
@@ -331,9 +355,9 @@ export function ComparisonBlock({ doc, block }: { doc: PdfDoc; block: PdfBlockOf
           <View key={ti} wrap={false} style={{ borderWidth: 0.5, borderColor: t.colors.border, borderRadius: t.radius * 0.5, marginBottom: 16, overflow: 'hidden' }}>
             {block.showImage &&
               row('', (item) => <PdfShapedPicture ctx={doc} url={item.images[0]?.thumbUrl} width={Math.min(colW - 12, 90)} height={Math.min(colW - 12, 90)} shape="rounded" style={{ alignSelf: 'center' }} />, 'img')}
-            {row('Producto', (item) => <Text style={{ ...headingStyle(doc, t.size.base), fontWeight: 700, textAlign: 'center' }}>{item.name}</Text>, 'name', true)}
-            {block.showPrice && row('Precio', (item) => <PdfPrice item={item} ctx={doc} align="center" size={t.size.base} />, 'price')}
-            {block.showSku && row('Código', (item) => item.sku ?? '—', 'sku')}
+            {row(doc.siteT('Producto'), (item) => <Text style={{ ...headingStyle(doc, t.size.base), fontWeight: 700, textAlign: 'center' }}>{item.name}</Text>, 'name', true)}
+            {block.showPrice && row(doc.siteT('Precio'), (item) => <PdfPrice item={item} ctx={doc} align="center" size={t.size.base} />, 'price')}
+            {block.showSku && row(doc.siteT('Código'), (item) => item.sku ?? '—', 'sku')}
             {defs.map((d) => row(d.name, values(d.id), d.id))}
           </View>
         );
@@ -399,22 +423,22 @@ export function GalleryBlock({ doc, block }: { doc: PdfDoc; block: PdfBlockOf<'g
 /* ------------------------------------------------------------ Contacto */
 
 export function ContactBlock({ doc, block }: { doc: PdfDoc; block?: PdfBlockOf<'contact'> }) {
-  const { t, site } = doc;
+  const { t, siteT, site } = doc;
   const c = site.business.contact;
   const address = [c.address, c.city].filter(Boolean).join(', ');
   const handle = socialHandle(site);
   const rows = [
     c.whatsapp && { icon: 'message-circle', label: 'WhatsApp', value: c.whatsapp },
-    c.phone && { icon: 'phone', label: 'Teléfono', value: c.phone },
+    c.phone && { icon: 'phone', label: siteT('Teléfono'), value: c.phone },
     c.email && { icon: 'mail', label: 'Email', value: c.email },
-    address && { icon: 'map-pin', label: 'Dirección', value: address },
-    c.hours && { icon: 'clock', label: 'Horarios', value: c.hours },
-    { icon: 'globe', label: 'Sitio', value: (c.website || site.url).replace(/^https?:\/\//, '') },
+    address && { icon: 'map-pin', label: siteT('Dirección'), value: address },
+    c.hours && { icon: 'clock', label: siteT('Horarios'), value: c.hours },
+    { icon: 'globe', label: siteT('Sitio'), value: (c.website || site.url).replace(/^https?:\/\//, '') },
   ].filter(Boolean) as { icon: string; label: string; value: string }[];
 
   return (
     <View wrap={false} style={{ marginTop: 10, padding: 18, backgroundColor: t.colors.soft, borderRadius: t.radius }}>
-      <Text style={{ ...headingStyle(doc, t.size.h2 * 0.9), marginBottom: 4 }}>{block?.title || 'Contacto'}</Text>
+      <Text style={{ ...headingStyle(doc, t.size.h2 * 0.9), marginBottom: 4 }}>{block?.title ? defaultText(block.title, siteT) : siteT('Contacto')}</Text>
       {block?.subtitle && <Text style={{ fontSize: t.size.base, color: t.colors.mutedText, marginBottom: 8 }}>{block.subtitle}</Text>}
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 6 }}>
         {rows.map((row) => (

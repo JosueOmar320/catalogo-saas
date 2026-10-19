@@ -3,14 +3,16 @@ import { Circle, G, Image, Line, Path, Rect, Svg, Text, View } from '@react-pdf/
 import type { ReactNode } from 'react';
 import type { PdfSettings } from '@/lib/pdf/settings';
 import type { SiteViewModel } from '@/lib/site/view-model';
+import { siteTranslator } from '@/site-renderer/site-i18n';
 import { sectionTitleAt, type PdfDoc } from './doc';
 import { img, type PdfContext } from './primitives';
 
 export function contactLine(site: SiteViewModel, parts: { phone?: boolean; whatsapp?: boolean; email?: boolean; website?: boolean } = { phone: true, whatsapp: true, email: true, website: true }) {
   const c = site.business.contact;
+  const siteT = siteTranslator(site.settings.language);
   return [
     parts.whatsapp && c.whatsapp && `WhatsApp ${c.whatsapp}`,
-    parts.phone && c.phone && c.phone !== c.whatsapp && `Tel. ${c.phone}`,
+    parts.phone && c.phone && c.phone !== c.whatsapp && siteT('Tel. {phone}', { phone: c.phone }),
     parts.email && c.email,
     parts.website && (c.website || site.url).replace(/^https?:\/\//, ''),
   ]

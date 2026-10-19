@@ -57,9 +57,9 @@ export class OpenAICompatibleModel implements AssistantModel {
     throw lastError ?? new ProviderError('No hay modelos configurados.', 500);
   }
 
-  private async respondWith(model: string, { messages, context, tools }: ModelInput): Promise<ModelResult> {
+  private async respondWith(model: string, { messages, context, tools, locale }: ModelInput): Promise<ModelResult> {
     const conversation: Message[] = [
-      { role: 'system', content: jsonSystemPrompt(tools?.specs, context.mode) },
+      { role: 'system', content: jsonSystemPrompt(tools?.specs, context.mode, locale) },
       ...messages.map((m, i) => ({ role: m.role, content: i === messages.length - 1 && m.role === 'user' ? userTurn(m.content, context) : m.content })),
     ];
 

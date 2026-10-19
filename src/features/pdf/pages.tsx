@@ -6,6 +6,7 @@ import { contrastRatio } from '@/lib/design/color';
 import type { PdfBlock, PdfBlockOf } from '@/lib/pdf/settings';
 import { mediaUrl } from '@/lib/utils/storage';
 import { contactLine, socialHandle } from './chrome';
+import { defaultText } from '@/site-renderer/default-texts';
 import type { PdfDoc } from './doc';
 import { headingStyle, PdfBackground, PdfLogo, PdfPicture, PdfRichText } from './primitives';
 import { productRows } from './products';
@@ -107,7 +108,7 @@ export function PromoPageBlock({ doc, block }: { doc: PdfDoc; block: PdfBlockOf<
 /* ------------------------------------------------------------ Contraportada */
 
 export function BackCoverBlock({ doc, block }: { doc: PdfDoc; block: PdfBlockOf<'backCover'> }) {
-  const { t, site } = doc;
+  const { t, siteT, site } = doc;
   const bg = doc.settings.inkSaver ? resolveBackground(null) : block.background.type === 'inherit' ? resolveBackground({ ...block.background, type: 'color', color: t.colors.primary }) : block.background;
   const base = bg.type === 'color' ? bg.color : bg.type === 'gradient' ? bg.gradient.from : t.colors.paper;
   const ink = bg.type === 'image' || contrastRatio(base, '#FFFFFF') > 3 ? lightInk : t.colors.heading;
@@ -117,7 +118,7 @@ export function BackCoverBlock({ doc, block }: { doc: PdfDoc; block: PdfBlockOf<
     <View style={{ width: t.pageWidth, height: t.pageHeight, alignItems: 'center', justifyContent: 'center', padding: t.margin * 1.5, gap: 12 }}>
       <PdfBackground ctx={doc} background={bg} width={t.pageWidth} height={t.pageHeight} />
       {block.showLogo && <PdfLogo ctx={doc} url={site.business.logoUrl} size={70} />}
-      <Text style={{ ...headingStyle(doc, t.size.h1, ink), textAlign: 'center' }}>{block.title}</Text>
+      <Text style={{ ...headingStyle(doc, t.size.h1, ink), textAlign: 'center' }}>{defaultText(block.title, siteT)}</Text>
       {block.message && <Text style={{ fontSize: t.size.base * 1.15, color: ink, opacity: 0.9, textAlign: 'center', maxWidth: t.pageWidth * 0.62, lineHeight: 1.45 }}>{block.message}</Text>}
       <View style={{ height: 1, width: 60, backgroundColor: ink, opacity: 0.5, marginVertical: 8 }} />
       <Text style={{ fontFamily: t.fonts.heading, fontWeight: 700, fontSize: t.size.h3, color: ink }}>{site.business.name}</Text>

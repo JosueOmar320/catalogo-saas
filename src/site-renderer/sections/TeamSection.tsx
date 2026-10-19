@@ -2,17 +2,19 @@ import { User } from 'lucide-react';
 import { mediaUrl } from '@/lib/utils/storage';
 import { gridVars, Placeholder, SectionFrame, SectionHead } from '../SectionFrame';
 import { SiteImage } from '../SiteImage';
+import { siteTranslator } from '../site-i18n';
 import styles from '../site.module.css';
 import type { SectionProps } from './types';
 
 export function TeamSection({ section, site, env }: SectionProps<'team'>) {
   const { content } = section;
+  const t = siteTranslator(site.settings.language);
   if (content.members.length === 0 && env.mode === 'public') return null;
   const list = content.layout === 'list';
   return (
     <SectionFrame section={section} theme={site.theme}>
       <SectionHead eyebrow={content.eyebrow} title={content.title} subtitle={content.subtitle} center={!list} />
-      <Placeholder show={content.members.length === 0}>Agrega a las personas de tu equipo desde el editor.</Placeholder>
+      <Placeholder show={content.members.length === 0}>{t('Agrega a las personas de tu equipo desde el editor.')}</Placeholder>
       <div className={list ? styles.teamList : styles.grid} style={list ? undefined : gridVars(content.columns)}>
         {content.members.map((m) => {
           const photo = mediaUrl(m.photo);

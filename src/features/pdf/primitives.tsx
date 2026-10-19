@@ -2,6 +2,7 @@
 import { Circle, Defs, G, Image, Line, Link, LinearGradient, Path, Polyline, RadialGradient, Rect, Stop, Svg, Text, View } from '@react-pdf/renderer';
 import type { Style } from '@react-pdf/types';
 import type { ReactNode } from 'react';
+import type { Translator } from '@/i18n/translate';
 import { discountPercent, type CatalogItemView } from '@/lib/catalog/view-model';
 import type { Background } from '@/lib/design/background';
 import { readableOn } from '@/lib/design/color';
@@ -11,11 +12,14 @@ import { parseRichText, type Inline } from '@/lib/design/rich-text';
 import type { ThemeConfig } from '@/lib/design/theme';
 import { resolveBadges } from '@/lib/site/resolve';
 import { mediaUrl } from '@/lib/utils/storage';
+import { defaultText } from '@/site-renderer/default-texts';
 import type { PdfImage } from './images';
 import type { PdfTokens } from './tokens';
 
 export type PdfContext = {
   t: PdfTokens;
+  /** Textos fijos del PDF en el idioma del negocio (`t` son los tokens de diseño). */
+  siteT: Translator;
   theme: ThemeConfig;
   images: Map<string, PdfImage>;
 };
@@ -181,21 +185,21 @@ export function headingStyle(ctx: PdfContext, size: number, color?: string): Sty
 /* ------------------------------------------------------------ Precio y badges */
 
 export function PdfPrice({ item, ctx, size, color, align, compare = true, discount = false }: { item: CatalogItemView; ctx: PdfContext; size?: number; color?: string; align?: 'left' | 'right' | 'center'; compare?: boolean; discount?: boolean }) {
-  const { t } = ctx;
+  const { t, siteT } = ctx;
   const s = size ?? t.size.base * 1.1;
   const percent = discount ? discountPercent(item) : null;
   return (
     <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4, flexWrap: 'wrap', justifyContent: align === 'right' ? 'flex-end' : align === 'center' ? 'center' : 'flex-start' }}>
       {item.priceLabel ? (
         <>
-          {item.priceNote === 'desde' && <Text style={{ fontSize: t.size.tiny, color: t.colors.mutedText }}>desde</Text>}
+          {item.priceNote === 'desde' && <Text style={{ fontSize: t.size.tiny, color: t.colors.mutedText }}>{siteT('desde')}</Text>}
           <Text style={{ fontFamily: t.fonts.price, fontWeight: 700, fontSize: s, color: color ?? t.colors.price }}>{item.priceLabel}</Text>
           {compare && item.compareAtLabel && <Text style={{ fontSize: t.size.tiny, color: t.colors.mutedText, textDecoration: 'line-through' }}>{item.compareAtLabel}</Text>}
           {percent !== null && <PdfDiscount ctx={ctx} percent={percent} />}
           {item.priceNote && item.priceNote !== 'desde' && <Text style={{ fontSize: t.size.tiny, color: t.colors.mutedText }}>{item.priceNote}</Text>}
         </>
       ) : (
-        <Text style={{ fontSize: t.size.small, color: t.colors.mutedText }}>{item.priceNote ?? 'Precio a consultar'}</Text>
+        <Text style={{ fontSize: t.size.small, color: t.colors.mutedText }}>{item.priceNote ?? siteT('Precio a consultar')}</Text>
       )}
     </View>
   );
@@ -228,7 +232,7 @@ export function PdfBadges({ item, ctx, style }: { item: CatalogItemView; ctx: Pd
             borderColor: b.color,
           }}
         >
-          {b.label}
+          {defaultText(b.label, ctx.siteT)}
         </Text>
       ))}
     </View>

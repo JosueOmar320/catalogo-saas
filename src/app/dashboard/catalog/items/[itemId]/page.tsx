@@ -5,8 +5,12 @@ import { ItemForm } from '@/features/items/components/ItemForm';
 import { itemToFormValues } from '@/features/items/defaults';
 import { requireBusinessContext } from '@/lib/auth/session';
 import { uuidSchema } from '@/lib/utils/validation';
+import { getT } from '@/i18n/server';
 
-export const metadata: Metadata = { title: 'Editar ítem' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT();
+  return { title: t('Editar ítem') };
+}
 
 export default async function EditItemPage({ params }: PageProps<'/dashboard/catalog/items/[itemId]'>) {
   const { itemId } = await params;

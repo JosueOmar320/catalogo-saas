@@ -5,11 +5,13 @@ import { useColorScheme } from '@mui/material/styles';
 import { Check, Monitor, Moon, Sun } from 'lucide-react';
 import { useState } from 'react';
 import type { ColorMode } from '@/components/providers/color-mode';
+import { useT } from '@/i18n/client';
+import { msg } from '@/i18n/translate';
 
 const OPTIONS: { mode: ColorMode; label: string; icon: typeof Sun }[] = [
-  { mode: 'light', label: 'Claro', icon: Sun },
-  { mode: 'dark', label: 'Oscuro', icon: Moon },
-  { mode: 'system', label: 'Sistema', icon: Monitor },
+  { mode: 'light', label: msg('Claro'), icon: Sun },
+  { mode: 'dark', label: msg('Oscuro'), icon: Moon },
+  { mode: 'system', label: msg('Sistema'), icon: Monitor },
 ];
 
 /**
@@ -18,6 +20,7 @@ const OPTIONS: { mode: ColorMode; label: string; icon: typeof Sun }[] = [
  * muestra el ícono de "sistema" para no desajustar la hidratación.
  */
 export function ColorModeToggle() {
+  const t = useT();
   const { mode, systemMode, setMode } = useColorScheme();
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const resolved = mode === 'system' ? systemMode : mode;
@@ -25,8 +28,8 @@ export function ColorModeToggle() {
 
   return (
     <>
-      <Tooltip title="Apariencia">
-        <IconButton onClick={(e) => setAnchor(e.currentTarget)} aria-label="Cambiar apariencia" aria-haspopup="menu" aria-expanded={Boolean(anchor)}>
+      <Tooltip title={t('Apariencia')}>
+        <IconButton onClick={(e) => setAnchor(e.currentTarget)} aria-label={t('Cambiar apariencia')} aria-haspopup="menu" aria-expanded={Boolean(anchor)}>
           <Icon size={17} />
         </IconButton>
       </Tooltip>
@@ -41,7 +44,7 @@ export function ColorModeToggle() {
             }}
           >
             <ListItemIcon><option.icon size={16} /></ListItemIcon>
-            <ListItemText>{option.label}</ListItemText>
+            <ListItemText>{t(option.label)}</ListItemText>
             {mode === option.mode && <Check size={15} style={{ marginLeft: 12 }} />}
           </MenuItem>
         ))}
