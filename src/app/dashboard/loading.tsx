@@ -1,3 +1,5 @@
-import { SegmentLoading } from '@/components/feedback/SegmentLoading';
+import { PageSkeleton } from '@/components/feedback/PageSkeleton';
 
-export default SegmentLoading;
+export default function Loading() {
+  return <PageSkeleton variant="home" />;
+}

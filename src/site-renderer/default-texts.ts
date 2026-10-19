@@ -31,6 +31,9 @@ export function defaultText(text: string, t: Translator): string {
       return t('Hola, me interesa "{producto}" ({precio}) que vi en su catálogo: {url}');
     case 'Consulta sobre {producto}':
       return t('Consulta sobre {producto}');
+    // Pedido por WhatsApp
+    case 'Hola {negocio}, quiero hacer este pedido:':
+      return t('Hola {negocio}, quiero hacer este pedido:');
     // Botón del header
     case 'Contáctanos':
       return t('Contáctanos');

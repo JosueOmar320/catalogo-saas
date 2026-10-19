@@ -112,7 +112,29 @@ export function AppShell(props: Props) {
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
-      <Box component="nav" sx={{ width: { md: DRAWER_WIDTH }, flexShrink: { md: 0 } }}>
+      {/* Enlace para teclado: aparece al enfocarlo y salta la navegación. */}
+      <Box
+        component="a"
+        href="#contenido"
+        sx={{
+          position: 'fixed',
+          top: 8,
+          left: 8,
+          zIndex: 'tooltip',
+          px: 2,
+          py: 1,
+          borderRadius: 1,
+          bgcolor: 'primary.main',
+          color: 'primary.contrastText',
+          fontWeight: 600,
+          textDecoration: 'none',
+          transform: 'translateY(-200%)',
+          '&:focus-visible': { transform: 'none' },
+        }}
+      >
+        {t('Saltar al contenido')}
+      </Box>
+      <Box component="nav" aria-label={t('Navegación del panel')} sx={{ width: { md: DRAWER_WIDTH }, flexShrink: { md: 0 } }}>
         <Drawer
           variant="temporary"
           open={mobileOpen}
@@ -143,7 +165,7 @@ export function AppShell(props: Props) {
             {!admin && <PublishControl />}
           </Toolbar>
         </AppBar>
-        <Box component="main" sx={{ flex: 1, p: fullWidth ? 2 : { xs: 2, sm: 3 }, pb: fullWidth ? 2 : 12, width: '100%', maxWidth: fullWidth ? 'none' : 1240, mx: 'auto' }}>
+        <Box component="main" id="contenido" tabIndex={-1} sx={{ outline: 'none', flex: 1, p: fullWidth ? 2 : { xs: 2, sm: 3 }, pb: fullWidth ? 2 : 12, width: '100%', maxWidth: fullWidth ? 'none' : 1240, mx: 'auto' }}>
           {children}
         </Box>
       </Box>

@@ -9,6 +9,7 @@ import { invalidatePublicCatalog } from '@/lib/catalog/cache';
 import {
   catalogSettingsSchema,
   contactActionsSchema,
+  orderSchema,
   parseCatalogSettings,
   pdfOptionsSchema,
   priceFormatSchema,
@@ -52,6 +53,7 @@ const settingsPatchSchema = z.object({
   currency: z.enum(CURRENCIES).optional(),
   language: z.enum(LOCALES).optional(),
   contactActions: contactActionsSchema.optional(),
+  order: orderSchema.optional(),
   pdf: pdfOptionsSchema.optional(),
   priceFormat: priceFormatSchema.optional(),
 });

@@ -1,4 +1,4 @@
-import { Alert, Chip, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography } from '@mui/material';
+import { Alert, Box, Chip, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography } from '@mui/material';
 import type { Metadata } from 'next';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { SectionCard } from '@/components/ui/SectionCard';
@@ -42,7 +42,8 @@ export default async function AdminSettingsPage() {
           </Stack>
         </SectionCard>
         <SectionCard title={t('Planes')} description={t('Límites por negocio. Preparado para suscripciones y facturación.')} flush>
-          <Table size="small">
+          <Box sx={{ overflowX: 'auto' }}>
+            <Table size="small" sx={{ minWidth: 560 }}>
             <TableHead>
               <TableRow><TableCell>{t('Plan')}</TableCell><TableCell>{t('Límites')}</TableCell><TableCell>{t('Funciones')}</TableCell></TableRow>
             </TableHead>
@@ -56,6 +57,7 @@ export default async function AdminSettingsPage() {
               ))}
             </TableBody>
           </Table>
+          </Box>
         </SectionCard>
       </Stack>
     </>

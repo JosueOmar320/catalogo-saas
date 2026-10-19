@@ -202,7 +202,7 @@ type SampleOptions = {
 };
 
 export function buildSampleSite(options: SampleOptions = {}): SiteViewModel {
-  const settings = catalogSettingsSchema.parse({ currency: 'MXN', contactActions: { phone: { enabled: true } } });
+  const settings = catalogSettingsSchema.parse({ currency: 'MXN', contactActions: { phone: { enabled: true } }, order: { enabled: true } });
   const url = `${env.siteUrl}/demo`;
   const pages = options.pages ?? buildSamplePages();
   return {

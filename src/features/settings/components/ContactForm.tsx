@@ -9,17 +9,19 @@ import { SectionCard } from '@/components/ui/SectionCard';
 import { updateContact } from '@/features/business/actions';
 import { updateCatalogSettings } from '@/features/catalog/actions';
 import { contactSchema, type BusinessContact } from '@/lib/business/profile';
-import { contactActionsSchema, type ContactActionsConfig } from '@/lib/catalog/settings';
+import { contactActionsSchema, orderSchema, type ContactActionsConfig, type OrderSettings } from '@/lib/catalog/settings';
 import { fillTemplate } from '@/lib/contact/actions';
 import { useT } from '@/i18n/client';
 import { useAction } from '@/lib/hooks/use-action';
 
-export function ContactForm({ contact, actions, businessName }: { contact: BusinessContact; actions: ContactActionsConfig; businessName: string }) {
+export function ContactForm({ contact, actions, order, businessName }: { contact: BusinessContact; actions: ContactActionsConfig; order: OrderSettings; businessName: string }) {
   const t = useT();
   const router = useRouter();
   const { run, pending } = useAction();
   const contactForm = useForm<BusinessContact>({ resolver: zodResolver(contactSchema) as Resolver<BusinessContact>, defaultValues: contact });
   const actionsForm = useForm<ContactActionsConfig>({ resolver: zodResolver(contactActionsSchema) as Resolver<ContactActionsConfig>, defaultValues: actions });
+  const orderForm = useForm<OrderSettings>({ resolver: zodResolver(orderSchema) as Resolver<OrderSettings>, defaultValues: order });
+  const orderEnabled = useWatch({ control: orderForm.control, name: 'enabled' });
   const message = useWatch({ control: actionsForm.control, name: 'whatsapp.message' });
   const whatsappEnabled = useWatch({ control: actionsForm.control, name: 'whatsapp.enabled' });
 
@@ -92,6 +94,31 @@ export function ContactForm({ contact, actions, businessName }: { contact: Busin
           </Box>
           <Stack direction="row" sx={{ justifyContent: 'flex-end' }}>
             <Button type="submit" variant="contained" disabled={pending || !actionsForm.formState.isDirty}>{t('Guardar botones')}</Button>
+          </Stack>
+        </Stack>
+      </SectionCard>
+
+      <SectionCard title={t('Pedidos por WhatsApp')} description={t('Tus clientes arman una lista de productos con cantidades y te la envían por WhatsApp con el total.')}>
+        <Stack
+          component="form"
+          spacing={2}
+          onSubmit={orderForm.handleSubmit((values) =>
+            run(() => updateCatalogSettings({ order: values }), { onSuccess: () => { orderForm.reset(values); router.refresh(); } }),
+          )}
+        >
+          {!contact.whatsapp && orderEnabled && (
+            <Alert severity="info">{t('Agrega tu número de WhatsApp arriba para recibir pedidos.')}</Alert>
+          )}
+          <SwitchControl
+            control={orderForm.control}
+            name="enabled"
+            label={t('Recibir pedidos')}
+            description={t('Los productos disponibles muestran "Agregar al pedido" en lugar del botón de contacto. Los servicios se siguen consultando.')}
+          />
+          <TextFieldControl control={orderForm.control} name="intro" label={t('Saludo del mensaje')} disabled={!orderEnabled} helperText={t('Primera línea del pedido. Variable: {negocio}')} />
+          <SwitchControl control={orderForm.control} name="askName" label={t('Pedir el nombre del cliente')} description={t('Campo opcional en el pedido.')} />
+          <Stack direction="row" sx={{ justifyContent: 'flex-end' }}>
+            <Button type="submit" variant="contained" disabled={pending || !orderForm.formState.isDirty}>{t('Guardar pedidos')}</Button>
           </Stack>
         </Stack>
       </SectionCard>
