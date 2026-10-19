@@ -1,0 +1,25 @@
+name: Keep-alive
+
+# El plan gratuito de Supabase pausa el proyecto tras 7 días sin actividad.
+# Cada 3 días se consulta /api/health del despliegue (que hace una consulta a la base).
+# Configura la variable del repositorio PRODUCTION_URL (Settings → Secrets and variables
+# → Actions → Variables), p. ej. https://catalogo-saas.vercel.app. Sin ella, no hace nada.
+
+on:
+  schedule:
+    - cron: '17 9 */3 * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    name: Ping /api/health
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: ${{ vars.PRODUCTION_URL != '' }}
+    steps:
+      - name: Health check
+        env:
+          URL: ${{ vars.PRODUCTION_URL }}
+        run: curl --fail --silent --show-error --max-time 30 --retry 3 --retry-delay 10 "${URL%/}/api/health"
