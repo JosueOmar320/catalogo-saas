@@ -50,13 +50,15 @@ function haystackOf(item: CatalogItemView): string {
   let text = searchText.get(item);
   if (text === undefined) {
     const attrText = Object.values(item.attributes).flatMap(attrStrings);
-    text = normalize([item.name, item.shortDescription, item.sku, ...item.tags, ...attrText].filter(Boolean).join(' '));
+    // También las opciones y extras: "almendra" encuentra el latte que la ofrece.
+    const optionText = [...(item.variants?.options ?? []).flatMap((o) => [o.name, o.sku]), ...(item.extras?.options ?? []).map((o) => o.name)];
+    text = normalize([item.name, item.shortDescription, item.sku, ...item.tags, ...attrText, ...optionText].filter(Boolean).join(' '));
     searchText.set(item, text);
   }
   return text;
 }
 
-/** Búsqueda sin acentos por nombre, descripción, código, etiquetas y atributos; más filtros. */
+/** Búsqueda sin acentos por nombre, descripción, código, etiquetas, atributos, opciones y extras; más filtros. */
 export function filterItems(items: CatalogItemView[], filters: CatalogFilters): CatalogItemView[] {
   const terms = normalize(filters.query.trim()).split(/\s+/).filter(Boolean);
   const attrFilters = Object.entries(filters.attrs).filter(([, v]) => v !== '');

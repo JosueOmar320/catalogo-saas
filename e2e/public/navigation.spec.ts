@@ -39,6 +39,14 @@ test.describe('/api/orders (aviso de pedido enviado)', () => {
   });
 });
 
+test('sitemap con la plataforma y la demo; imagen para compartir de un catálogo inexistente responde 404', async ({ request }) => {
+  const sitemap = await request.get('/sitemap.xml');
+  expect(sitemap.status()).toBe(200);
+  expect(await sitemap.text()).toMatch(/<loc>https?:\/\/[^<]+\/demo<\/loc>/);
+  expect((await request.get('/og/catalogo/no-existe')).status()).toBe(404);
+  expect((await request.get('/og/catalogo/no-existe/p/algo')).status()).toBe(404);
+});
+
 test.describe('/api/views (visitas del sitio publicado)', () => {
   test('valida el cuerpo y el origen; una visita válida responde 204 sin revelar si contó', async ({ request }) => {
     expect((await request.post('/api/views', { data: { slug: 'X Y' } })).status()).toBe(400);
