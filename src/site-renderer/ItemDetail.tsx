@@ -7,7 +7,10 @@ import { ContactActions } from './ContactActions';
 import type { RenderEnv } from './env';
 import { ImageGallery } from './ImageGallery';
 import { ItemCard } from './ItemCard';
+import { orderable } from './order/config';
 import { PriceTag } from './PriceTag';
+import { buttonVariant } from './SiteButton';
+import { VariantPicker } from './VariantPicker';
 import { relatedItems } from './related';
 import { ShareItem } from './ShareItem';
 import { siteTranslator, siteYesNo } from './site-i18n';
@@ -56,8 +59,14 @@ export function ItemDetail({ site, item, backHref, env }: { site: SiteViewModel;
               ))}
             </div>
           )}
+          {item.variants && (
+            <VariantPicker
+              item={item}
+              button={orderable(site, item) ? { className: styles.btn, variant: buttonVariant(site.theme, 'primary'), hover: site.theme.buttons.hover } : null}
+            />
+          )}
           <div className={styles.btnRow}>
-            <ContactActions site={site} item={item} />
+            <ContactActions site={site} item={item} skipOrder={Boolean(item.variants)} />
           </div>
           <ShareItem name={item.name} url={item.url} />
         </div>

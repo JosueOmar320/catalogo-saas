@@ -36,6 +36,7 @@ import { saveItem } from '../actions';
 import { ITEM_TYPE_LABELS, itemFormSchema, type ItemFormValues } from '../schema';
 import { ItemAttributesFields } from './ItemAttributesFields';
 import { ItemCardPreview } from './ItemCardPreview';
+import { VariantsField } from './VariantsField';
 
 type Props = {
   itemId: string | null;
@@ -164,6 +165,12 @@ export function ItemForm({ itemId, defaultValues, categories, previewSite }: Pro
                 </Grid>
               </Grid>
             </SectionCard>
+
+            {values.type === 'product' && (
+              <SectionCard title={t('Opciones')}>
+                <VariantsField control={control} basePrice={values.price ?? ''} />
+              </SectionCard>
+            )}
 
             <SectionCard
               title={t('Atributos')}

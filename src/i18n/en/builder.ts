@@ -659,6 +659,11 @@ const catalog: Catalog = {
   Orden: 'Order',
   'Cantidad máxima': 'Maximum count',
   'Sin límite': 'No limit',
+  // Deshacer / rehacer del editor
+  'Historial de cambios': 'Change history',
+  'Deshacer ({shortcut})': 'Undo ({shortcut})',
+  'Rehacer ({shortcut})': 'Redo ({shortcut})',
+  Rehacer: 'Redo',
 };
 
 export default catalog;

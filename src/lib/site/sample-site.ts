@@ -38,11 +38,13 @@ type SampleItem = {
   sku?: string;
   badges?: CatalogItemView['badges'];
   attrs?: CatalogItemView['attributes'];
+  /** Opciones con precio propio (null = precio del producto). */
+  variants?: { label: string; options: [name: string, price: number | null][] };
 };
 
 const ITEMS: SampleItem[] = [
   { name: 'Espresso doble', category: 0, short: 'Intenso, con notas a cacao y frutos rojos.', price: 45, photo: '1510591509098-f4fdc6d0ff04', featured: true, sku: 'CAF-001', badges: ['popular'], attrs: { origen: 'Chiapas', tamano: '2 oz' } },
-  { name: 'Latte de avena', category: 0, short: 'Espresso con bebida de avena texturizada.', price: 68, photo: '1461023058943-07fcbe16d735', sku: 'CAF-002', badges: ['new'], attrs: { origen: 'Veracruz', tamano: '12 oz' } },
+  { name: 'Latte de avena', category: 0, short: 'Espresso con bebida de avena texturizada.', price: 68, photo: '1461023058943-07fcbe16d735', sku: 'CAF-002', note: 'desde', badges: ['new'], attrs: { origen: 'Veracruz', tamano: '12 oz' }, variants: { label: 'Tamaño', options: [['12 oz', null], ['16 oz', 78]] } },
   { name: 'Cold brew', category: 0, short: 'Extracción en frío por 18 horas. Suave y dulce.', price: 72, compareAt: 85, photo: '1517701604599-bb29b565090c', featured: true, sku: 'CAF-003', attrs: { origen: 'Chiapas', tamano: '16 oz' } },
   { name: 'Café en grano 340 g', category: 0, short: 'Chiapas, lavado. Ideal para filtrado.', price: 290, photo: '1559056199-641a0ac8b55e', sku: 'CAF-010', note: 'bolsa', featured: true, attrs: { origen: 'Chiapas', tamano: '340 g', incluye: ['Molienda a elección', 'Fecha de tueste en la bolsa'] } },
   { name: 'Croissant de mantequilla', category: 1, short: 'Hojaldre francés con 27 capas.', price: 48, photo: '1555507036-ab1f4038808a', featured: true, sku: 'PAN-001', badges: ['popular'] },
@@ -79,6 +81,15 @@ function sampleItems(currency: string, url: string): CatalogItemView[] {
     createdAt: new Date(2026, 0, 30 - index).toISOString(),
     // Como en un sitio real: cada ítem con su propia URL (compartir, WhatsApp, SEO).
     url: `${url}/p/ejemplo-${index + 1}`,
+    variants: item.variants
+      ? {
+          label: item.variants.label,
+          options: item.variants.options.map(([name, price], i) => {
+            const value = price ?? item.price;
+            return { id: `v${i + 1}`, name, price: value, priceLabel: value === null ? null : formatPrice(value, currency), sku: null, available: true };
+          }),
+        }
+      : null,
   }));
 }
 

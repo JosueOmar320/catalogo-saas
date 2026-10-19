@@ -13,7 +13,10 @@ export const MAX_ORDER_QTY = 99;
 
 /** Lo que se guarda de cada producto al agregarlo (foto del momento: no hay que volver a pedir el catálogo). */
 export type OrderItem = {
+  /** Línea del pedido: el producto, o "producto:opción" si tiene opciones. */
   id: string;
+  /** Producto al que pertenece la línea (para las estadísticas). Sin opciones, igual a `id`. */
+  itemId?: string | null;
   name: string;
   sku: string | null;
   price: number | null;

@@ -113,7 +113,7 @@ export function ProductCollection({ items, site, env, presentation: p, categoryN
                   {f.availability && !item.isAvailable && <span className={styles.availability}>{t('No disponible')}</span>}
                 </div>
               </ItemLink>
-              {f.button && item.isAvailable && <ContactActions site={site} item={item} show="primary" small appearance="icon" />}
+              {f.button && item.isAvailable && <ContactActions site={site} item={item} env={env} show="primary" small appearance="icon" />}
             </article>
           ))}
         </div>
@@ -160,7 +160,7 @@ export function ProductCollection({ items, site, env, presentation: p, categoryN
                   {f.price && <div className={styles.bigPrice}><PriceTag item={item} t={t} compare={f.compareAt} discount={f.discount} /></div>}
                   {f.button && item.isAvailable && (
                     <div className={styles.btnRow}>
-                      <ContactActions site={site} item={item} show="primary" small />
+                      <ContactActions site={site} item={item} env={env} show="primary" small />
                     </div>
                   )}
                 </div>
@@ -201,7 +201,7 @@ export function ProductCollection({ items, site, env, presentation: p, categoryN
                   )}
                   {f.button && item.isAvailable && (
                     <div className={styles.btnRow}>
-                      <ContactActions site={site} item={item} />
+                      <ContactActions site={site} item={item} env={env} />
                     </div>
                   )}
                 </div>
@@ -262,7 +262,7 @@ export function ProductCollection({ items, site, env, presentation: p, categoryN
                     return <td key={d.id}>{attr ? (attr.list ? attr.list.join(', ') : attr.value) : '—'}</td>;
                   })}
                   {f.sku && <td>{item.sku ?? '—'}</td>}
-                  {f.button && <td>{item.isAvailable && <ContactActions site={site} item={item} show="primary" small appearance="icon" />}</td>}
+                  {f.button && <td>{item.isAvailable && <ContactActions site={site} item={item} env={env} show="primary" small appearance="icon" />}</td>}
                 </tr>
               ))}
             </tbody>

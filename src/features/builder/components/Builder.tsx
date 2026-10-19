@@ -1,8 +1,9 @@
 'use client';
 
-import { Box, Button, Chip, Paper, Stack, Tab, Tabs, Typography, useMediaQuery, useTheme } from '@mui/material';
+import { Box, Button, Chip, IconButton, Paper, Stack, Tab, Tabs, Tooltip, Typography, useMediaQuery, useTheme } from '@mui/material';
+import { Redo2, Undo2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useDeferredValue, useMemo, useReducer, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useReducer, useState } from 'react';
 import { useConfirm } from '@/components/feedback/ConfirmProvider';
 import { useAction } from '@/lib/hooks/use-action';
 import { slugify } from '@/lib/utils/slug';
@@ -11,7 +12,8 @@ import type { SiteViewModel } from '@/lib/site/view-model';
 import { GarfieldProvider } from '@/features/assistant/components/GarfieldProvider';
 import { GarfieldLauncher, GarfieldPanel, GarfieldPreviewBanner } from '@/features/assistant/components/GarfieldPanel';
 import { saveSite } from '../actions';
-import { BuilderContext, builderReducer, type BuilderPanel, type BuilderState } from '../state';
+import { canRedo, canUndo, historyReducer, initHistory } from '../history';
+import { BuilderContext, type BuilderAction, type BuilderPanel, type BuilderState } from '../state';
 import { BuilderPreview, type Device } from './BuilderPreview';
 import { DesignPanel, type IdentityImages } from './DesignPanel';
 import { NavigationPanel } from './NavigationPanel';
@@ -57,7 +59,30 @@ function initialState(props: Props): BuilderState {
  */
 export function Builder(props: Props) {
   const t = useT();
-  const [state, dispatch] = useReducer(builderReducer, props, initialState);
+  const [history, dispatchHistory] = useReducer(historyReducer, props, (p: Props) => initHistory(initialState(p)));
+  const state = history.present;
+  // Toda edición pasa por la historia (deshacer / rehacer); la marca de tiempo agrupa escritura continua.
+  const dispatch = useCallback((action: BuilderAction) => dispatchHistory({ type: 'do', action, at: Date.now() }), []);
+  const undo = useCallback(() => dispatchHistory({ type: 'undo' }), []);
+  const redo = useCallback(() => dispatchHistory({ type: 'redo' }), []);
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || event.altKey) return;
+      // Dentro de un campo de texto, el deshacer nativo del campo tiene prioridad.
+      const target = event.target as HTMLElement | null;
+      if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
+      const key = event.key.toLowerCase();
+      if (key === 'z' && !event.shiftKey) {
+        event.preventDefault();
+        undo();
+      } else if ((key === 'z' && event.shiftKey) || key === 'y') {
+        event.preventDefault();
+        redo();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [undo, redo]);
   const [device, setDevice] = useState<Device>('desktop');
   const [mobileView, setMobileView] = useState<'edit' | 'preview'>('edit');
   // Vista previa de un plan de Garfield: se muestra en lugar del borrador sin modificarlo.
@@ -150,6 +175,22 @@ export function Builder(props: Props) {
               <Typography variant="body2" color="text.secondary" noWrap>{t('Páginas, secciones, navegación y diseño. Los cambios se ven al instante.')}</Typography>
             </Box>
             {dirty && <Chip label={t('Cambios sin guardar')} color="warning" variant="outlined" sx={{ display: { xs: 'none', sm: 'inline-flex' } }} />}
+            <Stack direction="row" spacing={0.5} role="group" aria-label={t('Historial de cambios')}>
+              <Tooltip title={t('Deshacer ({shortcut})', { shortcut: 'Ctrl/⌘ Z' })}>
+                <span>
+                  <IconButton onClick={undo} disabled={!canUndo(history) || pending} aria-label={t('Deshacer')} aria-keyshortcuts="Control+Z Meta+Z">
+                    <Undo2 size={18} />
+                  </IconButton>
+                </span>
+              </Tooltip>
+              <Tooltip title={t('Rehacer ({shortcut})', { shortcut: 'Ctrl/⌘ Shift Z' })}>
+                <span>
+                  <IconButton onClick={redo} disabled={!canRedo(history) || pending} aria-label={t('Rehacer')} aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z Control+Y">
+                    <Redo2 size={18} />
+                  </IconButton>
+                </span>
+              </Tooltip>
+            </Stack>
             <Button color="inherit" onClick={discard} disabled={!dirty || pending}>{t('Descartar')}</Button>
             <Button variant="contained" onClick={save} disabled={!dirty || pending || !props.canManage}>
               {pending ? t('Guardando…') : t('Guardar cambios')}

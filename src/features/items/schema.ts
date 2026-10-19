@@ -3,7 +3,7 @@ import { msg } from '@/i18n/translate';
 import { CURRENCIES } from '@/lib/catalog/settings';
 import { priceText, priceToNumber } from '@/lib/utils/validation';
 import { uploadedImageSchema } from '@/features/media/schema';
-import { MANUAL_BADGES } from '@/lib/catalog/item-attributes';
+import { MANUAL_BADGES, MAX_VARIANT_OPTIONS } from '@/lib/catalog/item-attributes';
 import { hexColor } from '@/lib/design/schema-utils';
 
 export const ITEM_TYPES = ['product', 'service'] as const;
@@ -34,6 +34,20 @@ export const itemFormSchema = z
     badges: z.array(z.enum(MANUAL_BADGES)).max(3),
     customBadgeLabel: z.string().trim().max(20),
     customBadgeColor: hexColor,
+    /** Opciones con precio propio (tamaños, sabores…). Con `variantsEnabled` en false se ignoran. */
+    variantsEnabled: z.boolean(),
+    variantsLabel: z.string().trim().max(30),
+    variants: z
+      .array(
+        z.object({
+          id: z.string().min(1).max(40),
+          name: z.string().trim().max(40),
+          price: priceText,
+          sku: z.string().trim().max(64),
+          available: z.boolean(),
+        }),
+      )
+      .max(MAX_VARIANT_OPTIONS),
     /** Valores de atributos personalizados (se validan contra las definiciones en el servidor). */
     attributeValues: z.record(z.string().max(40), z.union([z.string().max(200), z.number(), z.boolean(), z.array(z.string().max(120)).max(20)])),
   })
@@ -44,7 +58,9 @@ export const itemFormSchema = z
       return compare === null || (price !== null && compare > price);
     },
     { path: ['compareAtPrice'], message: msg('Debe ser mayor que el precio actual') },
-  );
+  )
+  .refine((v) => !v.variantsEnabled || v.variantsLabel.trim() !== '', { path: ['variantsLabel'], message: msg('Escribe qué eligen tus clientes (p. ej. Tamaño)') })
+  .refine((v) => !v.variantsEnabled || v.variants.some((o) => o.name.trim() !== ''), { path: ['variants'], message: msg('Agrega al menos una opción') });
 
 export type ItemFormValues = z.input<typeof itemFormSchema>;
 
@@ -72,7 +88,19 @@ export function itemFormToRow(values: z.output<typeof itemFormSchema>) {
 export function itemFormToAttributes(values: z.output<typeof itemFormSchema>) {
   return {
     badges: values.badges.filter((b) => b !== 'featured' || values.isFeatured),
+    variants: values.type === 'product' ? formVariants(values) : null,
     customBadge: values.customBadgeLabel ? { label: values.customBadgeLabel, color: values.customBadgeColor } : null,
     values: values.attributeValues,
   };
 }
+
+/** Opciones del formulario → atributos guardados (las filas sin nombre se descartan). */
+export function formVariants(values: Pick<z.output<typeof itemFormSchema>, 'variantsEnabled' | 'variantsLabel' | 'variants'>) {
+  const options = values.variants.filter((o) => o.name.trim() !== '');
+  if (!values.variantsEnabled || options.length === 0) return null;
+  return {
+    label: values.variantsLabel.trim(),
+    options: options.map((o) => ({ id: o.id, name: o.name.trim(), price: priceToNumber(o.price), sku: o.sku.trim() || null, available: o.available })),
+  };
+}
+

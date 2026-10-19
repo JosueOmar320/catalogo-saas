@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { listCategories, listItemsWithImages } from '@/features/catalog/queries';
 import { getBusinessContext } from '@/lib/auth/session';
 import { itemsToCsv } from '@/lib/catalog/csv';
+import { publicStorageUrl } from '@/lib/utils/storage';
 
 /** Descarga los productos y servicios del negocio activo en CSV (mismo formato que la importación). */
 export const dynamic = 'force-dynamic';
@@ -26,6 +27,7 @@ export async function GET() {
       visible: i.is_visible,
       featured: i.is_featured,
       tags: i.tags ?? [],
+      images: i.images.flatMap((image) => publicStorageUrl(image.storage_path) ?? []),
     })),
   );
   const date = new Date().toISOString().slice(0, 10);

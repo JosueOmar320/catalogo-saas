@@ -171,6 +171,51 @@ test('búsqueda rápida (Ctrl+K) y código QR del catálogo', async ({ page }) =
   expect((await download).suggestedFilename()).toBe(`qr-${slug}.png`);
 });
 
+test('un producto con opciones muestra "desde" y el visitante elige la opción', async ({ page, browser }) => {
+  await page.goto('/dashboard/catalog/items/new?type=product');
+  await page.getByRole('textbox', { name: 'Nombre', exact: true }).fill('Smoothie E2E');
+  await page.getByRole('textbox', { name: 'Precio', exact: true }).fill('50');
+  await page.getByRole('switch', { name: /Tiene opciones/ }).click();
+  await page.getByRole('button', { name: 'Tamaño', exact: true }).click();
+  await expect(page.getByRole('textbox', { name: '¿Qué eligen?' })).toHaveValue('Tamaño');
+  const options = page.getByRole('list', { name: 'Opciones' }).getByRole('listitem');
+  await expect(options).toHaveCount(2);
+  await options.nth(0).getByRole('textbox', { name: 'Opción' }).fill('Chico');
+  await options.nth(1).getByRole('textbox', { name: 'Opción' }).fill('Grande');
+  await options.nth(1).getByRole('textbox', { name: 'Precio' }).fill('70');
+  await page.getByRole('button', { name: 'Crear', exact: true }).click();
+  await expect(page).toHaveURL(/\/dashboard\/catalog\/items\/[0-9a-f-]{36}$/);
+  await expect(page.getByRole('list', { name: 'Opciones' }).getByRole('listitem')).toHaveCount(2);
+
+  const visitor = await browser.newContext(ANONYMOUS);
+  const site = await visitor.newPage();
+  await site.goto(`/catalogo/${slug}/p/smoothie-e2e`);
+  await expect(site.getByRole('heading', { level: 1, name: 'Smoothie E2E' })).toBeVisible();
+  await expect(site.getByText('desde', { exact: true }).first()).toBeVisible();
+  await site.getByRole('radio', { name: 'Grande' }).click();
+  await site.getByRole('button', { name: 'Agregar al pedido' }).click();
+  await site.getByRole('button', { name: /^Ver pedido/ }).click();
+  const href = await site.getByRole('link', { name: 'Enviar pedido por WhatsApp' }).getAttribute('href');
+  expect(new URL(href!).searchParams.get('text')).toContain('• 1 × Smoothie E2E (Grande) — $70');
+  await visitor.close();
+});
+
+test('importar con enlaces de fotos: avisa cuáles no se pudieron descargar', async ({ page }) => {
+  await page.goto('/dashboard/catalog/products');
+  await page.getByRole('button', { name: 'Importar', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Importar desde CSV' });
+  // Dominio .invalid: nunca resuelve, así la prueba no sale a internet.
+  const csv = ['nombre,precio,imagenes', 'Pan de muerto E2E,40,https://fotos.invalid/pan.jpg', 'Concha E2E,20,foto.jpg'].join('\n');
+  await dialog.locator('input[type=file]').setInputFiles({ name: 'fotos.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
+  await expect(dialog.getByText('Línea 3: Las imágenes deben ser enlaces que empiecen con http:// o https://.')).toBeVisible();
+  await expect(dialog.getByText('Al terminar se descargan las fotos de 1 fila (sólo si ese ítem aún no tiene fotos).')).toBeVisible();
+  await dialog.getByRole('button', { name: 'Importar 1' }).click();
+  await expect(dialog.getByText('Fotos listas: 0 agregadas.')).toBeVisible({ timeout: 20_000 });
+  await expect(dialog.getByText('Pan de muerto E2E: https://fotos.invalid/pan.jpg')).toBeVisible();
+  await dialog.getByRole('button', { name: 'Cerrar' }).click();
+  await expect(page.getByText('Pan de muerto E2E')).toBeVisible();
+});
+
 test('aviso semanal: a quién le llega y la baja con el enlace del correo', async ({ page, browser, request }) => {
   const cron = async () => {
     const response = await request.get('/api/cron/catalog-review?dry=1', { headers: { authorization: `Bearer ${process.env.CRON_SECRET}` } });
@@ -217,6 +262,40 @@ test('aviso semanal: a quién le llega y la baja con el enlace del correo', asyn
   await expect(toggle).toBeChecked();
   await expect(page.getByText('Aviso semanal activado')).toBeVisible();
   expect(await cron()).toMatchObject({ due: 1 });
+});
+
+test('editor del sitio: deshacer y rehacer con botones y con el teclado', async ({ page }) => {
+  await page.goto('/dashboard/sitio');
+  const save = page.getByRole('button', { name: 'Guardar cambios' });
+  // El sitio inicial puede venir sin guardar: se guarda para partir de un estado limpio.
+  if (await save.isEnabled()) {
+    await save.click();
+    await expect(save).toBeDisabled();
+  }
+  const history = page.getByRole('group', { name: 'Historial de cambios' });
+  const undo = history.getByRole('button', { name: 'Deshacer' });
+  const redo = history.getByRole('button', { name: 'Rehacer' });
+  const pending = page.getByText('Cambios sin guardar');
+  const firstToggle = page.getByRole('button', { name: 'Visibilidad' }).first();
+  await expect(undo).toBeDisabled();
+
+  await firstToggle.click();
+  await expect(firstToggle.locator('svg.lucide-eye-off')).toHaveCount(1);
+  await expect(pending).toBeVisible();
+
+  await undo.click();
+  await expect(firstToggle.locator('svg.lucide-eye')).toHaveCount(1);
+  // Volver a lo guardado deja el editor limpio.
+  await expect(pending).toHaveCount(0);
+  await expect(save).toBeDisabled();
+  await expect(redo).toBeEnabled();
+
+  await page.keyboard.press('Control+Shift+z');
+  await expect(firstToggle.locator('svg.lucide-eye-off')).toHaveCount(1);
+  await expect(pending).toBeVisible();
+  await page.keyboard.press('Control+z');
+  await expect(firstToggle.locator('svg.lucide-eye')).toHaveCount(1);
+  await expect(pending).toHaveCount(0);
 });
 
 test('el idioma elegido se guarda en el perfil y vuelve al iniciar sesión', async ({ page, browser }) => {

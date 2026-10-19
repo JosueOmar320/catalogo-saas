@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { itemsToCsv, matchKey, parseCsv, parseItemTable, parsePriceCell, CSV_TEMPLATE_ROWS, MAX_IMPORT_ROWS } from '@/lib/catalog/csv';
+import { itemsToCsv, matchKey, parseCsv, parseImageCell, parseItemTable, parsePriceCell, CSV_TEMPLATE_ROWS, MAX_IMPORT_IMAGES, MAX_IMPORT_ROWS } from '@/lib/catalog/csv';
 import { adjustPrice, isValidAdjustment } from '@/lib/catalog/price-adjust';
 import { qrMatrix, qrSvg } from '@/lib/qr';
 import { buildSampleSite } from '@/lib/site/sample-site';
@@ -32,7 +32,7 @@ describe('CSV de productos', () => {
     assert.equal(rows.length, 1);
     assert.deepEqual({ ...rows[0], line: undefined }, {
       line: undefined, name: 'Café', type: 'product', category: 'Bebidas', price: 35, compareAt: null, priceNote: null, sku: 'CAF-1',
-      shortDescription: null, description: null, available: true, visible: true, featured: false, tags: ['caliente', 'grande'],
+      shortDescription: null, description: null, available: true, visible: true, featured: false, tags: ['caliente', 'grande'], images: [],
     });
     assert.deepEqual(issues.map((i) => [i.line, i.message]), [
       [3, 'Falta el nombre.'],
@@ -57,6 +57,20 @@ describe('CSV de productos', () => {
       rows.map((r) => [r.name, r.category, r.price, r.compareAt, r.priceNote, r.sku, r.featured, r.tags]),
       CSV_TEMPLATE_ROWS.map((r) => [r.name, r.categoryName, r.price, r.compareAt, r.priceNote, r.sku, r.featured, r.tags]),
     );
+  });
+
+  it('lee enlaces de fotos (varios, sin repetir, máximo 5) y rechaza los que no son http(s)', () => {
+    assert.deepEqual(parseImageCell(''), []);
+    assert.deepEqual(parseImageCell('https://a.com/1.jpg | https://a.com/2.jpg\nhttps://a.com/1.jpg'), ['https://a.com/1.jpg', 'https://a.com/2.jpg']);
+    assert.equal(parseImageCell(Array.from({ length: 8 }, (_, i) => `https://a.com/${i}.jpg`).join(' '))?.length, MAX_IMPORT_IMAGES);
+    assert.equal(parseImageCell('javascript:alert(1)'), null);
+    assert.equal(parseImageCell('foto.jpg'), null);
+
+    const { rows, issues } = parseItemTable(parseCsv('name,photos\nCafé,https://a.com/c.jpg\nTé,ftp://a.com/t.jpg'));
+    assert.deepEqual(rows.map((r) => [r.name, r.images]), [['Café', ['https://a.com/c.jpg']]]);
+    assert.deepEqual(issues.map((i) => i.line), [3]);
+    const exported = parseItemTable(parseCsv(itemsToCsv([{ ...CSV_TEMPLATE_ROWS[0], images: ['https://a.com/1.jpg', 'https://a.com/2.jpg'] }])));
+    assert.deepEqual(exported.rows[0].images, ['https://a.com/1.jpg', 'https://a.com/2.jpg']);
   });
 
   it('reconoce existentes por código o por nombre sin acentos ni mayúsculas', () => {

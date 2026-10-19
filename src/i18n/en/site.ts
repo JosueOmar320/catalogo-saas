@@ -183,6 +183,8 @@ const catalog: Catalog = {
   'Nombre: {name}': 'Name: {name}',
   'Nota: {note}': 'Note: {note}',
   'Pedido desde {url}': 'Order from {url}',
+  'Elegir opción': 'Choose option',
+  Opciones: 'Options',
 };
 
 export default catalog;
