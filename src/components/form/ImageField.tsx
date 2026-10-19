@@ -7,6 +7,7 @@ import { useDashboard } from '@/components/dashboard/DashboardContext';
 import { useToast } from '@/components/feedback/ToastProvider';
 import { UploadError, uploadImage } from '@/features/media/client';
 import { MediaLibraryDialog } from '@/features/media/components/MediaLibraryDialog';
+import { useT } from '@/i18n/client';
 import type { MediaKind } from '@/lib/utils/storage';
 
 type Props = {
@@ -23,6 +24,7 @@ type Props = {
 
 /** Campo de imagen única (logo, portada, favicon, categoría, imágenes del sitio): subir o elegir de la biblioteca. */
 export function ImageField({ label, description, kind, value, onChange, aspectRatio = '1 / 1', width = 112 }: Props) {
+  const t = useT();
   const { businessId } = useDashboard();
   const toast = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -40,7 +42,7 @@ export function ImageField({ label, description, kind, value, onChange, aspectRa
       const uploaded = await uploadImage(file, businessId, kind);
       await onChange(uploaded.path);
     } catch (error) {
-      toast.error(error instanceof UploadError ? error.message : 'No se pudo subir la imagen.');
+      toast.error(error instanceof UploadError ? t(error.message) : t('No se pudo subir la imagen.'));
     } finally {
       setLocalPreview(null);
       URL.revokeObjectURL(objectUrl);
@@ -100,14 +102,14 @@ export function ImageField({ label, description, kind, value, onChange, aspectRa
         {description && <Typography variant="caption" color="text.secondary" component="p">{description}</Typography>}
         <Stack direction="row" sx={{ mt: 1, gap: 1, flexWrap: 'wrap' }}>
           <Button variant="outlined" color="inherit" startIcon={<Upload size={14} />} onClick={() => inputRef.current?.click()} disabled={busy}>
-            {value ? 'Reemplazar' : 'Subir'}
+            {value ? t('Reemplazar') : t('Subir')}
           </Button>
           <Button color="inherit" startIcon={<Images size={14} />} onClick={() => setLibrary(true)} disabled={busy}>
-            Biblioteca
+            {t('Biblioteca')}
           </Button>
           {value && (
             <Button color="error" startIcon={<Trash2 size={14} />} onClick={remove} disabled={busy}>
-              Quitar
+              {t('Quitar')}
             </Button>
           )}
         </Stack>

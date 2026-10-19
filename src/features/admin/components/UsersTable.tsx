@@ -3,8 +3,9 @@
 import { Box, Chip, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography } from '@mui/material';
 import Link from 'next/link';
 import { useState } from 'react';
+import { useT } from '@/i18n/client';
 import type { MemberRole, PlatformRole, UserStatus } from '@/types/database';
-import { formatMoment, matches, SearchField, StatusChip } from './common';
+import { matches, SearchField, StatusChip, useDateFormat } from './common';
 
 export type UserListItem = {
   id: string;
@@ -19,20 +20,22 @@ export type UserListItem = {
 };
 
 export function UsersTable({ users }: { users: UserListItem[] }) {
+  const t = useT();
+  const { formatMoment } = useDateFormat();
   const [query, setQuery] = useState('');
   const list = users.filter((u) => matches(query, u.username, u.fullName, u.email, ...u.businesses.map((b) => b.name)));
   return (
     <Stack spacing={1.5}>
-      <SearchField value={query} onChange={setQuery} placeholder="Buscar por usuario, nombre, email o negocio" />
+      <SearchField value={query} onChange={setQuery} placeholder={t('Buscar por usuario, nombre, email o negocio')} />
       <Paper variant="outlined" sx={{ overflowX: 'auto' }}>
         <Table size="small" sx={{ minWidth: 760 }}>
           <TableHead>
             <TableRow>
-              <TableCell>Usuario</TableCell>
-              <TableCell>Nombre</TableCell>
-              <TableCell>Negocios</TableCell>
-              <TableCell>Estado</TableCell>
-              <TableCell>Último acceso</TableCell>
+              <TableCell>{t('Usuario')}</TableCell>
+              <TableCell>{t('Nombre')}</TableCell>
+              <TableCell>{t('Negocios')}</TableCell>
+              <TableCell>{t('Estado')}</TableCell>
+              <TableCell>{t('Último acceso')}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -41,14 +44,14 @@ export function UsersTable({ users }: { users: UserListItem[] }) {
                 <TableCell>
                   <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
                     <Typography variant="body2" sx={{ fontWeight: 650 }}>@{u.username}</Typography>
-                    {u.role === 'admin' && <Chip size="small" label="Admin" color="secondary" sx={{ height: 20, fontSize: 11 }} />}
+                    {u.role === 'admin' && <Chip size="small" label={t('Admin')} color="secondary" sx={{ height: 20, fontSize: 11 }} />}
                   </Stack>
                   {u.email && <Typography variant="caption" color="text.secondary">{u.email}</Typography>}
                 </TableCell>
                 <TableCell>{u.fullName || '—'}</TableCell>
                 <TableCell>
                   {u.businesses.length === 0 ? (
-                    <Typography variant="caption" color="text.secondary">Sin negocios</Typography>
+                    <Typography variant="caption" color="text.secondary">{t('Sin negocios')}</Typography>
                   ) : (
                     <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
                       {u.businesses.slice(0, 3).map((b) => <Chip key={b.id} size="small" label={b.name} variant="outlined" />)}
@@ -62,7 +65,7 @@ export function UsersTable({ users }: { users: UserListItem[] }) {
             ))}
             {list.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} sx={{ textAlign: 'center', py: 4, color: 'text.secondary' }}>No hay usuarios que coincidan.</TableCell>
+                <TableCell colSpan={5} sx={{ textAlign: 'center', py: 4, color: 'text.secondary' }}>{t('No hay usuarios que coincidan.')}</TableCell>
               </TableRow>
             )}
           </TableBody>

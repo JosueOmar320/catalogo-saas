@@ -1,3 +1,5 @@
+import { msg } from '@/i18n/translate';
+
 /** Registro de redes sociales soportadas. El ícono vive en components/SocialIcon. */
 export const SOCIAL_NETWORK_IDS = [
   'instagram',
@@ -22,5 +24,5 @@ export const SOCIAL_NETWORKS: Record<SocialNetworkId, { label: string; placehold
   youtube: { label: 'YouTube', placeholder: 'https://youtube.com/@tunegocio' },
   linkedin: { label: 'LinkedIn', placeholder: 'https://linkedin.com/company/tunegocio' },
   pinterest: { label: 'Pinterest', placeholder: 'https://pinterest.com/tunegocio' },
-  website: { label: 'Sitio web', placeholder: 'https://tunegocio.com' },
+  website: { label: msg('Sitio web'), placeholder: 'https://tunegocio.com' },
 };

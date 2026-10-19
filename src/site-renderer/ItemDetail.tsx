@@ -6,27 +6,29 @@ import { Badges } from './Badges';
 import { ContactActions } from './ContactActions';
 import { ImageGallery } from './ImageGallery';
 import { PriceTag } from './PriceTag';
+import { siteTranslator, siteYesNo } from './site-i18n';
 import styles from './site.module.css';
 
 /** Ficha de un producto/servicio (URL propia para SEO y para compartir). */
 export function ItemDetail({ site, item, backHref }: { site: SiteViewModel; item: CatalogItemView; backHref: string }) {
   const category = site.categories.find((c) => c.id === item.categoryId);
-  const specs = visibleAttributes(item.attributes, site.attributeDefs, 'detail');
+  const specs = visibleAttributes(item.attributes, site.attributeDefs, 'detail', siteYesNo(site.settings.language));
+  const t = siteTranslator(site.settings.language);
   return (
     <div className={styles.container}>
       <a href={backHref} className={styles.backLink}>
-        <ArrowLeft size={16} aria-hidden /> Volver
+        <ArrowLeft size={16} aria-hidden /> {t('Volver')}
       </a>
       <div className={styles.detail}>
         <div className={styles.mediaWrap}>
           <ImageGallery images={item.images} name={item.name} />
-          <Badges item={item} theme={site.theme} />
+          <Badges item={item} theme={site.theme} t={t} />
         </div>
         <div className={styles.detailInfo}>
           {category && <span className={styles.eyebrow}>{category.name}</span>}
           <h1 className={styles.h2}>{item.name}</h1>
-          {site.theme.cards.showPrice && <PriceTag item={item} discount />}
-          {!item.isAvailable && <span className={styles.availability}>No disponible por ahora</span>}
+          {site.theme.cards.showPrice && <PriceTag item={item} t={t} discount />}
+          {!item.isAvailable && <span className={styles.availability}>{t('No disponible por ahora')}</span>}
           {item.shortDescription && <p className={styles.lead}>{item.shortDescription}</p>}
           {item.description && <p className={styles.preLine}>{item.description}</p>}
           {specs.length > 0 && (
@@ -41,7 +43,7 @@ export function ItemDetail({ site, item, backHref }: { site: SiteViewModel; item
               </tbody>
             </table>
           )}
-          {item.sku && <span className={styles.cardMeta}>Código: {item.sku}</span>}
+          {item.sku && <span className={styles.cardMeta}>{t('Código: {sku}', { sku: item.sku })}</span>}
           {item.tags.length > 0 && (
             <div className={styles.tags}>
               {item.tags.map((tag) => (

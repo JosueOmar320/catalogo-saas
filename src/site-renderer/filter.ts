@@ -86,8 +86,8 @@ export function attributeFilterOptions(def: AttributeDef, items: CatalogItemView
 
 export type CatalogGroup = { id: string; title: string | null; description: string | null; items: CatalogItemView[] };
 
-/** Agrupa por categoría respetando el orden del administrador. Lo usa también el PDF. */
-export function groupByCategory(items: CatalogItemView[], categories: CatalogCategoryView[]): CatalogGroup[] {
+/** Agrupa por categoría respetando el orden del administrador. Lo usa también el PDF. `othersTitle`: título de los ítems sin categoría (ya traducido). */
+export function groupByCategory(items: CatalogItemView[], categories: CatalogCategoryView[], othersTitle = 'Otros'): CatalogGroup[] {
   const byCategory = new Map<string, CatalogItemView[]>();
   const uncategorized: CatalogItemView[] = [];
   for (const item of items) {
@@ -104,7 +104,7 @@ export function groupByCategory(items: CatalogItemView[], categories: CatalogCat
     .filter((c) => byCategory.has(c.id))
     .map((c) => ({ id: c.id, title: c.name, description: c.description, items: byCategory.get(c.id)! }));
   if (uncategorized.length > 0) {
-    groups.push({ id: 'uncategorized', title: groups.length > 0 ? 'Otros' : null, description: null, items: uncategorized });
+    groups.push({ id: 'uncategorized', title: groups.length > 0 ? othersTitle : null, description: null, items: uncategorized });
   }
   return groups;
 }

@@ -1,4 +1,5 @@
 import 'server-only';
+import { msg } from '@/i18n/translate';
 import { HybridModel, type Routing } from './router';
 import { ClaudeModel } from './claude';
 import { CLAUDE_DEFAULT_MODEL, GEMINI_BASE_URL, GEMINI_DEFAULT_MODELS, list, resolveProvider, type Env } from './config';
@@ -38,11 +39,12 @@ export function getAssistantModel(env: Env = process.env): AssistantModel {
   return new HybridModel(languageModel(env), routing);
 }
 
-export function describeModelError(error: unknown): { status: number; message: string } {
+/** Mensaje en español (clave del catálogo) + datos: la ruta lo traduce con t(message, params). */
+export function describeModelError(error: unknown): { status: number; message: string; params?: Record<string, string> } {
   if (error instanceof ProviderError) {
-    if (error.status === 401) return { status: 502, message: `${error.message} Revisa la configuración de Garfield en las variables de entorno.` };
-    return { status: 502, message: 'El servicio de IA no respondió. Intenta de nuevo.' };
+    if (error.status === 401) return { status: 502, message: msg('{detail} Revisa la configuración de Garfield en las variables de entorno.'), params: { detail: error.message } };
+    return { status: 502, message: msg('El servicio de IA no respondió. Intenta de nuevo.') };
   }
-  if (error instanceof QuotaExceededError) return { status: 429, message: 'Garfield está atendiendo muchos pedidos. Intenta en unos segundos.' };
-  return { status: 500, message: 'Garfield se enredó con la madeja. Intenta de nuevo.' };
+  if (error instanceof QuotaExceededError) return { status: 429, message: msg('Garfield está atendiendo muchos pedidos. Intenta en unos segundos.') };
+  return { status: 500, message: msg('Garfield se enredó con la madeja. Intenta de nuevo.') };
 }

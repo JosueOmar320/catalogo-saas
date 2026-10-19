@@ -3,20 +3,26 @@ import { AppShell } from '@/components/dashboard/AppShell';
 import { DashboardProvider } from '@/components/dashboard/DashboardContext';
 import { appFont } from '@/components/providers/app-font';
 import { AppProviders } from '@/components/providers/AppProviders';
+import { AppI18n } from '@/i18n/AppI18n';
+import { getT } from '@/i18n/server';
 import { canManageCatalog, requireBusinessContext } from '@/lib/auth/session';
 import { catalogUrl } from '@/lib/catalog/view-model';
 import { publicStorageUrl } from '@/lib/utils/storage';
 
-export const metadata: Metadata = {
-  title: 'Panel',
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT();
+  return {
+    title: t('Panel'),
+    robots: { index: false, follow: false },
+  };
+}
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const ctx = await requireBusinessContext();
 
   return (
     <div className={appFont.variable}>
+      <AppI18n>
       <AppProviders>
         <DashboardProvider
           value={{
@@ -43,6 +49,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           </AppShell>
         </DashboardProvider>
       </AppProviders>
+      </AppI18n>
     </div>
   );
 }

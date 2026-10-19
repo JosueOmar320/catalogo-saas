@@ -7,6 +7,7 @@ import { RichText } from '../RichText';
 import { Placeholder, SectionFrame, SectionHead } from '../SectionFrame';
 import { SiteButton } from '../SiteButton';
 import { SiteImage } from '../SiteImage';
+import { siteTranslator } from '../site-i18n';
 import styles from '../site.module.css';
 import type { SectionProps } from './types';
 
@@ -23,6 +24,7 @@ const VIDEO_RATIO = { '16:9': '16 / 9', '4:3': '4 / 3', '1:1': '1 / 1' } as cons
  */
 export function ColumnsSection({ section, site, env, links, index }: SectionProps<'columns'>) {
   const { content } = section;
+  const t = siteTranslator(site.settings.language);
   const count = content.layout.split('-').length;
   const columns = Array.from({ length: count }, (_, i) => content.columns[i] ?? { id: `empty-${i}`, blocks: [], align: 'left' as const, surface: 'none' as const, padding: 'none' as const });
   const empty = columns.every((c) => c.blocks.length === 0);
@@ -44,7 +46,7 @@ export function ColumnsSection({ section, site, env, links, index }: SectionProp
         return b.body ? <RichText key={b.id} source={b.body} className={styles.colText} /> : null;
       case 'image': {
         const url = mediaUrl(b.image.path);
-        if (!url) return env.mode === 'public' ? null : <div key={b.id} className={styles.colImagePlaceholder}>Imagen</div>;
+        if (!url) return env.mode === 'public' ? null : <div key={b.id} className={styles.colImagePlaceholder}>{t('Imagen')}</div>;
         return (
           <div key={b.id} className={styles.colImage} data-rounded={b.rounded || undefined} data-shadow={b.shadow || undefined} style={b.ratio === 'original' ? undefined : { aspectRatio: RATIO[b.ratio] }}>
             {b.ratio === 'original' ? (
@@ -128,7 +130,7 @@ export function ColumnsSection({ section, site, env, links, index }: SectionProp
   return (
     <SectionFrame section={section} theme={site.theme}>
       <SectionHead eyebrow={content.eyebrow} title={content.title} subtitle={content.subtitle} center />
-      <Placeholder show={empty}>Agrega bloques a cada columna desde el editor (título, texto, imagen, botones, lista, tarjeta…).</Placeholder>
+      <Placeholder show={empty}>{t('Agrega bloques a cada columna desde el editor (título, texto, imagen, botones, lista, tarjeta…).')}</Placeholder>
       <div className={styles.colGrid} style={vars} data-count={count} data-gap={content.gap} data-valign={content.verticalAlign} data-tablet={content.tablet} data-mobile={content.mobile} data-reverse={content.reverseOnMobile || undefined}>
         {columns.map((column) => (
           <div key={column.id} className={styles.colCell} data-align={column.align} data-surface={column.surface} data-padding={column.padding}>

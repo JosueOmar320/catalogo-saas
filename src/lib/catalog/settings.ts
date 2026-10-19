@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { LOCALES } from '@/i18n/config';
 
 /**
  * Configuración de comportamiento del catálogo (catalogs.settings).
@@ -56,7 +57,10 @@ export type PriceFormat = z.output<typeof priceFormatSchema>;
 
 export const catalogSettingsSchema = z.object({
   currency: z.enum(CURRENCIES).default('USD'),
+  /** Formato de números y precios (Intl). */
   locale: z.string().max(10).default('es-419'),
+  /** Idioma de los textos fijos del sitio público y del PDF ("Buscar", "Agotado"…). */
+  language: z.enum(LOCALES).default('es'),
   priceFormat: priceFormatSchema.prefault({}),
   contactActions: contactActionsSchema.prefault({}),
   pdf: pdfOptionsSchema.prefault({}),

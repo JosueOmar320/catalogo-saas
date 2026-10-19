@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useState, type ComponentProps, type ReactNode } from 'react';
 import { ColorModeToggle } from '@/components/ui/ColorModeToggle';
+import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
+import { useT } from '@/i18n/client';
 import { env } from '@/lib/env';
 import { BusinessMenu } from './BusinessMenu';
 import { AccountMenu } from './AccountMenu';
@@ -35,6 +37,7 @@ function isActive(pathname: string, search: string, href: string) {
 const FULL_WIDTH = ['/dashboard/sitio', '/dashboard/export/pdf'];
 
 function SideNav({ onNavigate, admin }: { onNavigate?: () => void; admin?: boolean }) {
+  const t = useT();
   const pathname = usePathname();
   const search = useSearchParams().toString();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
@@ -47,7 +50,7 @@ function SideNav({ onNavigate, admin }: { onNavigate?: () => void; admin?: boole
           return (
             <ListItemButton key={entry.label} component={Link} href={entry.href} selected={isActive(pathname, search, entry.href)} onClick={onNavigate} sx={{ mb: 0.25 }}>
               <ListItemIcon sx={{ minWidth: 30 }}><Icon size={17} /></ListItemIcon>
-              <ListItemText primary={entry.label} slotProps={{ primary: { sx: { fontWeight: 600, fontSize: 14 } } }} />
+              <ListItemText primary={t(entry.label)} slotProps={{ primary: { sx: { fontWeight: 600, fontSize: 14 } } }} />
             </ListItemButton>
           );
         }
@@ -56,7 +59,7 @@ function SideNav({ onNavigate, admin }: { onNavigate?: () => void; admin?: boole
           <Box key={entry.label} sx={{ mb: 0.5 }}>
             <ListItemButton onClick={() => setCollapsed((c) => ({ ...c, [entry.label]: open }))}>
               <ListItemIcon sx={{ minWidth: 30 }}><Icon size={17} /></ListItemIcon>
-              <ListItemText primary={entry.label} slotProps={{ primary: { sx: { fontWeight: 600, fontSize: 14 } } }} />
+              <ListItemText primary={t(entry.label)} slotProps={{ primary: { sx: { fontWeight: 600, fontSize: 14 } } }} />
               <Box component={ChevronDown} size={14} sx={{ transform: open ? 'none' : 'rotate(-90deg)', transition: 'transform .15s', color: 'text.secondary' }} />
             </ListItemButton>
             <Collapse in={open}>
@@ -70,7 +73,7 @@ function SideNav({ onNavigate, admin }: { onNavigate?: () => void; admin?: boole
                     onClick={onNavigate}
                     sx={{ pl: 5.25, py: 0.4, '&.Mui-selected': { bgcolor: 'primary.light', color: 'primary.dark' } }}
                   >
-                    <ListItemText primary={child.label} slotProps={{ primary: { sx: { fontSize: 13.5 } } }} />
+                    <ListItemText primary={t(child.label)} slotProps={{ primary: { sx: { fontSize: 13.5 } } }} />
                   </ListItemButton>
                 ))}
               </List>
@@ -84,6 +87,7 @@ function SideNav({ onNavigate, admin }: { onNavigate?: () => void; admin?: boole
 
 export function AppShell(props: Props) {
   const { children } = props;
+  const t = useT();
   const admin = props.variant === 'admin';
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
@@ -130,10 +134,11 @@ export function AppShell(props: Props) {
       <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
         <AppBar position="sticky" color="inherit" elevation={0} sx={(theme) => ({ borderBottom: 1, borderColor: 'divider', bgcolor: `rgba(${theme.vars.palette.background.paperChannel} / 0.9)`, backdropFilter: 'blur(8px)' })}>
           <Toolbar sx={{ minHeight: '56px !important', gap: 1, px: { xs: 1.5, sm: 3 } }}>
-            <IconButton onClick={() => setMobileOpen(true)} sx={{ display: { md: 'none' } }} aria-label="Abrir menú">
+            <IconButton onClick={() => setMobileOpen(true)} sx={{ display: { md: 'none' } }} aria-label={t('Abrir menú')}>
               <MenuIcon size={18} />
             </IconButton>
             <Box sx={{ flex: 1 }} />
+            <LanguageSwitcher />
             <ColorModeToggle />
             {!admin && <PublishControl />}
           </Toolbar>

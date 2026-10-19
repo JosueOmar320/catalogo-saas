@@ -6,6 +6,8 @@ import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { useDashboard } from '@/components/dashboard/DashboardContext';
 import { useToast } from '@/components/feedback/ToastProvider';
 import { UploadError, uploadImage } from '@/features/media/client';
+import { useT } from '@/i18n/client';
+import { interpolate } from '@/i18n/translate';
 import { ASSISTANT } from '@/lib/assistant/identity';
 import { publicStorageUrl } from '@/lib/utils/storage';
 import { GarfieldAvatar } from './GarfieldAvatar';
@@ -25,12 +27,13 @@ const rise = keyframes`
 
 export function GarfieldLauncher() {
   const { open, setOpen, pending } = useGarfield();
+  const t = useT();
   if (open) return null;
   return (
-    <Tooltip title="Pídele a Garfield que construya o cambie tu página" placement="left">
+    <Tooltip title={t('Pídele a Garfield que construya o cambie tu página')} placement="left">
       <ButtonBase
         onClick={() => setOpen(true)}
-        aria-label={`Abrir ${ASSISTANT.name}`}
+        aria-label={t('Abrir {name}', { name: ASSISTANT.name })}
         sx={{
           position: 'fixed',
           right: 20,
@@ -53,7 +56,7 @@ export function GarfieldLauncher() {
         <GarfieldAvatar size={38} mood={pending ? 'thinking' : 'idle'} />
         <Box sx={{ textAlign: 'left' }}>
           <Typography variant="body2" sx={{ fontWeight: 700, lineHeight: 1.1 }}>{ASSISTANT.name}</Typography>
-          <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.1 }}>{pending ? 'Pensando…' : '¿Qué construimos?'}</Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.1 }}>{pending ? t('Pensando…') : t('¿Qué construimos?')}</Typography>
         </Box>
       </ButtonBase>
     </Tooltip>
@@ -66,6 +69,7 @@ export function GarfieldPanel() {
   const g = useGarfield();
   const { businessId } = useDashboard();
   const toast = useToast();
+  const t = useT();
   const [text, setText] = useState('');
   const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -97,7 +101,7 @@ export function GarfieldPanel() {
         setAttachments((list) => [...list, { path: uploaded.path, url: publicStorageUrl(uploaded.path)!, alt: uploaded.alt ?? '' }]);
       }
     } catch (error) {
-      toast.error(error instanceof UploadError ? error.message : 'No se pudo subir la imagen.');
+      toast.error(error instanceof UploadError ? t(error.message) : t('No se pudo subir la imagen.'));
     } finally {
       setUploading(false);
       if (fileInput.current) fileInput.current.value = '';
@@ -110,6 +114,8 @@ export function GarfieldPanel() {
     }
   };
   const lastAssistant = [...g.entries].reverse().find((e) => e.role === 'assistant' && !e.error);
+  // Las sugerencias se envían en español (las entiende también el modo básico) y se muestran traducidas.
+  const sendSuggestion = (s: (typeof suggestions.items)[number]) => void g.send(interpolate(s.prompt, s.params), [], t(s.prompt, s.params));
 
   return (
     <Fade in={g.open} unmountOnExit>
@@ -141,42 +147,42 @@ export function GarfieldPanel() {
               <Typography variant="body1" sx={{ fontWeight: 750 }}>{ASSISTANT.name}</Typography>
               {g.editor === 'pdf' && <Chip size="small" label="PDF" sx={{ height: 20, fontSize: 11, fontWeight: 700, bgcolor: 'var(--garfield-chip)' }} />}
               {g.mode === 'basic' && (
-                <Tooltip title="Sin IA (o sin cuota por hoy): entiendo pedidos directos. Configura GEMINI_API_KEY (gratis) para conversar libremente.">
-                  <Chip size="small" label="Modo básico" sx={{ height: 20, fontSize: 11, bgcolor: 'var(--garfield-chip)' }} />
+                <Tooltip title={t('Sin IA (o sin cuota por hoy): entiendo pedidos directos. Configura GEMINI_API_KEY (gratis) para conversar libremente.')}>
+                  <Chip size="small" label={t('Modo básico')} sx={{ height: 20, fontSize: 11, bgcolor: 'var(--garfield-chip)' }} />
                 </Tooltip>
               )}
             </Stack>
-            <Typography variant="caption" color="text.secondary" noWrap component="p">{g.pending ? 'Garfield está pensando…' : ASSISTANT.tagline}</Typography>
+            <Typography variant="caption" color="text.secondary" noWrap component="p">{g.pending ? t('Garfield está pensando…') : t(ASSISTANT.tagline)}</Typography>
           </Box>
           {g.entries.length > 0 && (
-            <Tooltip title="Nueva conversación">
-              <IconButton size="small" onClick={g.clear} aria-label="Nueva conversación"><Trash2 size={15} /></IconButton>
+            <Tooltip title={t('Nueva conversación')}>
+              <IconButton size="small" onClick={g.clear} aria-label={t('Nueva conversación')}><Trash2 size={15} /></IconButton>
             </Tooltip>
           )}
-          <Tooltip title="Minimizar">
-            <IconButton size="small" onClick={() => g.setOpen(false)} aria-label="Minimizar"><Minus size={16} /></IconButton>
+          <Tooltip title={t('Minimizar')}>
+            <IconButton size="small" onClick={() => g.setOpen(false)} aria-label={t('Minimizar')}><Minus size={16} /></IconButton>
           </Tooltip>
-          <Tooltip title="Cerrar">
-            <IconButton size="small" onClick={() => { g.exitPreview(); g.setOpen(false); }} aria-label="Cerrar"><X size={16} /></IconButton>
+          <Tooltip title={t('Cerrar')}>
+            <IconButton size="small" onClick={() => { g.exitPreview(); g.setOpen(false); }} aria-label={t('Cerrar')}><X size={16} /></IconButton>
           </Tooltip>
         </Stack>
 
         {/* Conversación */}
         <Box ref={list} sx={{ flex: 1, overflowY: 'auto', px: 1.5, py: 1.5, bgcolor: 'var(--garfield-surface)' }} aria-live="polite">
           <AssistantBubble>
-            <Typography variant="body2">{ASSISTANT.greeting}</Typography>
+            <Typography variant="body2">{t(ASSISTANT.greeting)}</Typography>
           </AssistantBubble>
           {g.entries.length === 0 && (
             <Box sx={{ pl: 5.5, mt: 1, animation: `${rise} .3s ease-out` }}>
-              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>{suggestions.title}</Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>{t(suggestions.title)}</Typography>
               <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 0.75, mt: 0.75 }}>
                 {suggestions.items.map((s) => (
-                  <Chip key={s.label} label={s.label} onClick={() => void g.send(s.prompt)} variant="outlined" sx={{ bgcolor: 'var(--garfield-chip)', borderColor: `${ORANGE}55`, '&:hover': { bgcolor: 'var(--garfield-tint)' } }} />
+                  <Chip key={s.label} label={t(s.label)} onClick={() => sendSuggestion(s)} variant="outlined" sx={{ bgcolor: 'var(--garfield-chip)', borderColor: `${ORANGE}55`, '&:hover': { bgcolor: 'var(--garfield-tint)' } }} />
                 ))}
               </Stack>
             </Box>
           )}
-          {g.entries.map((entry) => (entry.role === 'user' ? <UserBubble key={entry.id} text={entry.text} attachments={entry.attachments} /> : <AssistantEntry key={entry.id} entry={entry} latest={entry.id === lastAssistant?.id} />))}
+          {g.entries.map((entry) => (entry.role === 'user' ? <UserBubble key={entry.id} text={entry.display ?? entry.text} attachments={entry.attachments} /> : <AssistantEntry key={entry.id} entry={entry} latest={entry.id === lastAssistant?.id} />))}
           {g.pending && (
             <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mt: 1.5 }}>
               <GarfieldAvatar size={32} mood="thinking" />
@@ -193,7 +199,7 @@ export function GarfieldPanel() {
         {g.entries.length > 0 && !g.pending && (
           <Stack direction="row" sx={{ gap: 0.75, px: 1.5, pt: 1, overflowX: 'auto', scrollbarWidth: 'none', borderTop: 1, borderColor: 'divider' }}>
             {suggestions.items.slice(0, 4).map((s) => (
-              <Chip key={s.label} size="small" label={s.label} onClick={() => void g.send(s.prompt)} variant="outlined" sx={{ flex: 'none' }} />
+              <Chip key={s.label} size="small" label={t(s.label)} onClick={() => sendSuggestion(s)} variant="outlined" sx={{ flex: 'none' }} />
             ))}
           </Stack>
         )}
@@ -204,20 +210,20 @@ export function GarfieldPanel() {
             {attachments.map((a) => (
               <Box key={a.path} sx={{ position: 'relative' }}>
                 <Box component="img" src={a.url} alt={a.alt} sx={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 1.5, border: 1, borderColor: 'divider', display: 'block' }} />
-                <IconButton size="small" onClick={() => setAttachments((list) => list.filter((x) => x.path !== a.path))} aria-label="Quitar imagen" sx={{ position: 'absolute', top: -8, right: -8, bgcolor: 'background.paper', border: 1, borderColor: 'divider', p: 0.25, '&:hover': { bgcolor: 'background.paper' } }}>
+                <IconButton size="small" onClick={() => setAttachments((list) => list.filter((x) => x.path !== a.path))} aria-label={t('Quitar imagen')} sx={{ position: 'absolute', top: -8, right: -8, bgcolor: 'background.paper', border: 1, borderColor: 'divider', p: 0.25, '&:hover': { bgcolor: 'background.paper' } }}>
                   <X size={11} />
                 </IconButton>
               </Box>
             ))}
-            {uploading && <Typography variant="caption" color="text.secondary">Subiendo…</Typography>}
+            {uploading && <Typography variant="caption" color="text.secondary">{t('Subiendo…')}</Typography>}
           </Stack>
         )}
 
         {/* Entrada */}
         <Stack direction="row" spacing={1} sx={{ alignItems: 'flex-end', p: 1.25 }}>
-          <Tooltip title="Adjuntar imágenes (Garfield puede usarlas)">
+          <Tooltip title={t('Adjuntar imágenes (Garfield puede usarlas)')}>
             <span>
-              <IconButton onClick={() => fileInput.current?.click()} disabled={uploading || attachments.length >= 4} aria-label="Adjuntar imagen" sx={{ width: 40, height: 40 }}>
+              <IconButton onClick={() => fileInput.current?.click()} disabled={uploading || attachments.length >= 4} aria-label={t('Adjuntar imagen')} sx={{ width: 40, height: 40 }}>
                 <ImagePlus size={18} />
               </IconButton>
             </span>
@@ -228,13 +234,13 @@ export function GarfieldPanel() {
             value={text}
             onChange={(e) => setText(e.target.value.slice(0, 2000))}
             onKeyDown={onKey}
-            placeholder="Escribe lo que quieres hacer…"
+            placeholder={t('Escribe lo que quieres hacer…')}
             multiline
             maxRows={5}
             sx={{ flex: 1, px: 1.5, py: 1, borderRadius: 2, border: 1, borderColor: 'divider', bgcolor: 'background.paper', fontSize: 14, '&.Mui-focused': { borderColor: ORANGE, boxShadow: `0 0 0 3px ${ORANGE}22` } }}
-            inputProps={{ 'aria-label': 'Mensaje para Garfield' }}
+            inputProps={{ 'aria-label': t('Mensaje para Garfield') }}
           />
-          <IconButton onClick={submit} disabled={(!text.trim() && attachments.length === 0) || g.pending || uploading} aria-label="Enviar" sx={{ bgcolor: ORANGE, color: '#fff', width: 40, height: 40, '&:hover': { bgcolor: '#D96F12' }, '&.Mui-disabled': { bgcolor: 'action.disabledBackground' } }}>
+          <IconButton onClick={submit} disabled={(!text.trim() && attachments.length === 0) || g.pending || uploading} aria-label={t('Enviar')} sx={{ bgcolor: ORANGE, color: '#fff', width: 40, height: 40, '&:hover': { bgcolor: '#D96F12' }, '&.Mui-disabled': { bgcolor: 'action.disabledBackground' } }}>
             <SendHorizontal size={18} />
           </IconButton>
         </Stack>
@@ -271,12 +277,13 @@ function AssistantBubble({ children, mood = 'idle', error }: { children: React.R
 
 function AssistantEntry({ entry, latest }: { entry: ChatEntry; latest: boolean }) {
   const g = useGarfield();
+  const t = useT();
   const mood = entry.error || entry.plan?.status === 'failed' ? 'worried' : entry.plan?.status === 'applied' ? 'happy' : 'idle';
   return (
     <AssistantBubble mood={mood} error={entry.error}>
       <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{entry.text}</Typography>
       {entry.local && g.mode === 'ai' && (
-        <Typography variant="caption" color="text.secondary" component="p" sx={{ mt: 0.5 }}>⚡ Resuelto al instante, sin usar IA</Typography>
+        <Typography variant="caption" color="text.secondary" component="p" sx={{ mt: 0.5 }}>{t('⚡ Resuelto al instante, sin usar IA')}</Typography>
       )}
       {entry.plan && <PlanCard entry={entry} />}
       {latest && entry.suggestions && entry.suggestions.length > 0 && !g.pending && (
@@ -294,21 +301,22 @@ function AssistantEntry({ entry, latest }: { entry: ChatEntry; latest: boolean }
 
 function PlanCard({ entry }: { entry: ChatEntry }) {
   const g = useGarfield();
+  const t = useT();
   const plan = entry.plan!;
   const previewing = g.previewingId === entry.id;
   const ok = plan.steps.filter((s) => s.status === 'ok');
   const failed = plan.steps.filter((s) => s.status === 'error');
   const destructiveKinds = plan.actions.filter((a, i) => plan.steps[i]?.status === 'ok' && (a.action === 'delete_page' || a.action === 'delete_section' || a.action === 'remove_nav_item')).map((a) => a.action);
   const confirmLabel = !plan.destructive
-    ? plan.hasCatalogChanges ? 'Aplicar y guardar' : plan.needsConfirmation ? 'Confirmar y aplicar' : 'Aplicar cambios'
-    : ok.length === 1 ? { delete_page: 'Eliminar página', delete_section: 'Eliminar sección', remove_nav_item: 'Quitar del menú' }[destructiveKinds[0] as 'delete_page'] : 'Aplicar y eliminar';
+    ? plan.hasCatalogChanges ? t('Aplicar y guardar') : plan.needsConfirmation ? t('Confirmar y aplicar') : t('Aplicar cambios')
+    : ok.length === 1 ? { delete_page: t('Eliminar página'), delete_section: t('Eliminar sección'), remove_nav_item: t('Quitar del menú') }[destructiveKinds[0] as 'delete_page'] : t('Aplicar y eliminar');
 
   return (
     <Box sx={{ mt: 1, border: 1, borderColor: plan.destructive && plan.status === 'proposed' ? 'var(--garfield-error-border)' : 'divider', borderRadius: 2, overflow: 'hidden' }}>
       <Box sx={{ px: 1.25, py: 0.75, bgcolor: plan.status === 'applied' ? 'var(--garfield-applied-bg)' : plan.destructive && plan.status === 'proposed' ? 'var(--garfield-error-bg)' : 'var(--garfield-neutral-bg)', display: 'flex', alignItems: 'center', gap: 0.75 }}>
         {plan.status === 'applied' ? <Check size={14} color="var(--garfield-applied-ink)" /> : plan.needsConfirmation && plan.status === 'proposed' ? <AlertTriangle size={14} color="var(--garfield-warn-ink)" /> : <Sparkles size={14} color={ORANGE} />}
         <Typography variant="caption" sx={{ fontWeight: 700 }}>
-          {{ proposed: plan.needsConfirmation ? 'Necesito tu confirmación' : 'He preparado estos cambios', applied: 'Cambios aplicados al borrador', cancelled: 'Cancelado', undone: 'Cambios deshechos', failed: 'No pude aplicar estos cambios', expired: 'Propuesta anterior (vencida)' }[plan.status]}
+          {{ proposed: plan.needsConfirmation ? t('Necesito tu confirmación') : t('He preparado estos cambios'), applied: t('Cambios aplicados al borrador'), cancelled: t('Cancelado'), undone: t('Cambios deshechos'), failed: t('No pude aplicar estos cambios'), expired: t('Propuesta anterior (vencida)') }[plan.status]}
         </Typography>
       </Box>
       <Box component="ul" sx={{ listStyle: 'none', m: 0, px: 1.25, py: 0.75 }}>
@@ -326,7 +334,7 @@ function PlanCard({ entry }: { entry: ChatEntry }) {
       </Box>
       {plan.status === 'proposed' && plan.hasCatalogChanges && (
         <Typography variant="caption" color="text.secondary" component="p" sx={{ px: 1.25, pb: 0.75, display: 'flex', gap: 0.5, alignItems: 'center' }}>
-          <Database size={12} /> Los pasos de productos y categorías se guardan en tu catálogo al aplicar.
+          <Database size={12} /> {t('Los pasos de productos y categorías se guardan en tu catálogo al aplicar.')}
         </Typography>
       )}
       {plan.status === 'proposed' && ok.length > 0 && (
@@ -335,19 +343,19 @@ function PlanCard({ entry }: { entry: ChatEntry }) {
             {confirmLabel}
           </Button>
           <Button size="small" variant="outlined" color="inherit" startIcon={previewing ? <EyeOff size={14} /> : <Eye size={14} />} onClick={() => (previewing ? g.exitPreview() : g.previewPlan(entry.id))}>
-            {previewing ? 'Salir de la vista previa' : 'Vista previa'}
+            {previewing ? t('Salir de la vista previa') : t('Vista previa')}
           </Button>
-          <Button size="small" color="inherit" onClick={() => g.cancelPlan(entry.id)}>Cancelar</Button>
+          <Button size="small" color="inherit" onClick={() => g.cancelPlan(entry.id)}>{t('Cancelar')}</Button>
         </Stack>
       )}
       {plan.status === 'applied' && plan.undo !== undefined && (
         <Stack direction="row" sx={{ px: 1.25, pb: 1, alignItems: 'center', justifyContent: 'space-between' }}>
-          <Typography variant="caption" color="text.secondary">{plan.steps.some((x) => (x.kind === 'editor' || x.kind === 'pdf') && x.status === 'ok') ? (g.editor === 'pdf' ? 'Recuerda pulsar «Guardar» en el estudio.' : 'Recuerda pulsar «Guardar cambios».') : 'Guardado en tu catálogo.'}</Typography>
-          <Button size="small" color="inherit" startIcon={<RotateCcw size={13} />} onClick={() => g.undoPlan(entry.id)}>Deshacer</Button>
+          <Typography variant="caption" color="text.secondary">{plan.steps.some((x) => (x.kind === 'editor' || x.kind === 'pdf') && x.status === 'ok') ? (g.editor === 'pdf' ? t('Recuerda pulsar «Guardar» en el estudio.') : t('Recuerda pulsar «Guardar cambios».')) : t('Guardado en tu catálogo.')}</Typography>
+          <Button size="small" color="inherit" startIcon={<RotateCcw size={13} />} onClick={() => g.undoPlan(entry.id)}>{t('Deshacer')}</Button>
         </Stack>
       )}
       {failed.length > 0 && ok.length > 0 && plan.status !== 'applied' && (
-        <Typography variant="caption" color="text.secondary" component="p" sx={{ px: 1.25, pb: 1 }}>Los pasos marcados con ✕ se omitirán.</Typography>
+        <Typography variant="caption" color="text.secondary" component="p" sx={{ px: 1.25, pb: 1 }}>{t('Los pasos marcados con ✕ se omitirán.')}</Typography>
       )}
     </Box>
   );
@@ -357,6 +365,7 @@ function PlanCard({ entry }: { entry: ChatEntry }) {
 
 export function GarfieldPreviewBanner() {
   const g = useGarfield();
+  const t = useT();
   if (!g.previewingId) return null;
   return (
     <Alert
@@ -365,26 +374,27 @@ export function GarfieldPreviewBanner() {
       sx={{ mb: 1.5, py: 0, alignItems: 'center', bgcolor: 'var(--garfield-tint)', border: 1, borderColor: `${ORANGE}55` }}
       action={
         <Stack direction="row" spacing={0.5}>
-          <Button size="small" color="inherit" onClick={g.exitPreview}>Salir</Button>
-          <Button size="small" variant="contained" disabled={g.pending} onClick={() => void g.applyPlan(g.previewingId!)} sx={{ bgcolor: ORANGE, '&:hover': { bgcolor: '#D96F12' } }}>Aplicar</Button>
+          <Button size="small" color="inherit" onClick={g.exitPreview}>{t('Salir')}</Button>
+          <Button size="small" variant="contained" disabled={g.pending} onClick={() => void g.applyPlan(g.previewingId!)} sx={{ bgcolor: ORANGE, '&:hover': { bgcolor: '#D96F12' } }}>{t('Aplicar')}</Button>
         </Stack>
       }
     >
-      Vista previa de Garfield: así quedaría. Nada cambia hasta que lo apliques.
+      {t('Vista previa de Garfield: así quedaría. Nada cambia hasta que lo apliques.')}
     </Alert>
   );
 }
 
 /* ------------------------------------------------------------ Ayuda pequeña dentro del editor */
 
-export function GarfieldHint({ text, prompt, action = 'Pedírselo a Garfield' }: { text: string; prompt: string; action?: string }) {
+export function GarfieldHint({ text, prompt, action }: { text: string; prompt: string; action?: string }) {
   const g = useGarfield();
+  const t = useT();
   return (
     <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', p: 1.25, borderRadius: 2, bgcolor: 'var(--garfield-callout)', border: 1, borderColor: `${ORANGE}40` }}>
       <GarfieldAvatar size={34} />
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Typography variant="caption" component="p" sx={{ lineHeight: 1.35 }}>{text}</Typography>
-        <Button size="small" onClick={() => g.ask(prompt)} sx={{ px: 0, minWidth: 0, color: 'var(--garfield-link)', fontWeight: 700 }}>{action} →</Button>
+        <Button size="small" onClick={() => g.ask(prompt)} sx={{ px: 0, minWidth: 0, color: 'var(--garfield-link)', fontWeight: 700 }}>{action ?? t('Pedírselo a Garfield')} →</Button>
       </Box>
     </Stack>
   );

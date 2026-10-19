@@ -3,6 +3,7 @@ import type { CSSProperties } from 'react';
 import { mediaUrl } from '@/lib/utils/storage';
 import { gridVars, Placeholder, SectionFrame, SectionHead } from '../SectionFrame';
 import { optimizable, SiteImage } from '../SiteImage';
+import { siteTranslator } from '../site-i18n';
 import styles from '../site.module.css';
 import type { SectionProps } from './types';
 
@@ -10,6 +11,7 @@ const RATIO = { square: '1 / 1', landscape: '4 / 3', portrait: '3 / 4', original
 
 export function GallerySection({ section, site, env }: SectionProps<'gallery'>) {
   const { content } = section;
+  const t = siteTranslator(site.settings.language);
   const images = content.images.flatMap((img) => {
     const url = mediaUrl(img.path);
     return url ? [{ url, caption: img.caption }] : [];
@@ -22,7 +24,7 @@ export function GallerySection({ section, site, env }: SectionProps<'gallery'>) 
   return (
     <SectionFrame section={section} theme={site.theme}>
       <SectionHead eyebrow={content.eyebrow} title={content.title} subtitle={content.subtitle} />
-      <Placeholder show={images.length === 0}>Agrega imágenes a la galería desde el editor.</Placeholder>
+      <Placeholder show={images.length === 0}>{t('Agrega imágenes a la galería desde el editor.')}</Placeholder>
       <div className={`${styles.gallery} ${containerClass}`} data-gap={content.gap} style={gridVars(content.columns)}>
         {images.map((img, i) => (
           <figure key={`${img.url}-${i}`} className={styles.galleryItem} style={masonry ? undefined : ({ aspectRatio: RATIO[content.ratio] } as CSSProperties)}>

@@ -6,12 +6,14 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useConfirm } from '@/components/feedback/ConfirmProvider';
 import { publishCatalog, unpublishCatalog } from '@/features/catalog/actions';
+import { useT } from '@/i18n/client';
 import { STATUS_LABELS } from '@/lib/catalog/status';
 import { useAction } from '@/lib/hooks/use-action';
 import { useDashboard } from './DashboardContext';
 
 /** Estado del catálogo + acción principal de publicar. */
 export function PublishControl() {
+  const t = useT();
   const { catalogStatus, publicUrl, canManage } = useDashboard();
   const router = useRouter();
   const confirm = useConfirm();
@@ -23,9 +25,9 @@ export function PublishControl() {
   const unpublish = async () => {
     setAnchor(null);
     const ok = await confirm({
-      title: '¿Despublicar el catálogo?',
-      description: 'Quien tenga el enlace verá una página de "catálogo no disponible" hasta que vuelvas a publicarlo. No se borra nada.',
-      confirmLabel: 'Despublicar',
+      title: t('¿Despublicar el catálogo?'),
+      description: t('Quien tenga el enlace verá una página de "catálogo no disponible" hasta que vuelvas a publicarlo. No se borra nada.'),
+      confirmLabel: t('Despublicar'),
       destructive: true,
     });
     if (ok) await run(unpublishCatalog, { onSuccess: () => router.refresh() });
@@ -33,19 +35,19 @@ export function PublishControl() {
 
   return (
     <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-      <Chip label={status.label} color={status.color} variant={catalogStatus === 'published' ? 'filled' : 'outlined'} sx={{ display: { xs: 'none', sm: 'inline-flex' } }} />
+      <Chip label={t(status.label)} color={status.color} variant={catalogStatus === 'published' ? 'filled' : 'outlined'} sx={{ display: { xs: 'none', sm: 'inline-flex' } }} />
       {catalogStatus === 'published' ? (
         <>
           <Button variant="outlined" color="inherit" href={publicUrl} target="_blank" startIcon={<Globe size={14} />}>
-            Ver catálogo
+            {t('Ver catálogo')}
           </Button>
           {canManage && (
             <>
-              <Button color="inherit" onClick={(e) => setAnchor(e.currentTarget)} endIcon={<ChevronDown size={14} />} sx={{ minWidth: 0, px: 1 }} aria-label="Más opciones de publicación" />
+              <Button color="inherit" onClick={(e) => setAnchor(e.currentTarget)} endIcon={<ChevronDown size={14} />} sx={{ minWidth: 0, px: 1 }} aria-label={t('Más opciones de publicación')} />
               <Menu anchorEl={anchor} open={Boolean(anchor)} onClose={() => setAnchor(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }} transformOrigin={{ vertical: 'top', horizontal: 'right' }}>
                 <MenuItem onClick={unpublish} disabled={pending}>
                   <ListItemIcon><EyeOff size={16} /></ListItemIcon>
-                  Despublicar
+                  {t('Despublicar')}
                 </MenuItem>
               </Menu>
             </>
@@ -54,12 +56,12 @@ export function PublishControl() {
       ) : (
         <>
           <Button variant="outlined" color="inherit" href="/preview" target="_blank">
-            Vista previa
+            {t('Vista previa')}
           </Button>
-          <Tooltip title={canManage ? '' : 'Sólo el dueño o un administrador puede publicar'}>
+          <Tooltip title={canManage ? '' : t('Sólo el dueño o un administrador puede publicar')}>
             <span>
               <Button variant="contained" startIcon={<Rocket size={14} />} onClick={publish} disabled={pending || !canManage}>
-                {pending ? 'Publicando…' : 'Publicar'}
+                {pending ? t('Publicando…') : t('Publicar')}
               </Button>
             </span>
           </Tooltip>

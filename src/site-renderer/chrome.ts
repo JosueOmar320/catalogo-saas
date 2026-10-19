@@ -3,7 +3,9 @@ import { resolveNavigation, type ResolvedNavItem } from '@/lib/site/navigation';
 import { pagePath } from '@/lib/site/links';
 import { headerOverlaysPage } from '@/lib/site/resolve';
 import type { SiteViewModel } from '@/lib/site/view-model';
+import { defaultText } from './default-texts';
 import { linkContext, type RenderEnv } from './env';
+import { siteTranslator } from './site-i18n';
 
 export type HeaderProps = {
   header: SiteViewModel['theme']['header'];
@@ -23,16 +25,20 @@ export function buildHeaderProps(site: SiteViewModel, env: RenderEnv, currentPat
   const links = linkContext(site, env);
   const pages = links.pages as SiteViewModel['pages'];
   const header = site.theme.header;
+  const t = siteTranslator(site.settings.language);
+  // Mensaje de WhatsApp en el idioma del sitio (vacío, lib/site/links usaría el de fábrica en español).
+  const message = t('Hola {name}, quisiera más información.', { name: site.business.name });
+  const label = (fallback: string) => (header.ctaLabel ? defaultText(header.ctaLabel, t) : fallback);
   let cta: HeaderProps['cta'] = null;
   if (header.cta === 'whatsapp') {
-    const link = resolveLink({ kind: 'whatsapp', pageId: '', url: '', message: '', newTab: true }, links);
-    if (link) cta = { label: header.ctaLabel || 'WhatsApp', ...link };
+    const link = resolveLink({ kind: 'whatsapp', pageId: '', url: '', message, newTab: true }, links);
+    if (link) cta = { label: label('WhatsApp'), ...link };
   } else if (header.cta === 'contact') {
     const contactPage = pages.find((p) => p.template === 'contact' || p.sections.some((s) => s.type === 'contact'));
     const link = contactPage
       ? resolveLink({ kind: 'page', pageId: contactPage.id, url: '', message: '', newTab: false }, links)
-      : resolveLink({ kind: 'whatsapp', pageId: '', url: '', message: '', newTab: true }, links);
-    if (link) cta = { label: header.ctaLabel || 'Contáctanos', ...link };
+      : resolveLink({ kind: 'whatsapp', pageId: '', url: '', message, newTab: true }, links);
+    if (link) cta = { label: label(t('Contáctanos')), ...link };
   }
   return {
     header,

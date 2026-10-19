@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { ItemDetail } from '@/site-renderer';
 import { getPublicSite } from '@/features/catalog/public-queries';
 import { siteMetadata } from '@/lib/catalog/metadata';
+import { siteStatusTexts } from '@/site-renderer/status';
 
 export const revalidate = 3600;
 
@@ -19,7 +20,7 @@ async function load(slug: string, itemSlug: string) {
 export async function generateMetadata({ params }: PageProps<'/catalogo/[slug]/p/[itemSlug]'>): Promise<Metadata> {
   const { slug, itemSlug } = await params;
   const data = await load(slug, itemSlug);
-  if (!data) return { title: 'No encontrado', robots: { index: false } };
+  if (!data) return { title: siteStatusTexts((await getPublicSite(slug))?.settings.language).notFound, robots: { index: false } };
   const { site, item } = data;
   const base = siteMetadata(site);
   const description = item.shortDescription ?? (base.description as string);

@@ -7,8 +7,10 @@ import { layoutUses, PRODUCT_LAYOUT_META, PRODUCT_LAYOUTS, type Presentation, ty
 import { CARD_STYLE_META, CARD_STYLES } from '@/lib/design/styles-registry';
 import type { SiteViewModel } from '@/lib/site/view-model';
 import { Advanced, ColumnsEditor, Group, Segmented, SelectInput, SliderInput, SwitchRow } from '../controls';
+import { useT } from '@/i18n/client';
+import { msg } from '@/i18n/translate';
 
-const cardStyleOptions = [{ value: 'inherit' as const, label: 'Como el tema' }, ...CARD_STYLES.map((id) => ({ value: id, label: CARD_STYLE_META[id].label }))];
+const cardStyleOptions = [{ value: 'inherit' as const, label: msg('Como el tema') }, ...CARD_STYLES.map((id) => ({ value: id, label: CARD_STYLE_META[id].label }))];
 
 /* Miniaturas esquemáticas de cada layout (48×36). */
 const B = ({ x, y, w, h, r = 1.5, o = 1 }: { x: number; y: number; w: number; h: number; r?: number; o?: number }) => <rect x={x} y={y} width={w} height={h} rx={r} fill="currentColor" opacity={o} />;
@@ -92,9 +94,10 @@ const THUMBS: Record<ProductLayout, ReactNode> = {
 };
 
 export function LayoutPicker({ value, onChange, layouts = PRODUCT_LAYOUTS }: { value: ProductLayout; onChange: (layout: ProductLayout) => void; layouts?: readonly ProductLayout[] }) {
+  const t = useT();
   return (
     <Box>
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 0.75 }} role="radiogroup" aria-label="Presentación">
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 0.75 }} role="radiogroup" aria-label={t('Presentación')}>
         {layouts.map((id) => {
           const selected = id === value;
           return (
@@ -102,22 +105,22 @@ export function LayoutPicker({ value, onChange, layouts = PRODUCT_LAYOUTS }: { v
               key={id}
               role="radio"
               aria-checked={selected}
-              title={PRODUCT_LAYOUT_META[id].description}
+              title={t(PRODUCT_LAYOUT_META[id].description)}
               onClick={() => onChange(id)}
-              sx={{ flexDirection: 'column', gap: 0.5, p: 0.75, borderRadius: 1.5, border: 1, borderColor: selected ? 'primary.main' : 'divider', color: selected ? 'primary.main' : 'text.secondary', boxShadow: selected ? (t) => `0 0 0 1px ${t.palette.primary.main}` : 'none' }}
+              sx={{ flexDirection: 'column', gap: 0.5, p: 0.75, borderRadius: 1.5, border: 1, borderColor: selected ? 'primary.main' : 'divider', color: selected ? 'primary.main' : 'text.secondary', boxShadow: selected ? (th) => `0 0 0 1px ${th.palette.primary.main}` : 'none' }}
             >
               <svg viewBox="0 0 48 36" width="100%" style={{ maxWidth: 64 }} aria-hidden>
                 {THUMBS[id]}
               </svg>
               <Typography variant="caption" sx={{ fontWeight: 600, lineHeight: 1.2, textAlign: 'center', color: selected ? 'primary.main' : 'text.primary' }}>
-                {PRODUCT_LAYOUT_META[id].label}
+                {t(PRODUCT_LAYOUT_META[id].label)}
               </Typography>
             </ButtonBase>
           );
         })}
       </Box>
       <Typography variant="caption" color="text.secondary" component="p" sx={{ mt: 0.75 }}>
-        {PRODUCT_LAYOUT_META[value].description}
+        {t(PRODUCT_LAYOUT_META[value].description)}
       </Typography>
     </Box>
   );
@@ -128,6 +131,7 @@ export function LayoutPicker({ value, onChange, layouts = PRODUCT_LAYOUTS }: { v
  * (LAYOUT_OPTIONS). `target` decide si se editan columnas web o de PDF.
  */
 export function PresentationEditor({ value, onChange, target = 'web' }: { value: Presentation; onChange: (value: Presentation) => void; target?: 'web' | 'pdf' }) {
+  const t = useT();
   const p = value;
   const set = (patch: Partial<Presentation>) => onChange({ ...p, ...patch });
   const setFields = (patch: Partial<Presentation['fields']>) => set({ fields: { ...p.fields, ...patch } });
@@ -136,67 +140,67 @@ export function PresentationEditor({ value, onChange, target = 'web' }: { value:
 
   return (
     <>
-      <Group title="Presentación">
+      <Group title={t('Presentación')}>
         <LayoutPicker value={p.layout} onChange={(layout) => set({ layout })} />
-        {!pdf && p.layout === 'grid' && <Segmented label="Disposición" value={p.arrangement} onChange={(arrangement) => set({ arrangement })} options={[{ value: 'grid', label: 'Cuadrícula' }, { value: 'carousel', label: 'Carrusel' }]} />}
+        {!pdf && p.layout === 'grid' && <Segmented label={t('Disposición')} value={p.arrangement} onChange={(arrangement) => set({ arrangement })} options={[{ value: 'grid', label: t('Cuadrícula') }, { value: 'carousel', label: t('Carrusel') }]} />}
         {uses('columns') &&
           (pdf ? (
-            <SliderInput label="Columnas en el PDF" value={p.columns.pdf} min={1} max={p.layout === 'priceList' ? 2 : 5} onChange={(n) => set({ columns: { ...p.columns, pdf: n } })} />
+            <SliderInput label={t('Columnas en el PDF')} value={p.columns.pdf} min={1} max={p.layout === 'priceList' ? 2 : 5} onChange={(n) => set({ columns: { ...p.columns, pdf: n } })} />
           ) : p.layout === 'priceList' ? (
-            <Segmented label="Columnas" value={Math.min(p.columns.desktop, 2)} onChange={(n) => set({ columns: { ...p.columns, desktop: n } })} options={[{ value: 1, label: '1' }, { value: 2, label: '2' }]} />
+            <Segmented label={t('Columnas')} value={Math.min(p.columns.desktop, 2)} onChange={(n) => set({ columns: { ...p.columns, desktop: n } })} options={[{ value: 1, label: '1' }, { value: 2, label: '2' }]} />
           ) : (
             <ColumnsEditor value={p.columns} onChange={(columns) => set({ columns: { ...p.columns, ...columns } })} maxDesktop={p.layout === 'largeCards' ? 3 : 6} />
           ))}
-        {uses('imageSize') && <Segmented label="Tamaño de imagen" value={p.imageSize} onChange={(imageSize) => set({ imageSize })} options={[{ value: 'sm', label: 'S' }, { value: 'md', label: 'M' }, { value: 'lg', label: 'L' }]} />}
+        {uses('imageSize') && <Segmented label={t('Tamaño de imagen')} value={p.imageSize} onChange={(imageSize) => set({ imageSize })} options={[{ value: 'sm', label: 'S' }, { value: 'md', label: 'M' }, { value: 'lg', label: 'L' }]} />}
         {uses('imagePosition') && (
           <Segmented
-            label="Imagen"
+            label={t('Imagen')}
             value={p.imagePosition}
             onChange={(imagePosition) => set({ imagePosition })}
-            options={[{ value: 'left', label: 'Izq.' }, { value: 'right', label: 'Der.' }, ...(p.layout === 'zigzag' ? [{ value: 'alternate' as const, label: 'Alternar' }] : [])]}
+            options={[{ value: 'left', label: t('Izq.') }, { value: 'right', label: t('Der.') }, ...(p.layout === 'zigzag' ? [{ value: 'alternate' as const, label: t('Alternar') }] : [])]}
           />
         )}
-        {!pdf && uses('cardStyle') && <SelectInput label="Estilo de tarjeta" value={p.cardStyle} onChange={(cardStyle) => set({ cardStyle })} options={cardStyleOptions} />}
+        {!pdf && uses('cardStyle') && <SelectInput label={t('Estilo de tarjeta')} value={p.cardStyle} onChange={(cardStyle) => set({ cardStyle })} options={cardStyleOptions.map((o) => ({ ...o, label: t(o.label) }))} />}
       </Group>
 
-      <Group title="Qué mostrar de cada ítem">
-        <SwitchRow label="Imagen" checked={p.fields.image} onChange={(image) => setFields({ image })} />
-        <SwitchRow label="Descripción" checked={p.fields.description} onChange={(description) => setFields({ description })} />
-        <SwitchRow label="Precio" checked={p.fields.price} onChange={(price) => setFields({ price })} />
-        {p.fields.price && <SwitchRow label="Precio anterior tachado" checked={p.fields.compareAt} onChange={(compareAt) => setFields({ compareAt })} />}
-        {p.fields.price && <SwitchRow label="Porcentaje de descuento" description="Se calcula con el precio anterior." checked={p.fields.discount} onChange={(discount) => setFields({ discount })} />}
-        <SwitchRow label="Aviso «No disponible»" checked={p.fields.availability} onChange={(availability) => setFields({ availability })} />
-        <SwitchRow label="Código / SKU" checked={p.fields.sku} onChange={(sku) => setFields({ sku })} />
-        <SwitchRow label="Categoría" checked={p.fields.category} onChange={(category) => setFields({ category })} />
-        <SwitchRow label="Etiquetas (Nuevo, Oferta…)" checked={p.fields.badges} onChange={(badges) => setFields({ badges })} />
-        {!pdf && <SwitchRow label="Botón de contacto" checked={p.fields.button} onChange={(button) => setFields({ button })} />}
+      <Group title={t('Qué mostrar de cada ítem')}>
+        <SwitchRow label={t('Imagen')} checked={p.fields.image} onChange={(image) => setFields({ image })} />
+        <SwitchRow label={t('Descripción')} checked={p.fields.description} onChange={(description) => setFields({ description })} />
+        <SwitchRow label={t('Precio')} checked={p.fields.price} onChange={(price) => setFields({ price })} />
+        {p.fields.price && <SwitchRow label={t('Precio anterior tachado')} checked={p.fields.compareAt} onChange={(compareAt) => setFields({ compareAt })} />}
+        {p.fields.price && <SwitchRow label={t('Porcentaje de descuento')} description={t('Se calcula con el precio anterior.')} checked={p.fields.discount} onChange={(discount) => setFields({ discount })} />}
+        <SwitchRow label={t('Aviso «No disponible»')} checked={p.fields.availability} onChange={(availability) => setFields({ availability })} />
+        <SwitchRow label={t('Código / SKU')} checked={p.fields.sku} onChange={(sku) => setFields({ sku })} />
+        <SwitchRow label={t('Categoría')} checked={p.fields.category} onChange={(category) => setFields({ category })} />
+        <SwitchRow label={t('Etiquetas (Nuevo, Oferta…)')} checked={p.fields.badges} onChange={(badges) => setFields({ badges })} />
+        {!pdf && <SwitchRow label={t('Botón de contacto')} checked={p.fields.button} onChange={(button) => setFields({ button })} />}
         <SelectInput
-          label="Atributos"
+          label={t('Atributos')}
           value={p.fields.attributes}
           onChange={(attributes) => setFields({ attributes })}
           options={[
-            { value: 'none', label: 'No mostrar' },
-            { value: 'card', label: 'Los marcados "en tarjeta"' },
-            { value: 'all', label: 'Todos los de la ficha' },
+            { value: 'none', label: t('No mostrar') },
+            { value: 'card', label: t('Los marcados "en tarjeta"') },
+            { value: 'all', label: t('Todos los de la ficha') },
           ]}
-          helper="Se definen en Catálogo › Atributos."
+          helper={t('Se definen en Catálogo › Atributos.')}
         />
       </Group>
 
-      <Advanced title="Imagen y espaciado">
+      <Advanced title={t('Imagen y espaciado')}>
         <Stack spacing={1.75}>
           {uses('shape') && (
-            <Segmented label="Forma" value={p.shape} onChange={(shape) => set({ shape })} options={[{ value: 'rect', label: 'Recta' }, { value: 'rounded', label: 'Redond.' }, { value: 'circle', label: 'Círculo' }, { value: 'arch', label: 'Arco' }]} />
+            <Segmented label={t('Forma')} value={p.shape} onChange={(shape) => set({ shape })} options={[{ value: 'rect', label: t('Recta') }, { value: 'rounded', label: t('Redond.') }, { value: 'circle', label: t('Círculo') }, { value: 'arch', label: t('Arco') }]} />
           )}
-          {uses('shape') && <SwitchRow label="Marco decorativo" checked={p.frame} onChange={(frame) => set({ frame })} />}
+          {uses('shape') && <SwitchRow label={t('Marco decorativo')} checked={p.frame} onChange={(frame) => set({ frame })} />}
           {uses('ratio') && p.shape !== 'circle' && p.shape !== 'arch' && (
-            <Segmented label="Proporción" value={p.ratio} onChange={(ratio) => set({ ratio })} options={[{ value: 'square', label: '1:1' }, { value: 'portrait', label: '3:4' }, { value: 'landscape', label: '4:3' }, { value: 'wide', label: '16:9' }]} />
+            <Segmented label={t('Proporción')} value={p.ratio} onChange={(ratio) => set({ ratio })} options={[{ value: 'square', label: '1:1' }, { value: 'portrait', label: '3:4' }, { value: 'landscape', label: '4:3' }, { value: 'wide', label: '16:9' }]} />
           )}
-          {uses('gap') && <Segmented label="Separación" value={p.gap} onChange={(gap) => set({ gap })} options={[{ value: 'tight', label: 'Chica' }, { value: 'normal', label: 'Normal' }, { value: 'loose', label: 'Amplia' }]} />}
-          {uses('separators') && <SwitchRow label="Líneas separadoras" checked={p.separators} onChange={(separators) => set({ separators })} />}
-          {uses('align') && <Segmented label="Alineación" value={p.align} onChange={(align) => set({ align })} options={[{ value: 'left', label: 'Izquierda' }, { value: 'center', label: 'Centro' }]} />}
-          {uses('gallery') && <SwitchRow label="Galería de fotos" description="Miniaturas para cambiar de imagen." checked={p.gallery} onChange={(gallery) => set({ gallery })} />}
-          {!pdf && uses('columns') && <SliderInput label="Columnas al exportar a PDF" value={p.columns.pdf} min={1} max={5} onChange={(n) => set({ columns: { ...p.columns, pdf: n } })} />}
+          {uses('gap') && <Segmented label={t('Separación')} value={p.gap} onChange={(gap) => set({ gap })} options={[{ value: 'tight', label: t('Chica') }, { value: 'normal', label: t('Normal') }, { value: 'loose', label: t('Amplia') }]} />}
+          {uses('separators') && <SwitchRow label={t('Líneas separadoras')} checked={p.separators} onChange={(separators) => set({ separators })} />}
+          {uses('align') && <Segmented label={t('Alineación')} value={p.align} onChange={(align) => set({ align })} options={[{ value: 'left', label: t('Izquierda') }, { value: 'center', label: t('Centro') }]} />}
+          {uses('gallery') && <SwitchRow label={t('Galería de fotos')} description={t('Miniaturas para cambiar de imagen.')} checked={p.gallery} onChange={(gallery) => set({ gallery })} />}
+          {!pdf && uses('columns') && <SliderInput label={t('Columnas al exportar a PDF')} value={p.columns.pdf} min={1} max={5} onChange={(n) => set({ columns: { ...p.columns, pdf: n } })} />}
         </Stack>
       </Advanced>
     </>
@@ -204,7 +208,8 @@ export function PresentationEditor({ value, onChange, target = 'web' }: { value:
 }
 
 /** Fuente de ítems: colección dinámica (destacados, ofertas, marca = X…) o elegidos a mano. */
-export function CollectionEditor({ value, onChange, site, title = 'Qué mostrar' }: { value: Collection; onChange: (value: Collection) => void; site: SiteViewModel; title?: string }) {
+export function CollectionEditor({ value, onChange, site, title }: { value: Collection; onChange: (value: Collection) => void; site: SiteViewModel; title?: string }) {
+  const t = useT();
   const c = value;
   const set = (patch: Partial<Collection>) => onChange({ ...c, ...patch });
   const pool = c.itemType === 'any' ? site.items : site.items.filter((i) => i.type === c.itemType);
@@ -213,21 +218,21 @@ export function CollectionEditor({ value, onChange, site, title = 'Qué mostrar'
   const sources = COLLECTION_SOURCES.filter((s) => s !== 'attribute' || site.attributeDefs.length > 0);
 
   return (
-    <Group title={title}>
-      <Segmented label="Tipo" value={c.itemType} onChange={(itemType) => set({ itemType })} options={[{ value: 'product', label: 'Productos' }, { value: 'service', label: 'Servicios' }, { value: 'any', label: 'Ambos' }]} />
-      <SelectInput label="Colección" value={c.source} onChange={(source) => set({ source })} options={sources.map((s) => ({ value: s, label: COLLECTION_LABELS[s] }))} />
+    <Group title={title ?? t('Qué mostrar')}>
+      <Segmented label={t('Tipo')} value={c.itemType} onChange={(itemType) => set({ itemType })} options={[{ value: 'product', label: t('Productos') }, { value: 'service', label: t('Servicios') }, { value: 'any', label: t('Ambos') }]} />
+      <SelectInput label={t('Colección')} value={c.source} onChange={(source) => set({ source })} options={sources.map((s) => ({ value: s, label: t(COLLECTION_LABELS[s]) }))} />
       {c.source === 'category' && (
-        <SelectInput label="Categoría" value={c.categoryId} onChange={(categoryId) => set({ categoryId })} options={[{ value: '', label: 'Elige una categoría' }, ...site.categories.map((cat) => ({ value: cat.id, label: cat.name }))]} />
+        <SelectInput label={t('Categoría')} value={c.categoryId} onChange={(categoryId) => set({ categoryId })} options={[{ value: '', label: t('Elige una categoría') }, ...site.categories.map((cat) => ({ value: cat.id, label: cat.name }))]} />
       )}
       {c.source === 'attribute' && (
         <>
-          <SelectInput label="Atributo" value={c.attributeId} onChange={(attributeId) => set({ attributeId, attributeValue: '' })} options={[{ value: '', label: 'Elige un atributo' }, ...site.attributeDefs.map((d) => ({ value: d.id, label: d.name }))]} />
+          <SelectInput label={t('Atributo')} value={c.attributeId} onChange={(attributeId) => set({ attributeId, attributeValue: '' })} options={[{ value: '', label: t('Elige un atributo') }, ...site.attributeDefs.map((d) => ({ value: d.id, label: d.name }))]} />
           {attrDef && (
             <SelectInput
-              label="Valor"
+              label={t('Valor')}
               value={c.attributeValue}
               onChange={(attributeValue) => set({ attributeValue })}
-              options={[{ value: '', label: 'Cualquiera (con este atributo)' }, ...(attrDef.type === 'boolean' ? ['Sí', 'No'] : attrValues).map((v) => ({ value: v, label: v }))]}
+              options={[{ value: '', label: t('Cualquiera (con este atributo)') }, ...(attrDef.type === 'boolean' ? [msg('Sí'), msg('No')] : attrValues).map((v) => ({ value: v, label: attrDef.type === 'boolean' ? t(v) : v }))]}
             />
           )}
         </>
@@ -237,7 +242,7 @@ export function CollectionEditor({ value, onChange, site, title = 'Qué mostrar'
           multiple
           options={pool.map((i) => i.id)}
           value={c.itemIds.filter((id) => pool.some((i) => i.id === id))}
-          getOptionLabel={(id) => pool.find((i) => i.id === id)?.name ?? 'Ítem'}
+          getOptionLabel={(id) => pool.find((i) => i.id === id)?.name ?? t('Ítem')}
           onChange={(_, itemIds) => set({ itemIds })}
           renderValue={(ids, getItemProps) =>
             ids.map((id, index) => {
@@ -245,11 +250,11 @@ export function CollectionEditor({ value, onChange, site, title = 'Qué mostrar'
               return <Chip key={key} label={pool.find((i) => i.id === id)?.name} {...rest} />;
             })
           }
-          renderInput={(params) => <TextField {...params} label="Ítems (en este orden)" />}
+          renderInput={(params) => <TextField {...params} label={t('Ítems (en este orden)')} />}
         />
       )}
-      {c.source !== 'manual' && c.source !== 'latest' && <SelectInput label="Orden" value={c.sort} onChange={(sort) => set({ sort })} options={SORT_OPTIONS.map((s) => ({ value: s, label: SORT_LABELS[s] }))} />}
-      {c.source !== 'manual' && <SliderInput label="Cantidad máxima" value={c.limit} min={0} max={48} format={(v) => (v === 0 ? 'Sin límite' : String(v))} onChange={(limit) => set({ limit })} />}
+      {c.source !== 'manual' && c.source !== 'latest' && <SelectInput label={t('Orden')} value={c.sort} onChange={(sort) => set({ sort })} options={SORT_OPTIONS.map((s) => ({ value: s, label: t(SORT_LABELS[s]) }))} />}
+      {c.source !== 'manual' && <SliderInput label={t('Cantidad máxima')} value={c.limit} min={0} max={48} format={(v) => (v === 0 ? t('Sin límite') : String(v))} onChange={(limit) => set({ limit })} />}
     </Group>
   );
 }

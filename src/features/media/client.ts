@@ -1,5 +1,6 @@
 'use client';
 
+import { msg } from '@/i18n/translate';
 import { env } from '@/lib/env';
 import { createClient } from '@/lib/supabase/client';
 import type { MediaKind } from '@/lib/utils/storage';
@@ -38,8 +39,8 @@ export const FOLDER_FOR_KIND: Record<MediaKind, MediaFolder> = {
 export class UploadError extends Error {}
 
 export function validateImageFile(file: File): string | null {
-  if (!(ACCEPTED_IMAGE_TYPES as readonly string[]).includes(file.type)) return 'Formato no soportado. Usa JPG, PNG o WebP.';
-  if (file.size > MAX_SOURCE_BYTES) return 'La imagen pesa más de 15 MB.';
+  if (!(ACCEPTED_IMAGE_TYPES as readonly string[]).includes(file.type)) return msg('Formato no soportado. Usa JPG, PNG o WebP.');
+  if (file.size > MAX_SOURCE_BYTES) return msg('La imagen pesa más de 15 MB.');
   return null;
 }
 
@@ -51,7 +52,7 @@ async function encode(bitmap: ImageBitmap, maxSide: number, type: 'image/jpeg' |
   canvas.width = width;
   canvas.height = height;
   const context = canvas.getContext('2d');
-  if (!context) throw new UploadError('Tu navegador no pudo procesar la imagen.');
+  if (!context) throw new UploadError(msg('Tu navegador no pudo procesar la imagen.'));
   if (type === 'image/jpeg') {
     context.fillStyle = '#FFFFFF';
     context.fillRect(0, 0, width, height);
@@ -59,7 +60,7 @@ async function encode(bitmap: ImageBitmap, maxSide: number, type: 'image/jpeg' |
   context.imageSmoothingQuality = 'high';
   context.drawImage(bitmap, 0, 0, width, height);
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, type, 0.84));
-  if (!blob) throw new UploadError('No se pudo comprimir la imagen.');
+  if (!blob) throw new UploadError(msg('No se pudo comprimir la imagen.'));
   return { blob, width, height };
 }
 
@@ -78,12 +79,12 @@ export async function uploadImage(file: File, businessId: string, kind: MediaKin
   const type = profile.keepAlpha && (file.type === 'image/png' || (kind !== 'site' && file.type === 'image/webp')) ? 'image/png' : 'image/jpeg';
   const extension = type === 'image/png' ? 'png' : 'jpg';
   const bitmap = await createImageBitmap(file).catch(() => {
-    throw new UploadError('No se pudo leer la imagen.');
+    throw new UploadError(msg('No se pudo leer la imagen.'));
   });
 
   try {
     const full = await encode(bitmap, profile.max, type);
-    if (full.blob.size > MAX_UPLOAD_BYTES) throw new UploadError('La imagen sigue siendo muy pesada tras comprimirla.');
+    if (full.blob.size > MAX_UPLOAD_BYTES) throw new UploadError(msg('La imagen sigue siendo muy pesada tras comprimirla.'));
     const thumb = Math.max(full.width, full.height) > THUMB_SIDE * 1.2 ? await encode(bitmap, THUMB_SIDE, type) : null;
 
     const bucket = createClient().storage.from(env.storageBucket);
@@ -93,12 +94,12 @@ export async function uploadImage(file: File, businessId: string, kind: MediaKin
     const options = { contentType: type, cacheControl: '31536000', upsert: false };
 
     const { error } = await bucket.upload(path, full.blob, options);
-    if (error) throw new UploadError('No se pudo subir la imagen. Revisa tu conexión.');
+    if (error) throw new UploadError(msg('No se pudo subir la imagen. Revisa tu conexión.'));
     if (thumb && thumbPath) {
       const { error: thumbError } = await bucket.upload(thumbPath, thumb.blob, options);
       if (thumbError) {
         await bucket.remove([path]);
-        throw new UploadError('No se pudo subir la imagen. Revisa tu conexión.');
+        throw new UploadError(msg('No se pudo subir la imagen. Revisa tu conexión.'));
       }
     }
 

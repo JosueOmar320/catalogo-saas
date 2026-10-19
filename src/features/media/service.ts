@@ -1,4 +1,5 @@
 import 'server-only';
+import { msg } from '@/i18n/translate';
 import { readBodyCapped, safeDownload, SafeFetchError } from '@/lib/net/safe-fetch';
 import { supabaseStorage, type StorageProvider } from '@/lib/storage/provider';
 import type { ServerSupabase } from '@/lib/supabase/server';
@@ -65,7 +66,7 @@ export async function listMedia(scope: MediaScope, raw: MediaFilters = {}): Prom
   query =
     f.sort === 'name' ? query.order('name', { ascending: true }) : f.sort === 'size' ? query.order('size_bytes', { ascending: false, nullsFirst: false }) : query.order('created_at', { ascending: f.sort === 'oldest' });
   const { data, count, error } = await query.range(f.offset, f.offset + f.limit - 1);
-  if (error) throw new MediaError('No se pudo cargar la biblioteca.');
+  if (error) throw new MediaError(msg('No se pudo cargar la biblioteca.'));
   return { items: (data ?? []).map(toMediaRecord), total: count ?? 0 };
 }
 
@@ -101,7 +102,7 @@ export async function getMedia(scope: MediaScope, id: string): Promise<Row | nul
 
 export async function mediaReferences(scope: MediaScope, path: string): Promise<{ place: string; label: string }[]> {
   const { data, error } = await scope.supabase.rpc('media_references', { p_business: scope.businessId, p_path: path });
-  if (error) throw new MediaError('No se pudo revisar dónde se usa la imagen.');
+  if (error) throw new MediaError(msg('No se pudo revisar dónde se usa la imagen.'));
   return (data ?? []).map((r) => ({ place: r.place, label: r.label }));
 }
 
@@ -115,7 +116,7 @@ export async function storeImage(scope: MediaScope, bytes: Uint8Array, meta: New
   try {
     processed = await processImage(bytes);
   } catch {
-    throw new MediaError('No se pudo procesar la imagen.');
+    throw new MediaError(msg('No se pudo procesar la imagen.'));
   }
   const storage = storageOf(scope);
   const id = crypto.randomUUID();
@@ -154,7 +155,7 @@ export async function storeImage(scope: MediaScope, bytes: Uint8Array, meta: New
     .single();
   if (error || !data) {
     await storage.remove([path, ...(thumbPath ? [thumbPath] : [])]);
-    throw new MediaError('No se pudo registrar la imagen.');
+    throw new MediaError(msg('No se pudo registrar la imagen.'));
   }
   return toMediaRecord(data);
 }
@@ -201,7 +202,7 @@ export async function addExternal(scope: MediaScope, url: string, meta: Omit<New
   };
   const query = existing ? scope.supabase.from('media_assets').update(values).eq('id', existing.id) : scope.supabase.from('media_assets').insert(values);
   const { data, error } = await query.select(COLUMNS).single();
-  if (error || !data) throw new MediaError('No se pudo guardar la referencia.');
+  if (error || !data) throw new MediaError(msg('No se pudo guardar la referencia.'));
   return toMediaRecord(data);
 }
 
@@ -209,7 +210,7 @@ async function download(url: string, fetchImpl?: typeof fetch) {
   try {
     return await safeDownload(url, fetchImpl);
   } catch (error) {
-    throw new MediaError(error instanceof SafeFetchError ? error.message : 'No se pudo descargar la imagen.');
+    throw new MediaError(error instanceof SafeFetchError ? error.message : msg('No se pudo descargar la imagen.'));
   }
 }
 
@@ -217,13 +218,13 @@ async function download(url: string, fetchImpl?: typeof fetch) {
 
 export async function updateMedia(scope: MediaScope, id: string, patch: MediaPatch): Promise<MediaRecord> {
   const { data, error } = await scope.supabase.from('media_assets').update(patch).eq('business_id', scope.businessId).eq('id', id).is('deleted_at', null).select(COLUMNS).single();
-  if (error || !data) throw new MediaError('No se pudo guardar.');
+  if (error || !data) throw new MediaError(msg('No se pudo guardar.'));
   return toMediaRecord(data);
 }
 
 export async function moveMedia(scope: MediaScope, ids: string[], folder: MediaFolder): Promise<number> {
   const { data, error } = await scope.supabase.from('media_assets').update({ folder }).eq('business_id', scope.businessId).in('id', ids.slice(0, 200)).is('deleted_at', null).select('id');
-  if (error) throw new MediaError('No se pudo mover.');
+  if (error) throw new MediaError(msg('No se pudo mover.'));
   return data?.length ?? 0;
 }
 
@@ -260,11 +261,11 @@ type NewFile = { path: string; thumbPath: string | null; width: number | null; h
  * registro conserva su id, nombre y carpeta. El archivo viejo se borra.
  */
 export async function replaceMediaFile(scope: MediaScope, id: string, file: NewFile): Promise<MediaRecord> {
-  if (!isPathOwnedBy(file.path, scope.businessId) || (file.thumbPath && !isPathOwnedBy(file.thumbPath, scope.businessId))) throw new MediaError('Archivo inválido.');
+  if (!isPathOwnedBy(file.path, scope.businessId) || (file.thumbPath && !isPathOwnedBy(file.thumbPath, scope.businessId))) throw new MediaError(msg('Archivo inválido.'));
   const current = await getMedia(scope, id);
-  if (!current) throw new MediaError('La imagen ya no existe.');
+  if (!current) throw new MediaError(msg('La imagen ya no existe.'));
   const { error: refError } = await scope.supabase.rpc('replace_media_references', { p_business: scope.businessId, p_old: current.path, p_new: file.path, p_new_thumb: file.thumbPath });
-  if (refError) throw new MediaError('No se pudo actualizar dónde se usa la imagen.');
+  if (refError) throw new MediaError(msg('No se pudo actualizar dónde se usa la imagen.'));
   const { data, error } = await scope.supabase
     .from('media_assets')
     .update({
@@ -281,7 +282,7 @@ export async function replaceMediaFile(scope: MediaScope, id: string, file: NewF
     .eq('id', id)
     .select(COLUMNS)
     .single();
-  if (error || !data) throw new MediaError('No se pudo reemplazar la imagen.');
+  if (error || !data) throw new MediaError(msg('No se pudo reemplazar la imagen.'));
   if (current.storage_provider === 'supabase') await storageOf(scope).remove([current.path, current.thumb_path].filter((p): p is string => Boolean(p) && p !== file.path && p !== file.thumbPath && isPathOwnedBy(p!, scope.businessId)));
   return toMediaRecord(data);
 }
@@ -289,10 +290,10 @@ export async function replaceMediaFile(scope: MediaScope, id: string, file: NewF
 /** Imagen externa → copia propia (y todas sus referencias pasan a la copia). */
 export async function importExternal(scope: MediaScope, id: string, fetchImpl?: typeof fetch): Promise<MediaRecord> {
   const current = await getMedia(scope, id);
-  if (!current || current.storage_provider !== 'external' || !isExternalMediaUrl(current.path)) throw new MediaError('Esa imagen ya está en tu biblioteca.');
+  if (!current || current.storage_provider !== 'external' || !isExternalMediaUrl(current.path)) throw new MediaError(msg('Esa imagen ya está en tu biblioteca.'));
   const image = await download(current.path, fetchImpl);
   const processed = await processImage(image.data).catch(() => {
-    throw new MediaError('No se pudo procesar la imagen.');
+    throw new MediaError(msg('No se pudo procesar la imagen.'));
   });
   const storage = storageOf(scope);
   const key = crypto.randomUUID();

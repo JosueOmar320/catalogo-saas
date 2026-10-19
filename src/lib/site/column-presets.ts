@@ -1,3 +1,4 @@
+import { msg } from '@/i18n/translate';
 import { createColumnBlock, type ColumnsContent } from './section-schemas';
 
 /**
@@ -10,13 +11,13 @@ export const COLUMN_PRESETS = ['imageText', 'textImage', 'threeCards', 'steps', 
 export type ColumnPreset = (typeof COLUMN_PRESETS)[number];
 
 export const COLUMN_PRESET_META: Record<ColumnPreset, { label: string; description: string }> = {
-  imageText: { label: 'Imagen + texto', description: 'Foto a la izquierda; título, texto y botón a la derecha.' },
-  textImage: { label: 'Texto + imagen', description: 'Como la anterior, con la imagen a la derecha.' },
-  threeCards: { label: 'Tres tarjetas', description: 'Servicios, planes o razones con ícono y botón.' },
-  steps: { label: 'Proceso en pasos', description: '4 pasos numerados: cómo trabajamos.' },
-  benefitsImage: { label: 'Lista de beneficios', description: 'Lista con íconos junto a una imagen.' },
-  ctaButtons: { label: 'Llamado a la acción', description: 'Título, texto y dos botones centrados.' },
-  stats: { label: 'Cifras', description: 'Cuatro números destacados.' },
+  imageText: { label: msg('Imagen + texto'), description: msg('Foto a la izquierda; título, texto y botón a la derecha.') },
+  textImage: { label: msg('Texto + imagen'), description: msg('Como la anterior, con la imagen a la derecha.') },
+  threeCards: { label: msg('Tres tarjetas'), description: msg('Servicios, planes o razones con ícono y botón.') },
+  steps: { label: msg('Proceso en pasos'), description: msg('4 pasos numerados: cómo trabajamos.') },
+  benefitsImage: { label: msg('Lista de beneficios'), description: msg('Lista con íconos junto a una imagen.') },
+  ctaButtons: { label: msg('Llamado a la acción'), description: msg('Título, texto y dos botones centrados.') },
+  stats: { label: msg('Cifras'), description: msg('Cuatro números destacados.') },
 };
 
 const col = (id: string, blocks: ColumnsContent['columns'][number]['blocks'], extra: Partial<ColumnsContent['columns'][number]> = {}) => ({ id, blocks, align: 'left' as const, surface: 'none' as const, padding: 'none' as const, ...extra });

@@ -3,6 +3,7 @@
 import { Box, IconButton, Stack, Tooltip } from '@mui/material';
 import { ChevronDown, ChevronUp, GripVertical } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
+import { useT } from '@/i18n/client';
 
 type Props<T> = {
   items: T[];
@@ -25,6 +26,7 @@ export function moveItem<T>(list: T[], from: number, to: number): T[] {
  * (teclado y pantallas táctiles).
  */
 export function SortableList<T>({ items, getId, onReorder, renderItem, disabled }: Props<T>) {
+  const t = useT();
   const [draft, setDraft] = useState<T[] | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const list = draft ?? items;
@@ -79,16 +81,16 @@ export function SortableList<T>({ items, getId, onReorder, renderItem, disabled 
             </Box>
             <Box sx={{ flex: 1, minWidth: 0 }}>{renderItem(item, index)}</Box>
             <Stack direction="row" sx={{ flexShrink: 0 }}>
-              <Tooltip title="Subir">
+              <Tooltip title={t('Mover arriba')}>
                 <span>
-                  <IconButton disabled={disabled || index === 0} onClick={() => onReorder(moveItem(list, index, index - 1))} aria-label="Subir">
+                  <IconButton disabled={disabled || index === 0} onClick={() => onReorder(moveItem(list, index, index - 1))} aria-label={t('Mover arriba')}>
                     <ChevronUp size={16} />
                   </IconButton>
                 </span>
               </Tooltip>
-              <Tooltip title="Bajar">
+              <Tooltip title={t('Mover abajo')}>
                 <span>
-                  <IconButton disabled={disabled || index === list.length - 1} onClick={() => onReorder(moveItem(list, index, index + 1))} aria-label="Bajar">
+                  <IconButton disabled={disabled || index === list.length - 1} onClick={() => onReorder(moveItem(list, index, index + 1))} aria-label={t('Mover abajo')}>
                     <ChevronDown size={16} />
                   </IconButton>
                 </span>

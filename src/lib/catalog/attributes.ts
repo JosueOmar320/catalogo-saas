@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { fieldFactory } from '@/lib/design/schema-utils';
+import { msg } from '@/i18n/translate';
 
 /**
  * Atributos personalizados, definidos por cada negocio (catalogs.attribute_defs).
@@ -11,18 +12,18 @@ export const ATTRIBUTE_TYPES = ['text', 'number', 'select', 'boolean', 'list'] a
 export type AttributeType = (typeof ATTRIBUTE_TYPES)[number];
 
 export const ATTRIBUTE_TYPE_LABELS: Record<AttributeType, string> = {
-  text: 'Texto',
-  number: 'Número',
-  select: 'Opciones',
-  boolean: 'Sí / No',
-  list: 'Lista (características)',
+  text: msg('Texto'),
+  number: msg('Número'),
+  select: msg('Opciones'),
+  boolean: msg('Sí / No'),
+  list: msg('Lista (características)'),
 };
 
 function build(lenient: boolean) {
   const f = fieldFactory(lenient);
   return z.object({
     id: z.string().min(1).max(40).regex(/^[a-z0-9-]+$/),
-    name: z.string().trim().min(1, 'Escribe un nombre').max(40),
+    name: z.string().trim().min(1, msg('Escribe un nombre')).max(40),
     type: f(z.enum(ATTRIBUTE_TYPES), 'text'),
     unit: f(z.string().trim().max(12), ''),
     options: f(z.array(z.string().trim().min(1).max(40)).max(40), []),
@@ -38,7 +39,7 @@ const lenientAttributeDef = build(true);
 export const attributeDefsSchema = z
   .array(attributeDefSchema)
   .max(40)
-  .refine((defs) => new Set(defs.map((d) => d.id)).size === defs.length, 'Hay atributos repetidos');
+  .refine((defs) => new Set(defs.map((d) => d.id)).size === defs.length, msg('Hay atributos repetidos'));
 
 export type AttributeDef = z.output<typeof attributeDefSchema>;
 export type AttributeValue = string | number | boolean | string[];

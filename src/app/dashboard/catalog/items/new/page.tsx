@@ -3,8 +3,12 @@ import { getSiteForAdmin, listCategories } from '@/features/catalog/queries';
 import { ItemForm } from '@/features/items/components/ItemForm';
 import { emptyItemValues } from '@/features/items/defaults';
 import { requireBusinessContext } from '@/lib/auth/session';
+import { getT } from '@/i18n/server';
 
-export const metadata: Metadata = { title: 'Nuevo ítem' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT();
+  return { title: t('Nuevo ítem') };
+}
 
 export default async function NewItemPage({ searchParams }: PageProps<'/dashboard/catalog/items/new'>) {
   const ctx = await requireBusinessContext();

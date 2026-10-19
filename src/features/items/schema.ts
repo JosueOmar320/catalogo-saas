@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { msg } from '@/i18n/translate';
 import { CURRENCIES } from '@/lib/catalog/settings';
 import { priceText, priceToNumber } from '@/lib/utils/validation';
 import { uploadedImageSchema } from '@/features/media/schema';
@@ -8,17 +9,17 @@ import { hexColor } from '@/lib/design/schema-utils';
 export const ITEM_TYPES = ['product', 'service'] as const;
 
 export const ITEM_TYPE_LABELS = {
-  product: { singular: 'Producto', plural: 'Productos', newLabel: 'Nuevo producto' },
-  service: { singular: 'Servicio', plural: 'Servicios', newLabel: 'Nuevo servicio' },
+  product: { singular: msg('Producto'), plural: msg('Productos'), newLabel: msg('Nuevo producto') },
+  service: { singular: msg('Servicio'), plural: msg('Servicios'), newLabel: msg('Nuevo servicio') },
 } as const;
 
 /** Esquema del formulario de ítem (valores tal como los maneja el formulario). */
 export const itemFormSchema = z
   .object({
     type: z.enum(ITEM_TYPES),
-    name: z.string().trim().min(1, 'Escribe un nombre').max(160),
+    name: z.string().trim().min(1, msg('Escribe un nombre')).max(160),
     categoryId: z.union([z.literal(''), z.uuid()]),
-    shortDescription: z.string().trim().max(300, 'Máximo 300 caracteres'),
+    shortDescription: z.string().trim().max(300, msg('Máximo 300 caracteres')),
     description: z.string().trim().max(5000),
     price: priceText,
     compareAtPrice: priceText,
@@ -42,7 +43,7 @@ export const itemFormSchema = z
       const compare = priceToNumber(v.compareAtPrice);
       return compare === null || (price !== null && compare > price);
     },
-    { path: ['compareAtPrice'], message: 'Debe ser mayor que el precio actual' },
+    { path: ['compareAtPrice'], message: msg('Debe ser mayor que el precio actual') },
   );
 
 export type ItemFormValues = z.input<typeof itemFormSchema>;

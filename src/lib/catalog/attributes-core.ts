@@ -17,10 +17,14 @@ export function parseAttributeValues(raw: unknown, defs: AttributeDef[]): Attrib
   return out;
 }
 
+/** Textos de un atributo sí/no; el sitio y el PDF pasan los del idioma del negocio. */
+export type YesNo = { yes: string; no: string };
+const YES_NO_ES: YesNo = { yes: 'Sí', no: 'No' };
+
 /** Texto para mostrar un valor ("12 kg", "Sí", "Rojo, Azul"). */
-export function formatAttributeValue(def: AttributeDef, value: AttributeValue | undefined): string {
+export function formatAttributeValue(def: AttributeDef, value: AttributeValue | undefined, yesNo: YesNo = YES_NO_ES): string {
   if (value === undefined) return '';
-  if (typeof value === 'boolean') return value ? 'Sí' : 'No';
+  if (typeof value === 'boolean') return value ? yesNo.yes : yesNo.no;
   if (Array.isArray(value)) return value.join(', ');
   return `${value}${def.unit ? ` ${def.unit}` : ''}`;
 }
@@ -28,11 +32,11 @@ export function formatAttributeValue(def: AttributeDef, value: AttributeValue | 
 export type ResolvedAttribute = { id: string; name: string; value: string; list?: string[] };
 
 /** Atributos visibles de un ítem para un contexto (tarjeta, detalle o PDF). */
-export function visibleAttributes(values: AttributeValues, defs: AttributeDef[], context: 'card' | 'detail' | 'pdf'): ResolvedAttribute[] {
+export function visibleAttributes(values: AttributeValues, defs: AttributeDef[], context: 'card' | 'detail' | 'pdf', yesNo: YesNo = YES_NO_ES): ResolvedAttribute[] {
   return defs.flatMap((def) => {
     const shown = context === 'card' ? def.showInCard : context === 'detail' ? def.showInDetail : def.showInPdf;
     const value = values[def.id];
     if (!shown || value === undefined) return [];
-    return [{ id: def.id, name: def.name, value: formatAttributeValue(def, value), list: Array.isArray(value) ? value : undefined }];
+    return [{ id: def.id, name: def.name, value: formatAttributeValue(def, value, yesNo), list: Array.isArray(value) ? value : undefined }];
   });
 }

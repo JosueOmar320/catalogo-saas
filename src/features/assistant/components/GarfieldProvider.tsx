@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useT } from '@/i18n/client';
 import { isCatalogAction, type AssistantAction } from '@/lib/assistant/actions';
 import { buildAssistantContext, type AssistantContext, type AssistantMode } from '@/lib/assistant/context';
 import type { AnyAction } from '@/lib/assistant/modes';
@@ -39,6 +40,8 @@ export type ChatEntry = {
   id: string;
   role: 'user' | 'assistant';
   text: string;
+  /** Lo que ve el usuario si difiere de lo enviado (las sugerencias se envían en español). */
+  display?: string;
   attachments?: ChatAttachment[];
   suggestions?: string[];
   plan?: ChatPlan;
@@ -56,7 +59,7 @@ type GarfieldValue = {
   pending: boolean;
   mode: 'ai' | 'basic' | null;
   previewingId: string | null;
-  send: (text: string, attachments?: ChatAttachment[]) => Promise<void>;
+  send: (text: string, attachments?: ChatAttachment[], display?: string) => Promise<void>;
   /** Abre el panel y, si hay texto, lo envía. */
   ask: (text?: string) => void;
   applyPlan: (id: string) => Promise<void>;
@@ -137,6 +140,7 @@ export function GarfieldEngine({ adapter, children }: { adapter: GarfieldAdapter
   const [touched, setTouched] = useState<string[]>([]);
   const adapterRef = useRef(adapter);
   const { storageKey, endpoint = '/api/assistant' } = adapter;
+  const t = useT();
 
   useEffect(() => {
     adapterRef.current = adapter;
@@ -186,11 +190,13 @@ export function GarfieldEngine({ adapter, children }: { adapter: GarfieldAdapter
   );
 
   const send = useCallback(
-    async (raw: string, attachments: ChatAttachment[] = []) => {
+    async (raw: string, attachments: ChatAttachment[] = [], display?: string) => {
+      // Sólo imágenes: se envía en español (lo entiende el modo básico) y se muestra traducido.
       const text = raw.trim() || (attachments.length ? 'Usa esta imagen.' : '');
       if (!text || pending) return;
       exitPreview();
-      const user: ChatEntry = { id: uid(), role: 'user', text, ...(attachments.length ? { attachments } : {}) };
+      const shown = display ?? (raw.trim() ? undefined : t('Usa esta imagen.'));
+      const user: ChatEntry = { id: uid(), role: 'user', text, ...(shown && shown !== text ? { display: shown } : {}), ...(attachments.length ? { attachments } : {}) };
       const history = [...entries.filter((e) => !e.error), user].slice(-12).map((e) => ({ role: e.role, content: historyText(e).slice(0, 4000) }));
       setEntries((list) => [...list, user]);
       setPending(true);
@@ -198,11 +204,11 @@ export function GarfieldEngine({ adapter, children }: { adapter: GarfieldAdapter
         const context = adapterRef.current.context(touched);
         const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: history, context }) });
         const data = (await response.json().catch(() => null)) as { message?: string; actions?: AnyAction[]; suggestions?: string[]; mode?: 'ai' | 'basic'; routed?: 'local' | 'llm'; allowedMedia?: string[]; error?: string } | null;
-        if (!response.ok || !data) throw new Error(data?.error ?? 'Garfield no pudo responder. Intenta de nuevo.');
+        if (!response.ok || !data) throw new Error(data?.error ?? t('Garfield no pudo responder. Intenta de nuevo.'));
         setMode(data.mode ?? null);
         const actions = data.actions ?? [];
         const allowedMedia = [...(data.allowedMedia ?? []), ...attachments.map((a) => a.path)];
-        const reply: ChatEntry = { id: uid(), role: 'assistant', text: data.message ?? 'Listo.', suggestions: data.suggestions ?? [], local: data.routed === 'local' };
+        const reply: ChatEntry = { id: uid(), role: 'assistant', text: data.message ?? t('Listo.'), suggestions: data.suggestions ?? [], local: data.routed === 'local' };
         if (actions.length) {
           // Plan sobre el estado ACTUAL: simple y seguro → se aplica; si no, se propone.
           const preview = adapterRef.current.plan(actions, allowedMedia, touched);
@@ -223,7 +229,7 @@ export function GarfieldEngine({ adapter, children }: { adapter: GarfieldAdapter
         setPending(false);
       }
     },
-    [commit, endpoint, entries, exitPreview, pending, touched],
+    [commit, endpoint, entries, exitPreview, pending, t, touched],
   );
 
   // Planes que se están aplicando: un doble clic llega antes de que cambie el estado
@@ -246,7 +252,7 @@ export function GarfieldEngine({ adapter, children }: { adapter: GarfieldAdapter
           const result = await server(actions).catch(() => null);
           setPending(false);
           if (!result || !result.ok) {
-            update(id, (e) => (e.plan ? { ...e, plan: { ...e.plan, status: 'failed', steps: [...e.plan.steps, { label: 'Guardar en el catálogo', status: 'error', risk: 'safe', kind: 'catalog', error: result && !result.ok ? result.error : 'No se pudo conectar.' }] } } : e));
+            update(id, (e) => (e.plan ? { ...e, plan: { ...e.plan, status: 'failed', steps: [...e.plan.steps, { label: t('Guardar en el catálogo'), status: 'error', risk: 'safe', kind: 'catalog', error: result && !result.ok ? t(result.error) : t('No se pudo conectar.') }] } } : e));
             return;
           }
           serverSteps = result.steps;
@@ -261,7 +267,7 @@ export function GarfieldEngine({ adapter, children }: { adapter: GarfieldAdapter
         applying.current.delete(id);
       }
     },
-    [commit, entries, exitPreview, update],
+    [commit, entries, exitPreview, t, update],
   );
 
   const previewPlan = useCallback(
@@ -349,6 +355,7 @@ export function GarfieldProvider({ state, dispatch, site, onPreview, endpoint, c
     [site.categories, site.items],
   );
   const suggestions = useMemo(() => contextSuggestions(state), [state]);
+  const t = useT();
 
   const adapter = useMemo<GarfieldAdapter>(
     () => ({
@@ -361,7 +368,7 @@ export function GarfieldProvider({ state, dispatch, site, onPreview, endpoint, c
         return buildAssistantContext({ site, pages: current.pages, theme: current.theme, navigation: current.navigation, panel: current.panel, currentPageId: current.selectedPageId, selectedSectionId: current.selectedSectionId, lastSectionIds: touched, mode: 'site' });
       },
       plan: (actions, allowedMedia, touched) => {
-        const plan = planAssistantActions(stateRef.current, actions as AssistantAction[], { lastSectionIds: touched, allowedMedia, ...names });
+        const plan = planAssistantActions(stateRef.current, actions as AssistantAction[], { lastSectionIds: touched, allowedMedia, ...names, t });
         return {
           next: plan.next,
           steps: plan.steps.map(({ label, status, risk, error, kind }) => ({ label, status, risk, error, kind })),
@@ -403,7 +410,7 @@ export function GarfieldProvider({ state, dispatch, site, onPreview, endpoint, c
         };
       },
     }),
-    [dispatch, endpoint, names, onPreview, router, site, suggestions],
+    [dispatch, endpoint, names, onPreview, router, site, suggestions, t],
   );
 
   return <GarfieldEngine adapter={adapter}>{children}</GarfieldEngine>;

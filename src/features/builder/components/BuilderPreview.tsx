@@ -5,6 +5,7 @@ import { ExternalLink, Monitor, Smartphone, Tablet } from 'lucide-react';
 import { useEffect, useRef, type MouseEvent } from 'react';
 import type { SiteViewModel } from '@/lib/site/view-model';
 import { SiteView } from '@/site-renderer';
+import { useT } from '@/i18n/client';
 
 export type Device = 'desktop' | 'tablet' | 'mobile';
 const WIDTH: Record<Device, number | '100%'> = { desktop: '100%', tablet: 820, mobile: 390 };
@@ -28,6 +29,7 @@ type Props = {
  * en el panel de edición. Container queries → tablet y móvil reales.
  */
 export function BuilderPreview({ site, pageId, selectedSectionId, device, onDevice, onNavigate, onSelectSection, notice, banner }: Props) {
+  const t = useT();
   const frame = useRef<HTMLDivElement>(null);
   const page = site.pages.find((p) => p.id === pageId) ?? site.pages[0];
 
@@ -57,19 +59,19 @@ export function BuilderPreview({ site, pageId, selectedSectionId, device, onDevi
   return (
     <Stack sx={{ height: '100%', minHeight: 0 }}>
       <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1.5 }}>
-        <TextField select size="small" value={page.id} onChange={(e) => onNavigate(e.target.value)} sx={{ width: 220 }} slotProps={{ htmlInput: { 'aria-label': 'Página en la vista previa' } }}>
+        <TextField select size="small" value={page.id} onChange={(e) => onNavigate(e.target.value)} sx={{ width: 220 }} slotProps={{ htmlInput: { 'aria-label': t('Página en la vista previa') } }}>
           {site.pages.map((p) => (
-            <MenuItem key={p.id} value={p.id}>{p.title}{p.isHome ? ' (inicio)' : ''}{p.isPublished ? '' : ' · oculta'}</MenuItem>
+            <MenuItem key={p.id} value={p.id}>{p.title}{p.isHome ? ` ${t('(inicio)')}` : ''}{p.isPublished ? '' : ` · ${t('oculta')}`}</MenuItem>
           ))}
         </TextField>
         <Box sx={{ flex: 1 }} />
-        <ToggleButtonGroup size="small" exclusive value={device} onChange={(_, v) => v && onDevice(v)} aria-label="Dispositivo">
-          <ToggleButton value="desktop" aria-label="Escritorio" sx={{ px: 1 }}><Monitor size={15} /></ToggleButton>
-          <ToggleButton value="tablet" aria-label="Tablet" sx={{ px: 1 }}><Tablet size={15} /></ToggleButton>
-          <ToggleButton value="mobile" aria-label="Móvil" sx={{ px: 1 }}><Smartphone size={15} /></ToggleButton>
+        <ToggleButtonGroup size="small" exclusive value={device} onChange={(_, v) => v && onDevice(v)} aria-label={t('Dispositivo')}>
+          <ToggleButton value="desktop" aria-label={t('Escritorio')} sx={{ px: 1 }}><Monitor size={15} /></ToggleButton>
+          <ToggleButton value="tablet" aria-label={t('Tablet')} sx={{ px: 1 }}><Tablet size={15} /></ToggleButton>
+          <ToggleButton value="mobile" aria-label={t('Móvil')} sx={{ px: 1 }}><Smartphone size={15} /></ToggleButton>
         </ToggleButtonGroup>
-        <Tooltip title="Abrir vista previa guardada en otra pestaña">
-          <IconButton href={page.isHome ? '/preview' : `/preview/${page.slug}`} target="_blank" aria-label="Abrir vista previa"><ExternalLink size={16} /></IconButton>
+        <Tooltip title={t('Abrir vista previa guardada en otra pestaña')}>
+          <IconButton href={page.isHome ? '/preview' : `/preview/${page.slug}`} target="_blank" aria-label={t('Abrir vista previa')}><ExternalLink size={16} /></IconButton>
         </Tooltip>
       </Stack>
       {banner}

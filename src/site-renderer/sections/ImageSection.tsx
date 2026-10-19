@@ -2,6 +2,7 @@ import { resolveLink } from '@/lib/site/links';
 import { mediaUrl } from '@/lib/utils/storage';
 import { Placeholder, SectionFrame, SectionHead } from '../SectionFrame';
 import { SiteImage } from '../SiteImage';
+import { siteTranslator } from '../site-i18n';
 import styles from '../site.module.css';
 import type { SectionProps } from './types';
 
@@ -9,6 +10,7 @@ const RATIO = { landscape: '4 / 3', wide: '16 / 9', square: '1 / 1', portrait: '
 
 export function ImageSection({ section, site, env, links, index }: SectionProps<'image'>) {
   const { content } = section;
+  const t = siteTranslator(site.settings.language);
   const url = mediaUrl(content.image.path);
   if (!url && env.mode === 'public') return null;
   const target = resolveLink(content.link, links);
@@ -25,7 +27,7 @@ export function ImageSection({ section, site, env, links, index }: SectionProps<
   return (
     <SectionFrame section={section} theme={site.theme}>
       <SectionHead eyebrow={content.eyebrow} title={content.title} subtitle={content.subtitle} />
-      <Placeholder show={!url}>Elige una imagen desde el editor (o pídesela a Garfield).</Placeholder>
+      <Placeholder show={!url}>{t('Elige una imagen desde el editor (o pídesela a Garfield).')}</Placeholder>
       {figure && (
         <figure className={styles.imageFigure}>
           {target && env.mode !== 'preview' ? (

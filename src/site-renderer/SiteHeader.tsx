@@ -8,6 +8,7 @@ import { SOCIAL_NETWORKS } from '@/lib/social/networks';
 import { BackgroundLayers } from './Background';
 import type { HeaderProps } from './chrome';
 import { Icon } from './Icon';
+import { useSiteT } from './SiteI18n';
 import { SiteImage } from './SiteImage';
 import styles from './site.module.css';
 
@@ -18,6 +19,7 @@ import styles from './site.module.css';
  */
 export function SiteHeader(props: HeaderProps) {
   const { header, brand, items, cta, social, overlayPaths, homePath } = props;
+  const t = useSiteT();
   const pathname = usePathname();
   const current = (props.currentPath ?? pathname ?? '').replace(/\/$/, '') || '/';
   const overlay = overlayPaths.some((p) => (p.replace(/\/$/, '') || '/') === current);
@@ -95,7 +97,7 @@ export function SiteHeader(props: HeaderProps) {
   );
 
   const toggle = items.length > 0 && (
-    <button ref={toggleRef} type="button" className={styles.menuToggle} aria-expanded={open} aria-controls={menuId} aria-label={open ? 'Cerrar menú' : 'Abrir menú'} onClick={() => setOpen((o) => !o)}>
+    <button ref={toggleRef} type="button" className={styles.menuToggle} aria-expanded={open} aria-controls={menuId} aria-label={open ? t('Cerrar menú') : t('Abrir menú')} onClick={() => setOpen((o) => !o)}>
       {open ? <X size={18} /> : <Menu size={18} />}
     </button>
   );
@@ -126,10 +128,10 @@ export function SiteHeader(props: HeaderProps) {
             ) : (
               <div className={styles.headerBar}>
                 {brandNode}
-                {header.menuPosition === 'left' && <nav className={`${styles.nav} ${styles.navLeft}`} aria-label="Principal">{navLinks()}</nav>}
+                {header.menuPosition === 'left' && <nav className={`${styles.nav} ${styles.navLeft}`} aria-label={t('Principal')}>{navLinks()}</nav>}
                 <span className={styles.headerSpacer} />
-                {header.menuPosition === 'center' && <nav className={`${styles.nav} ${styles.navCenter}`} aria-label="Principal">{navLinks()}</nav>}
-                {header.menuPosition === 'right' && <nav className={styles.nav} aria-label="Principal">{navLinks()}</nav>}
+                {header.menuPosition === 'center' && <nav className={`${styles.nav} ${styles.navCenter}`} aria-label={t('Principal')}>{navLinks()}</nav>}
+                {header.menuPosition === 'right' && <nav className={styles.nav} aria-label={t('Principal')}>{navLinks()}</nav>}
                 <div className={styles.headerActions}>
                   {socialNode}
                   {ctaNode}
@@ -138,13 +140,13 @@ export function SiteHeader(props: HeaderProps) {
               </div>
             )}
             {centered && items.length > 0 && (
-              <nav className={styles.headerNavRow} aria-label="Principal">
+              <nav className={styles.headerNavRow} aria-label={t('Principal')}>
                 <div className={styles.nav}>{navLinks()}</div>
               </nav>
             )}
           </div>
           {open && (
-            <nav id={menuId} className={styles.mobilePanel} aria-label="Menú móvil">
+            <nav id={menuId} className={styles.mobilePanel} aria-label={t('Menú móvil')}>
               {navLinks()}
               {cta && (
                 <a href={cta.href} className={styles.btn} data-variant="solid" target={cta.external ? '_blank' : undefined} rel="noopener noreferrer">

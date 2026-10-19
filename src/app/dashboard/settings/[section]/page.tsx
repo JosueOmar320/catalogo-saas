@@ -12,10 +12,13 @@ import { requireBusinessContext } from '@/lib/auth/session';
 import { parseContact, parseSocialLinks } from '@/lib/business/profile';
 import { parseCatalogSettings, parseSeo } from '@/lib/catalog/settings';
 import { catalogUrl } from '@/lib/catalog/view-model';
+import { getT } from '@/i18n/server';
 
 export async function generateMetadata({ params }: PageProps<'/dashboard/settings/[section]'>): Promise<Metadata> {
   const { section } = await params;
-  return { title: SETTINGS_SECTIONS.find((s) => s.id === section)?.label ?? 'Configuración' };
+  const t = await getT();
+  const label = SETTINGS_SECTIONS.find((s) => s.id === section)?.label;
+  return { title: label ? t(label) : t('Configuración') };
 }
 
 export default async function SettingsPage({ params }: PageProps<'/dashboard/settings/[section]'>) {
@@ -23,6 +26,7 @@ export default async function SettingsPage({ params }: PageProps<'/dashboard/set
   const meta = SETTINGS_SECTIONS.find((s) => s.id === section);
   if (!meta) notFound();
   const ctx = await requireBusinessContext();
+  const t = await getT();
   const settings = parseCatalogSettings(ctx.catalog.settings);
   const url = catalogUrl(ctx.business.slug);
 
@@ -33,6 +37,7 @@ export default async function SettingsPage({ params }: PageProps<'/dashboard/set
         <BusinessProfileForm
           defaultValues={{ name: ctx.business.name, slug: ctx.business.slug, slogan: ctx.business.slogan ?? '', description: ctx.business.description ?? '' }}
           currency={settings.currency}
+          language={settings.language}
           priceFormat={settings.priceFormat}
         />
       );
@@ -48,7 +53,7 @@ export default async function SettingsPage({ params }: PageProps<'/dashboard/set
         <SeoForm
           seo={parseSeo(ctx.catalog.seo)}
           fallbackTitle={ctx.business.name}
-          fallbackDescription={ctx.business.description ?? `Catálogo de ${ctx.business.name}`}
+          fallbackDescription={ctx.business.description ?? t('Catálogo de {name}', { name: ctx.business.name })}
           url={url}
         />
       );
@@ -65,7 +70,7 @@ export default async function SettingsPage({ params }: PageProps<'/dashboard/set
 
   return (
     <>
-      <PageHeader title={meta.label} />
+      <PageHeader title={t(meta.label)} />
       {content}
     </>
   );

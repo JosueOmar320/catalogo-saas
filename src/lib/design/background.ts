@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { msg } from '@/i18n/translate';
 import { PATTERN_IDS } from './patterns';
 import { fieldFactory, hexColor } from './schema-utils';
 
@@ -37,7 +38,7 @@ export function buildBackgroundSchema(lenient: boolean, defaults: { type?: Backg
     /** Video de fondo (web). En el PDF se usa el color base. */
     video: z
       .object({
-        url: f(z.union([z.literal(''), z.url({ protocol: /^https$/ }).max(500).regex(/\.(mp4|webm)(\?.*)?$/i, 'Usa un enlace directo .mp4 o .webm')]), ''),
+        url: f(z.union([z.literal(''), z.url({ protocol: /^https$/ }).max(500).regex(/\.(mp4|webm)(\?.*)?$/i, msg('Usa un enlace directo .mp4 o .webm'))]), ''),
       })
       .prefault({}),
     pattern: z

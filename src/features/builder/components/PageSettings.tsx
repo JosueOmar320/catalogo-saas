@@ -5,9 +5,11 @@ import { ArrowLeft } from 'lucide-react';
 import { slugify, slugifyLive } from '@/lib/utils/slug';
 import { useBuilder, useSelectedPage } from '../state';
 import { BackgroundEditor, Group, MediaInput, SwitchRow, TextInput } from './controls';
+import { useT } from '@/i18n/client';
 
 /** Configuración de la página: nombre, URL, menú, fondo propio y SEO. */
 export function PageSettings({ baseUrl }: { baseUrl: string }) {
+  const t = useT();
   const { state, dispatch } = useBuilder();
   const page = useSelectedPage();
   const update = (patch: Partial<typeof page>) => dispatch({ type: 'updatePage', pageId: page.id, patch });
@@ -28,34 +30,34 @@ export function PageSettings({ baseUrl }: { baseUrl: string }) {
   return (
     <Box>
       <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', pt: 1.5 }}>
-        <IconButton onClick={() => dispatch({ type: 'editPageSettings', open: false })} aria-label="Volver"><ArrowLeft size={16} /></IconButton>
-        <Typography variant="h3" noWrap>Página «{page.title}»</Typography>
+        <IconButton onClick={() => dispatch({ type: 'editPageSettings', open: false })} aria-label={t('Volver')}><ArrowLeft size={16} /></IconButton>
+        <Typography variant="h3" noWrap>{t('Página «{title}»', { title: page.title })}</Typography>
       </Stack>
-      <Group title="General">
-        <TextInput label="Nombre" value={page.title} onChange={(title) => update({ title })} maxLength={80} />
+      <Group title={t('General')}>
+        <TextInput label={t('Nombre')} value={page.title} onChange={(title) => update({ title })} maxLength={80} />
         <TextField
-          label="Dirección"
+          label={t('Dirección')}
           value={page.isHome ? '' : page.slug}
           disabled={page.isHome}
-          placeholder={page.isHome ? 'Página de inicio' : ''}
+          placeholder={page.isHome ? t('Página de inicio') : ''}
           onChange={(e) => update({ slug: slugifyLive(e.target.value, 60) })}
           onBlur={() => update({ slug: slugify(page.slug, 60) || 'pagina' })}
           error={slugTaken || page.slug === 'p'}
-          helperText={page.isHome ? 'La página de inicio vive en la raíz del sitio.' : slugTaken ? 'Otra página usa esta dirección.' : page.slug === 'p' ? 'Dirección reservada.' : ' '}
+          helperText={page.isHome ? t('La página de inicio vive en la raíz del sitio.') : slugTaken ? t('Otra página usa esta dirección.') : page.slug === 'p' ? t('Dirección reservada.') : ' '}
           slotProps={{ inputLabel: { shrink: true }, input: { startAdornment: <InputAdornment position="start">{baseUrl.replace(/^https?:\/\//, '')}/</InputAdornment> } }}
         />
-        <SwitchRow label="Página activa" description="Si la desactivas deja de ser visible en el sitio publicado." checked={page.isPublished || page.isHome} onChange={(isPublished) => update({ isPublished })} />
-        <SwitchRow label="Mostrar en el menú" checked={Boolean(navItem?.visible)} onChange={setInNav} />
-        {navItem?.visible && <TextInput label="Texto en el menú" value={navItem.label} placeholder={page.title} onChange={setNavLabel} maxLength={40} />}
+        <SwitchRow label={t('Página activa')} description={t('Si la desactivas deja de ser visible en el sitio publicado.')} checked={page.isPublished || page.isHome} onChange={(isPublished) => update({ isPublished })} />
+        <SwitchRow label={t('Mostrar en el menú')} checked={Boolean(navItem?.visible)} onChange={setInNav} />
+        {navItem?.visible && <TextInput label={t('Texto en el menú')} value={navItem.label} placeholder={page.title} onChange={setNavLabel} maxLength={40} />}
       </Group>
-      <Group title="Fondo de la página" description="Sobrescribe el fondo global sólo en esta página.">
-        <BackgroundEditor value={page.style.background} onChange={(background) => update({ style: { ...page.style, background } })} inheritLabel="Global" />
+      <Group title={t('Fondo de la página')} description={t('Sobrescribe el fondo global sólo en esta página.')}>
+        <BackgroundEditor value={page.style.background} onChange={(background) => update({ style: { ...page.style, background } })} inheritLabel={t('Global')} />
       </Group>
-      <Group title="SEO de la página" description="Vacío = se usan los datos del sitio.">
-        <TextInput label="Título SEO" value={page.seo.title} placeholder={page.title} onChange={(title) => update({ seo: { ...page.seo, title } })} maxLength={70} />
-        <TextInput label="Meta descripción" value={page.seo.description} onChange={(description) => update({ seo: { ...page.seo, description } })} multiline rows={2} maxLength={160} />
-        <MediaInput label="Imagen para compartir" description="1200 × 630 px" value={page.seo.ogImagePath} onChange={(ogImagePath) => update({ seo: { ...page.seo, ogImagePath } })} aspect="1200 / 630" width={140} />
-        <SwitchRow label="Ocultar de buscadores" checked={page.seo.noindex} onChange={(noindex) => update({ seo: { ...page.seo, noindex } })} />
+      <Group title={t('SEO de la página')} description={t('Vacío = se usan los datos del sitio.')}>
+        <TextInput label={t('Título SEO')} value={page.seo.title} placeholder={page.title} onChange={(title) => update({ seo: { ...page.seo, title } })} maxLength={70} />
+        <TextInput label={t('Meta descripción')} value={page.seo.description} onChange={(description) => update({ seo: { ...page.seo, description } })} multiline rows={2} maxLength={160} />
+        <MediaInput label={t('Imagen para compartir')} description="1200 × 630 px" value={page.seo.ogImagePath} onChange={(ogImagePath) => update({ seo: { ...page.seo, ogImagePath } })} aspect="1200 / 630" width={140} />
+        <SwitchRow label={t('Ocultar de buscadores')} checked={page.seo.noindex} onChange={(noindex) => update({ seo: { ...page.seo, noindex } })} />
       </Group>
     </Box>
   );

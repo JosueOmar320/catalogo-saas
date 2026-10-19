@@ -18,6 +18,7 @@ import { NavigationPanel } from './NavigationPanel';
 import { PageSettings } from './PageSettings';
 import { PagesPanel } from './PagesPanel';
 import { SectionEditor } from './SectionEditor';
+import { useT } from '@/i18n/client';
 
 type Props = {
   site: SiteViewModel;
@@ -55,6 +56,7 @@ function initialState(props: Props): BuilderState {
  * vez (transacción atómica en la base de datos).
  */
 export function Builder(props: Props) {
+  const t = useT();
   const [state, dispatch] = useReducer(builderReducer, props, initialState);
   const [device, setDevice] = useState<Device>('desktop');
   const [mobileView, setMobileView] = useState<'edit' | 'preview'>('edit');
@@ -100,16 +102,16 @@ export function Builder(props: Props) {
   };
 
   const discard = async () => {
-    const ok = await confirm({ title: '¿Descartar los cambios?', description: 'Se perderán los cambios que no guardaste.', confirmLabel: 'Descartar', destructive: true });
+    const ok = await confirm({ title: t('¿Descartar los cambios?'), description: t('Se perderán los cambios que no guardaste.'), confirmLabel: t('Descartar'), destructive: true });
     if (ok) dispatch({ type: 'reset', state: initialState(props) });
   };
 
   const left = (
     <Paper variant="outlined" sx={{ px: 2, pb: 3, height: { lg: '100%' }, overflowY: { lg: 'auto' } }}>
       <Tabs value={state.panel} onChange={(_, panel) => dispatch({ type: 'setPanel', panel })} variant="fullWidth" sx={{ borderBottom: 1, borderColor: 'divider', position: 'sticky', top: 0, bgcolor: 'background.paper', zIndex: 2 }}>
-        <Tab value="pages" label="Páginas" />
-        <Tab value="navigation" label="Navegación" />
-        <Tab value="design" label="Diseño" />
+        <Tab value="pages" label={t('Páginas')} />
+        <Tab value="navigation" label={t('Navegación')} />
+        <Tab value="design" label={t('Diseño')} />
       </Tabs>
       {state.panel === 'pages' &&
         (state.selectedSectionId ? <SectionEditor site={draftSite} /> : state.editingPageSettings ? <PageSettings baseUrl={props.site.url} /> : <PagesPanel />)}
@@ -119,9 +121,9 @@ export function Builder(props: Props) {
   );
 
   const notice = props.isStarter
-    ? 'Preparamos un sitio inicial para ti. Revísalo y guarda para crearlo.'
+    ? t('Preparamos un sitio inicial para ti. Revísalo y guarda para crearlo.')
     : props.usesSampleItems
-      ? 'Mostrando productos de ejemplo: aparecerán los tuyos cuando los agregues.'
+      ? t('Mostrando productos de ejemplo: aparecerán los tuyos cuando los agregues.')
       : null;
 
   const preview = (
@@ -144,13 +146,13 @@ export function Builder(props: Props) {
         <Box sx={{ display: 'flex', flexDirection: 'column', height: { lg: 'calc(100vh - 56px - 32px)' } }}>
           <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', mb: 2 }}>
             <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Typography variant="h1">Editor del sitio</Typography>
-              <Typography variant="body2" color="text.secondary" noWrap>Páginas, secciones, navegación y diseño. Los cambios se ven al instante.</Typography>
+              <Typography variant="h1">{t('Editor del sitio')}</Typography>
+              <Typography variant="body2" color="text.secondary" noWrap>{t('Páginas, secciones, navegación y diseño. Los cambios se ven al instante.')}</Typography>
             </Box>
-            {dirty && <Chip label="Cambios sin guardar" color="warning" variant="outlined" sx={{ display: { xs: 'none', sm: 'inline-flex' } }} />}
-            <Button color="inherit" onClick={discard} disabled={!dirty || pending}>Descartar</Button>
+            {dirty && <Chip label={t('Cambios sin guardar')} color="warning" variant="outlined" sx={{ display: { xs: 'none', sm: 'inline-flex' } }} />}
+            <Button color="inherit" onClick={discard} disabled={!dirty || pending}>{t('Descartar')}</Button>
             <Button variant="contained" onClick={save} disabled={!dirty || pending || !props.canManage}>
-              {pending ? 'Guardando…' : 'Guardar cambios'}
+              {pending ? t('Guardando…') : t('Guardar cambios')}
             </Button>
           </Stack>
 
@@ -162,8 +164,8 @@ export function Builder(props: Props) {
           ) : (
             <>
               <Tabs value={mobileView} onChange={(_, v) => setMobileView(v)} sx={{ mb: 1.5 }}>
-                <Tab value="edit" label="Editar" />
-                <Tab value="preview" label="Vista previa" />
+                <Tab value="edit" label={t('Editar')} />
+                <Tab value="preview" label={t('Vista previa')} />
               </Tabs>
               {mobileView === 'edit' ? left : <Box sx={{ height: '78vh' }}>{preview}</Box>}
             </>

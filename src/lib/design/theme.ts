@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { msg } from '@/i18n/translate';
 import { buildBackgroundSchema } from './background';
 import { mix } from './color';
 import { FONT_IDS, type FontId } from './fonts';
@@ -7,7 +8,7 @@ import { CARD_STYLES, FOOTER_STYLES, HEADER_STYLES } from './styles-registry';
 import { TYPE_ROLES, type TypeRole } from './type-roles';
 
 export { TYPE_ROLES, type TypeRole };
-export const TYPE_ROLE_LABELS: Record<TypeRole, string> = { h1: 'Título H1', h2: 'Título H2', h3: 'Título H3', body: 'Texto', small: 'Pequeño', label: 'Etiqueta', button: 'Botón' };
+export const TYPE_ROLE_LABELS: Record<TypeRole, string> = { h1: msg('Título H1'), h2: msg('Título H2'), h3: msg('Título H3'), body: msg('Texto'), small: msg('Pequeño'), label: msg('Etiqueta'), button: msg('Botón') };
 
 function typeRole(f: ReturnType<typeof fieldFactory>) {
   return z

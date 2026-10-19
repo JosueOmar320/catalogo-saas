@@ -9,6 +9,7 @@ import type { RenderEnv } from './env';
 import { ImageGallery } from './ImageGallery';
 import { ItemAttributes, ItemCard, ItemLink, ItemMedia, resolveFields, type CardOptions } from './ItemCard';
 import { PriceTag } from './PriceTag';
+import { siteTranslator, siteYesNo } from './site-i18n';
 import styles from './site.module.css';
 import { CARD_RATIOS } from './theme-vars';
 
@@ -52,6 +53,7 @@ export function ProductCollection({ items, site, env, presentation: p, categoryN
     ...extra,
   });
   const f = resolveFields(site, p.fields);
+  const t = siteTranslator(site.settings.language);
 
   switch (p.layout) {
     case 'largeCards':
@@ -102,13 +104,13 @@ export function ProductCollection({ items, site, env, presentation: p, categoryN
                   {f.category && item.categoryId && <span className={styles.cardEyebrow}>{categoryNames.get(item.categoryId)}</span>}
                   <div className={styles.rowTop}>
                     <h3 className={styles.cardTitle}>{item.name}</h3>
-                    {f.price && <PriceTag item={item} compare={f.compareAt} discount={f.discount} />}
+                    {f.price && <PriceTag item={item} t={t} compare={f.compareAt} discount={f.discount} />}
                   </div>
                   {f.description && item.shortDescription && <p className={styles.cardDesc}>{item.shortDescription}</p>}
                   {f.attributes !== 'none' && <ItemAttributes item={item} site={site} mode={f.attributes} />}
-                  {f.sku && item.sku && <span className={styles.cardMeta}>Código: {item.sku}</span>}
-                  {f.badges && <Badges item={item} theme={site.theme} inline />}
-                  {f.availability && !item.isAvailable && <span className={styles.availability}>No disponible</span>}
+                  {f.sku && item.sku && <span className={styles.cardMeta}>{t('Código: {sku}', { sku: item.sku })}</span>}
+                  {f.badges && <Badges item={item} theme={site.theme} t={t} inline />}
+                  {f.availability && !item.isAvailable && <span className={styles.availability}>{t('No disponible')}</span>}
                 </div>
               </ItemLink>
               {f.button && item.isAvailable && <ContactActions site={site} item={item} show="primary" small appearance="icon" />}
@@ -127,11 +129,11 @@ export function ProductCollection({ items, site, env, presentation: p, categoryN
                 <div className={styles.priceListTop}>
                   <span className={styles.priceListName}>{item.name}</span>
                   <span className={styles.leader} aria-hidden />
-                  {f.price && <span className={styles.price}>{item.priceLabel ?? item.priceNote ?? 'Consultar'}</span>}
+                  {f.price && <span className={styles.price}>{item.priceLabel ?? item.priceNote ?? t('Consultar')}</span>}
                 </div>
                 {f.description && item.shortDescription && <p className={styles.cardDesc}>{item.shortDescription}</p>}
                 {f.attributes !== 'none' && <ItemAttributes item={item} site={site} mode={f.attributes} />}
-                {f.sku && item.sku && <span className={styles.cardMeta}>Código: {item.sku}</span>}
+                {f.sku && item.sku && <span className={styles.cardMeta}>{t('Código: {sku}', { sku: item.sku })}</span>}
               </div>
             </ItemLink>
           ))}
@@ -147,15 +149,15 @@ export function ProductCollection({ items, site, env, presentation: p, categoryN
               <article key={item.id} className={styles.zigzagItem} data-reverse={right}>
                 {f.image && <ItemMedia item={item} className={styles.zigzagMedia} sizes="(max-width: 700px) 100vw, 45vw" shape={p.shape} frame={p.frame} priority={priority && i === 0} />}
                 <div className={styles.zigzagBody}>
-                  {f.badges && <Badges item={item} theme={site.theme} inline />}
+                  {f.badges && <Badges item={item} theme={site.theme} t={t} inline />}
                   {f.category && item.categoryId && <span className={styles.eyebrow}>{categoryNames.get(item.categoryId)}</span>}
                   <ItemLink item={item} env={env} className={styles.cardLink}>
                     <h3 className={styles.h3}>{item.name}</h3>
                   </ItemLink>
                   {f.description && item.shortDescription && <p className={styles.muted}>{item.shortDescription}</p>}
                   {f.attributes !== 'none' && <ItemAttributes item={item} site={site} mode={f.attributes} />}
-                  {f.sku && item.sku && <span className={styles.cardMeta}>Código: {item.sku}</span>}
-                  {f.price && <div className={styles.bigPrice}><PriceTag item={item} compare={f.compareAt} discount={f.discount} /></div>}
+                  {f.sku && item.sku && <span className={styles.cardMeta}>{t('Código: {sku}', { sku: item.sku })}</span>}
+                  {f.price && <div className={styles.bigPrice}><PriceTag item={item} t={t} compare={f.compareAt} discount={f.discount} /></div>}
                   {f.button && item.isAvailable && (
                     <div className={styles.btnRow}>
                       <ContactActions site={site} item={item} show="primary" small />
@@ -172,18 +174,18 @@ export function ProductCollection({ items, site, env, presentation: p, categoryN
       return (
         <div className={styles.detailList}>
           {items.map((item) => {
-            const specs = visibleAttributes(item.attributes, site.attributeDefs, 'detail');
+            const specs = visibleAttributes(item.attributes, site.attributeDefs, 'detail', siteYesNo(site.settings.language));
             return (
               <article key={item.id} className={styles.detailBlock} data-reverse={p.imagePosition === 'right'}>
                 <div className={styles.mediaWrap}>
                   {p.gallery ? <ImageGallery images={item.images} name={item.name} /> : <ItemMedia item={item} className={styles.galleryMain} sizes="(max-width: 820px) 100vw, 600px" shape={p.shape} />}
-                  {f.badges && <Badges item={item} theme={site.theme} />}
+                  {f.badges && <Badges item={item} theme={site.theme} t={t} />}
                 </div>
                 <div className={styles.detailInfo}>
                   {f.category && item.categoryId && <span className={styles.eyebrow}>{categoryNames.get(item.categoryId)}</span>}
                   <h3 className={styles.h2}>{item.name}</h3>
-                  {f.sku && item.sku && <span className={styles.cardMeta}>Código: {item.sku}</span>}
-                  {f.price && <div className={styles.bigPrice}><PriceTag item={item} compare={f.compareAt} discount={f.discount} /></div>}
+                  {f.sku && item.sku && <span className={styles.cardMeta}>{t('Código: {sku}', { sku: item.sku })}</span>}
+                  {f.price && <div className={styles.bigPrice}><PriceTag item={item} t={t} compare={f.compareAt} discount={f.discount} /></div>}
                   {f.description && (item.description || item.shortDescription) && <p className={styles.preLine}>{item.description ?? item.shortDescription}</p>}
                   {specs.length > 0 && (
                     <table className={styles.specs}>
@@ -217,8 +219,8 @@ export function ProductCollection({ items, site, env, presentation: p, categoryN
               {f.image && <ItemMedia item={item} className={styles.cardMedia} sizes={cardOptions(item, i).sizes ?? '300px'} shape={p.shape} frame={p.frame} priority={priority && i < 4} />}
               {f.category && item.categoryId && <span className={styles.cardEyebrow}>{categoryNames.get(item.categoryId)}</span>}
               <h3 className={styles.minimalName}>{item.name}</h3>
-              {f.price && <PriceTag item={item} compare={f.compareAt} discount={f.discount} />}
-              {f.availability && !item.isAvailable && <span className={styles.availability}>No disponible</span>}
+              {f.price && <PriceTag item={item} t={t} compare={f.compareAt} discount={f.discount} />}
+              {f.availability && !item.isAvailable && <span className={styles.availability}>{t('No disponible')}</span>}
             </ItemLink>
           ))}
         </div>
@@ -228,17 +230,17 @@ export function ProductCollection({ items, site, env, presentation: p, categoryN
       // Atributos que al menos un ítem tiene (una columna de "—" no compara nada).
       const context = f.attributes === 'all' ? 'detail' : 'card';
       const defs = site.attributeDefs.filter((d) => (context === 'detail' ? d.showInDetail : d.showInCard) && items.some((i) => i.attributes[d.id] !== undefined));
-      const value = (item: CatalogItemView, id: string) => visibleAttributes(item.attributes, site.attributeDefs, context).find((a) => a.id === id);
+      const value = (item: CatalogItemView, id: string) => visibleAttributes(item.attributes, site.attributeDefs, context, siteYesNo(site.settings.language)).find((a) => a.id === id);
       return (
         <div className={styles.comparisonWrap} style={vars}>
           <table className={styles.comparison}>
             <thead>
               <tr>
-                <th scope="col">Producto</th>
-                {f.price && <th scope="col">Precio</th>}
+                <th scope="col">{t('Producto')}</th>
+                {f.price && <th scope="col">{t('Precio')}</th>}
                 {f.attributes !== 'none' && defs.map((d) => <th key={d.id} scope="col">{d.name}</th>)}
-                {f.sku && <th scope="col">Código</th>}
-                {f.button && <th scope="col"><span className={styles.visuallyHidden}>Acción</span></th>}
+                {f.sku && <th scope="col">{t('Código')}</th>}
+                {f.button && <th scope="col"><span className={styles.visuallyHidden}>{t('Acción')}</span></th>}
               </tr>
             </thead>
             <tbody>
@@ -249,12 +251,12 @@ export function ProductCollection({ items, site, env, presentation: p, categoryN
                       {f.image && <ItemMedia item={item} className={styles.compactMedia} sizes="96px" shape={p.shape} />}
                       <span>
                         <span className={styles.cardTitle}>{item.name}</span>
-                        {f.badges && <Badges item={item} theme={site.theme} inline />}
-                        {f.availability && !item.isAvailable && <span className={styles.availability}>No disponible</span>}
+                        {f.badges && <Badges item={item} theme={site.theme} t={t} inline />}
+                        {f.availability && !item.isAvailable && <span className={styles.availability}>{t('No disponible')}</span>}
                       </span>
                     </ItemLink>
                   </th>
-                  {f.price && <td><PriceTag item={item} compare={f.compareAt} discount={f.discount} /></td>}
+                  {f.price && <td><PriceTag item={item} t={t} compare={f.compareAt} discount={f.discount} /></td>}
                   {f.attributes !== 'none' && defs.map((d) => {
                     const attr = value(item, d.id);
                     return <td key={d.id}>{attr ? (attr.list ? attr.list.join(', ') : attr.value) : '—'}</td>;

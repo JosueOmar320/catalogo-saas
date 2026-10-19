@@ -4,6 +4,7 @@ import type { CatalogItemView } from '@/lib/catalog/view-model';
 import type { PdfSettings, PdfTemplateId } from '@/lib/pdf/settings';
 import type { SiteViewModel } from '@/lib/site/view-model';
 import type { PdfContext } from './primitives';
+import { siteYesNo } from '@/site-renderer/site-i18n';
 
 /**
  * "Skin" de cada plantilla: los detalles de estilo que no son opciones del
@@ -60,7 +61,7 @@ export function sectionTitleAt(doc: PdfDoc, n: number): string {
 export function pdfAttributes(doc: PdfDoc, item: CatalogItemView, mode: Presentation['fields']['attributes']): ResolvedAttribute[] {
   if (mode === 'none') return [];
   const defs = mode === 'card' ? doc.site.attributeDefs.filter((d) => d.showInCard) : doc.site.attributeDefs;
-  return visibleAttributes(item.attributes, defs, 'pdf');
+  return visibleAttributes(item.attributes, defs, 'pdf', siteYesNo(doc.site.settings.language));
 }
 
 /** Campos visibles: la presentación decide dentro de lo que permite el tema. */

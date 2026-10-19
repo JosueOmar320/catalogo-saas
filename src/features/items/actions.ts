@@ -2,6 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
+import { getT } from '@/i18n/server';
+import { msg } from '@/i18n/translate';
 import { requireBusinessContext, type BusinessContext } from '@/lib/auth/session';
 import { invalidatePublicCatalog } from '@/lib/catalog/cache';
 import { isWithinLimit } from '@/lib/plans/entitlements';
@@ -49,15 +51,16 @@ export async function saveItem(itemId: string | null, input: ItemFormValues): Pr
   const parsed = parseInput(itemFormSchema, input);
   if (!parsed.success) return parsed.result;
   const values = parsed.data;
-  if (itemId && !uuidSchema.safeParse(itemId).success) return fail('Ítem inválido.');
+  if (itemId && !uuidSchema.safeParse(itemId).success) return fail(msg('Ítem inválido.'));
 
   const { max_images_per_item: maxImages, max_items: maxItems } = ctx.entitlements.limits;
   if (maxImages !== null && values.images.length > maxImages) {
-    return fail(`Tu plan permite hasta ${maxImages} imágenes por ítem.`);
+    const t = await getT();
+    return fail(t('Tu plan permite hasta {max} imágenes por ítem.', { max: maxImages }));
   }
   for (const image of values.images) {
     if (!isPathOwnedBy(image.path, ctx.business.id) || (image.thumbPath && !isPathOwnedBy(image.thumbPath, ctx.business.id))) {
-      return fail('Una de las imágenes no es válida. Vuelve a subirla.');
+      return fail(msg('Una de las imágenes no es válida. Vuelve a subirla.'));
     }
   }
   // attributes es extensible: se conservan claves desconocidas y se actualizan las del formulario.
@@ -69,7 +72,7 @@ export async function saveItem(itemId: string | null, input: ItemFormValues): Pr
   const defs = parseAttributeDefs(ctx.catalog.attribute_defs);
   const attributes = { ...existingAttributes, ...itemFormToAttributes(values), values: parseAttributeValues(values.attributeValues, defs) };
   const row = { ...itemFormToRow(values), attributes: attributes as Json };
-  if (!(await categoryBelongsToCatalog(ctx, row.category_id))) return fail('La categoría ya no existe.');
+  if (!(await categoryBelongsToCatalog(ctx, row.category_id))) return fail(msg('La categoría ya no existe.'));
 
   let id = itemId;
   if (id) {
@@ -81,14 +84,17 @@ export async function saveItem(itemId: string | null, input: ItemFormValues): Pr
       .is('deleted_at', null)
       .select('id');
     if (error) return fail(dbErrorMessage(error));
-    if (!updated?.length) return fail('El ítem ya no existe.');
+    if (!updated?.length) return fail(msg('El ítem ya no existe.'));
   } else {
     const { count } = await ctx.supabase
       .from('catalog_items')
       .select('id', { count: 'exact', head: true })
       .eq('business_id', ctx.business.id)
       .is('deleted_at', null);
-    if (!isWithinLimit(maxItems, count ?? 0)) return fail(`Tu plan permite hasta ${maxItems} ítems.`);
+    if (!isWithinLimit(maxItems, count ?? 0)) {
+      const t = await getT();
+      return fail(t('Tu plan permite hasta {max} ítems.', { max: String(maxItems) }));
+    }
 
     const base = slugify(values.name, 60) || 'item';
     const position = await nextPosition(ctx);
@@ -104,14 +110,14 @@ export async function saveItem(itemId: string | null, input: ItemFormValues): Pr
       }
       if (error.code !== '23505') return fail(dbErrorMessage(error));
     }
-    if (!id) return fail('No se pudo generar una URL única para el ítem.');
+    if (!id) return fail(msg('No se pudo generar una URL única para el ítem.'));
   }
 
   const imageError = await syncImages(ctx, id, values.images);
   if (imageError) return fail(imageError);
 
   afterChange(ctx);
-  return ok({ id }, itemId ? 'Cambios guardados' : 'Ítem creado');
+  return ok({ id }, itemId ? msg('Cambios guardados') : msg('Ítem creado'));
 }
 
 type ParsedImage = z.output<typeof itemFormSchema>['images'][number];
@@ -152,7 +158,7 @@ async function syncImages(ctx: BusinessContext, itemId: string, images: ParsedIm
         size_bytes: image.sizeBytes,
         mime_type: image.mimeType,
       });
-      if (insertError) return dbErrorMessage(insertError, 'No se pudo guardar una imagen.');
+      if (insertError) return dbErrorMessage(insertError, msg('No se pudo guardar una imagen.'));
     }
   }
   return null;
@@ -182,7 +188,7 @@ export async function toggleItemField(input: z.input<typeof toggleSchema>): Prom
 /** Borrado lógico: el ítem desaparece del catálogo y del panel (recuperable desde la BD). */
 export async function deleteItem(id: string): Promise<ActionResult> {
   const ctx = await requireBusinessContext();
-  if (!uuidSchema.safeParse(id).success) return fail('Ítem inválido.');
+  if (!uuidSchema.safeParse(id).success) return fail(msg('Ítem inválido.'));
   const { error } = await ctx.supabase
     .from('catalog_items')
     .update({ deleted_at: new Date().toISOString() })
@@ -190,13 +196,13 @@ export async function deleteItem(id: string): Promise<ActionResult> {
     .eq('catalog_id', ctx.catalog.id);
   if (error) return fail(dbErrorMessage(error));
   afterChange(ctx);
-  return ok(undefined, 'Ítem eliminado');
+  return ok(undefined, msg('Ítem eliminado'));
 }
 
 /** Duplica un ítem (oculto) copiando también sus archivos de imagen. */
 export async function duplicateItem(id: string): Promise<ActionResult<{ id: string }>> {
   const ctx = await requireBusinessContext();
-  if (!uuidSchema.safeParse(id).success) return fail('Ítem inválido.');
+  if (!uuidSchema.safeParse(id).success) return fail(msg('Ítem inválido.'));
 
   const { data: source } = await ctx.supabase
     .from('catalog_items')
@@ -205,10 +211,11 @@ export async function duplicateItem(id: string): Promise<ActionResult<{ id: stri
     .eq('catalog_id', ctx.catalog.id)
     .is('deleted_at', null)
     .maybeSingle();
-  if (!source) return fail('El ítem ya no existe.');
+  if (!source) return fail(msg('El ítem ya no existe.'));
 
   const { id: _id, created_at: _c, updated_at: _u, deleted_at: _d, slug, name, ...rest } = source;
-  const copyName = `${name} (copia)`.slice(0, 160);
+  const t = await getT();
+  const copyName = t('{name} (copia)', { name }).slice(0, 160);
   const { data: copy, error } = await ctx.supabase
     .from('catalog_items')
     .insert({ ...rest, name: copyName, slug: withRandomSuffix(slug), is_visible: false, position: await nextPosition(ctx) })
@@ -224,9 +231,9 @@ export async function duplicateItem(id: string): Promise<ActionResult<{ id: stri
   if (insertError) {
     // Sin fotos la copia quedaría incompleta: se deshace en vez de dejarla a medias.
     await ctx.supabase.from('catalog_items').delete().eq('id', copy.id).eq('catalog_id', ctx.catalog.id);
-    return fail(dbErrorMessage(insertError, 'No se pudo duplicar el ítem.'));
+    return fail(dbErrorMessage(insertError, msg('No se pudo duplicar el ítem.')));
   }
 
   afterChange(ctx);
-  return ok({ id: copy.id }, 'Ítem duplicado (oculto hasta que lo actives)');
+  return ok({ id: copy.id }, msg('Ítem duplicado (oculto hasta que lo actives)'));
 }

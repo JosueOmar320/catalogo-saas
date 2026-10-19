@@ -1,17 +1,18 @@
 import { z } from 'zod';
 import { SOCIAL_NETWORK_IDS } from '@/lib/social/networks';
+import { msg } from '@/i18n/translate';
 
 const optionalText = (max: number) => z.string().trim().max(max).default('');
 /** Sólo http(s): estas URLs se muestran como enlaces (evita javascript:, data:…). */
-const webUrl = () => z.url({ protocol: /^https?$/, error: 'Usa una URL que empiece con https://' });
+const webUrl = () => z.url({ protocol: /^https?$/, error: msg('Usa una URL que empiece con https://') });
 
 /** Datos de contacto del negocio (businesses.contact). */
 export const contactSchema = z.object({
   phone: optionalText(40),
   whatsapp: optionalText(40).refine((v) => v === '' || /^\+?[0-9 ()-]{7,20}$/.test(v), {
-    message: 'Usa el formato internacional, ej. +52 55 1234 5678',
+    message: msg('Usa el formato internacional, ej. +52 55 1234 5678'),
   }),
-  email: z.union([z.literal(''), z.email('Email inválido')]).default(''),
+  email: z.union([z.literal(''), z.email(msg('Email inválido'))]).default(''),
   address: optionalText(200),
   city: optionalText(80),
   website: z.union([z.literal(''), webUrl()]).default(''),

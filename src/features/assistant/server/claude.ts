@@ -30,9 +30,9 @@ export class ClaudeModel implements AssistantModel {
     this.client = new Anthropic({ apiKey, maxRetries: 1, timeout: 60_000 });
   }
 
-  async respond({ messages, context }: ModelInput): Promise<ModelResult> {
+  async respond({ messages, context, locale }: ModelInput): Promise<ModelResult> {
     try {
-      return await this.run({ messages, context });
+      return await this.run({ messages, context, locale });
     } catch (error) {
       if (error instanceof Anthropic.APIError) {
         if (error.status === 429) throw new QuotaExceededError('Límite de uso de Claude alcanzado.');
@@ -42,7 +42,7 @@ export class ClaudeModel implements AssistantModel {
     }
   }
 
-  private async run({ messages, context, tools }: ModelInput): Promise<ModelResult> {
+  private async run({ messages, context, tools, locale }: ModelInput): Promise<ModelResult> {
     // Historial como texto; el contexto actual va sólo en el último mensaje del usuario.
     const history: Anthropic.MessageParam[] = messages.map((m, i) => ({
       role: m.role,
@@ -53,7 +53,7 @@ export class ClaudeModel implements AssistantModel {
       this.client.messages.create({
         model: this.model,
         max_tokens: MAX_TOKENS,
-        system: systemBlocks(context.mode),
+        system: systemBlocks(context.mode, locale),
         tools: [...serverTools, { name: 'respond', description: 'Respuesta FINAL al usuario con las acciones del editor.', input_schema: respondSchema(context.mode) as Anthropic.Tool.InputSchema }],
         tool_choice: mustRespond || serverTools.length === 0 ? { type: 'tool', name: 'respond' } : { type: 'any' },
         messages: conversation,

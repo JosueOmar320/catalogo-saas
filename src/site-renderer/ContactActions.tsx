@@ -1,7 +1,9 @@
 import { resolveContactActions, type ContactActionType } from '@/lib/contact/actions';
 import type { CatalogItemView } from '@/lib/catalog/view-model';
 import type { SiteViewModel } from '@/lib/site/view-model';
+import { defaultText } from './default-texts';
 import { buttonVariant } from './SiteButton';
+import { siteTranslator } from './site-i18n';
 import { Icon } from './Icon';
 import styles from './site.module.css';
 
@@ -21,7 +23,15 @@ type Props = {
 
 /** Botones de contacto (WhatsApp con mensaje del ítem, llamada, email). */
 export function ContactActions({ site, item, show = 'all', small, block, appearance = 'solid', labelOverride, shortLabel }: Props) {
-  const actions = resolveContactActions(site.settings.contactActions, {
+  const t = siteTranslator(site.settings.language);
+  const config = site.settings.contactActions;
+  // Mensaje y asunto de fábrica en el idioma del sitio (los personalizados se respetan).
+  const localized = {
+    ...config,
+    whatsapp: { ...config.whatsapp, message: defaultText(config.whatsapp.message, t) },
+    email: { ...config.email, subject: defaultText(config.email.subject, t) },
+  };
+  const actions = resolveContactActions(localized, {
     businessName: site.business.name,
     contact: site.business.contact,
     catalogUrl: site.url,
@@ -34,7 +44,7 @@ export function ContactActions({ site, item, show = 'all', small, block, appeara
   return (
     <>
       {visible.map((action, index) => {
-        const label = labelOverride && index === 0 ? labelOverride : action.label;
+        const label = labelOverride && index === 0 ? labelOverride : defaultText(action.label, t);
         const variant = appearance === 'link' ? 'ghost' : buttonVariant(theme, index === 0 ? 'primary' : 'secondary');
         return (
           <a

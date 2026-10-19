@@ -2,6 +2,7 @@
 
 import { FormControlLabel, MenuItem, Stack, Switch, TextField, Typography, type TextFieldProps } from '@mui/material';
 import { Controller, type Control, type FieldPath, type FieldValues } from 'react-hook-form';
+import { useT } from '@/i18n/client';
 
 type BaseProps<T extends FieldValues> = { control: Control<T>; name: FieldPath<T> };
 
@@ -12,6 +13,7 @@ export function TextFieldControl<T extends FieldValues>({
   helperText,
   ...props
 }: BaseProps<T> & Omit<TextFieldProps, 'name'>) {
+  const t = useT();
   return (
     <Controller
       control={control}
@@ -22,7 +24,7 @@ export function TextFieldControl<T extends FieldValues>({
           {...field}
           value={field.value ?? ''}
           error={Boolean(fieldState.error)}
-          helperText={fieldState.error?.message ?? helperText}
+          helperText={fieldState.error?.message ? t(fieldState.error.message) : helperText}
         />
       )}
     />
@@ -37,6 +39,7 @@ export function SelectControl<T extends FieldValues>({
   options,
   ...props
 }: BaseProps<T> & Omit<TextFieldProps, 'name' | 'select'> & { options: Option[] }) {
+  const t = useT();
   return (
     <Controller
       control={control}
@@ -50,7 +53,7 @@ export function SelectControl<T extends FieldValues>({
           // Permite mostrar opciones con valor vacío (p. ej. "Sin categoría").
           slotProps={{ ...props.slotProps, inputLabel: { shrink: true }, select: { displayEmpty: true } }}
           error={Boolean(fieldState.error)}
-          helperText={fieldState.error?.message ?? props.helperText}
+          helperText={fieldState.error?.message ? t(fieldState.error.message) : props.helperText}
         >
           {options.map((option) => (
             <MenuItem key={option.value} value={option.value}>

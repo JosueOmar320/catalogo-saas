@@ -2,6 +2,7 @@
 
 import { Alert, AlertTitle, Box, Button } from '@mui/material';
 import { useEffect } from 'react';
+import { useT } from '@/i18n/client';
 
 type Props = { error: Error & { digest?: string }; retry: () => void; title?: string };
 
@@ -12,7 +13,8 @@ type Props = { error: Error & { digest?: string }; retry: () => void; title?: st
  * En producción el mensaje real no llega al navegador; `digest` permite
  * encontrar el error en los logs del servidor.
  */
-export function SegmentError({ error, retry, title = 'No pudimos cargar esta sección' }: Props) {
+export function SegmentError({ error, retry, title }: Props) {
+  const t = useT();
   useEffect(() => {
     console.error(error);
   }, [error]);
@@ -23,12 +25,12 @@ export function SegmentError({ error, retry, title = 'No pudimos cargar esta sec
         severity="error"
         action={
           <Button color="inherit" size="small" onClick={retry}>
-            Reintentar
+            {t('Reintentar')}
           </Button>
         }
       >
-        <AlertTitle>{title}</AlertTitle>
-        Puede ser un problema temporal. Si se repite, comparte este código con soporte: <code>{error.digest ?? 'sin código'}</code>
+        <AlertTitle>{title ?? t('No pudimos cargar esta sección')}</AlertTitle>
+        {t('Puede ser un problema temporal. Si se repite, comparte este código con soporte:')} <code>{error.digest ?? t('sin código')}</code>
       </Alert>
     </Box>
   );

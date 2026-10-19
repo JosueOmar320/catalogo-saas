@@ -2,6 +2,7 @@
 
 import { Box, Dialog, DialogContent, DialogTitle, IconButton } from '@mui/material';
 import { X } from 'lucide-react';
+import { useT } from '@/i18n/client';
 import type { MediaFolder } from '@/types/database';
 import type { MediaRecord } from '../schema';
 import { MediaLibrary } from './MediaLibrary';
@@ -30,11 +31,12 @@ export function MediaLibraryDialog({
   initialFolder?: MediaFolder | 'all';
   title?: string;
 }) {
+  const t = useT();
   return (
     <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth slotProps={{ paper: { sx: { height: { md: '86vh' } } } }}>
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <Box sx={{ flex: 1 }}>{title ?? (multiple ? 'Elige imágenes' : 'Elige una imagen')}</Box>
-        <IconButton onClick={onClose} aria-label="Cerrar"><X size={18} /></IconButton>
+        <Box sx={{ flex: 1 }}>{title ?? (multiple ? t('Elige imágenes') : t('Elige una imagen'))}</Box>
+        <IconButton onClick={onClose} aria-label={t('Cerrar')}><X size={18} /></IconButton>
       </DialogTitle>
       <DialogContent>
         {open && (

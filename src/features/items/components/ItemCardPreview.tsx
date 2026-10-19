@@ -3,6 +3,7 @@
 import { Box, Typography } from '@mui/material';
 import type { CatalogItemView } from '@/lib/catalog/view-model';
 import type { SiteViewModel } from '@/lib/site/view-model';
+import { useT } from '@/i18n/client';
 import { formatPrice } from '@/lib/utils/format';
 import { priceToNumber } from '@/lib/utils/validation';
 import { publicStorageUrl } from '@/lib/utils/storage';
@@ -12,6 +13,7 @@ import type { ItemFormValues } from '../schema';
 
 /** Vista previa en vivo de la tarjeta, con el mismo componente del sitio público. */
 export function ItemCardPreview({ site, values, categoryName }: { site: SiteViewModel; values: ItemFormValues; categoryName?: string }) {
+  const t = useT();
   const price = priceToNumber(values.price ?? '');
   const compareAt = priceToNumber(values.compareAtPrice ?? '');
   const locale = site.settings.locale;
@@ -19,7 +21,7 @@ export function ItemCardPreview({ site, values, categoryName }: { site: SiteView
     id: 'preview',
     slug: 'preview',
     type: values.type,
-    name: values.name || 'Nombre del ítem',
+    name: values.name || t('Nombre del ítem'),
     shortDescription: values.shortDescription || null,
     description: null,
     price,
@@ -46,9 +48,9 @@ export function ItemCardPreview({ site, values, categoryName }: { site: SiteView
 
   return (
     <Box>
-      <Typography variant="overline" color="text.secondary">Así se verá</Typography>
+      <Typography variant="overline" color="text.secondary">{t('Así se verá')}</Typography>
       <Box sx={{ mt: 1, borderRadius: 1.5, overflow: 'hidden', border: 1, borderColor: 'divider' }}>
-        <SiteShell theme={site.theme}>
+        <SiteShell theme={site.theme} language={site.settings.language}>
           <Box sx={{ p: 2, maxWidth: 280, mx: 'auto', width: '100%' }}>
             <ItemCard item={item} site={site} env={{ mode: 'preview', basePath: '', currentPageId: null }} options={{ categoryName }} />
           </Box>

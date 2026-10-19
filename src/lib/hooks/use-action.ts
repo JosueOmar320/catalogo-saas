@@ -3,6 +3,7 @@
 import { useCallback, useTransition } from 'react';
 import type { FieldValues, Path, UseFormSetError } from 'react-hook-form';
 import { useToast } from '@/components/feedback/ToastProvider';
+import { useT } from '@/i18n/client';
 import type { ActionResult } from '@/lib/utils/result';
 
 type RunOptions<T, F extends FieldValues> = {
@@ -20,6 +21,8 @@ type RunOptions<T, F extends FieldValues> = {
 export function useAction() {
   const [pending, startTransition] = useTransition();
   const toast = useToast();
+  // Las Server Actions devuelven mensajes en español (la clave del catálogo): se traducen al mostrarlos.
+  const t = useT();
 
   const run = useCallback(
     <T, F extends FieldValues = FieldValues>(action: () => Promise<ActionResult<T>>, options: RunOptions<T, F> = {}) =>
@@ -33,13 +36,13 @@ export function useAction() {
               return;
             }
             if (result.ok) {
-              if (result.message && options.successToast !== false) toast.success(result.message);
+              if (result.message && options.successToast !== false) toast.success(t(result.message));
               options.onSuccess?.(result.data);
             } else {
-              toast.error(result.error);
+              toast.error(t(result.error));
               if (options.setError && result.fieldErrors) {
                 for (const [field, messages] of Object.entries(result.fieldErrors)) {
-                  if (messages?.[0]) options.setError(field as Path<F>, { message: messages[0] });
+                  if (messages?.[0]) options.setError(field as Path<F>, { message: messages[0] }); // se traduce en el campo
                 }
               }
             }
@@ -49,12 +52,12 @@ export function useAction() {
             if (error && typeof error === 'object' && 'digest' in error && String(error.digest).startsWith('NEXT_REDIRECT')) {
               throw error;
             }
-            toast.error('Algo salió mal. Revisa tu conexión e intenta de nuevo.');
+            toast.error(t('Algo salió mal. Revisa tu conexión e intenta de nuevo.'));
             resolve(undefined);
           }
         });
       }),
-    [toast],
+    [t, toast],
   );
 
   return { run, pending };

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { fieldFactory } from '@/lib/design/schema-utils';
 import { CARD_STYLES } from '@/lib/design/styles-registry';
+import { msg } from '@/i18n/translate';
 
 /**
  * Presentación de productos: la decisión "¿cómo muestro mis productos?".
@@ -13,18 +14,18 @@ export type ProductLayout = (typeof PRODUCT_LAYOUTS)[number];
 export const IMAGE_SHAPES = ['rect', 'rounded', 'circle', 'arch'] as const;
 
 export const PRODUCT_LAYOUT_META: Record<ProductLayout, { label: string; description: string }> = {
-  grid: { label: 'Cuadrícula', description: 'Tarjetas en columnas. Uso general.' },
-  largeCards: { label: 'Tarjetas grandes', description: 'Pocas por fila, imagen grande y más texto.' },
-  compactList: { label: 'Lista compacta', description: 'Miniatura + texto + precio. Ideal para muchos ítems.' },
-  editorial: { label: 'Editorial', description: 'Un ítem grande junto a otros más pequeños.' },
-  imageFocus: { label: 'Imagen protagonista', description: 'La foto ocupa todo; el texto va encima.' },
-  priceList: { label: 'Lista de precios', description: 'Nombre ········ precio. Menús, servicios, repuestos.' },
-  zigzag: { label: 'Zigzag', description: 'Imagen y texto alternados. Ideal para servicios.' },
-  detail: { label: 'Ficha de detalle', description: 'Un ítem por bloque con galería y especificaciones.' },
-  magazine: { label: 'Revista', description: 'Un destacado grande + cuadrícula con el resto.' },
-  compactGrid: { label: 'Cuadrícula compacta', description: 'Muchas tarjetas pequeñas por fila. Catálogos grandes.' },
-  minimal: { label: 'Minimalista', description: 'Sólo foto, nombre y precio, sin tarjeta.' },
-  comparison: { label: 'Comparación', description: 'Tabla con precio y atributos lado a lado.' },
+  grid: { label: msg('Cuadrícula'), description: msg('Tarjetas en columnas. Uso general.') },
+  largeCards: { label: msg('Tarjetas grandes'), description: msg('Pocas por fila, imagen grande y más texto.') },
+  compactList: { label: msg('Lista compacta'), description: msg('Miniatura + texto + precio. Ideal para muchos ítems.') },
+  editorial: { label: msg('Editorial'), description: msg('Un ítem grande junto a otros más pequeños.') },
+  imageFocus: { label: msg('Imagen protagonista'), description: msg('La foto ocupa todo; el texto va encima.') },
+  priceList: { label: msg('Lista de precios'), description: msg('Nombre ········ precio. Menús, servicios, repuestos.') },
+  zigzag: { label: msg('Zigzag'), description: msg('Imagen y texto alternados. Ideal para servicios.') },
+  detail: { label: msg('Ficha de detalle'), description: msg('Un ítem por bloque con galería y especificaciones.') },
+  magazine: { label: msg('Revista'), description: msg('Un destacado grande + cuadrícula con el resto.') },
+  compactGrid: { label: msg('Cuadrícula compacta'), description: msg('Muchas tarjetas pequeñas por fila. Catálogos grandes.') },
+  minimal: { label: msg('Minimalista'), description: msg('Sólo foto, nombre y precio, sin tarjeta.') },
+  comparison: { label: msg('Comparación'), description: msg('Tabla con precio y atributos lado a lado.') },
 };
 
 /** Qué opciones tienen sentido en cada layout (la interfaz sólo muestra éstas). */

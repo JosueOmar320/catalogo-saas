@@ -5,26 +5,31 @@ import { SectionCard } from '@/components/ui/SectionCard';
 import { AuditTable } from '@/features/admin/components/AuditTable';
 import { EditUserPanel } from '@/features/admin/components/UserForms';
 import { getUserDetail, listAudit } from '@/features/admin/queries';
+import { getT } from '@/i18n/server';
 import { requirePlatformAdmin } from '@/lib/auth/session';
 import { isServiceRoleConfigured } from '@/lib/supabase/admin';
 import { uuidSchema } from '@/lib/utils/validation';
 
-export const metadata: Metadata = { title: 'Usuario' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT();
+  return { title: t('Usuario') };
+}
 
 export default async function UserDetailPage({ params }: PageProps<'/admin/usuarios/[userId]'>) {
   const { userId } = await params;
   if (!uuidSchema.safeParse(userId).success) notFound();
   const { supabase, userId: me } = await requirePlatformAdmin();
-  const [user, { data: businesses }, audit] = await Promise.all([
+  const [user, { data: businesses }, audit, t] = await Promise.all([
     getUserDetail(supabase, userId),
     supabase.from('businesses').select('id, name').is('deleted_at', null).order('name'),
     listAudit(supabase, { limit: 15 }),
+    getT(),
   ]);
   if (!user) notFound();
   const related = audit.rows.filter((r) => r.entity_id === userId || r.actor_id === userId || r.entity_id?.endsWith(`:${userId}`));
   return (
     <>
-      <PageHeader title={`@${user.username}`} description={user.full_name || undefined} back={{ href: '/admin/usuarios', label: 'Usuarios' }} />
+      <PageHeader title={`@${user.username}`} description={user.full_name || undefined} back={{ href: '/admin/usuarios', label: t('Usuarios') }} />
       <EditUserPanel
         user={{
           id: user.id,
@@ -43,7 +48,7 @@ export default async function UserDetailPage({ params }: PageProps<'/admin/usuar
         serviceRoleReady={isServiceRoleConfigured()}
       />
       {related.length > 0 && (
-        <SectionCard title="Actividad reciente" sx={{ mt: 2.5 }} flush>
+        <SectionCard title={t('Actividad reciente')} sx={{ mt: 2.5 }} flush>
           <AuditTable rows={related} compact />
         </SectionCard>
       )}

@@ -5,6 +5,7 @@ import { ImageIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { SortableList } from '@/components/ui/SortableList';
+import { useT } from '@/i18n/client';
 import { useAction } from '@/lib/hooks/use-action';
 import { reorder } from '../reorder-actions';
 
@@ -14,6 +15,7 @@ type Item = { id: string; name: string; categoryId: string | null; thumbUrl: str
 const UNCATEGORIZED = 'none';
 
 export function OrderBoard({ categories: initialCategories, items: initialItems }: { categories: Category[]; items: Item[] }) {
+  const t = useT();
   const router = useRouter();
   const { run, pending } = useAction();
   const [categories, setCategories] = useState(initialCategories);
@@ -33,11 +35,11 @@ export function OrderBoard({ categories: initialCategories, items: initialItems 
       <Grid size={{ xs: 12, md: 5 }}>
         <Paper variant="outlined">
           <Box sx={{ px: 2, py: 1.5, borderBottom: 1, borderColor: 'divider' }}>
-            <Typography variant="h3">Categorías</Typography>
-            <Typography variant="body2" color="text.secondary">Orden de las secciones y del menú.</Typography>
+            <Typography variant="h3">{t('Categorías')}</Typography>
+            <Typography variant="body2" color="text.secondary">{t('Orden de las secciones y del menú.')}</Typography>
           </Box>
           {categories.length === 0 ? (
-            <Typography variant="body2" color="text.secondary" sx={{ p: 3 }}>Aún no hay categorías.</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ p: 3 }}>{t('Aún no hay categorías.')}</Typography>
           ) : (
             <SortableList
               items={categories}
@@ -61,18 +63,18 @@ export function OrderBoard({ categories: initialCategories, items: initialItems 
         <Paper variant="outlined">
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ px: 2, py: 1.5, borderBottom: 1, borderColor: 'divider', justifyContent: 'space-between' }}>
             <Box>
-              <Typography variant="h3">Ítems</Typography>
-              <Typography variant="body2" color="text.secondary">Orden dentro de cada categoría.</Typography>
+              <Typography variant="h3">{t('Ítems')}</Typography>
+              <Typography variant="body2" color="text.secondary">{t('Orden dentro de cada categoría.')}</Typography>
             </Box>
-            <TextField select value={selected} onChange={(e) => setSelected(e.target.value)} sx={{ maxWidth: { sm: 240 } }} slotProps={{ select: { native: true }, htmlInput: { 'aria-label': 'Categoría' } }}>
+            <TextField select value={selected} onChange={(e) => setSelected(e.target.value)} sx={{ maxWidth: { sm: 240 } }} slotProps={{ select: { native: true }, htmlInput: { 'aria-label': t('Categoría') } }}>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
-              <option value={UNCATEGORIZED}>Sin categoría</option>
+              <option value={UNCATEGORIZED}>{t('Sin categoría')}</option>
             </TextField>
           </Stack>
           {groupItems.length === 0 ? (
-            <Typography variant="body2" color="text.secondary" sx={{ p: 3 }}>No hay ítems en esta categoría.</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ p: 3 }}>{t('No hay ítems en esta categoría.')}</Typography>
           ) : (
             <SortableList
               items={groupItems}

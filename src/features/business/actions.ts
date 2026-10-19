@@ -10,6 +10,7 @@ import { invalidatePublicCatalog } from '@/lib/catalog/cache';
 import { createClient } from '@/lib/supabase/server';
 import { dbErrorMessage, fail, ok, type ActionResult } from '@/lib/utils/result';
 import { parseInput } from '@/lib/utils/validation';
+import { msg } from '@/i18n/translate';
 import type { Json, TablesUpdate } from '@/types/database';
 import { isValidMediaPath, releaseStorageObjects } from '@/features/media/server';
 import { businessProfileSchema, businessSlugSchema, type BusinessProfileValues } from './schema';
@@ -24,12 +25,12 @@ export async function checkSlugAvailability(slug: string): Promise<ActionResult<
   if (ctx?.business.slug === parsed.data) return ok({ available: true });
   const supabase = await createClient();
   const { data, error } = await supabase.rpc('is_business_slug_available', { p_slug: parsed.data });
-  if (error) return fail('No se pudo verificar la dirección.');
+  if (error) return fail(msg('No se pudo verificar la dirección.'));
   return ok({ available: Boolean(data) });
 }
 
 async function updateBusiness(ctx: BusinessContext, patch: TablesUpdate<'businesses'>, message: string, previousSlug?: string): Promise<ActionResult> {
-  if (!canManageCatalog(ctx)) return fail('Sólo el dueño o un administrador puede cambiar esto.');
+  if (!canManageCatalog(ctx)) return fail(msg('Sólo el dueño o un administrador puede cambiar esto.'));
   const { error } = await ctx.supabase.from('businesses').update(patch).eq('id', ctx.business.id);
   if (error) return fail(dbErrorMessage(error));
   invalidatePublicCatalog(ctx.business.slug);
@@ -45,9 +46,9 @@ export async function updateBusinessProfile(input: BusinessProfileValues): Promi
   const { name, slug, slogan, description } = parsed.data;
   if (slug !== ctx.business.slug) {
     const { data: available } = await ctx.supabase.rpc('is_business_slug_available', { p_slug: slug });
-    if (!available) return fail('Esa dirección ya está en uso.', { slug: ['Esa dirección ya está en uso'] });
+    if (!available) return fail(msg('Esa dirección ya está en uso.'), { slug: [msg('Esa dirección ya está en uso')] });
   }
-  return updateBusiness(ctx, { name, slug, slogan: slogan || null, description: description || null }, 'Datos del negocio guardados', ctx.business.slug);
+  return updateBusiness(ctx, { name, slug, slogan: slogan || null, description: description || null }, msg('Datos del negocio guardados'), ctx.business.slug);
 }
 
 export async function updateContact(input: z.input<typeof contactSchema>): Promise<ActionResult> {
@@ -56,22 +57,22 @@ export async function updateContact(input: z.input<typeof contactSchema>): Promi
   if (!parsed.success) return parsed.result;
   // La ubicación del mapa la calcula el servidor (nunca se confía en la del cliente).
   const mapsLocation = (await resolveMapsLocation(parsed.data.mapsUrl)) ?? '';
-  return updateBusiness(ctx, { contact: { ...parsed.data, mapsLocation } as Json }, 'Contacto guardado');
+  return updateBusiness(ctx, { contact: { ...parsed.data, mapsLocation } as Json }, msg('Contacto guardado'));
 }
 
 export async function updateSocialLinks(input: z.input<typeof socialLinksSchema>): Promise<ActionResult> {
   const ctx = await requireBusinessContext();
   const parsed = parseInput(socialLinksSchema, input);
   if (!parsed.success) return parsed.result;
-  return updateBusiness(ctx, { social_links: parsed.data as Json }, 'Redes sociales guardadas');
+  return updateBusiness(ctx, { social_links: parsed.data as Json }, msg('Redes sociales guardadas'));
 }
 
 export async function setBusinessLogo(path: string | null): Promise<ActionResult> {
   const ctx = await requireBusinessContext();
-  if (path !== null && typeof path !== 'string') return fail('Imagen inválida.');
-  if (!isValidMediaPath(ctx, path)) return fail('Imagen inválida.');
+  if (path !== null && typeof path !== 'string') return fail(msg('Imagen inválida.'));
+  if (!isValidMediaPath(ctx, path)) return fail(msg('Imagen inválida.'));
   const previous = ctx.business.logo_path;
-  const result = await updateBusiness(ctx, { logo_path: path }, path ? 'Logo actualizado' : 'Logo eliminado');
+  const result = await updateBusiness(ctx, { logo_path: path }, path ? msg('Logo actualizado') : msg('Logo eliminado'));
   if (result.ok && previous && previous !== path) await releaseStorageObjects(ctx, [previous]);
   return result;
 }
@@ -81,7 +82,7 @@ export async function switchBusiness(businessId: string): Promise<ActionResult> 
   await requireUser();
   const supabase = await createClient();
   const { data } = await supabase.from('businesses').select('id').eq('id', businessId).is('deleted_at', null).maybeSingle();
-  if (!data) return fail('No tienes acceso a ese negocio.');
+  if (!data) return fail(msg('No tienes acceso a ese negocio.'));
   (await cookies()).set(ACTIVE_BUSINESS_COOKIE, data.id, COOKIE_OPTIONS);
   revalidatePath('/dashboard', 'layout');
   return ok(undefined);

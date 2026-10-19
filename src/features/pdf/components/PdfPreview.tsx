@@ -4,6 +4,7 @@ import { Box, ButtonBase, CircularProgress, IconButton, Stack, ToggleButton, Tog
 import { ChevronLeft, ChevronRight, Maximize2, ZoomIn } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
+import { useT } from '@/i18n/client';
 
 /**
  * Vista previa del PDF dibujada con pdf.js: página actual con zoom,
@@ -61,6 +62,7 @@ function PageCanvas({ pdf, number, width, className }: { pdf: PDFDocumentProxy; 
 }
 
 export function PdfPreview({ blob, page, onPage, pageLabel, onPageClick, busy }: Props) {
+  const t = useT();
   const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null);
   const [failed, setFailed] = useState(false);
   const [zoom, setZoom] = useState<Zoom>('fit');
@@ -108,7 +110,7 @@ export function PdfPreview({ blob, page, onPage, pageLabel, onPageClick, busy }:
   if (failed) {
     return (
       <Stack sx={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <Typography variant="body2" color="text.secondary">No se pudo mostrar la vista previa. Descarga el PDF para verlo.</Typography>
+        <Typography variant="body2" color="text.secondary">{t('No se pudo mostrar la vista previa. Descarga el PDF para verlo.')}</Typography>
       </Stack>
     );
   }
@@ -119,7 +121,7 @@ export function PdfPreview({ blob, page, onPage, pageLabel, onPageClick, busy }:
       <Box
         sx={{ display: 'flex', flexDirection: { xs: 'row', md: 'column' }, gap: 1.25, overflow: 'auto', p: 0.5, pr: { md: 1 } }}
         role="listbox"
-        aria-label="Páginas del PDF"
+        aria-label={t('Páginas del PDF')}
       >
         {pdf &&
           Array.from({ length: pages }, (_, i) => i + 1).map((n) => (
@@ -142,14 +144,14 @@ export function PdfPreview({ blob, page, onPage, pageLabel, onPageClick, busy }:
       {/* Página actual */}
       <Stack sx={{ minHeight: 0 }}>
         <Stack direction="row" sx={{ alignItems: 'center', gap: 1, mb: 1 }}>
-          <IconButton size="small" onClick={() => onPage(Math.max(1, current - 1))} disabled={current <= 1} aria-label="Página anterior"><ChevronLeft size={16} /></IconButton>
-          <Typography variant="body2" sx={{ minWidth: 74, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>{pages ? `Pág. ${current} / ${pages}` : '—'}</Typography>
-          <IconButton size="small" onClick={() => onPage(Math.min(pages, current + 1))} disabled={current >= pages} aria-label="Página siguiente"><ChevronRight size={16} /></IconButton>
+          <IconButton size="small" onClick={() => onPage(Math.max(1, current - 1))} disabled={current <= 1} aria-label={t('Página anterior')}><ChevronLeft size={16} /></IconButton>
+          <Typography variant="body2" sx={{ minWidth: 74, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>{pages ? t('Pág. {current} / {total}', { current, total: pages }) : '—'}</Typography>
+          <IconButton size="small" onClick={() => onPage(Math.min(pages, current + 1))} disabled={current >= pages} aria-label={t('Página siguiente')}><ChevronRight size={16} /></IconButton>
           <Typography variant="caption" color="text.secondary" noWrap sx={{ flex: 1, minWidth: 0 }}>{pages ? pageLabel(current) : ''}</Typography>
-          <ToggleButtonGroup size="small" exclusive value={zoom} onChange={(_, v: Zoom | null) => v && setZoom(v)} aria-label="Zoom">
-            <Tooltip title="Ajustar"><ToggleButton value="fit" aria-label="Ajustar"><Maximize2 size={14} /></ToggleButton></Tooltip>
+          <ToggleButtonGroup size="small" exclusive value={zoom} onChange={(_, v: Zoom | null) => v && setZoom(v)} aria-label={t('Zoom')}>
+            <Tooltip title={t('Ajustar')}><ToggleButton value="fit" aria-label={t('Ajustar')}><Maximize2 size={14} /></ToggleButton></Tooltip>
             <ToggleButton value={1} aria-label="100%">100%</ToggleButton>
-            <Tooltip title="Acercar"><ToggleButton value={1.5} aria-label="150%"><ZoomIn size={14} /></ToggleButton></Tooltip>
+            <Tooltip title={t('Acercar')}><ToggleButton value={1.5} aria-label="150%"><ZoomIn size={14} /></ToggleButton></Tooltip>
           </ToggleButtonGroup>
         </Stack>
         <Box ref={stage} sx={(theme) => ({ position: 'relative', flex: 1, minHeight: { xs: '60vh', md: 0 }, overflow: 'auto', bgcolor: '#E9E9EE', ...theme.applyStyles('dark', { bgcolor: '#0A0B0E' }), borderRadius: 2, p: 3, display: 'flex', justifyContent: zoom === 'fit' ? 'center' : 'flex-start', alignItems: 'flex-start' })}>
@@ -157,7 +159,7 @@ export function PdfPreview({ blob, page, onPage, pageLabel, onPageClick, busy }:
           {(busy || !pdf) && (
             <Stack spacing={1} sx={(theme) => ({ position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center', bgcolor: pdf ? 'rgba(233,233,238,.55)' : 'transparent', ...(pdf ? theme.applyStyles('dark', { bgcolor: 'rgba(10,11,14,.6)' }) : {}) })}>
               <CircularProgress size={26} />
-              <Typography variant="body2" color="text.secondary">Generando vista previa…</Typography>
+              <Typography variant="body2" color="text.secondary">{t('Generando vista previa…')}</Typography>
             </Stack>
           )}
         </Box>

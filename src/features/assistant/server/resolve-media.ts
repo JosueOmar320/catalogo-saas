@@ -2,6 +2,7 @@ import { findMedia, type MediaScope } from '@/features/media/service';
 import type { MediaRecord } from '@/features/media/schema';
 import type { AnyAction } from '@/lib/assistant/modes';
 import type { MediaFolder } from '@/types/database';
+import { createTranslator, type Translator } from '@/i18n/translate';
 
 /**
  * Referencias simbólicas a imágenes → rutas reales de la biblioteca.
@@ -28,9 +29,10 @@ export type StockFallback = (query: string, count: number) => Promise<string[]>;
 /** Máximo de fotos libres importadas por respuesta (cada una se descarga y procesa). */
 const MAX_STOCK_IMPORTS = 10;
 
-const describe = (q: MediaQuery) => (q.query ? `«${q.query}»` : q.folder === 'logos' ? 'un logo' : 'imágenes');
+/** Qué se buscó, como frase nominal para las notas ("«tacos»", "un logo", "imágenes"). */
+const describe = (q: MediaQuery, t: Translator) => (q.query ? t('«{query}»', { query: q.query }) : q.folder === 'logos' ? t('un logo') : t('imágenes'));
 
-export async function resolveMediaQueries(scope: MediaScope, actions: AnyAction[], find: typeof findMedia = findMedia, stock?: StockFallback): Promise<ResolveResult> {
+export async function resolveMediaQueries(scope: MediaScope, actions: AnyAction[], find: typeof findMedia = findMedia, stock?: StockFallback, t: Translator = createTranslator('es', null)): Promise<ResolveResult> {
   const notes: string[] = [];
   const seen = new Set<string>();
   const out: AnyAction[] = [];
@@ -46,7 +48,7 @@ export async function resolveMediaQueries(scope: MediaScope, actions: AnyAction[
       const paths = await stock(q.query, wanted).catch(() => []);
       if (paths.length) {
         imported.push(...paths);
-        notes.push(`Tu biblioteca no tenía imágenes de «${q.query}», así que busqué fotos libres (CC0) y agregué ${paths.length} a Medios.`);
+        notes.push(t('Tu biblioteca no tenía imágenes de «{query}», así que busqué fotos libres (CC0) y agregué {count} a Medios.', { query: q.query, count: paths.length }));
         found = [...fresh0, ...paths.map((path) => ({ path, provider: 'supabase' }) as MediaRecord)];
       }
     }
@@ -82,7 +84,7 @@ export async function resolveMediaQueries(scope: MediaScope, actions: AnyAction[
         if (isQuery(media) && (key === 'images' || key === 'logos')) {
           const { media: _m, ...rest } = item as Mutable;
           const hits = await pick(media, Math.min(media.latest ?? 1, 12));
-          if (!hits.length) notes.push(`No encontré ${describe(media)} para las imágenes.`);
+          if (!hits.length) notes.push(t('No encontré {what} para las imágenes.', { what: describe(media, t) }));
           list.push(...hits.map((m) => ({ caption: '', ...rest, path: m.path })));
         } else list.push(await nested(item, key));
       }
@@ -93,7 +95,7 @@ export async function resolveMediaQueries(scope: MediaScope, actions: AnyAction[
     const media = obj.media;
     if (isQuery(media)) {
       const [hit] = await pick(media, 1);
-      if (!hit) notes.push(`No encontré ${describe(media)} en tu biblioteca.`);
+      if (!hit) notes.push(t('No encontré {what} en tu biblioteca.', { what: describe(media, t) }));
       const { media: _m, ...rest } = obj;
       if (key === 'photo' || key === 'imagePath') return hit?.path ?? null;
       // Fondo: la ruta va en background.image.path.
@@ -125,7 +127,7 @@ export async function resolveMediaQueries(scope: MediaScope, actions: AnyAction[
         if (!action.path) {
           const [hit] = await pick(media, 1);
           if (hit) action.path = hit.path;
-          else notes.push(`No encontré ${describe(media)} en tu biblioteca.`);
+          else notes.push(t('No encontré {what} en tu biblioteca.', { what: describe(media, t) }));
         }
         break;
       }
@@ -133,7 +135,7 @@ export async function resolveMediaQueries(scope: MediaScope, actions: AnyAction[
         if (!Array.isArray(action.images) || action.images.length === 0) {
           const hits = await pick(media, media.latest ?? 6);
           if (hits.length) action.images = hits.map((m) => ({ path: m.path, caption: '' }));
-          else notes.push(`No encontré ${describe(media)} para la galería.`);
+          else notes.push(t('No encontré {what} para la galería.', { what: describe(media, t) }));
         }
         break;
       }
@@ -141,7 +143,7 @@ export async function resolveMediaQueries(scope: MediaScope, actions: AnyAction[
         if (!action.path) {
           const [hit] = await pick({ folder: 'logos', ...media }, 1, { storageOnly: true });
           if (hit) action.path = hit.path;
-          else notes.push('No encontré un logo en tu biblioteca (carpeta Logos).');
+          else notes.push(t('No encontré un logo en tu biblioteca (carpeta Logos).'));
         }
         break;
       }
@@ -149,7 +151,7 @@ export async function resolveMediaQueries(scope: MediaScope, actions: AnyAction[
         if (!action.imagePath) {
           const [hit] = await pick(media, 1);
           if (hit) action.imagePath = hit.path;
-          else notes.push(`No encontré ${describe(media)} para la portada.`);
+          else notes.push(t('No encontré {what} para la portada.', { what: describe(media, t) }));
         }
         break;
       }
@@ -160,11 +162,11 @@ export async function resolveMediaQueries(scope: MediaScope, actions: AnyAction[
         if (type === 'gallery' || (media.latest && !fields.imagePath)) {
           const hits = await pick(media, media.latest ?? 6);
           if (hits.length) Object.assign(fields, { source: 'custom', images: hits.map((m) => ({ path: m.path, caption: '' })) });
-          else notes.push(`No encontré ${describe(media)} para la galería.`);
+          else notes.push(t('No encontré {what} para la galería.', { what: describe(media, t) }));
         } else if (!fields.imagePath) {
           const [hit] = await pick(media, 1);
           if (hit) fields.imagePath = hit.path;
-          else notes.push(`No encontré ${describe(media)} en tu biblioteca.`);
+          else notes.push(t('No encontré {what} en tu biblioteca.', { what: describe(media, t) }));
         }
         action.fields = fields;
         break;

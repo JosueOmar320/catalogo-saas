@@ -1,6 +1,7 @@
 import { capabilitiesGuide, pdfCapabilitiesGuide, responseFormatGuide } from '@/lib/assistant/capabilities';
 import type { AssistantMode } from '@/lib/assistant/context';
 import { ASSISTANT } from '@/lib/assistant/identity';
+import type { Locale } from '@/i18n/config';
 import { MAX_TOOL_ROUNDS, type ToolSpec } from './types';
 
 /** Personalidad y reglas de Garfield (fijas → se cachean junto con la guía). */
@@ -49,28 +50,47 @@ Reglas:
 6. Encadena todo en UNA respuesta. Usa "as": "$alias" para referirte a bloques nuevos.
 7. Quitar bloques o cambiar la plantilla pide confirmación: di que está listo para confirmar.`;
 
+/**
+ * Idioma de la respuesta según el idioma de la app del usuario. En español no
+ * agrega nada (la persona ya habla español). Los textos del sitio y del PDF
+ * siguen en el idioma del contenido del negocio: sólo cambia cómo le habla.
+ */
+export function languageGuide(locale: Locale = 'es'): string {
+  if (locale !== 'en') return '';
+  return `# Idioma de la respuesta
+The user is using the app in English. Reply to the user in English: write "message" and "suggestions" in natural, friendly English, keeping Garfield's personality (warm, brief, the occasional cat joke). The user may also write in English; understand it normally. Keep the website/PDF content you create (section titles, texts, buttons) in the same language as the business's existing content unless the user asks for another language. Action names, field names and values stay exactly as in the guide.`;
+}
+
 /** Para proveedores con modo JSON (Gemini, Ollama, Mistral…): todo en un solo texto. */
-export function jsonSystemPrompt(tools: ToolSpec[] = [], mode: AssistantMode = 'site'): string {
+export function jsonSystemPrompt(tools: ToolSpec[] = [], mode: AssistantMode = 'site', locale: Locale = 'es'): string {
   const toolsGuide = tools.length
     ? `\n\n## Herramientas de consulta (opcional, antes de responder)
 Si necesitas datos (productos, categorías, imágenes) responde SÓLO con: {"tool_calls": [{"tool": "<nombre>", "args": {...}}]} (máximo 4 por ronda).
 Recibirás los resultados y podrás llamar más herramientas o dar la respuesta final. Máximo ${MAX_TOOL_ROUNDS - 1} rondas.
 ${tools.map((t) => `- ${t.name}(${t.signature}): ${t.description}`).join('\n')}`
     : '';
-  if (mode === 'pdf') return `${PDF_PERSONA}\n\n# Guía del estudio de PDF\n\n${pdfCapabilitiesGuide()}\n\n${responseFormatGuide('pdf')}${toolsGuide}`;
-  return `${PERSONA}\n\n# Guía de capacidades del editor\n\n${capabilitiesGuide()}\n\n${responseFormatGuide()}${toolsGuide}`;
+  const language = languageGuide(locale) ? `\n\n${languageGuide(locale)}` : '';
+  if (mode === 'pdf') return `${PDF_PERSONA}\n\n# Guía del estudio de PDF\n\n${pdfCapabilitiesGuide()}\n\n${responseFormatGuide('pdf')}${toolsGuide}${language}`;
+  return `${PERSONA}\n\n# Guía de capacidades del editor\n\n${capabilitiesGuide()}\n\n${responseFormatGuide()}${toolsGuide}${language}`;
 }
 
-/** Para Claude (herramienta "respond"): la guía va en un bloque cacheable. */
-export function systemBlocks(mode: AssistantMode = 'site') {
+/**
+ * Para Claude (herramienta "respond"): la guía va en un bloque cacheable. El
+ * idioma va DESPUÉS del bloque cacheado: la caché sirve para ambos idiomas.
+ */
+export function systemBlocks(mode: AssistantMode = 'site', locale: Locale = 'es') {
+  const language = languageGuide(locale);
+  const extra = language ? [{ type: 'text' as const, text: language }] : [];
   if (mode === 'pdf') {
     return [
       { type: 'text' as const, text: PDF_PERSONA },
       { type: 'text' as const, text: `# Guía del estudio de PDF\n\n${pdfCapabilitiesGuide()}`, cache_control: { type: 'ephemeral' as const } },
+      ...extra,
     ];
   }
   return [
     { type: 'text' as const, text: PERSONA },
     { type: 'text' as const, text: `# Guía de capacidades del editor\n\n${capabilitiesGuide()}`, cache_control: { type: 'ephemeral' as const } },
+    ...extra,
   ];
 }

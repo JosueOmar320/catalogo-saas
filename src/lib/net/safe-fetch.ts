@@ -2,6 +2,7 @@ import { lookup, type LookupAddress } from 'node:dns';
 import { request } from 'node:https';
 import { BlockList, isIP } from 'node:net';
 import { Readable } from 'node:stream';
+import { msg } from '@/i18n/translate';
 
 /**
  * Descarga segura de imágenes de terceros (anti-SSRF). La usan la biblioteca
@@ -103,14 +104,14 @@ export function assertPublicHttpsUrl(raw: string): URL {
   try {
     url = new URL(raw);
   } catch {
-    throw new SafeFetchError('La URL no es válida.');
+    throw new SafeFetchError(msg('La URL no es válida.'));
   }
-  if (url.protocol !== 'https:') throw new SafeFetchError('Sólo se aceptan URLs https.');
-  if (url.username || url.password) throw new SafeFetchError('La URL no es válida.');
-  if (url.port && url.port !== '443') throw new SafeFetchError('Esa dirección no está permitida.');
+  if (url.protocol !== 'https:') throw new SafeFetchError(msg('Sólo se aceptan URLs https.'));
+  if (url.username || url.password) throw new SafeFetchError(msg('La URL no es válida.'));
+  if (url.port && url.port !== '443') throw new SafeFetchError(msg('Esa dirección no está permitida.'));
   const host = url.hostname.replace(/^\[|\]$/g, '');
-  if (!host || host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.internal') || host.endsWith('.local')) throw new SafeFetchError('Esa dirección no está permitida.');
-  if (isIP(host) && isPrivateAddress(host)) throw new SafeFetchError('Esa dirección no está permitida.');
+  if (!host || host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.internal') || host.endsWith('.local')) throw new SafeFetchError(msg('Esa dirección no está permitida.'));
+  if (isIP(host) && isPrivateAddress(host)) throw new SafeFetchError(msg('Esa dirección no está permitida.'));
   return url;
 }
 
@@ -141,7 +142,7 @@ export const pinnedFetch: typeof fetch = (input, init) =>
       resolve(new Response(body, { status, headers: responseHeaders }));
     });
     req.on('timeout', () => req.destroy(new Error('timeout')));
-    req.on('error', (error) => reject((error as NodeJS.ErrnoException).code === 'EBLOCKED' ? new SafeFetchError('Esa dirección no está permitida.') : error));
+    req.on('error', (error) => reject((error as NodeJS.ErrnoException).code === 'EBLOCKED' ? new SafeFetchError(msg('Esa dirección no está permitida.')) : error));
     init?.signal?.addEventListener('abort', () => req.destroy(new Error('aborted')));
     req.end();
   });
@@ -179,8 +180,9 @@ export function imageSize(bytes: Uint8Array): { width: number | null; height: nu
  * Content-Length: un servidor puede mentir o no enviarlo).
  */
 export async function readBodyCapped(response: Response, maxBytes = DEFAULT_MAX_BYTES): Promise<Uint8Array> {
-  const tooBig = () => new SafeFetchError(`La imagen pesa más de ${Math.round(maxBytes / 1024 / 1024)} MB.`);
-  if (!response.body) throw new SafeFetchError('No se pudo descargar la imagen.');
+  // Mensajes fijos (sin datos dinámicos) para poder traducirlos donde se muestran.
+  const tooBig = () => new SafeFetchError(maxBytes === DEFAULT_MAX_BYTES ? msg('La imagen pesa más de 10 MB.') : msg('El archivo es demasiado grande.'));
+  if (!response.body) throw new SafeFetchError(msg('No se pudo descargar la imagen.'));
   if (Number(response.headers.get('content-length') ?? 0) > maxBytes) throw tooBig();
   const reader = response.body.getReader();
   const chunks: Uint8Array[] = [];
@@ -217,19 +219,19 @@ export async function safeDownload(raw: string, fetchImpl: typeof fetch = pinned
       response = await fetchImpl(url, { redirect: 'manual', signal: AbortSignal.timeout(15_000), headers: { 'User-Agent': options.userAgent ?? 'Mozilla/5.0 (compatible; catalog-builder)', Accept: 'image/avif,image/webp,image/png,image/jpeg,image/*;q=0.8' } });
     } catch (error) {
       if (error instanceof SafeFetchError) throw error;
-      throw new SafeFetchError('No se pudo descargar la imagen.');
+      throw new SafeFetchError(msg('No se pudo descargar la imagen.'));
     }
     if (response.status >= 300 && response.status < 400) {
       const location = response.headers.get('location');
-      if (!location || hop === 4) throw new SafeFetchError('La URL redirige demasiadas veces.');
+      if (!location || hop === 4) throw new SafeFetchError(msg('La URL redirige demasiadas veces.'));
       url = assertPublicHttpsUrl(new URL(location, url).toString());
       continue;
     }
     break;
   }
-  if (!response || !response.ok) throw new SafeFetchError('No se pudo descargar la imagen.');
+  if (!response || !response.ok) throw new SafeFetchError(msg('No se pudo descargar la imagen.'));
   const data = await readBodyCapped(response, maxBytes);
   const type = sniffImage(data);
-  if (!type) throw new SafeFetchError('El archivo no es una imagen (JPG, PNG, WebP, GIF o AVIF).');
+  if (!type) throw new SafeFetchError(msg('El archivo no es una imagen (JPG, PNG, WebP, GIF o AVIF).'));
   return { data, ...type, ...imageSize(data), finalUrl: url.toString() };
 }
