@@ -350,5 +350,50 @@ await expectErr('only es/en are valid languages', () => q(`update public.profile
 await expectEq('user cannot change another profile language', async () => (await db.query(`update public.profiles set locale='en' where id=$1`, [B])).affectedRows, 0);
 await expectErr('locale grant does not open other columns', () => q(`update public.profiles set platform_role='admin' where id=$1`, [B]), 'permission denied');
 
+// --- Uso del pedido por WhatsApp (20261023) ---
+await db.exec('reset role');
+const svcA = (await q(`select id from public.catalog_items where business_id=$1 and slug='asesoria'`, [bizA]))[0].id;
+const itemB = (await q(`insert into public.catalog_items(business_id, catalog_id, name, slug, price) values ($1,$2,'Ajeno','ajeno', 9) returning id`, [bizB, catB.id]))[0].id;
+await q(`update public.catalogs set status='published', is_active=true, settings = coalesce(settings,'{}') || '{"order":{"enabled":true}}' where id=$1`, [catA.id]);
+await q(`update public.catalog_items set is_visible=true, is_available=true, deleted_at=null, price=2.5 where id=$1`, [itemA]);
+const order = (items, slug = 'tienda-a') => q(`select public.record_order($1, $2::jsonb) ok`, [slug, JSON.stringify(items)]).then((r) => r[0].ok);
+// Lee los contadores como superusuario y vuelve al rol en el que estaba la prueba.
+const asSuper = async (fn, role) => { await db.exec('reset role'); try { return await fn(); } finally { if (role) await db.exec(`set role ${role}`); } };
+const stats = (role = 'service_role') => asSuper(() => q(`select orders, units, value::text from public.order_stats_daily where business_id=$1`, [bizA]).then((r) => r[0] ?? null), role);
+
+await as(null);
+await expectErr('anon cannot call record_order', () => order([{ id: itemA, qty: 1 }]), 'permission denied');
+await expectErr('anon cannot read order stats', () => q(`select * from public.order_stats_daily`), 'permission denied');
+await as(A);
+await expectErr('authenticated cannot call record_order', () => order([{ id: itemA, qty: 1 }]), 'permission denied');
+await expectErr('authenticated cannot write order stats', () => q(`insert into public.order_stats_daily(business_id, day, orders) values ($1, current_date, 99)`, [bizA]), 'permission denied');
+
+await db.exec('reset role; set role service_role;');
+await expectEq('order: counts only available products of that catalog (dupes summed, service and foreign item ignored)', async () => {
+  const ok = await order([{ id: itemA, qty: 2 }, { id: itemA, qty: 1 }, { id: svcA, qty: 1 }, { id: itemB, qty: 5 }, { id: 'no-es-uuid', qty: 1 }, 'basura']);
+  return { ok, ...(await stats()) };
+}, { ok: true, orders: 1, units: 3, value: '7.50' });
+await expectEq('order: per-product counters', () => asSuper(() => q(`select item_id, orders, units from public.order_item_stats_daily where business_id=$1`, [bizA]), 'service_role').then((r) => r.map((x) => [x.item_id === itemA, x.orders, x.units])), [[true, 1, 3]]);
+await expectEq('order: same day accumulates; quantity capped at 99', async () => { await order([{ id: itemA, qty: 500 }]); return stats(); }, { orders: 2, units: 102, value: '255.00' });
+await expectEq('order: nothing valid → false, nothing recorded', async () => [await order([{ id: svcA, qty: 1 }]), await order([]), await order({ id: itemA }), (await stats()).orders], [false, false, false, 2]);
+await expectEq('order: unknown business → false', () => order([{ id: itemA, qty: 1 }], 'no-existe'), false);
+await expectEq('order: other business slug cannot count A items', () => order([{ id: itemA, qty: 1 }], 'tienda-b'), false);
+await db.exec('reset role');
+await q(`update public.catalogs set settings = settings || '{"order":{"enabled":false}}' where id=$1`, [catA.id]);
+await db.exec('set role service_role');
+await expectEq('order: disabled orders → false', () => order([{ id: itemA, qty: 1 }]), false);
+await db.exec('reset role');
+await q(`update public.catalogs set status='draft', settings = settings || '{"order":{"enabled":true}}' where id=$1`, [catA.id]);
+await db.exec('set role service_role');
+await expectEq('order: unpublished catalog → false', () => order([{ id: itemA, qty: 1 }]), false);
+await db.exec('reset role');
+await q(`update public.catalogs set status='published' where id=$1`, [catA.id]);
+
+await as(A);
+await expectEq('owner reads own order stats', () => q(`select orders from public.order_stats_daily where business_id=$1`, [bizA]).then((r) => r[0].orders), 2);
+await as(B);
+await expectEq('other business cannot read A order stats', () => q(`select count(*)::int n from public.order_stats_daily where business_id=$1`, [bizA]).then((r) => r[0].n), 0);
+await expectEq('other business cannot read A product stats', () => q(`select count(*)::int n from public.order_item_stats_daily where business_id=$1`, [bizA]).then((r) => r[0].n), 0);
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);

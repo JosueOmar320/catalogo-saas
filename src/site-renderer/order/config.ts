@@ -15,10 +15,16 @@ export type OrderConfig = {
   askName: boolean;
   siteUrl: string;
   pricing: OrderPricing;
+  /** Negocio al que se le cuenta el pedido enviado (sólo en el sitio publicado). */
+  trackSlug: string | null;
 };
 
-/** Configuración del pedido, o null si está apagado o el negocio no tiene WhatsApp. */
-export function orderConfig(site: SiteViewModel): OrderConfig | null {
+/**
+ * Configuración del pedido, o null si está apagado o el negocio no tiene WhatsApp.
+ * `track`: contar los pedidos enviados (sólo el sitio publicado; la demo y las
+ * vistas previas del panel no cuentan).
+ */
+export function orderConfig(site: SiteViewModel, { track = false }: { track?: boolean } = {}): OrderConfig | null {
   const { order, currency, locale, priceFormat, language } = site.settings;
   const whatsapp = digitsOnly(site.business.contact.whatsapp);
   if (!order.enabled || !whatsapp) return null;
@@ -30,6 +36,7 @@ export function orderConfig(site: SiteViewModel): OrderConfig | null {
     askName: order.askName,
     siteUrl: site.url,
     pricing: { currency, locale, format: priceFormat },
+    trackSlug: track ? site.business.slug : null,
   };
 }
 

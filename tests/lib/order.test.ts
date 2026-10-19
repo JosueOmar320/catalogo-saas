@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import { catalogSettingsSchema } from '@/lib/catalog/settings';
 import { buildOrderMessage, clampQty, orderTotal, orderWhatsappHref, type OrderLine, type OrderPricing } from '@/site-renderer/order/message';
 import { siteTranslator } from '@/site-renderer/site-i18n';
+import { summarizeOrders, windowStart } from '@/lib/orders/stats';
 
 const pricing: OrderPricing = { currency: 'MXN', locale: 'es-MX', format: catalogSettingsSchema.parse({}).priceFormat };
 
@@ -80,5 +81,30 @@ describe('Pedido por WhatsApp', () => {
   it('genera el enlace de wa.me sólo con dígitos y el texto codificado', () => {
     assert.equal(orderWhatsappHref('+52 (55) 1234-5678', 'Hola & adiós'), 'https://wa.me/525512345678?text=Hola%20%26%20adi%C3%B3s');
     assert.equal(orderWhatsappHref('', 'x'), null);
+  });
+
+  it('estadísticas: 30 días completos (con ceros), totales y lo más pedido', () => {
+    const today = new Date('2026-10-19T23:30:00Z');
+    assert.equal(windowStart(today), '2026-09-20');
+    const summary = summarizeOrders(
+      [
+        { day: '2026-10-19', orders: 2, units: 5, value: '240.50' },
+        { day: '2026-10-01', orders: 1, units: 1, value: 48 },
+        { day: '2026-09-01', orders: 9, units: 9, value: 900 }, // fuera de la ventana
+      ],
+      [
+        { item_id: 'b', units: 2 },
+        { item_id: 'a', units: 3 },
+        { item_id: 'b', units: 2 },
+        { item_id: 'c', units: 1 },
+        { item_id: 'd', units: 1 },
+      ],
+      today,
+    );
+    assert.equal(summary.days.length, 30);
+    assert.deepEqual(summary.days[0], { day: '2026-09-20', orders: 0 });
+    assert.deepEqual(summary.days.at(-1), { day: '2026-10-19', orders: 2 });
+    assert.deepEqual([summary.orders, summary.units, summary.value], [3, 6, 288.5]);
+    assert.deepEqual(summary.top, [{ itemId: 'b', units: 4 }, { itemId: 'a', units: 3 }, { itemId: 'c', units: 1 }]);
   });
 });

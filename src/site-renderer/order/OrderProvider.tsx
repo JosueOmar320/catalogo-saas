@@ -81,6 +81,18 @@ function subscribe(key: string, listener: () => void) {
   };
 }
 
+/**
+ * Avisa al servidor que se envió un pedido (sólo ids y cantidades, para las
+ * estadísticas del negocio). sendBeacon no bloquea ni se cancela al abrir
+ * WhatsApp; si el navegador no lo tiene, no pasa nada.
+ */
+function trackOrder(slug: string, lines: OrderLine[]) {
+  try {
+    const body = JSON.stringify({ slug, items: lines.map((line) => ({ id: line.id, qty: line.qty })) });
+    navigator.sendBeacon?.('/api/orders', new Blob([body], { type: 'application/json' }));
+  } catch {}
+}
+
 /* ------------------------------------------------------------------ Contexto */
 
 type OrderApi = {
@@ -242,11 +254,20 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
   const t = useSiteT();
   const order = useOrder();
   const titleId = useId();
+  // Un mismo pedido abierto dos veces en WhatsApp cuenta una sola vez.
+  const tracked = useRef<string | null>(null);
   if (!order) return null;
   const { config, state } = order;
   const total = orderTotal(state.lines, config.pricing);
   const message = buildOrderMessage({ lines: state.lines, pricing: config.pricing, intro: config.intro, businessName: config.businessName, customerName: state.name, note: state.note, siteUrl: config.siteUrl, t });
   const href = state.lines.length ? orderWhatsappHref(config.whatsapp, message) : null;
+  const onSend = () => {
+    if (!config.trackSlug) return;
+    const key = JSON.stringify(state.lines.map((line) => [line.id, line.qty]));
+    if (tracked.current === key) return;
+    tracked.current = key;
+    trackOrder(config.trackSlug, state.lines);
+  };
   const close = (event: SyntheticEvent) => (event.currentTarget.closest('dialog') as HTMLDialogElement | null)?.close();
 
   return (
@@ -321,7 +342,7 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
 
         <footer className={styles.orderFooter}>
           {href && (
-            <a href={href} target="_blank" rel="noopener noreferrer" className={`${styles.btn} ${styles.btnBlock}`} data-variant="solid">
+            <a href={href} target="_blank" rel="noopener noreferrer" className={`${styles.btn} ${styles.btnBlock}`} data-variant="solid" onClick={onSend}>
               <Icon id="message-circle" size={17} />
               {t('Enviar pedido por WhatsApp')}
             </a>
