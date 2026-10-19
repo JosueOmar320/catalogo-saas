@@ -215,7 +215,7 @@ type SampleOptions = {
 };
 
 export function buildSampleSite(options: SampleOptions = {}): SiteViewModel {
-  const settings = catalogSettingsSchema.parse({ currency: 'MXN', contactActions: { phone: { enabled: true } }, order: { enabled: true, pickup: true, delivery: true, deliveryFee: 35, freeDeliveryFrom: 300, deliveryNote: 'Zona centro, 30–45 min', payments: ['cash', 'card', 'transfer'] } });
+  const settings = catalogSettingsSchema.parse({ currency: 'MXN', contactActions: { phone: { enabled: true } }, order: { enabled: true, pickup: true, delivery: true, deliveryFee: 35, freeDeliveryFrom: 300, deliveryNote: 'Zona centro, 30–45 min', payments: ['cash', 'card', 'transfer'], coupons: [{ code: 'BIENVENIDA', type: 'percent', value: 10, minSubtotal: 100 }] } });
   const url = `${env.siteUrl}/demo`;
   const pages = options.pages ?? buildSamplePages();
   return {

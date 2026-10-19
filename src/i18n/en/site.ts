@@ -227,6 +227,18 @@ const catalog: Catalog = {
   'Abierto ahora · cierra a las {time}': 'Open now · closes at {time}',
   'Abierto ahora': 'Open now',
   '{status}. Puedes enviar tu pedido y te respondemos al abrir.': "{status}. You can send your order and we'll reply when we open.",
+  // Cupones
+  'Cupón {code}': 'Coupon {code}',
+  'El cupón {code} ya venció.': 'Coupon {code} has expired.',
+  'El cupón {code} aplica desde {amount}.': 'Coupon {code} applies from {amount}.',
+  'Cupón {code} aplicado': 'Coupon {code} applied',
+  Quitar: 'Remove',
+  '¿Tienes un cupón?': 'Have a coupon?',
+  Aplicar: 'Apply',
+  'Ese cupón no existe o ya no está activo.': "That coupon doesn't exist or is no longer active.",
+  'Cupón {code}: −{amount}': 'Coupon {code}: −{amount}',
+  Anuncio: 'Announcement',
+  'Cerrar anuncio': 'Close announcement',
 };
 
 export default catalog;

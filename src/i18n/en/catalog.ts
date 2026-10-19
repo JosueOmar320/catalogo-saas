@@ -541,6 +541,22 @@ const catalog: Catalog = {
   'Para saber si estás abierto aunque tu cliente esté en otra zona.': 'So customers in other time zones see whether you are open.',
   'Usa el formato 24 h, ej. 09:00': 'Use 24-hour format, e.g. 09:00',
   'Zona horaria inválida': 'Invalid time zone',
+  // Cupones
+  'Cupones de descuento': 'Discount coupons',
+  'Tus clientes escriben el código al pedir y el descuento aparece en el mensaje. Los códigos no se ven en tu sitio.': "Customers enter the code when ordering and the discount shows up in the message. Codes aren't visible on your site.",
+  'Monto fijo': 'Fixed amount',
+  'Compra mínima': 'Minimum purchase',
+  'Válido hasta': 'Valid until',
+  Pausado: 'Paused',
+  'Cupón {index} activo': 'Coupon {index} active',
+  'Quitar el cupón {index}': 'Remove coupon {index}',
+  'Agregar cupón': 'Add coupon',
+  'Mínimo 3 caracteres': 'At least 3 characters',
+  'Sólo letras, números, - y _': 'Only letters, numbers, - and _',
+  'Usa un número, ej. 10': 'Use a number, e.g. 10',
+  'Debe ser mayor que 0': 'Must be greater than 0',
+  'Hay cupones con el mismo código': 'Some coupons have the same code',
+  'Un porcentaje no puede pasar de 100': "A percentage can't be over 100",
 };
 
 export default catalog;

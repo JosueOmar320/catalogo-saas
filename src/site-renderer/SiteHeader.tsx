@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useId, useRef, useState } from 'react';
 import { SocialIcon } from '@/components/SocialIcon';
 import { SOCIAL_NETWORKS } from '@/lib/social/networks';
+import { AnnouncementBar } from './AnnouncementBar';
 import { BackgroundLayers } from './Background';
 import type { HeaderProps } from './chrome';
 import { Icon } from './Icon';
@@ -104,6 +105,7 @@ export function SiteHeader(props: HeaderProps) {
 
   return (
     <>
+      {props.announcement && <AnnouncementBar {...props.announcement} />}
       <span ref={sentinel} className={styles.headerSentinel} aria-hidden />
       <header
         className={`${styles.header} ${centered ? styles.headerTwoRows : ''}`}

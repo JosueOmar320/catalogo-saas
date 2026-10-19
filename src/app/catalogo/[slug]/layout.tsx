@@ -6,6 +6,7 @@ import { getPublicSite } from '@/features/catalog/public-queries';
 import { siteMetadata } from '@/lib/catalog/metadata';
 import { siteStatusTexts } from '@/site-renderer/status';
 import { orderConfig } from '@/site-renderer/order/config';
+import { ViewTracker } from '@/site-renderer/ViewTracker';
 
 // ISR: se sirve desde caché y se invalida por tag cuando el dueño guarda cambios.
 export const revalidate = 3600;
@@ -28,6 +29,7 @@ export default async function PublicSiteLayout({ children, params }: LayoutProps
       <SiteHeader {...header} />
       <main className={siteStyles.main}>{children}</main>
       <SiteFooter site={site} navItems={header.items} />
+      <ViewTracker slug={site.business.slug} />
     </SiteShell>
   );
 }

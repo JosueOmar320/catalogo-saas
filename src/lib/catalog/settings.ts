@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { LOCALES } from '@/i18n/config';
 import { msg } from '@/i18n/translate';
+import { saleEndsSchema } from './sale';
 
 /**
  * Configuración de comportamiento del catálogo (catalogs.settings).
@@ -53,6 +54,31 @@ const optionalAmount = () =>
     }, z.number({ error: msg('Usa un número, ej. 120 o 99.90') }).min(0).max(9_999_999).nullable())
     .default(null);
 
+export const MAX_COUPONS = 20;
+
+/** Cupón de descuento del pedido. El código se guarda en mayúsculas. */
+export const couponSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .min(3, msg('Mínimo 3 caracteres'))
+    .max(24)
+    .regex(/^[A-Za-z0-9_-]+$/, msg('Sólo letras, números, - y _'))
+    .transform((code) => code.toUpperCase()),
+  type: z.enum(['percent', 'amount']).default('percent'),
+  value: z.preprocess(
+    (value) => (typeof value === 'string' ? Number(value.trim().replace(',', '.')) : value),
+    z.number({ error: msg('Usa un número, ej. 10') }).positive(msg('Debe ser mayor que 0')).max(9_999_999),
+  ),
+  /** Subtotal mínimo para usarlo. */
+  minSubtotal: optionalAmount(),
+  /** Último día de validez y la zona horaria de quien lo programó. */
+  ends: saleEndsSchema,
+  active: z.boolean().default(true),
+});
+
+export type Coupon = z.output<typeof couponSchema>;
+
 export const orderSchema = z.object({
   enabled: z.boolean().default(false),
   /** Primera línea del mensaje. Variables: {negocio}. */
@@ -72,6 +98,12 @@ export const orderSchema = z.object({
   minimumOrder: optionalAmount(),
   /** Formas de pago que el cliente puede elegir. */
   payments: z.array(z.enum(PAYMENT_METHODS)).max(PAYMENT_METHODS.length).default([]),
+  coupons: z
+    .array(couponSchema)
+    .max(MAX_COUPONS)
+    .refine((list) => new Set(list.map((c) => c.code)).size === list.length, msg('Hay cupones con el mismo código'))
+    .refine((list) => list.every((c) => c.type !== 'percent' || c.value <= 100), msg('Un porcentaje no puede pasar de 100'))
+    .default([]),
 });
 
 export const pdfOptionsSchema = z.object({

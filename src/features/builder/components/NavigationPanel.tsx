@@ -1,13 +1,13 @@
 'use client';
 
-import { Box, Button, ButtonBase, IconButton, Stack, Switch, Tooltip, Typography } from '@mui/material';
+import { Box, Button, ButtonBase, IconButton, Stack, Switch, TextField, Tooltip, Typography } from '@mui/material';
 import { ExternalLink, FileText, Mail, MessageCircle, Phone, Plus, Trash2 } from 'lucide-react';
 import { SortableList } from '@/components/ui/SortableList';
 import { FOOTER_STYLE_META, FOOTER_STYLES, HEADER_STYLE_META, HEADER_STYLES } from '@/lib/design/styles-registry';
 import type { ThemeConfig } from '@/lib/design/theme';
 import type { NavigationItem } from '@/lib/site/navigation';
 import { useBuilder } from '../state';
-import { Advanced, BackgroundEditor, Group, Segmented, SelectInput, SwitchRow, TextInput } from './controls';
+import { Advanced, BackgroundEditor, Group, LinkEditor, Segmented, SelectInput, SwitchRow, TextInput } from './controls';
 import { useT } from '@/i18n/client';
 import { msg } from '@/i18n/translate';
 
@@ -24,6 +24,8 @@ export function NavigationPanel() {
   const theme = state.theme;
   const setHeader = (patch: Partial<ThemeConfig['header']>) => dispatch({ type: 'setTheme', theme: { ...theme, header: { ...theme.header, ...patch } } });
   const setFooter = (patch: Partial<ThemeConfig['footer']>) => dispatch({ type: 'setTheme', theme: { ...theme, footer: { ...theme.footer, ...patch } } });
+  const bar = theme.announcement;
+  const setBar = (patch: Partial<ThemeConfig['announcement']>) => dispatch({ type: 'setTheme', theme: { ...theme, announcement: { ...bar, ...patch } } });
   const pagesNotInMenu = state.pages.filter((p) => !items.some((i) => i.kind === 'page' && i.pageId === p.id));
   const addItem = (kind: NavigationItem['kind'], pageId = '') =>
     setItems([...items, { id: crypto.randomUUID(), kind, pageId, label: '', url: kind === 'url' ? 'https://' : '', visible: true, style: kind === 'whatsapp' ? 'button' : 'link', newTab: kind === 'url' }]);
@@ -104,6 +106,39 @@ export function NavigationPanel() {
         <Advanced title={t('Fondo del header (color, degradado o imagen)')}>
           <BackgroundEditor value={theme.header.background} onChange={(background) => setHeader({ background })} inheritLabel={t('Según estilo')} />
         </Advanced>
+      </Group>
+
+      <Group title={t('Barra de anuncios')}>
+        <SwitchRow label={t('Mostrar arriba del sitio')} checked={bar.enabled} onChange={(enabled) => setBar({ enabled })} />
+        {bar.enabled && (
+          <>
+            <TextInput label={t('Texto')} value={bar.text} placeholder={t('Envío gratis en pedidos desde $300')} onChange={(text) => setBar({ text })} maxLength={160} />
+            <LinkEditor value={bar.link} onChange={(link) => setBar({ link })} pages={state.pages} />
+            {bar.link.kind !== 'none' && (
+              <TextInput label={t('Texto del enlace')} value={bar.linkLabel} placeholder={t('Vacío = todo el texto es el enlace')} onChange={(linkLabel) => setBar({ linkLabel })} maxLength={30} />
+            )}
+            <Segmented
+              label={t('Color')}
+              value={bar.tone}
+              onChange={(tone) => setBar({ tone })}
+              options={[
+                { value: 'accent', label: t('Acento') },
+                { value: 'dark', label: t('Oscuro') },
+                { value: 'soft', label: t('Suave') },
+              ]}
+            />
+            <TextField
+              type="date"
+              label={t('Mostrar hasta (opcional)')}
+              value={bar.endsOn}
+              // El día se entiende en la zona horaria de quien lo programa.
+              onChange={(event) => setBar({ endsOn: event.target.value, timeZone: event.target.value ? Intl.DateTimeFormat().resolvedOptions().timeZone : '' })}
+              helperText={t('Después de ese día la barra se oculta sola.')}
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+            <SwitchRow label={t('El visitante puede cerrarla')} checked={bar.dismissible} onChange={(dismissible) => setBar({ dismissible })} />
+          </>
+        )}
       </Group>
 
       <Group title={t('Pie de página')}>

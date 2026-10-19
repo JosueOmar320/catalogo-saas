@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { catalogSettingsSchema } from '@/lib/catalog/settings';
-import { buildOrderMessage, clampQty, NO_CHOICES, NO_OPTIONS, orderTotal, orderWhatsappHref, summarizeOrder, type OrderLine, type OrderOptions, type OrderPricing } from '@/site-renderer/order/message';
+import { buildOrderMessage, clampQty, couponHash, findCoupon, NO_CHOICES, NO_OPTIONS, orderTotal, orderWhatsappHref, summarizeOrder, type OrderLine, type OrderOptions, type OrderPricing, type PublicCoupon } from '@/site-renderer/order/message';
 import { siteTranslator } from '@/site-renderer/site-i18n';
 import { summarizeOrders, windowStart } from '@/lib/orders/stats';
+import { ordersPer100Views, summarizeViews } from '@/lib/views/stats';
 
 const pricing: OrderPricing = { currency: 'MXN', locale: 'es-MX', format: catalogSettingsSchema.parse({}).priceFormat };
 
@@ -87,7 +88,7 @@ describe('Pedido por WhatsApp', () => {
     const { order } = catalogSettingsSchema.parse({});
     assert.deepEqual({ ...NO_OPTIONS }, { pickup: order.pickup, delivery: order.delivery, deliveryFee: order.deliveryFee, freeDeliveryFrom: order.freeDeliveryFrom, deliveryNote: order.deliveryNote, minimumOrder: order.minimumOrder, payments: order.payments });
     const summary = summarizeOrder([line({ qty: 2 })], pricing);
-    assert.deepEqual(summary, { subtotal: { value: 96, partial: false }, delivery: null, total: { value: 96, partial: false }, missingForMinimum: null, missingForFreeDelivery: null, blocker: null });
+    assert.deepEqual(summary, { subtotal: { value: 96, partial: false }, delivery: null, total: { value: 96, partial: false }, missingForMinimum: null, missingForFreeDelivery: null, blocker: null, discount: null, couponIssue: null });
     // Montos escritos en el formulario: vacío → sin valor; "1,200.50" y "35,5" se entienden.
     const parsed = catalogSettingsSchema.parse({ order: { deliveryFee: '35,5', freeDeliveryFrom: '1,200.50', minimumOrder: '' } }).order;
     assert.deepEqual([parsed.deliveryFee, parsed.freeDeliveryFrom, parsed.minimumOrder], [35.5, 1200.5, null]);
@@ -137,6 +138,59 @@ describe('Pedido por WhatsApp', () => {
     assert.equal(summarizeOrder([line({ qty: 2 }), line({ id: 'b', price: null })], pricing, options, { ...NO_CHOICES, address: 'Centro' }).blocker, null);
     const text = buildOrderMessage({ lines: [line({ qty: 4 })], pricing, intro: 'Hola', businessName: 'Café', siteUrl: 'https://x.test', t: siteTranslator('es'), options, choices: { ...NO_CHOICES, address: 'Centro' } });
     assert.match(text, /Subtotal: \$192\nEnvío: por confirmar\nEntrega: A domicilio\nDirección: Centro/);
+  });
+
+  it('cupones: el código no viaja al navegador; se encuentra sin importar mayúsculas y descuenta de los productos', () => {
+    const settings = catalogSettingsSchema.parse({ order: { coupons: [{ code: ' verano10 ', type: 'percent', value: '10' }, { code: 'MENOS50', type: 'amount', value: 50, minSubtotal: 200 }] } }).order;
+    assert.deepEqual(settings.coupons.map((c) => [c.code, c.value, c.active]), [['VERANO10', 10, true], ['MENOS50', 50, true]]);
+    assert.equal(catalogSettingsSchema.safeParse({ order: { coupons: [{ code: 'A1B', value: 1 }, { code: 'a1b', value: 2 }] } }).success, false); // repetido
+    assert.equal(catalogSettingsSchema.safeParse({ order: { coupons: [{ code: 'MUCHO', value: 150 }] } }).success, false); // > 100 %
+    assert.equal(catalogSettingsSchema.safeParse({ order: { coupons: [{ code: 'NO VALE', value: 5 }] } }).success, false);
+
+    const coupons: PublicCoupon[] = settings.coupons.map((c) => ({ hash: couponHash('cafe', c.code), type: c.type, value: c.value, minSubtotal: c.minSubtotal, ends: c.ends }));
+    assert.ok(!JSON.stringify(coupons).includes('VERANO10'));
+    assert.notEqual(couponHash('cafe', 'VERANO10'), couponHash('otro-negocio', 'VERANO10'));
+    assert.equal(findCoupon(coupons, 'cafe', 'nada'), null);
+    const percent = findCoupon(coupons, 'cafe', ' Verano10 ')!;
+    assert.equal(percent.code, 'VERANO10');
+
+    const options: OrderOptions = { ...NO_OPTIONS, delivery: true, deliveryFee: 35, freeDeliveryFrom: 300 };
+    const lines = [line({ qty: 3 })]; // 144
+    const summary = summarizeOrder(lines, pricing, options, { ...NO_CHOICES, address: 'Centro', coupon: percent });
+    assert.deepEqual(summary.discount, { code: 'VERANO10', value: 14.4 });
+    assert.deepEqual(summary.total, { value: 164.6, partial: false }); // 144 − 14.40 + 35
+    const text = buildOrderMessage({ lines, pricing, intro: 'Hola', businessName: 'Café', siteUrl: 'https://x.test', t: siteTranslator('es'), options, choices: { ...NO_CHOICES, address: 'Centro', coupon: percent } });
+    assert.match(text, /Subtotal: \$144\nCupón VERANO10: −\$14\.40\nEnvío: \$35\nTotal: \$164\.60\nEntrega: A domicilio/);
+
+    // Monto fijo con mínimo: por debajo no descuenta y dice por qué; nunca deja el total en negativo.
+    const fixed = findCoupon(coupons, 'cafe', 'menos50')!;
+    assert.deepEqual([summarizeOrder(lines, pricing, NO_OPTIONS, { ...NO_CHOICES, coupon: fixed }).discount, summarizeOrder(lines, pricing, NO_OPTIONS, { ...NO_CHOICES, coupon: fixed }).couponIssue], [null, 'minimum']);
+    const big = summarizeOrder([line({ qty: 5 })], pricing, NO_OPTIONS, { ...NO_CHOICES, coupon: { ...fixed, value: 999, minSubtotal: null } });
+    assert.deepEqual([big.discount?.value, big.total?.value], [240, 0]);
+    // Sin envío, el cupón también desglosa el total.
+    assert.match(buildOrderMessage({ lines, pricing, intro: 'Hola', businessName: 'Café', siteUrl: 'https://x.test', t: siteTranslator('es'), choices: { ...NO_CHOICES, coupon: percent } }), /Subtotal: \$144\nCupón VERANO10: −\$14\.40\nTotal: \$129\.60/);
+    // Vencido (en la zona de quien lo programó): no descuenta.
+    const expired = { ...percent, ends: { on: '2026-10-19', timeZone: 'America/Mexico_City' } };
+    const late = summarizeOrder(lines, pricing, NO_OPTIONS, { ...NO_CHOICES, coupon: expired }, new Date('2026-10-20T07:00:00Z'));
+    assert.deepEqual([late.discount, late.couponIssue, late.total?.value], [null, 'expired', 144]);
+  });
+
+  it('visitas: 30 días completos, total, fichas vistas, lo más visto y pedidos por cada 100 visitas', () => {
+    const today = new Date('2026-10-19T15:00:00Z');
+    const summary = summarizeViews(
+      [{ day: '2026-10-19', views: 12 }, { day: '2026-09-20', views: 3 }, { day: '2026-09-19', views: 99 }],
+      [{ item_id: 'b', views: 4 }, { item_id: 'a', views: 4 }, { item_id: 'c', views: 1 }, { item_id: 'b', views: 2 }],
+      today,
+      { top: 2 },
+    );
+    assert.equal(summary.days.length, 30);
+    assert.deepEqual([summary.days[0], summary.days.at(-1)], [{ day: '2026-09-20', count: 3 }, { day: '2026-10-19', count: 12 }]);
+    assert.equal(summary.views, 15); // el 19 de septiembre queda fuera
+    assert.equal(summary.itemViews, 11);
+    assert.deepEqual(summary.top, [{ itemId: 'b', views: 6 }, { itemId: 'a', views: 4 }]);
+    assert.equal(ordersPer100Views(3, 120), 2.5);
+    assert.equal(ordersPer100Views(1, 3), 33.3);
+    assert.equal(ordersPer100Views(5, 0), null);
   });
 
   it('estadísticas: 30 días completos (con ceros), totales y lo más pedido', () => {

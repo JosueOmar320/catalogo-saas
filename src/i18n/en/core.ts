@@ -403,6 +403,20 @@ const catalog: Catalog = {
   'El archivo es demasiado grande.': 'The file is too large.',
   'La URL redirige demasiadas veces.': 'The URL redirects too many times.',
   'El archivo no es una imagen (JPG, PNG, WebP, GIF o AVIF).': 'The file is not an image (JPG, PNG, WebP, GIF or AVIF).',
+  // Visitas del sitio
+  'Visitas a tu sitio': 'Site visits',
+  'Publica tu catálogo para empezar a contar las visitas.': 'Publish your catalog to start counting visits.',
+  'Todavía no hay visitas en estos días. Comparte el enlace o el código QR de tu catálogo.': 'No visits in these days yet. Share your catalog link or QR code.',
+  Visitas: 'Visits',
+  'Fichas vistas': 'Product pages viewed',
+  'Pedidos por cada 100 visitas': 'Orders per 100 visits',
+  'Lo más visto': 'Most viewed',
+  '1 visita': '1 visit',
+  '{count} visitas': '{count} visits',
+  'Se cuenta cada página que se abre en tu sitio publicado (no la vista previa ni la demo). No se guarda nada de tus visitantes.': "Every page opened on your published site counts (not the preview or the demo). Nothing about your visitors is stored.",
+  '{date}: 1 visita': '{date}: 1 visit',
+  '{date}: {count} visitas': '{date}: {count} visits',
+  'Visitas por día, últimos 30 días': 'Visits per day, last 30 days',
 };
 
 export default catalog;

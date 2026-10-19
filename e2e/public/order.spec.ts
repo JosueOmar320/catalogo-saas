@@ -175,6 +175,44 @@ test.describe('Pedido por WhatsApp', () => {
     await expect(main.getByText('Abierto ahora · cierra a las 20:00').first()).toBeVisible();
   });
 
+  test('cupón de descuento: uno que no existe avisa; el válido descuenta de los productos', async ({ page }) => {
+    await page.goto('/demo');
+    await card(page, 'Espresso doble').getByRole('button', { name: 'Agregar al pedido' }).click();
+    await card(page, 'Cold brew').getByRole('button', { name: 'Agregar al pedido' }).click();
+    await orderButton(page).click();
+    const dialog = page.getByRole('dialog', { name: 'Tu pedido' });
+    const field = dialog.getByLabel('¿Tienes un cupón?');
+    await field.fill('NOEXISTE');
+    await dialog.getByRole('button', { name: 'Aplicar' }).click();
+    await expect(dialog.getByRole('alert')).toHaveText('Ese cupón no existe o ya no está activo.');
+    // Mayúsculas o minúsculas da igual; el código no está en la página.
+    expect(await page.content()).not.toContain('BIENVENIDA');
+    await field.fill('bienvenida');
+    await field.press('Enter');
+    await expect(dialog.getByText('Cupón BIENVENIDA aplicado')).toBeVisible();
+    await expect(dialog.getByText('−$11.70')).toBeVisible(); // 10 % de $117
+    await dialog.getByRole('radio', { name: 'Recoger en el local' }).check();
+    const text = await whatsappMessage(page);
+    expect(text).toContain('Subtotal: $117\nCupón BIENVENIDA: −$11.70\nTotal: $105.30\nEntrega: Recoger en el local');
+
+    await dialog.getByRole('button', { name: 'Quitar', exact: true }).click();
+    await expect(dialog.getByLabel('¿Tienes un cupón?')).toBeVisible();
+    expect(await whatsappMessage(page)).toContain('Total: $117');
+  });
+
+  test('barra de anuncios: enlaza, se cierra y se recuerda', async ({ page }) => {
+    await page.goto('/demo');
+    const bar = page.getByRole('region', { name: 'Anuncio' });
+    await expect(bar).toContainText('Envío gratis en pedidos desde $300');
+    await bar.getByRole('link', { name: 'Ver el menú' }).click();
+    await expect(page).toHaveURL(/\/demo\/menu$/);
+    await page.getByRole('region', { name: 'Anuncio' }).getByRole('button', { name: 'Cerrar anuncio' }).click();
+    await expect(page.getByRole('region', { name: 'Anuncio' })).toHaveCount(0);
+    await page.reload();
+    await expect(page.getByRole('heading', { name: 'Nuestro menú' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Anuncio' })).toHaveCount(0);
+  });
+
   test('los servicios y los productos agotados no se agregan al pedido', async ({ page }) => {
     await page.goto('/demo/menu');
     await expect(card(page, 'Rol de canela')).toBeVisible();

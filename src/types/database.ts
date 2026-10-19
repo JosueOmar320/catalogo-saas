@@ -178,6 +178,11 @@ type BusinessMemberRow = Timestamps & {
   role: MemberRole;
 };
 
+/** Páginas vistas del sitio publicado (contadores por día UTC; los escribe record_view). */
+type SiteViewStatsDailyRow = { business_id: string; day: string; views: number };
+/** Fichas de producto o servicio vistas (por día UTC). */
+type ItemViewStatsDailyRow = { business_id: string; day: string; item_id: string; views: number };
+
 /** Pedidos por WhatsApp enviados (contadores por día UTC; los escribe record_order). */
 type OrderStatsDailyRow = {
   business_id: string;
@@ -242,6 +247,8 @@ export type Database = {
       media_assets: Table<MediaAssetRow, 'business_id' | 'path'>;
       order_stats_daily: Table<OrderStatsDailyRow, 'business_id' | 'day'>;
       order_item_stats_daily: Table<OrderItemStatsDailyRow, 'business_id' | 'day' | 'item_id'>;
+      site_view_stats_daily: Table<SiteViewStatsDailyRow, 'business_id' | 'day'>;
+      item_view_stats_daily: Table<ItemViewStatsDailyRow, 'business_id' | 'day' | 'item_id'>;
       notification_log: Table<NotificationLogRow, 'user_id' | 'business_id' | 'kind'>;
     };
     Views: { [_ in never]: never };
@@ -281,6 +288,7 @@ export type Database = {
       admin_stats: { Args: Record<string, never>; Returns: Json };
       rate_limit_consume: { Args: { p_key: string; p_limit: number; p_window_seconds: number }; Returns: boolean };
       record_order: { Args: { p_business_slug: string; p_items: { id: string; qty: number }[] }; Returns: boolean };
+      record_view: { Args: { p_business_slug: string; p_item_slug?: string | null }; Returns: boolean };
       media_references: { Args: { p_business: string; p_path: string }; Returns: { place: string; ref_id: string; label: string }[] };
       replace_media_references: { Args: { p_business: string; p_old: string; p_new: string; p_new_thumb?: string | null }; Returns: number };
       save_site: {

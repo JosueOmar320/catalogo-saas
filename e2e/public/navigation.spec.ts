@@ -39,6 +39,25 @@ test.describe('/api/orders (aviso de pedido enviado)', () => {
   });
 });
 
+test.describe('/api/views (visitas del sitio publicado)', () => {
+  test('valida el cuerpo y el origen; una visita válida responde 204 sin revelar si contó', async ({ request }) => {
+    expect((await request.post('/api/views', { data: { slug: 'X Y' } })).status()).toBe(400);
+    expect((await request.post('/api/views', { data: { slug: 'cafe-aurora', item: '../admin' } })).status()).toBe(400);
+    expect((await request.post('/api/views', { headers: { 'content-type': 'application/json' }, data: 'x'.repeat(2000) })).status()).toBe(413);
+    expect((await request.post('/api/views', { data: { slug: 'cafe-aurora' }, headers: { origin: 'https://otro-sitio.example' } })).status()).toBe(403);
+    expect((await request.post('/api/views', { data: { slug: 'cafe-aurora', item: 'croissant' } })).status()).toBe(204);
+  });
+
+  test('la demo no cuenta visitas', async ({ page }) => {
+    const beacons: string[] = [];
+    page.on('request', (request) => request.url().endsWith('/api/views') && beacons.push(request.url()));
+    await page.goto('/demo');
+    await page.goto('/demo/p/ejemplo-1');
+    await page.waitForTimeout(500);
+    expect(beacons).toEqual([]);
+  });
+});
+
 test.describe('aviso semanal por correo (sin sesión)', () => {
   test('el cron no responde sin el secreto', async ({ request }) => {
     expect((await request.get('/api/cron/catalog-review')).status()).toBe(401);
