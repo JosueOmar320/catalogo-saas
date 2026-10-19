@@ -5,6 +5,14 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    ignore:
+      # Versiones mayores que hoy rompen el CI; se revisan a mano cuando el ecosistema las soporte.
+      # eslint-config-next 16 está hecho para ESLint 9 (la 10 rompe el lint: PR #4).
+      - dependency-name: eslint
+        update-types: ['version-update:semver-major']
+      # TypeScript 7 (compilador nativo) aún no es compatible con este proyecto (PR #7).
+      - dependency-name: typescript
+        update-types: ['version-update:semver-major']
     groups:
       # Parches y menores juntos; las mayores llegan solas para revisarlas con calma.
       minor-and-patch:
