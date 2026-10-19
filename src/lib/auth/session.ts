@@ -2,6 +2,7 @@ import 'server-only';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { cache } from 'react';
+import { isSupabaseConfigured } from '@/lib/env';
 import { parseEntitlements, type Entitlements } from '@/lib/plans/entitlements';
 import { createClient, type ServerSupabase } from '@/lib/supabase/server';
 import type { MemberRole, Tables } from '@/types/database';
@@ -9,6 +10,8 @@ import type { MemberRole, Tables } from '@/types/database';
 export const ACTIVE_BUSINESS_COOKIE = 'vitrina_business';
 
 export const getUser = cache(async () => {
+  // Sin Supabase (recién clonado, CI) no hay sesiones: igual que el proxy, nadie está autenticado.
+  if (!isSupabaseConfigured) return null;
   const supabase = await createClient();
   const { data } = await supabase.auth.getUser();
   return data.user;

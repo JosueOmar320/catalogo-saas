@@ -13,6 +13,7 @@
     "pretest:coverage": "node -e \"require('node:fs').mkdirSync('coverage',{recursive:true})\"",
     "test:coverage": "node --conditions=react-server --import tsx --test --experimental-test-coverage --test-coverage-include=\"src/**\" --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info \"tests/**/*.test.ts\"",
     "test:db": "node supabase/tests/rls.test.mjs",
+    "test:e2e": "playwright test",
     "check": "npm run typecheck && npm run lint && npm run test:unit && npm run test:db",
     "db:types": "npx supabase gen types typescript --project-id \"$SUPABASE_PROJECT_ID\" --schema public > src/types/database.generated.ts",
     "admin:create": "node --env-file=.env.local scripts/create-admin.mjs"
@@ -41,6 +42,7 @@
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.10",
+    "@playwright/test": "^1.64.1",
     "@types/node": "^24.19.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",

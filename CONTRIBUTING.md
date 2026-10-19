@@ -26,7 +26,15 @@ npm run check
 npm run build
 ```
 
-`check` corre typecheck, lint y todas las pruebas: es lo mismo que exige CI (más el build). Ninguna prueba necesita red, Supabase ni Docker.
+`check` corre typecheck, lint y las pruebas unitarias y de base de datos: es lo mismo que exige CI (más el build y las E2E). Ninguna prueba necesita red, Supabase ni Docker.
+
+Si tocaste la landing, el sitio público o el pedido por WhatsApp, corre también las pruebas end-to-end (la primera vez, instala Chromium con `npx playwright install chromium`):
+
+```bash
+npm run test:e2e
+```
+
+Compilan la app y la prueban en un navegador real, en escritorio y en móvil. Para probar un servidor ya levantado: `E2E_BASE_URL=http://localhost:3000 npm run test:e2e`. Si una falla, `npx playwright show-trace test-results/…/trace.zip` muestra paso a paso qué vio el navegador.
 
 Si cambiaste dependencias, verifica también el lockfile con la versión de npm del CI (npm 11 puede quitar dependencias opcionales de otras plataformas que npm 12 exige, y `npm ci` falla en CI):
 
