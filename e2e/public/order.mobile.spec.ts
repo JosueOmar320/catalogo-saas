@@ -28,5 +28,8 @@ test('pedido en móvil: botón flotante visible y panel usable', async ({ page }
   await fab.tap();
   const dialog = page.getByRole('dialog', { name: 'Tu pedido' });
   await expect(dialog).toBeInViewport();
+  await dialog.getByRole('radio', { name: 'Envío a domicilio' }).tap();
+  await dialog.getByLabel('Dirección de entrega').fill('Av. Juárez 12');
+  // El pie del panel queda fijo: el botón de enviar se ve sin desplazarse.
   await expect(dialog.getByRole('link', { name: 'Enviar pedido por WhatsApp' })).toBeInViewport();
 });

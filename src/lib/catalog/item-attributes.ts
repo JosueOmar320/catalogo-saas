@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { hexColor } from '@/lib/design/schema-utils';
+import { saleEndsSchema } from './sale';
 
 /**
  * Campos extensibles del ítem (catalog_items.attributes, JSONB).
@@ -42,6 +43,8 @@ export const itemAttributesSchema = z.object({
     .nullable()
     .default(null),
   variants: variantsSchema,
+  /** Fin de la oferta (precio anterior): después se vuelve al precio normal. */
+  saleEnds: saleEndsSchema,
 });
 
 export type ItemAttributes = z.output<typeof itemAttributesSchema>;
@@ -56,5 +59,6 @@ export function parseItemAttributes(raw: unknown): ItemAttributes {
     badges: z.array(z.enum(MANUAL_BADGES)).catch([]).parse(partial.badges),
     customBadge: itemAttributesSchema.shape.customBadge.catch(null).parse(partial.customBadge),
     variants: variantsSchema.catch(null).parse(partial.variants),
+    saleEnds: saleEndsSchema.catch(null).parse(partial.saleEnds),
   };
 }

@@ -204,6 +204,73 @@ test('un producto con opciones muestra "desde" y el visitante elige la opción',
   await visitor.close();
 });
 
+test('entrega, pedido mínimo, pago y horario configurados en el panel llegan al pedido del visitante', async ({ page, browser }) => {
+  await page.goto('/dashboard/settings/contacto');
+  await page.getByRole('switch', { name: /Horario por día/ }).click();
+  await expect(page.getByRole('combobox', { name: 'Zona horaria' })).not.toHaveValue('');
+  await page.getByRole('button', { name: 'Guardar contacto' }).click();
+  await expect(page.getByText('Contacto guardado')).toBeVisible();
+
+  await page.getByRole('switch', { name: /Envío a domicilio/ }).click();
+  await page.getByRole('textbox', { name: 'Costo de envío' }).fill('25');
+  await page.getByRole('textbox', { name: 'Pedido mínimo' }).fill('100');
+  await page.getByRole('checkbox', { name: 'Efectivo' }).check();
+  await page.getByRole('button', { name: 'Guardar pedidos' }).click();
+  await expect(page.getByText('Configuración guardada')).toBeVisible();
+
+  const visitor = await browser.newContext(ANONYMOUS);
+  const site = await visitor.newPage();
+  // Datos para buscadores con el horario.
+  const home = await (await site.request.get(`/catalogo/${slug}`)).text();
+  expect(home).toContain('OpeningHoursSpecification');
+
+  await site.goto(`/catalogo/${slug}/p/smoothie-e2e`);
+  await site.getByRole('radio', { name: 'Grande' }).click();
+  await site.getByRole('button', { name: 'Agregar al pedido' }).click();
+  await site.getByRole('button', { name: /^Ver pedido/ }).click();
+  const dialog = site.getByRole('dialog', { name: 'Tu pedido' });
+  // Una sola forma de entrega: no se elige. El mínimo ($100) impide enviar $70.
+  await expect(dialog.getByText('Envío a domicilio', { exact: true })).toBeVisible();
+  await dialog.getByLabel('Dirección de entrega').fill('Calle 5 #10');
+  await expect(dialog.getByText('El pedido mínimo es de $100: te faltan $30.')).toBeVisible();
+  await expect(dialog.getByRole('link', { name: 'Enviar pedido por WhatsApp' })).toHaveCount(0);
+  await dialog.getByRole('group', { name: 'Cantidad de Smoothie E2E (Grande)' }).getByRole('button', { name: 'Uno más' }).click();
+  await dialog.getByRole('radio', { name: 'Efectivo' }).check();
+  const href = await dialog.getByRole('link', { name: 'Enviar pedido por WhatsApp' }).getAttribute('href');
+  const text = new URL(href!).searchParams.get('text')!;
+  expect(text).toContain('• 2 × Smoothie E2E (Grande) — $140\n\nSubtotal: $140\nEnvío: $25\nTotal: $165\nEntrega: A domicilio\nDirección: Calle 5 #10\nPago: Efectivo');
+  await visitor.close();
+});
+
+test('oferta con fecha de fin: vencida vuelve al precio normal; vigente dice hasta cuándo', async ({ page, browser }) => {
+  await page.goto('/dashboard/catalog/items/new?type=product');
+  await page.getByRole('textbox', { name: 'Nombre', exact: true }).fill('Galleta E2E');
+  await page.getByRole('textbox', { name: 'Precio', exact: true }).fill('20');
+  await page.getByRole('textbox', { name: 'Precio anterior' }).fill('30');
+  await page.getByRole('textbox', { name: 'Oferta hasta (opcional)' }).fill('2020-01-31');
+  await page.getByRole('button', { name: 'Crear', exact: true }).click();
+  await expect(page).toHaveURL(/\/dashboard\/catalog\/items\/[0-9a-f-]{36}$/);
+  const editUrl = page.url();
+
+  await page.goto('/dashboard/catalog/products');
+  await expect(page.getByRole('listitem').filter({ hasText: 'Galleta E2E' }).getByText('Oferta vencida')).toBeVisible();
+  const visitor = await browser.newContext(ANONYMOUS);
+  const site = await visitor.newPage();
+  await site.goto(`/catalogo/${slug}/p/galleta-e2e`);
+  await expect(site.getByRole('heading', { level: 1, name: 'Galleta E2E' })).toBeVisible();
+  await expect(site.getByText('$30')).toHaveCount(0);
+
+  await page.goto(editUrl);
+  await page.getByRole('textbox', { name: 'Oferta hasta (opcional)' }).fill('2099-12-31');
+  // Arriba y en la barra inferior: los dos guardan el mismo formulario.
+  await page.getByRole('button', { name: 'Guardar', exact: true }).first().click();
+  await expect(page.getByText('Cambios guardados')).toBeVisible();
+  await site.reload();
+  await expect(site.getByText('$30').first()).toBeVisible();
+  await expect(site.getByText('Oferta hasta el 31 de diciembre')).toBeVisible();
+  await visitor.close();
+});
+
 test('importar con enlaces de fotos: avisa cuáles no se pudieron descargar', async ({ page }) => {
   await page.goto('/dashboard/catalog/products');
   await page.getByRole('button', { name: 'Importar', exact: true }).click();

@@ -60,7 +60,8 @@ export function ItemForm({ itemId, defaultValues, categories, previewSite }: Pro
 
   const submit = (addAnother: boolean) =>
     handleSubmit((data) =>
-      run(() => saveItem(itemId, data), {
+      // La fecha de fin de la oferta se entiende en la zona horaria de quien la programa.
+      run(() => saveItem(itemId, { ...data, saleTimeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }), {
         setError,
         onSuccess: ({ id }) => {
           if (addAnother) {
@@ -155,6 +156,18 @@ export function ItemForm({ itemId, defaultValues, categories, previewSite }: Pro
                 <Grid size={{ xs: 12, sm: 4 }}>
                   <SelectControl control={control} name="currency" label={t('Moneda')} options={CURRENCIES.map((c) => ({ value: c, label: c }))} />
                 </Grid>
+                {values.compareAtPrice?.trim() && (
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <TextFieldControl
+                      control={control}
+                      name="saleEndsOn"
+                      type="date"
+                      label={t('Oferta hasta (opcional)')}
+                      helperText={t('Después de ese día se quita el precio anterior y vuelve el precio normal.')}
+                      slotProps={{ inputLabel: { shrink: true } }}
+                    />
+                  </Grid>
+                )}
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <TextFieldControl
                     control={control}

@@ -4,9 +4,11 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { LinkButton } from '@/components/ui/LinkButton';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { SectionCard } from '@/components/ui/SectionCard';
-import { getT } from '@/i18n/server';
+import { getLocale, getT } from '@/i18n/server';
 import { itemThumbnail, listCategories, listItemsWithImages } from '@/features/catalog/queries';
 import { requireBusinessContext } from '@/lib/auth/session';
+import { parseItemAttributes } from '@/lib/catalog/item-attributes';
+import { formatSaleDate, isSaleOver } from '@/lib/catalog/sale';
 import { parseCatalogSettings } from '@/lib/catalog/settings';
 import { formatPrice } from '@/lib/utils/format';
 import type { ItemType } from '@/types/database';
@@ -25,6 +27,12 @@ export async function ItemsPage({ type, review }: { type: ItemType; review?: Rev
   const labels = ITEM_TYPE_LABELS[type];
   const categoryNames = new Map(categories.map((c) => [c.id, c.name]));
 
+  const now = new Date();
+  const panelLocale = await getLocale();
+  const saleOf = (i: (typeof items)[number]): ItemRowData['sale'] => {
+    const ends = parseItemAttributes(i.attributes).saleEnds;
+    return ends && i.compare_at_price !== null ? { ends: formatSaleDate(ends.on, panelLocale), over: isSaleOver(ends, now) } : null;
+  };
   const rows: ItemRowData[] = items
     .filter((i) => i.type === type)
     .map((i) => ({
@@ -40,6 +48,7 @@ export async function ItemsPage({ type, review }: { type: ItemType; review?: Rev
       isVisible: i.is_visible,
       isAvailable: i.is_available,
       isFeatured: i.is_featured,
+      sale: saleOf(i),
     }));
 
   const newHref = `/dashboard/catalog/items/new?type=${type}`;

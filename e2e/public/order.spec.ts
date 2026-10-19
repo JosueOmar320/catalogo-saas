@@ -32,8 +32,19 @@ test.describe('Pedido por WhatsApp', () => {
     await expect(dialog).toBeVisible();
     await dialog.getByRole('group', { name: 'Cantidad de Espresso doble' }).getByRole('button', { name: 'Uno más' }).click();
     await expect(dialog.getByText('$162')).toBeVisible();
+
+    // La demo entrega a domicilio o en el local: hay que elegir, y a domicilio pide la dirección.
+    const send = dialog.getByRole('link', { name: 'Enviar pedido por WhatsApp' });
+    await expect(send).toHaveCount(0);
+    await expect(dialog.getByText('Elige cómo quieres recibir tu pedido.')).toBeVisible();
+    await dialog.getByRole('radio', { name: 'Envío a domicilio' }).check();
+    await expect(dialog.getByText('Escribe la dirección de entrega.')).toBeVisible();
+    await expect(dialog.getByText('Te faltan $138 para el envío gratis.')).toBeVisible();
+    await expect(dialog.getByText('$197')).toBeVisible(); // 162 + 35 de envío
+    await dialog.getByLabel('Dirección de entrega').fill('Av. Juárez 12, Centro');
+    await dialog.getByRole('radio', { name: 'Efectivo' }).check();
     await dialog.getByLabel('Tu nombre (opcional)').fill('Ana');
-    await dialog.getByLabel('Nota (opcional)').fill('Para llevar');
+    await dialog.getByLabel('Nota (opcional)').fill('Sin azúcar');
 
     const text = await whatsappMessage(page);
     expect(text).toMatch(
@@ -44,9 +55,14 @@ test.describe('Pedido por WhatsApp', () => {
           '• 2 × Espresso doble \\(CAF-001\\) — \\$90',
           '• 1 × Cold brew \\(CAF-003\\) — \\$72',
           '',
-          'Total: \\$162',
+          'Subtotal: \\$162',
+          'Envío: \\$35',
+          'Total: \\$197',
+          'Entrega: A domicilio',
+          'Dirección: Av\\. Juárez 12, Centro',
+          'Pago: Efectivo',
           'Nombre: Ana',
-          'Nota: Para llevar',
+          'Nota: Sin azúcar',
           '',
           'Pedido desde https?://.+/demo$',
         ].join('\n'),
@@ -129,9 +145,34 @@ test.describe('Pedido por WhatsApp', () => {
     await expect(orderButton(page)).toContainText('$146');
 
     await orderButton(page).click();
+    await page.getByRole('dialog', { name: 'Tu pedido' }).getByRole('radio', { name: 'Recoger en el local' }).check();
     const text = await whatsappMessage(page);
+    expect(text).toContain('Entrega: Recoger en el local');
     expect(text).toContain('• 1 × Latte de avena (16 oz) (CAF-002) — $78');
     expect(text).toContain('• 1 × Latte de avena (12 oz) (CAF-002) — $68');
+  });
+
+  test('horario: el sitio dice si está abierto y el pedido avisa cuando está cerrado', async ({ page }) => {
+    // Lunes 19 de octubre de 2026, 22:00 en Ciudad de México (la demo abre de 7:30 a 20:00).
+    await page.clock.setFixedTime(new Date('2026-10-20T04:00:00Z'));
+    await page.goto('/demo/contacto');
+    const main = page.getByRole('main');
+    await expect(main.getByText('Cerrado · abre mañana a las 7:30').first()).toBeVisible();
+    await expect(main.getByText(/lun\.? – vie\.?: 7:30 – 20:00/).first()).toBeVisible();
+
+    await page.goto('/demo');
+    await card(page, 'Espresso doble').getByRole('button', { name: 'Agregar al pedido' }).click();
+    await orderButton(page).click();
+    const dialog = page.getByRole('dialog', { name: 'Tu pedido' });
+    await expect(dialog.getByText('Cerrado · abre mañana a las 7:30. Puedes enviar tu pedido y te respondemos al abrir.')).toBeVisible();
+    // Avisa, pero no impide pedir.
+    await dialog.getByRole('radio', { name: 'Recoger en el local' }).check();
+    await expect(dialog.getByRole('link', { name: 'Enviar pedido por WhatsApp' })).toBeVisible();
+
+    // Lunes 9:00: abierto.
+    await page.clock.setFixedTime(new Date('2026-10-19T15:00:00Z'));
+    await page.goto('/demo/contacto');
+    await expect(main.getByText('Abierto ahora · cierra a las 20:00').first()).toBeVisible();
   });
 
   test('los servicios y los productos agotados no se agregan al pedido', async ({ page }) => {
@@ -151,6 +192,7 @@ test.describe('Pedido por WhatsApp', () => {
     await card(page, 'Espresso doble').getByRole('button', { name: 'Agregar al pedido' }).click();
     await orderButton(page).click();
     const popup = context.waitForEvent('page');
+    await page.getByRole('dialog', { name: 'Tu pedido' }).getByRole('radio', { name: 'Recoger en el local' }).check();
     await page.getByRole('dialog', { name: 'Tu pedido' }).getByRole('link', { name: 'Enviar pedido por WhatsApp' }).click();
     await (await popup).close();
     await page.waitForTimeout(500);

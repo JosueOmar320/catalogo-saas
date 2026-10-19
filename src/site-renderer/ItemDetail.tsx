@@ -1,5 +1,6 @@
 import { ArrowLeft } from 'lucide-react';
 import { visibleAttributes } from '@/lib/catalog/attributes';
+import { formatSaleDate } from '@/lib/catalog/sale';
 import type { CatalogItemView } from '@/lib/catalog/view-model';
 import type { SiteViewModel } from '@/lib/site/view-model';
 import { Badges } from './Badges';
@@ -36,6 +37,9 @@ export function ItemDetail({ site, item, backHref, env }: { site: SiteViewModel;
           {category && <span className={styles.eyebrow}>{category.name}</span>}
           <h1 className={styles.h2}>{item.name}</h1>
           {site.theme.cards.showPrice && <PriceTag item={item} t={t} discount />}
+          {site.theme.cards.showPrice && item.saleEndsOn && (
+            <span className={styles.saleEnds}>{t('Oferta hasta el {date}', { date: formatSaleDate(item.saleEndsOn, site.settings.locale) })}</span>
+          )}
           {!item.isAvailable && <span className={styles.availability}>{t('No disponible por ahora')}</span>}
           {item.shortDescription && <p className={styles.lead}>{item.shortDescription}</p>}
           {item.description && <p className={styles.preLine}>{item.description}</p>}

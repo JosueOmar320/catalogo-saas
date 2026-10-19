@@ -1,7 +1,8 @@
 import { Clock, Mail, MapPin, MessageCircle, Phone } from 'lucide-react';
 import { mapEmbedSrc } from '@/lib/business/maps';
-import { digitsOnly } from '@/lib/business/profile';
+import { digitsOnly, hoursText } from '@/lib/business/profile';
 import { ContactActions } from '../ContactActions';
+import { OpenNow } from '../OpenNow';
 import { SectionFrame, SectionHead } from '../SectionFrame';
 import { SocialLinks } from '../SocialLinks';
 import { siteTranslator } from '../site-i18n';
@@ -13,12 +14,13 @@ export function ContactSection({ section, site, env }: SectionProps<'contact'>) 
   const { contact } = site.business;
   const t = siteTranslator(site.settings.language);
   const address = [contact.address, contact.city].filter(Boolean).join(', ');
+  const hours = hoursText(contact, site.settings.locale, t('Cerrado'));
   const rows = [
     content.showWhatsapp && contact.whatsapp && { key: 'wa', icon: MessageCircle, label: 'WhatsApp', value: contact.whatsapp, href: `https://wa.me/${digitsOnly(contact.whatsapp).replace('+', '')}` },
     content.showPhone && contact.phone && { key: 'tel', icon: Phone, label: t('Teléfono'), value: contact.phone, href: `tel:${digitsOnly(contact.phone)}` },
     content.showEmail && contact.email && { key: 'mail', icon: Mail, label: 'Email', value: contact.email, href: `mailto:${contact.email}` },
     content.showAddress && address && { key: 'addr', icon: MapPin, label: t('Dirección'), value: address, href: contact.mapsUrl || undefined },
-    content.showHours && contact.hours && { key: 'hours', icon: Clock, label: t('Horarios'), value: contact.hours, href: undefined },
+    content.showHours && hours && { key: 'hours', icon: Clock, label: t('Horarios'), value: hours, href: undefined },
   ].filter(Boolean) as { key: string; icon: typeof Phone; label: string; value: string; href?: string }[];
 
   const mapSrc = content.showMap ? mapEmbedSrc(contact) : null;
@@ -29,6 +31,11 @@ export function ContactSection({ section, site, env }: SectionProps<'contact'>) 
   const info = (
     <div>
       <SectionHead eyebrow={content.eyebrow} title={content.title} subtitle={content.subtitle} center={center} />
+      {content.showHours && contact.schedule.enabled && (
+        <p className={`${styles.openRow} ${center ? styles.centerRow : ''}`}>
+          <OpenNow schedule={contact.schedule} locale={site.settings.locale} />
+        </p>
+      )}
       {content.layout === 'cards' ? (
         <div className={styles.contactCards}>
           {rows.map((row) => (

@@ -42,6 +42,8 @@ export type ItemRowData = {
   isVisible: boolean;
   isAvailable: boolean;
   isFeatured: boolean;
+  /** Oferta con fecha de fin: vigente (con su último día) o ya vencida. */
+  sale: { ends: string; over: boolean } | null;
 };
 
 type Props = {
@@ -245,6 +247,15 @@ export function ItemsTable({ items: initialItems, categories, initialReview = nu
                     {[item.categoryName ?? t('Sin categoría'), item.sku].filter(Boolean).join(' · ')}
                   </Typography>
                 </Box>
+                {item.sale && (
+                  <Chip
+                    size="small"
+                    color={item.sale.over ? 'default' : 'success'}
+                    variant="outlined"
+                    label={item.sale.over ? t('Oferta vencida') : t('Oferta hasta el {date}', { date: item.sale.ends })}
+                    sx={{ display: { xs: 'none', md: 'inline-flex' } }}
+                  />
+                )}
                 {!item.isAvailable && <Chip label={t('Agotado')} variant="outlined" sx={{ display: { xs: 'none', sm: 'inline-flex' } }} />}
                 <Typography variant="body2" sx={{ width: 96, textAlign: 'right', display: { xs: 'none', sm: 'block' }, fontVariantNumeric: 'tabular-nums' }}>
                   {item.priceLabel ?? '—'}
