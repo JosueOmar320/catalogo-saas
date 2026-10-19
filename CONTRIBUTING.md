@@ -28,6 +28,12 @@ npm run build
 
 `check` corre typecheck, lint y todas las pruebas: es lo mismo que exige CI (más el build). Ninguna prueba necesita red, Supabase ni Docker.
 
+Si cambiaste dependencias, verifica también el lockfile con la versión de npm del CI (npm 11 puede quitar dependencias opcionales de otras plataformas que npm 12 exige, y `npm ci` falla en CI):
+
+```bash
+npx -y npm@latest ci --ignore-scripts --dry-run
+```
+
 ## Convenciones
 
 - **Idioma**: la interfaz, los mensajes y los comentarios están en español; los identificadores pueden estar en inglés.
