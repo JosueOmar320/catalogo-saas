@@ -1,10 +1,4 @@
 /** Utilidades de color compartidas por la web, el PDF y el editor. */
-const HEX = /^#[0-9a-fA-F]{6}$/;
-
-export function isHex(value: string): boolean {
-  return HEX.test(value);
-}
-
 function toRgb(hex: string): [number, number, number] {
   return [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)) as [number, number, number];
 }

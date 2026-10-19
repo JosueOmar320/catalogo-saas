@@ -16,7 +16,7 @@ const migrations = fs
   .map((f) => fs.readFileSync(path.join(migrationsDir, f), 'utf8'));
 const db = new PGlite();
 await db.exec(`
-create role anon nologin; create role authenticated nologin;
+create role anon nologin; create role authenticated nologin; create role service_role nologin;
 create schema auth;
 create table auth.users(id uuid primary key, email text, raw_user_meta_data jsonb default '{}', raw_app_meta_data jsonb default '{}');
 create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true),'')::uuid $$;
@@ -296,6 +296,39 @@ await expectEq('admin_stats: un usuario normal no ve nada', () => q(`select publ
 await expectEq('admin_catalog_counts: un usuario normal no ve nada', () => q(`select count(*)::int n from public.admin_catalog_counts()`).then((r) => r[0].n), 0);
 await as(null);
 await expectErr('anon no puede llamar admin_stats', () => q(`select public.admin_stats()`), 'permission denied');
+
+// --- Endurecimiento de seguridad (20261020) ---
+await as(A); // dueño de Tienda A
+await expectErr('owner cannot add members directly (only admin RPCs)', () => q(`insert into public.business_members(business_id, user_id, role) values ($1,$2,'admin')`, [bizA, ADM]), 'row-level security');
+await expectEq('owner cannot change roles directly', async () => (await db.query(`update public.business_members set role='owner' where business_id=$1`, [bizA])).affectedRows, 0);
+await expectEq('owner cannot remove members directly', async () => (await db.query(`delete from public.business_members where business_id=$1`, [bizA])).affectedRows, 0);
+await expectErr('owner cannot create catalogs directly (only admin_create_catalog)', () => q(`insert into public.catalogs(business_id, name, slug) values ($1,'Extra','extra')`, [bizA]), 'row-level security');
+const mediaToDelete = (await q(`insert into public.media_assets(business_id, path, kind, alt) values ($1,$2,'site','Borrable') returning id`, [bizA, `${bizA}/site/borrable.jpg`]))[0].id;
+await q(`select public.admin_update_profile($1,'Juan Pérez','juan@correo.com','user','active',1)`, [JUAN]); // A es administrador aquí
+await as(JUAN); // editor activo de Tienda A
+await expectEq('editor can read the library', () => q(`select count(*)::int n from public.media_assets where id=$1`, [mediaToDelete]).then((r) => r[0].n), 1);
+await expectEq('editor cannot hard-delete library rows', async () => (await db.query(`delete from public.media_assets where id=$1`, [mediaToDelete])).affectedRows, 0);
+await as(A);
+await expectEq('owner can hard-delete library rows', async () => (await db.query(`delete from public.media_assets where id=$1`, [mediaToDelete])).affectedRows, 1);
+
+// --- Límite de intentos compartido ---
+await db.exec('reset role; set role service_role;');
+await expectEq('rate limit: allows up to the limit, then blocks', async () => {
+  const r = [];
+  for (let i = 0; i < 3; i++) r.push((await q(`select public.rate_limit_consume('login:u:ana', 2, 900) ok`))[0].ok);
+  return r;
+}, [true, true, false]);
+await expectEq('rate limit: keys are independent', () => q(`select public.rate_limit_consume('login:u:otra', 2, 900) ok`).then((r) => r[0].ok), true);
+await expectEq('rate limit: old attempts leave the window', async () => {
+  await db.exec(`reset role; update public.rate_limit_events set created_at = now() - interval '1 hour' where key = 'login:u:ana'; set role service_role;`);
+  return (await q(`select public.rate_limit_consume('login:u:ana', 2, 900) ok`))[0].ok;
+}, true);
+await expectErr('rate limit: rejects invalid arguments', () => q(`select public.rate_limit_consume('', 2, 900)`), 'invalid_rate_limit');
+await as(A);
+await expectErr('authenticated cannot call rate_limit_consume', () => q(`select public.rate_limit_consume('login:u:ana', 1000, 1)`), 'permission denied');
+await expectErr('authenticated cannot read rate_limit_events', () => q(`select * from public.rate_limit_events`), 'permission denied');
+await as(null);
+await expectErr('anon cannot call rate_limit_consume', () => q(`select public.rate_limit_consume('x', 1000, 1)`), 'permission denied');
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);

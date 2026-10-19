@@ -3,6 +3,7 @@ import type { PageBlueprintId } from '@/lib/site/blueprints';
 import { columnPreset } from '@/lib/site/column-presets';
 import { SITE_TEMPLATES, SITE_TEMPLATE_WORDS } from '@/lib/site/templates';
 import type { SectionType } from '@/lib/site/section-schemas';
+import { foldText } from '@/lib/utils/text';
 
 /**
  * Modo básico de Garfield (sin modelo de IA): reconoce los pedidos más
@@ -14,10 +15,7 @@ import type { SectionType } from '@/lib/site/section-schemas';
 type Out = { message: string; actions: Record<string, unknown>[]; suggestions: string[] };
 
 const norm = (value: string) =>
-  value
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
+  foldText(value)
     .replace(/[¿?¡!.,;]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();

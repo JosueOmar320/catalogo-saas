@@ -41,7 +41,8 @@ export type BuilderAction =
   | { type: 'removeSection'; sectionId: string; pageId?: string }
   | { type: 'duplicateSection'; sectionId: string; pageId?: string }
   | { type: 'reorderSections'; ids: string[]; pageId?: string }
-  | { type: 'saved'; persistedPageIds: string[] }
+  /** `saved` es el estado que se envió: lo editado mientras se guardaba sigue pendiente. */
+  | { type: 'saved'; saved: Pick<BuilderState, 'theme' | 'navigation' | 'pages' | 'deletedPageIds'> }
   | { type: 'reset'; state: BuilderState };
 
 function mapPage(state: BuilderState, pageId: string, fn: (page: SitePage) => SitePage): SitePage[] {
@@ -152,8 +153,20 @@ export function builderReducer(state: BuilderState, action: BuilderAction): Buil
       const byId = new Map(page.sections.map((s) => [s.id, s]));
       return pagesChanged(state, mapPage(state, page.id, (p) => ({ ...p, sections: action.ids.flatMap((id) => (byId.has(id) ? [byId.get(id)!] : [])) })));
     }
-    case 'saved':
-      return { ...state, persistedPageIds: action.persistedPageIds, deletedPageIds: [], dirty: { theme: false, navigation: false, pages: false } };
+    case 'saved': {
+      // Cada edición crea objetos nuevos: si la referencia cambió, hubo cambios durante el guardado.
+      const { saved } = action;
+      return {
+        ...state,
+        persistedPageIds: [...new Set([...state.persistedPageIds.filter((id) => !saved.deletedPageIds.includes(id)), ...saved.pages.map((p) => p.id)])],
+        deletedPageIds: state.deletedPageIds.filter((id) => !saved.deletedPageIds.includes(id)),
+        dirty: {
+          theme: state.dirty.theme && state.theme !== saved.theme,
+          navigation: state.dirty.navigation && state.navigation !== saved.navigation,
+          pages: state.dirty.pages && state.pages !== saved.pages,
+        },
+      };
+    }
     case 'reset':
       return action.state;
   }

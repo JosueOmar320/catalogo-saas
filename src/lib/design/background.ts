@@ -60,8 +60,4 @@ export function buildBackgroundSchema(lenient: boolean, defaults: { type?: Backg
 export const backgroundSchema = buildBackgroundSchema(false);
 export type Background = z.output<typeof backgroundSchema>;
 
-export function colorBackground(color: string): Background {
-  return backgroundSchema.parse({ type: 'color', color });
-}
-
 export { INHERIT_BACKGROUND, resolveBackground, backgroundTone, isDarkBackground, gradientCss, patternCss } from './background-core';

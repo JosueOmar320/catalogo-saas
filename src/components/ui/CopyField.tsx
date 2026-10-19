@@ -18,7 +18,9 @@ export function CopyField({ value, label, openable = true }: { value: string; la
               <Tooltip title={copied ? 'Copiado' : 'Copiar enlace'}>
                 <IconButton
                   onClick={async () => {
-                    await navigator.clipboard.writeText(value);
+                    // Puede fallar sin permiso de portapapeles: el enlace sigue visible para copiarlo a mano.
+                    const done = await navigator.clipboard.writeText(value).then(() => true, () => false);
+                    if (!done) return;
                     setCopied(true);
                     setTimeout(() => setCopied(false), 1500);
                   }}

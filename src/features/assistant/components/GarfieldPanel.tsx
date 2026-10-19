@@ -366,7 +366,7 @@ export function GarfieldPreviewBanner() {
       action={
         <Stack direction="row" spacing={0.5}>
           <Button size="small" color="inherit" onClick={g.exitPreview}>Salir</Button>
-          <Button size="small" variant="contained" onClick={() => void g.applyPlan(g.previewingId!)} sx={{ bgcolor: ORANGE, '&:hover': { bgcolor: '#D96F12' } }}>Aplicar</Button>
+          <Button size="small" variant="contained" disabled={g.pending} onClick={() => void g.applyPlan(g.previewingId!)} sx={{ bgcolor: ORANGE, '&:hover': { bgcolor: '#D96F12' } }}>Aplicar</Button>
         </Stack>
       }
     >

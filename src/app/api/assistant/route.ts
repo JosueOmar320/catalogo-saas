@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { describeModelError, getAssistantModel } from '@/features/assistant/server/model';
 import { checkRateLimit } from '@/features/assistant/server/rate-limit';
+import { consumeRateLimit } from '@/lib/security/rate-limit';
 import { createToolRunner, serverContext, validatedMedia } from '@/features/assistant/server/tool-runner';
 import { canManageCatalog, getBusinessContext } from '@/lib/auth/session';
 import { assistantContextSchema } from '@/lib/assistant/context';
@@ -11,6 +12,10 @@ import { resolveMediaQueries } from '@/features/assistant/server/resolve-media';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
+
+const MAX_BODY = 200_000;
+/** Pedidos por usuario y día (cada uno puede llamar al modelo varias veces). */
+const DAILY_REQUESTS = 300;
 
 const requestSchema = z.object({
   messages: z
@@ -22,20 +27,26 @@ const requestSchema = z.object({
 });
 
 /**
- * Garfield AI. Interpreta el pedido y devuelve acciones propuestas; NO
- * escribe en la base de datos. El editor valida y ejecuta las acciones en el
- * borrador, y los cambios se guardan con saveSite (Zod + RLS) como siempre.
+ * Garfield AI. Interpreta el pedido y devuelve acciones propuestas; no edita
+ * el sitio: el editor valida y ejecuta las acciones en el borrador, y los
+ * cambios se guardan con saveSite (Zod + RLS) como siempre. La única escritura
+ * aquí es aditiva: importar a la biblioteca las fotos libres que el pedido usa.
  */
 export async function POST(request: NextRequest) {
   const ctx = await getBusinessContext();
   if (!ctx) return NextResponse.json({ error: 'Inicia sesión para usar a Garfield.' }, { status: 401 });
   if (!canManageCatalog(ctx)) return NextResponse.json({ error: 'Sólo el dueño o un administrador puede editar el sitio.' }, { status: 403 });
 
+  // Ráfagas: contador local (sin red). Cupo diario: compartido entre instancias (controla el gasto del modelo).
   const limit = checkRateLimit(ctx.userId);
   if (!limit.ok) return NextResponse.json({ error: `Garfield necesita una siesta corta. Intenta en ${limit.retryAfter} s.` }, { status: 429, headers: { 'Retry-After': String(limit.retryAfter) } });
+  if (!(await consumeRateLimit(`assistant:${ctx.userId}`, DAILY_REQUESTS, 86_400))) {
+    return NextResponse.json({ error: 'Garfield ya trabajó mucho hoy. Vuelve mañana o sigue editando a mano.' }, { status: 429, headers: { 'Retry-After': '3600' } });
+  }
 
+  if (Number(request.headers.get('content-length') ?? 0) > MAX_BODY) return NextResponse.json({ error: 'El pedido es demasiado grande.' }, { status: 413 });
   const raw = await request.text();
-  if (raw.length > 200_000) return NextResponse.json({ error: 'El pedido es demasiado grande.' }, { status: 413 });
+  if (raw.length > MAX_BODY) return NextResponse.json({ error: 'El pedido es demasiado grande.' }, { status: 413 });
   let body: unknown;
   try {
     body = JSON.parse(raw);

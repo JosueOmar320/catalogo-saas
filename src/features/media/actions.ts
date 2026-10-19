@@ -69,15 +69,6 @@ export async function registerMedia(input: UploadedImage & { kind: MediaKind; so
   return ok({ id: data.id });
 }
 
-/** Biblioteca del negocio con filtros (búsqueda, carpeta, origen, orden, paginación). */
-export async function listMediaLibrary(filters: MediaFilters | string = {}, limit?: number): Promise<ActionResult<MediaRecord[]>> {
-  const ctx = await requireBusinessContext();
-  const raw = typeof filters === 'string' ? { query: filters, ...(limit ? { limit } : {}) } : filters;
-  const parsed = mediaFiltersSchema.safeParse(raw);
-  if (!parsed.success) return fail('Filtro inválido.');
-  return run(async () => (await media.listMedia(scopeOf(ctx), parsed.data)).items);
-}
-
 export async function searchMediaPage(filters: MediaFilters): Promise<ActionResult<{ items: MediaRecord[]; total: number }>> {
   const ctx = await requireBusinessContext();
   const parsed = mediaFiltersSchema.safeParse(filters);

@@ -1,5 +1,4 @@
 import type { LinkContext } from '@/lib/site/links';
-import { findHome } from '@/lib/site/find-home';
 import type { SiteViewModel } from '@/lib/site/view-model';
 
 /**
@@ -25,8 +24,4 @@ export function linkContext(site: SiteViewModel, env: RenderEnv): LinkContext {
 
 export function itemPath(env: RenderEnv, slug: string) {
   return `${env.basePath}/p/${slug}`;
-}
-
-export function homePageId(site: SiteViewModel) {
-  return findHome(site.pages)?.id ?? null;
 }

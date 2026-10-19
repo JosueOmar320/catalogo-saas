@@ -2,7 +2,9 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { getProfile, getUser, isPlatformAdmin } from '@/lib/auth/session';
+import { safeNextPath } from '@/lib/auth/redirect';
+import { clientIp, consumeRateLimit } from '@/lib/security/rate-limit';
+import { getProfile, getUser } from '@/lib/auth/session';
 import { createAdminClient, isServiceRoleConfigured } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { fail, ok, type ActionResult } from '@/lib/utils/result';
@@ -10,11 +12,6 @@ import { parseInput } from '@/lib/utils/validation';
 import { accountSchema, changePasswordSchema, signInSchema, type AccountValues, type ChangePasswordValues, type SignInValues } from './schema';
 
 const INVALID = 'Usuario o contraseña incorrectos.';
-
-/** Sólo se permiten redirecciones internas (evita open redirects). */
-function safeNext(next: string | null | undefined): string | null {
-  return next && next.startsWith('/') && !next.startsWith('//') ? next : null;
-}
 
 /**
  * Login con usuario + contraseña. El servidor resuelve el usuario a su
@@ -25,6 +22,11 @@ export async function signIn(input: SignInValues, next?: string): Promise<Action
   const parsed = parseInput(signInSchema, input);
   if (!parsed.success) return parsed.result;
   const { username, password } = parsed.data;
+
+  // Fuerza bruta: por cuenta (10 intentos / 15 min) y por IP (30 / 15 min), compartido entre instancias.
+  const ip = await clientIp();
+  const [byAccount, byIp] = await Promise.all([consumeRateLimit(`login:u:${username.toLowerCase()}`, 10, 900), consumeRateLimit(`login:ip:${ip}`, 30, 900)]);
+  if (!byAccount || !byIp) return fail('Demasiados intentos. Espera unos minutos e inténtalo de nuevo.');
 
   let loginEmail: string | null = null;
   if (username.includes('@')) {
@@ -52,7 +54,7 @@ export async function signIn(input: SignInValues, next?: string): Promise<Action
   if (isServiceRoleConfigured()) {
     await createAdminClient().from('profiles').update({ last_login_at: new Date().toISOString() }).eq('id', data.user.id);
   }
-  redirect(safeNext(next) ?? (profile.platform_role === 'admin' ? '/admin' : '/dashboard'));
+  redirect(safeNextPath(next) ?? (profile.platform_role === 'admin' ? '/admin' : '/dashboard'));
 }
 
 export async function signOut() {
@@ -67,6 +69,7 @@ export async function changePassword(input: ChangePasswordValues): Promise<Actio
   if (!parsed.success) return parsed.result;
   const user = await getUser();
   if (!user?.email) return fail('Inicia sesión de nuevo.');
+  if (!(await consumeRateLimit(`password:${user.id}`, 5, 900))) return fail('Demasiados intentos. Espera unos minutos e inténtalo de nuevo.');
   const supabase = await createClient();
   const { error: wrong } = await supabase.auth.signInWithPassword({ email: user.email, password: parsed.data.currentPassword });
   if (wrong) return fail('La contraseña actual no es correcta.', { currentPassword: ['La contraseña actual no es correcta'] });
@@ -85,9 +88,4 @@ export async function updateAccount(input: AccountValues): Promise<ActionResult>
   if (error) return fail('No se pudo guardar.');
   revalidatePath('/cuenta');
   return ok(undefined, 'Datos guardados');
-}
-
-/** Destino inicial según el rol (para la página raíz del panel). */
-export async function homeFor(): Promise<string> {
-  return isPlatformAdmin(await getProfile()) ? '/admin' : '/dashboard';
 }

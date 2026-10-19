@@ -61,11 +61,11 @@ export function CatalogsTable({ catalogs }: { catalogs: Row[] }) {
                 </TableCell>
                 <TableCell align="right">
                   <Tooltip title="Ver sitio público">
-                    <IconButton size="small" href={`/catalogo/${c.business.slug}`} target="_blank"><ExternalLink size={15} /></IconButton>
+                    <IconButton size="small" href={`/catalogo/${c.business.slug}`} target="_blank" aria-label={`Ver sitio público de ${c.name}`}><ExternalLink size={15} /></IconButton>
                   </Tooltip>
                   <Tooltip title="Abrir en el editor">
                     <span>
-                      <IconButton size="small" disabled={c.business.status !== 'active'} onClick={() => void openBusiness(c.business.id)}><Pencil size={15} /></IconButton>
+                      <IconButton size="small" disabled={c.business.status !== 'active'} onClick={() => void openBusiness(c.business.id)} aria-label={`Abrir ${c.name} en el editor`}><Pencil size={15} /></IconButton>
                     </span>
                   </Tooltip>
                 </TableCell>

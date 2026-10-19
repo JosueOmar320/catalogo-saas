@@ -80,22 +80,24 @@ export function Builder(props: Props) {
   // La preview se actualiza con prioridad baja: los controles nunca se traban.
   const previewSite = useDeferredValue(shownSite);
 
-  const save = () =>
-    run(
+  const save = () => {
+    const saved = { theme: state.theme, navigation: state.navigation, pages: state.pages, deletedPageIds: state.deletedPageIds };
+    return run(
       () =>
         saveSite({
-          theme: state.dirty.theme ? state.theme : undefined,
-          navigation: state.dirty.navigation ? state.navigation : undefined,
-          pages: state.dirty.pages ? state.pages.map((p) => ({ ...p, slug: slugify(p.slug, 60) || 'pagina' })) : undefined,
-          deletedPageIds: state.deletedPageIds,
+          theme: state.dirty.theme ? saved.theme : undefined,
+          navigation: state.dirty.navigation ? saved.navigation : undefined,
+          pages: state.dirty.pages ? saved.pages.map((p) => ({ ...p, slug: slugify(p.slug, 60) || 'pagina' })) : undefined,
+          deletedPageIds: saved.deletedPageIds,
         }),
       {
         onSuccess: () => {
-          dispatch({ type: 'saved', persistedPageIds: state.pages.map((p) => p.id) });
+          dispatch({ type: 'saved', saved });
           router.refresh();
         },
       },
     );
+  };
 
   const discard = async () => {
     const ok = await confirm({ title: '¿Descartar los cambios?', description: 'Se perderán los cambios que no guardaste.', confirmLabel: 'Descartar', destructive: true });

@@ -50,3 +50,9 @@
   cursor: pointer;
   font-family: inherit;
 }
+
+.digest {
+  margin: 16px 0 0;
+  font-size: 12px;
+  color: #71717a;
+}

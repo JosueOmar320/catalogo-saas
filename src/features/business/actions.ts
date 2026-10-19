@@ -5,7 +5,7 @@ import { cookies } from 'next/headers';
 import { z } from 'zod';
 import { resolveMapsLocation } from '@/lib/business/maps-server';
 import { contactSchema, socialLinksSchema } from '@/lib/business/profile';
-import { ACTIVE_BUSINESS_COOKIE, getBusinessContext, requireBusinessContext, requireUser, type BusinessContext } from '@/lib/auth/session';
+import { ACTIVE_BUSINESS_COOKIE, canManageCatalog, getBusinessContext, requireBusinessContext, requireUser, type BusinessContext } from '@/lib/auth/session';
 import { invalidatePublicCatalog } from '@/lib/catalog/cache';
 import { createClient } from '@/lib/supabase/server';
 import { dbErrorMessage, fail, ok, type ActionResult } from '@/lib/utils/result';
@@ -29,7 +29,7 @@ export async function checkSlugAvailability(slug: string): Promise<ActionResult<
 }
 
 async function updateBusiness(ctx: BusinessContext, patch: TablesUpdate<'businesses'>, message: string, previousSlug?: string): Promise<ActionResult> {
-  if (ctx.role === 'editor') return fail('Sólo el dueño o un administrador puede cambiar esto.');
+  if (!canManageCatalog(ctx)) return fail('Sólo el dueño o un administrador puede cambiar esto.');
   const { error } = await ctx.supabase.from('businesses').update(patch).eq('id', ctx.business.id);
   if (error) return fail(dbErrorMessage(error));
   invalidatePublicCatalog(ctx.business.slug);

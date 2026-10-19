@@ -59,8 +59,9 @@ export async function updateCatalogSettings(input: z.input<typeof settingsPatchS
   const parsed = parseInput(settingsPatchSchema, input);
   if (!parsed.success) return parsed.result;
   const current = parseCatalogSettings(ctx.catalog.settings);
-  const next = catalogSettingsSchema.parse({ ...current, ...parsed.data });
-  return updateCatalog(ctx, { settings: next as Json }, 'Configuración guardada');
+  const next = catalogSettingsSchema.safeParse({ ...current, ...parsed.data });
+  if (!next.success) return fail('Revisa la configuración: hay valores inválidos.');
+  return updateCatalog(ctx, { settings: next.data as Json }, 'Configuración guardada');
 }
 
 export async function saveSeo(input: z.input<typeof seoSchema>): Promise<ActionResult> {

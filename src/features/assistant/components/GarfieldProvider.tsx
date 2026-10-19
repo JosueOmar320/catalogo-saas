@@ -143,16 +143,24 @@ export function GarfieldEngine({ adapter, children }: { adapter: GarfieldAdapter
   }, [adapter]);
 
   // Historial en el navegador (por negocio y editor). Las propuestas viejas vencen: el contenido pudo cambiar.
+  // `loadedKey` evita guardar antes de haber leído: si no, el guardado inicial (lista vacía)
+  // pisaba el historial antes de cargarlo, y al cambiar de negocio se copiaba el chat anterior.
+  const loadedKey = useRef<string | null>(null);
   useEffect(() => {
+    loadedKey.current = null;
     const timer = setTimeout(() => {
+      let restored: ChatEntry[] = [];
       try {
         const stored = JSON.parse(localStorage.getItem(storageKey) ?? '[]') as ChatEntry[];
-        if (Array.isArray(stored)) setEntries(stored.map((e) => (e.plan ? { ...e, plan: { ...e.plan, allowedMedia: e.plan.allowedMedia ?? [], status: e.plan.status === 'proposed' ? ('expired' as const) : e.plan.status } } : e)));
+        if (Array.isArray(stored)) restored = stored.map((e) => (e.plan ? { ...e, plan: { ...e.plan, allowedMedia: e.plan.allowedMedia ?? [], status: e.plan.status === 'proposed' ? ('expired' as const) : e.plan.status } } : e));
       } catch {}
+      loadedKey.current = storageKey;
+      setEntries(restored);
     });
     return () => clearTimeout(timer);
   }, [storageKey]);
   useEffect(() => {
+    if (loadedKey.current !== storageKey) return;
     try {
       localStorage.setItem(storageKey, JSON.stringify(entries.slice(-MAX_STORED).map((e) => (e.plan ? { ...e, plan: { ...e.plan, undo: undefined } } : e))));
     } catch {}
@@ -218,32 +226,40 @@ export function GarfieldEngine({ adapter, children }: { adapter: GarfieldAdapter
     [commit, endpoint, entries, exitPreview, pending, touched],
   );
 
+  // Planes que se están aplicando: un doble clic llega antes de que cambie el estado
+  // (y aplicar dos veces crearía productos duplicados).
+  const applying = useRef(new Set<string>());
   const applyPlan = useCallback(
     async (id: string) => {
       const entry = entries.find((e) => e.id === id);
-      if (!entry?.plan) return;
-      exitPreview();
-      const { allowedMedia } = entry.plan;
-      let actions = entry.plan.actions;
-      let serverSteps: StepView[] = [];
-      // 1) Lo que se guarda en el servidor (productos, categorías, logo): validación, permisos, límites.
-      const server = adapterRef.current.applyOnServer;
-      if (server && entry.plan.hasCatalogChanges) {
-        setPending(true);
-        const result = await server(actions).catch(() => null);
-        setPending(false);
-        if (!result || !result.ok) {
-          update(id, (e) => (e.plan ? { ...e, plan: { ...e.plan, status: 'failed', steps: [...e.plan.steps, { label: 'Guardar en el catálogo', status: 'error', risk: 'safe', kind: 'catalog', error: result && !result.ok ? result.error : 'No se pudo conectar.' }] } } : e));
-          return;
+      if (!entry?.plan || entry.plan.status !== 'proposed' || applying.current.has(id)) return;
+      applying.current.add(id);
+      try {
+        exitPreview();
+        const { allowedMedia } = entry.plan;
+        let actions = entry.plan.actions;
+        let serverSteps: StepView[] = [];
+        // 1) Lo que se guarda en el servidor (productos, categorías, logo): validación, permisos, límites.
+        const server = adapterRef.current.applyOnServer;
+        if (server && entry.plan.hasCatalogChanges) {
+          setPending(true);
+          const result = await server(actions).catch(() => null);
+          setPending(false);
+          if (!result || !result.ok) {
+            update(id, (e) => (e.plan ? { ...e, plan: { ...e.plan, status: 'failed', steps: [...e.plan.steps, { label: 'Guardar en el catálogo', status: 'error', risk: 'safe', kind: 'catalog', error: result && !result.ok ? result.error : 'No se pudo conectar.' }] } } : e));
+            return;
+          }
+          serverSteps = result.steps;
+          actions = result.rest;
         }
-        serverSteps = result.steps;
-        actions = result.rest;
+        // 2) Cambios del borrador (vista previa, deshacer).
+        const { plan, before } = commit(actions, allowedMedia);
+        const steps = [...serverSteps, ...plan.steps];
+        const anyOk = steps.some((s) => s.status === 'ok');
+        update(id, (e) => ({ ...e, plan: { ...toChatPlan(entry.plan!.actions, plan, anyOk ? 'applied' : 'failed', allowedMedia, plan.changed ? before : undefined), steps, hasCatalogChanges: serverSteps.length > 0 } }));
+      } finally {
+        applying.current.delete(id);
       }
-      // 2) Cambios del borrador (vista previa, deshacer).
-      const { plan, before } = commit(actions, allowedMedia);
-      const steps = [...serverSteps, ...plan.steps];
-      const anyOk = steps.some((s) => s.status === 'ok');
-      update(id, (e) => ({ ...e, plan: { ...toChatPlan(entry.plan!.actions, plan, anyOk ? 'applied' : 'failed', allowedMedia, plan.changed ? before : undefined), steps, hasCatalogChanges: serverSteps.length > 0 } }));
     },
     [commit, entries, exitPreview, update],
   );

@@ -44,16 +44,21 @@ export async function releaseStorageObjects(ctx: BusinessContext, paths: (string
   if (owned.length === 0) return;
   // Sólo las rutas candidatas (antes se leía toda la biblioteca: con más de 1000 imágenes la
   // respuesta se cortaba y un archivo de la biblioteca podía parecer "sin dueño").
-  const [{ data: byPath }, { data: byThumb }] = await Promise.all([
+  // Falla cerrado: si alguna consulta falla, no se borra nada (un error transitorio no puede
+  // hacer que un archivo en uso parezca libre). Como mucho queda un archivo huérfano.
+  const [byPath, byThumb] = await Promise.all([
     ctx.supabase.from('media_assets').select('path').eq('business_id', ctx.business.id).is('deleted_at', null).in('path', owned),
     ctx.supabase.from('media_assets').select('thumb_path').eq('business_id', ctx.business.id).is('deleted_at', null).in('thumb_path', owned),
   ]);
-  const kept = new Set<string>([...(byPath ?? []).map((m) => m.path), ...(byThumb ?? []).flatMap((m) => (m.thumb_path ? [m.thumb_path] : []))]);
+  if (byPath.error || byThumb.error) return;
+  const kept = new Set<string>([...byPath.data.map((m) => m.path), ...byThumb.data.flatMap((m) => (m.thumb_path ? [m.thumb_path] : []))]);
   const candidates = owned.filter((p) => !kept.has(p));
   const removable: string[] = [];
   for (const path of candidates) {
-    const { data } = await ctx.supabase.rpc('media_references', { p_business: ctx.business.id, p_path: path });
+    const { data, error } = await ctx.supabase.rpc('media_references', { p_business: ctx.business.id, p_path: path });
+    if (error) return;
     if (!data || data.length === 0) removable.push(path);
   }
+  if (removable.length === 0) return;
   await supabaseStorage(ctx.supabase).remove(removable);
 }

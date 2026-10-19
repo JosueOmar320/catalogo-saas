@@ -1,6 +1,7 @@
 import type { CatalogCategoryView, CatalogItemView } from '@/lib/catalog/view-model';
 import type { AttributeDef, AttributeValue } from '@/lib/catalog/attributes';
 import type { ItemType } from '@/types/database';
+import { foldText } from '@/lib/utils/text';
 
 export type BadgeFilter = 'all' | 'featured' | 'new' | 'sale' | 'popular';
 
@@ -18,11 +19,7 @@ export type CatalogFilters = {
 
 export const EMPTY_FILTERS: CatalogFilters = { query: '', categoryId: 'all', type: 'all', onlyAvailable: false, priceMin: null, priceMax: null, badge: 'all', attrs: {} };
 
-const normalize = (value: string) =>
-  value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase();
+const normalize = foldText;
 
 const attrStrings = (value: AttributeValue | undefined): string[] => {
   if (value === undefined) return [];

@@ -114,4 +114,3 @@ export function resolveTokens(theme: ThemeConfig) {
   };
 }
 
-export const SECTION_PADDING_PX = SECTION_PADDING;

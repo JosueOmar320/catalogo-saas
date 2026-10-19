@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { renderSitePdf } from '@/features/pdf/render';
-import { applyPreset, getPreset } from '@/lib/design/presets';
+import { applyPreset, getPreset, THEME_PRESETS } from '@/lib/design/presets';
 import { DEFAULT_THEME } from '@/lib/design/theme';
 import { createPdfBlock, defaultPdfSettings, PDF_TEMPLATES, type PdfTemplateId } from '@/lib/pdf/settings';
 import { buildSampleSite } from '@/lib/site/sample-site';
@@ -12,11 +12,22 @@ export const maxDuration = 60;
  * PDF de ejemplo (sitio demo): ?template=brochure&preset=luxury.
  * Incluye portada, índice, catálogo, destacados, comparativa, galería,
  * "nosotros" y contacto. Cacheado en el CDN.
+ *
+ * Es público y caro de generar: cualquier otra combinación de parámetros
+ * (valores inválidos, parámetros extra para saltarse la caché) redirige a la
+ * URL canónica, así sólo existen plantillas × temas versiones distintas.
  */
 export async function GET(request: NextRequest) {
   const q = request.nextUrl.searchParams;
-  const template = (PDF_TEMPLATES as readonly string[]).includes(q.get('template') ?? '') ? (q.get('template') as PdfTemplateId) : 'catalog';
-  const site = buildSampleSite(q.get('preset') ? { theme: applyPreset(DEFAULT_THEME, getPreset(q.get('preset')!)) } : {});
+  const template: PdfTemplateId = (PDF_TEMPLATES as readonly string[]).includes(q.get('template') ?? '') ? (q.get('template') as PdfTemplateId) : 'catalog';
+  const preset = THEME_PRESETS.find((p) => p.id === q.get('preset'))?.id ?? null;
+  const canonical = new URLSearchParams({ template, ...(preset ? { preset } : {}) });
+  if (request.nextUrl.search !== `?${canonical}`) {
+    const url = request.nextUrl.clone();
+    url.search = `?${canonical}`;
+    return NextResponse.redirect(url, 308);
+  }
+  const site = buildSampleSite(preset ? { theme: applyPreset(DEFAULT_THEME, getPreset(preset)) } : {});
   const about = site.pages.find((p) => p.slug === 'nosotros');
   const base = defaultPdfSettings(template);
   const settings = {

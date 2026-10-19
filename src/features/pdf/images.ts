@@ -1,6 +1,6 @@
 import 'server-only';
 import { toPdfImage } from '@/features/media/process';
-import { safeDownload } from '@/lib/net/safe-fetch';
+import { readBodyCapped, safeDownload } from '@/lib/net/safe-fetch';
 
 export type PdfImage = { data: Buffer; format: 'jpg' | 'png' };
 
@@ -28,9 +28,10 @@ async function fetchImage(url: string): Promise<PdfImage | null> {
   try {
     let bytes: Uint8Array;
     if (isTrustedHost(url)) {
-      const response = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+      // Host fijo, pero igual sin redirecciones (podrían llevar a otro host) y con tope de tamaño.
+      const response = await fetch(url, { redirect: 'error', signal: AbortSignal.timeout(TIMEOUT_MS) });
       if (!response.ok) return null;
-      bytes = new Uint8Array(await response.arrayBuffer());
+      bytes = await readBodyCapped(response);
     } else {
       // Imagen externa de la biblioteca: misma descarga segura que al agregarla (sin SSRF).
       bytes = (await safeDownload(url)).data;

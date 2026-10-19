@@ -1,16 +1,65 @@
 # Vitrina: sitio web + catálogo para pequeños negocios
 
-SaaS multi-tenant para construir un pequeño sitio comercial (páginas, secciones, navegación y diseño propio) que además funciona como catálogo de productos y servicios, y exportarlo a PDF. Todo sin escribir código.
+[![CI](https://github.com/JosueOmar320/catalogo-saas/actions/workflows/ci.yml/badge.svg)](https://github.com/JosueOmar320/catalogo-saas/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/JosueOmar320/catalogo-saas/actions/workflows/codeql.yml/badge.svg)](https://github.com/JosueOmar320/catalogo-saas/actions/workflows/codeql.yml)
 
-**Stack:** Next.js 16 (App Router) · React 19 · TypeScript · Supabase (Postgres + Auth + Storage) · Zod 4 · React Hook Form · MUI 9 (solo en el panel) · Lucide · @react-pdf/renderer. Sin backend separado; se despliega en Vercel.
+SaaS multi-tenant para que un pequeño negocio (cafetería, ferretería, estudio de servicios…) arme **sin código** un sitio comercial con páginas, secciones y diseño propio, que además funciona como **catálogo de productos y servicios** y se exporta a **PDF** listo para compartir. Incluye un asistente (Garfield) que edita el sitio a partir de pedidos en lenguaje natural.
 
-- Arquitectura, modelo de datos y decisiones: [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md)
-- Auditoría de la v1 y plan de la v2: [`docs/AUDITORIA-V2.md`](docs/AUDITORIA-V2.md)
-- Análisis de catálogos PDF de referencia y arquitectura v3: [`docs/ANALISIS-CATALOGOS-PDF.md`](docs/ANALISIS-CATALOGOS-PDF.md)
+**Stack:** Next.js 16 (App Router, Server Actions) · React 19 · TypeScript estricto · Supabase (Postgres + Auth + Storage, RLS) · Zod 4 · MUI 9 (sólo panel) · @react-pdf/renderer · sharp. Sin backend separado; se despliega en Vercel.
+
+> Demo sin cuenta: `npm run dev` y abre `/demo` (sitio de ejemplo) y `/demo/pdf` (catálogo PDF). No necesita Supabase.
+
+## Decisiones técnicas destacadas
+
+| Tema | Decisión | Por qué |
+| --- | --- | --- |
+| Aislamiento multi-tenant | **RLS en todas las tablas (12) + Storage**, claves foráneas compuestas `(business_id, id)` y funciones `SECURITY DEFINER` con `search_path` vacío para lo privilegiado. Las Server Actions validan además permisos y entrada (Zod). | La base de datos es la última línea de defensa: un bug en la app o una llamada directa a la API REST no puede cruzar negocios. 140 pruebas lo verifican sobre Postgres real (PGlite). |
+| Catálogo público | Una sola RPC (`get_public_catalog`) cacheada con ISR + tag por negocio; el rol `anon` no lee tablas. El bundle del sitio público no incluye Zod (43 KB gzip). | Rápido y barato: una visita no cacheada hace una llamada; publicar invalida sólo ese negocio. |
+| Un renderer, dos destinos | El mismo modelo de secciones/temas se dibuja en la web (React) y en PDF (react-pdf), con tokens de diseño compartidos. | El PDF siempre coincide con el sitio sin mantener dos diseños. |
+| Guardado del editor | Todo se edita en memoria y se guarda con una transacción (`save_site`) con detección de conflictos. | Sin estados a medias; deshacer y vista previa son gratuitos. |
+| Asistente con IA acotada | El modelo sólo **propone** acciones tipadas (Zod) que el editor valida y aplica con el mismo reducer que la interfaz; lo simple se resuelve sin IA (router local). | Un prompt malicioso no puede hacer nada que el usuario no pueda hacer; funciona sin clave de API. |
+| Medios | Biblioteca única con referencias (una imagen se sube una vez y se reutiliza), descargas de URLs con protección SSRF (IP verificada al conectar) y borrado sólo de lo que nadie usa. | Sin duplicados ni imágenes rotas; seguro frente a URLs internas. |
+
+Más detalle: [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md).
+
+## Arquitectura (resumen)
+
+```
+Navegador ──▶ Next.js (Vercel)
+               ├─ proxy.ts ............ refresca la sesión y protege /dashboard, /admin
+               ├─ Server Components .... leen con el cliente de sesión (RLS)
+               ├─ Server Actions ...... validan (Zod) + permisos → Supabase (RLS)
+               ├─ /api/assistant ...... Garfield: router local → modelo (opcional) → acciones tipadas
+               ├─ /api/catalogs/:id/pdf  genera el PDF (react-pdf) con el mismo modelo del sitio
+               └─ /catalogo/[slug] .... sitio público (ISR, una RPC por visita no cacheada)
+Supabase ──▶ Postgres (RLS, funciones, auditoría) · Auth (usuario + contraseña) · Storage (bucket público, escritura con RLS)
+```
+
+## Inicio rápido
+
+Requisitos: **Node.js 22 o superior** (`.nvmrc` fija 24) y npm.
+
+```bash
+npm ci
+```
+
+```bash
+npm run dev
+```
+
+Con eso ya funcionan la landing, `/demo` y `/demo/pdf`. Para el panel (`/login`) configura Supabase: [Configurar Supabase](#configurar-supabase).
+
+```bash
+npm run check
+```
+
+Corre typecheck, lint, pruebas unitarias y pruebas de base de datos (no necesita Supabase ni Docker).
+
+Documentación adicional:
 - Garfield AI (asistente del editor): [`docs/GARFIELD-AI.md`](docs/GARFIELD-AI.md)
-- Auditoría v4 (acceso controlado, administración, herramientas de Garfield, personalización): [`docs/AUDITORIA-V4.md`](docs/AUDITORIA-V4.md)
-- Auditoría v5 (biblioteca de medios, Garfield híbrido, composición del sitio, PDF): [`docs/AUDITORIA-V5.md`](docs/AUDITORIA-V5.md)
-- Funcionalidades pendientes y recomendaciones: [`docs/ROADMAP.md`](docs/ROADMAP.md)
+- Auditorías por versión y decisiones: [`docs/AUDITORIA-V2.md`](docs/AUDITORIA-V2.md) · [`V4`](docs/AUDITORIA-V4.md) · [`V5`](docs/AUDITORIA-V5.md) · [`Calidad y seguridad (oct-2026)`](docs/AUDITORIA-CALIDAD.md)
+- Análisis de catálogos PDF de referencia: [`docs/ANALISIS-CATALOGOS-PDF.md`](docs/ANALISIS-CATALOGOS-PDF.md)
+- Pendientes y recomendaciones: [`docs/ROADMAP.md`](docs/ROADMAP.md) · Cómo contribuir: [`CONTRIBUTING.md`](CONTRIBUTING.md)
 
 ---
 
@@ -75,6 +124,7 @@ Copia `.env.example` a `.env.local`.
      4. `20260930000000_admin_access.sql` (usuarios con nombre de usuario, roles, estados, administración, auditoría y biblioteca de medios)
      5. `20261001000000_media_library.sql` (carpetas, nombres, URLs externas, dónde se usa cada imagen y reemplazo en todo el contenido)
      6. `20261005000000_performance.sql` (conteos del panel de administración en SQL; sin ella el panel sigue funcionando con el método anterior, más lento)
+     7. `20261020000000_security_hardening.sql` (sólo permisos: las membresías y los catálogos se crean únicamente desde el panel de administración; límite de intentos de login y cupo diario de Garfield)
    - Con la CLI: `npx supabase link --project-ref <ref>` y luego `npx supabase db push` (aplica sólo las que falten).
 
    **Si ya tenías una versión anterior funcionando**, ejecuta sólo los archivos que falten. El segundo convierte cada catálogo v1 en un sitio con página "Inicio"; el tercero sólo agrega la columna de atributos; el cuarto **no borra nada**: agrega columnas y tablas, asigna a cada cuenta existente un nombre de usuario (la parte del email antes de la @; si se repite, con un sufijo), deja las cuentas y negocios activos y registra las imágenes que ya estaban en Storage en la biblioteca. El quinto tampoco mueve archivos (ya están en Storage): agrega columnas a la biblioteca, asigna carpeta y nombre a lo existente y registra cualquier imagen referenciada que faltara. Las secciones de productos y la configuración del PDF de versiones anteriores se convierten al nuevo formato al leerlas. No se pierde nada.
@@ -94,7 +144,7 @@ Crea la cuenta (o, si el usuario ya existe, lo promueve) con la service role. De
 
 ## Ejecutar localmente
 
-Requisitos: Node.js 20.9 o superior.
+Requisitos: Node.js 22 o superior (`.nvmrc` fija la versión usada en CI).
 
 ```bash
 npm install
@@ -127,15 +177,63 @@ Aplica la migración automáticamente. Usa la *API URL* y la *Publishable key* q
 | Script | Qué hace |
 | --- | --- |
 | `npm run dev` / `build` / `start` | Desarrollo, build y servidor de producción. |
-| `npm run typecheck` | TypeScript estricto. |
-| `npm run lint` | ESLint (reglas de Next.js y React Compiler). |
-| `npm run test:unit` | Pruebas unitarias (Garfield: acciones, modo básico, proveedores, herramientas seguras; secciones y layouts). |
-| `npm run test:db` | Pruebas de RLS, roles, auditoría y aislamiento multi-tenant sobre PGlite (sin Docker). |
-| `npm run check` | Todas las verificaciones anteriores. |
+| `npm run typecheck` | Genera los tipos de rutas de Next y corre TypeScript estricto. |
+| `npm run lint` | ESLint (reglas de Next.js, TypeScript y React Compiler). |
+| `npm test` | Pruebas unitarias + pruebas de base de datos. |
+| `npm run test:unit` | Pruebas unitarias (`tests/**`): seguridad (SSRF, redirecciones), dominio, editor, Garfield, PDF. |
+| `npm run test:coverage` | Igual, con cobertura (`coverage/lcov.info`). |
+| `npm run test:db` | Migraciones + RLS, roles, auditoría, límites y aislamiento multi-tenant sobre PGlite (sin Docker). |
+| `npm run check` | typecheck + lint + todas las pruebas (lo mismo que CI, sin el build). |
 | `npm run admin:create` | Crea o promueve el administrador de la plataforma (usa `.env.local`). |
 | `npm run db:types` | Regenera tipos desde Supabase en `src/types/database.generated.ts`. |
 
 ---
+
+## Pruebas
+
+| Capa | Herramienta | Qué cubre |
+| --- | --- | --- |
+| Base de datos (140) | PGlite (Postgres en WASM) con stubs de `auth`/`storage` | Todas las migraciones en orden (incluida la migración de datos v1), RLS por tabla y por rol, Storage, límites de plan, RPCs de administración, auditoría, referencias de medios y límite de intentos. |
+| Unitarias (182) | `node:test` + `tsx` | Anti-SSRF (incluidas IPv4 escondidas en IPv6), redirecciones seguras, slugs, precios, usuarios, planes, acciones de contacto, paginación, reducer del editor (guardado concurrente), Garfield (router local, ejecutores, proveedores con `fetch` simulado), PDF y equivalencia de optimizaciones. |
+
+Las pruebas no usan red, reloj ni datos aleatorios sin control, así que son deterministas en CI. La cobertura (`npm run test:coverage`) mide los módulos que cargan las pruebas: en la última ejecución, 88 % de líneas y 82 % de ramas sobre 77 módulos (lógica de dominio, seguridad y Garfield). La interfaz (componentes React) no tiene pruebas automatizadas: ver [Limitaciones](#limitaciones-conocidas).
+
+## Integración continua
+
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) corre en cada pull request y en `main`:
+
+| Job | Qué hace |
+| --- | --- |
+| Typecheck & lint | `npm ci` reproducible (lockfile) + `typecheck` + `lint`. |
+| Tests | Pruebas unitarias con cobertura y pruebas de base de datos; publica `coverage/` como artefacto y un resumen en el job. |
+| Production build | `next build` sin secretos (la app compila sin Supabase). |
+| Dependency audit | `npm audit --omit=dev --audit-level=high`. |
+| Dependency review | En PRs, bloquea dependencias nuevas con vulnerabilidades altas. |
+| Secret scan | gitleaks sobre todo el historial. |
+
+Además: [`codeql.yml`](.github/workflows/codeql.yml) (análisis estático de seguridad, semanal y en PRs) y [`dependabot.yml`](.github/dependabot.yml) (actualizaciones semanales agrupadas). Las acciones están fijadas por SHA y cada job tiene permisos mínimos; ningún job necesita secretos.
+
+**Configuración manual en GitHub** (no se puede hacer desde el repositorio):
+1. *Settings → Branches → Branch protection* para `main`: exigir los checks `Typecheck & lint`, `Tests`, `Production build`, `Dependency audit` y `Secret scan` (y `Analyze (javascript-typescript)` si usas CodeQL).
+2. *Settings → Code security*: activar *Dependabot alerts* y *Secret scanning*. CodeQL es gratis en repos públicos; en privados requiere GitHub Advanced Security.
+
+## Seguridad
+
+- **Autorización en la base de datos** (RLS) además de en las Server Actions; la service role sólo se usa en el servidor para la API de administración de Auth, el login por usuario y el límite de intentos.
+- **Sin registro público**: las cuentas las crea un administrador; los roles viven en la base y no se pueden cambiar desde el navegador.
+- **Login**: límite de 10 intentos por cuenta y 30 por IP cada 15 minutos, compartido entre instancias; redirección posterior sólo a rutas internas.
+- **Descargas de URLs** (biblioteca, Garfield, PDF): sólo https, IP pública verificada al conectar (incluye formas IPv6 de IPv4 privadas), redirecciones re-verificadas, tope de tamaño y verificación de tipo real de imagen.
+- **Cabeceras**: `frame-ancestors`/`X-Frame-Options` (anti-clickjacking), `nosniff`, `Referrer-Policy`, `Permissions-Policy`, HSTS en producción.
+- **Errores**: los mensajes de Postgres o del proveedor de IA nunca llegan al usuario; los errores inesperados muestran un código (`digest`) para buscarlo en los logs.
+
+Para reportar un problema de seguridad, ver [`SECURITY.md`](SECURITY.md).
+
+## Limitaciones conocidas
+
+- La interfaz no tiene pruebas end-to-end (Playwright): requieren una instancia de Supabase de prueba. Las reglas críticas (permisos, validación, cálculo) están cubiertas por las pruebas de base de datos y unitarias.
+- La CSP es mínima (sin `script-src`): una CSP estricta exige nonces por página y haría dinámico el catálogo público.
+- `src/types/database.ts` se mantiene a mano junto con las migraciones; `npm run db:types` genera la versión oficial para compararla.
+- El límite por cuenta del login también puede usarse para bloquear temporalmente (15 min) a un usuario cuyo nombre se conoce; es el compromiso habitual frente a la fuerza bruta.
 
 ## Desplegar en Vercel
 
@@ -156,10 +254,14 @@ Notas de costo en el plan gratuito:
 
 ```
 supabase/
-  migrations/                  v1 (esquema, RLS, Storage) + v2 (páginas, navegación, PDF) + v3 (atributos) + v4 (acceso, roles, auditoría, medios)
-  tests/rls.test.mjs           126 pruebas de aislamiento, roles, auditoría, biblioteca de medios y migración (PGlite)
+  migrations/                  v1 (esquema, RLS, Storage) · v2 (páginas, navegación, PDF) · v3 (atributos) · v4 (acceso, roles, auditoría) · v5 (biblioteca) · rendimiento · seguridad
+  tests/rls.test.mjs           140 pruebas de migraciones, aislamiento, roles, auditoría, medios y límites (PGlite)
 scripts/create-admin.mjs       Crea o promueve el administrador (npm run admin:create)
-tests/assistant/               95 pruebas unitarias (router local, ejecutores sitio/PDF, media por descripción, plantillas, descarga segura, equivalencia de optimizaciones): npm run test:unit
+tests/                         182 pruebas unitarias (npm run test:unit)
+  lib/                         seguridad (SSRF, redirecciones, rutas de Storage) y dominio (slugs, precios, planes, contacto…)
+  builder/                     reducer del editor (guardado con cambios concurrentes)
+  assistant/                   Garfield: router local, ejecutores sitio/PDF, proveedores, herramientas, plantillas
+.github/                       CI (ci.yml), CodeQL y Dependabot
 src/
   proxy.ts                     Sesión de Supabase + protección de rutas
   app/
@@ -171,7 +273,7 @@ src/
     dashboard/export/pdf/      Estudio de PDF (bloques + preview por página + descarga)
     dashboard/catalog/attributes/ Atributos personalizados
     api/catalogs/[id]/pdf/     GET descarga · POST vista previa
-    api/assistant/             Garfield AI: interpreta el pedido y devuelve acciones (no escribe en la base)
+    api/assistant/             Garfield AI: interpreta el pedido y devuelve acciones (sólo importa fotos libres a la biblioteca)
     preview/[[...slug]]/       Vista previa privada navegable
     demo/[[...slug]]/          Sitio de ejemplo (+ /demo/pdf)
   site-renderer/               Motor web: shell, header, footer, páginas, 21 secciones (incl. Columnas), tarjetas, ProductCollection (12 layouts)
@@ -192,5 +294,6 @@ src/
     supabase/                  Clientes: navegador, servidor (sesión) y admin (service role, sólo servidor)
     storage/                   StorageProvider (Supabase hoy; R2/S3 implementando la interfaz)
     net/                       Descarga segura de URLs (anti-SSRF, IP verificada al conectar)
+    security/                  Límite de intentos compartido (Postgres)
     business · contact · plans · utils
 ```

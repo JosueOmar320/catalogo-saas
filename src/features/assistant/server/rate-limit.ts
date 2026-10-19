@@ -1,9 +1,9 @@
 import 'server-only';
 
 /**
- * Límite simple por usuario (ventana deslizante, en memoria de la instancia).
- * Suficiente para evitar abusos accidentales; para varias instancias usar
- * Redis/Upstash con la misma interfaz.
+ * Límite de ráfagas por usuario (ventana deslizante, en memoria de la instancia):
+ * corta bucles accidentales sin ir a la base. El cupo diario real, compartido
+ * entre instancias, está en `lib/security/rate-limit.ts`.
  */
 const WINDOW_MS = 5 * 60_000;
 const MAX_REQUESTS = 30;

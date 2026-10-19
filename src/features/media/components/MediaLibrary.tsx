@@ -21,7 +21,7 @@ import {
   Typography,
 } from '@mui/material';
 import { Check, Copy, Download, ExternalLink, FolderInput, Images, Link2, Loader2, MoreHorizontal, RefreshCw, Search, Trash2, Upload, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDashboard } from '@/components/dashboard/DashboardContext';
 import { useConfirm } from '@/components/feedback/ConfirmProvider';
 import { useToast } from '@/components/feedback/ToastProvider';
@@ -68,7 +68,7 @@ export function MediaLibrary({ mode = 'manage', multiple = false, storageOnly = 
   const picking = mode === 'pick';
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const [filters, setFilters] = useState<Required<Pick<MediaFilters, 'query' | 'folder' | 'source' | 'sort'>>>({ query: '', folder: initialFolder, source: storageOnly ? 'all' : 'all', sort: 'recent' });
+  const [filters, setFilters] = useState<Required<Pick<MediaFilters, 'query' | 'folder' | 'source' | 'sort'>>>({ query: '', folder: initialFolder, source: 'all', sort: 'recent' });
   const [items, setItems] = useState<MediaRecord[] | null>(null);
   const [total, setTotal] = useState(0);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -81,22 +81,23 @@ export function MediaLibrary({ mode = 'manage', multiple = false, storageOnly = 
   const [moreAnchor, setMoreAnchor] = useState<HTMLElement | null>(null);
 
   const load = useCallback(async (offset = 0) => {
-    const result = await searchMediaPage({ ...filters, limit: PAGE, offset });
-    if (!result.ok) {
-      toast.error(result.error);
+    // El filtro va al servidor: así el total y "Cargar más" cuentan sólo lo que se muestra.
+    const result = await searchMediaPage({ ...filters, storedOnly: storageOnly, limit: PAGE, offset }).catch(() => null);
+    if (!result || !result.ok) {
+      toast.error(result ? result.error : 'No se pudo cargar la biblioteca. Revisa tu conexión.');
       setItems((prev) => prev ?? []);
       return;
     }
     setTotal(result.data.total);
     setItems((prev) => (offset === 0 ? result.data.items : [...(prev ?? []), ...result.data.items]));
-  }, [filters, toast]);
+  }, [filters, storageOnly, toast]);
 
   useEffect(() => {
     const timer = setTimeout(() => void load(0), filters.query ? 300 : 0);
     return () => clearTimeout(timer);
   }, [load, filters.query]);
 
-  const visible = useMemo(() => (items ?? []).filter((m) => !storageOnly || m.provider !== 'external'), [items, storageOnly]);
+  const visible = items ?? [];
   const selectedItems = visible.filter((m) => selected.includes(m.id));
   const set = (patch: Partial<typeof filters>) => {
     setSelected([]);

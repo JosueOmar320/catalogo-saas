@@ -64,6 +64,8 @@ export const mediaFiltersSchema = z.object({
   folder: z.union([z.enum(MEDIA_FOLDERS), z.literal('all')]).default('all'),
   source: z.union([z.enum(['upload', 'import', 'stock', 'chat', 'external']), z.literal('all')]).default('all'),
   sort: z.enum(MEDIA_SORTS).default('recent'),
+  /** Sólo archivos guardados en Storage (sin enlaces externos), p. ej. para elegir un logo. */
+  storedOnly: z.boolean().default(false),
   limit: z.number().int().min(1).max(200).default(60),
   offset: z.number().int().min(0).max(100_000).default(0),
 });

@@ -1,14 +1,22 @@
 import 'server-only';
 import { Font } from '@react-pdf/renderer';
 import { FONTS, type FontId } from '@/lib/design/fonts';
+import { readBodyCapped } from '@/lib/net/safe-fetch';
 
 const cache = new Map<FontId, Promise<boolean>>();
 const TIMEOUT_MS = 5000;
+/**
+ * Versión fija de Fontsource (no "@latest"): el servidor interpreta estos
+ * archivos, así que no se aceptan cambios del CDN sin revisarlos. Para
+ * actualizar: `npm view @fontsource/inter version` y probar el PDF.
+ */
+const FONTSOURCE_VERSION = '5.3.0';
+const MAX_FONT_BYTES = 5 * 1024 * 1024;
 
 async function fetchBase64(url: string): Promise<string> {
-  const response = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS), cache: 'force-cache' });
+  const response = await fetch(url, { redirect: 'error', signal: AbortSignal.timeout(TIMEOUT_MS), cache: 'force-cache' });
   if (!response.ok) throw new Error(`${response.status} ${url}`);
-  return Buffer.from(await response.arrayBuffer()).toString('base64');
+  return Buffer.from(await readBodyCapped(response, MAX_FONT_BYTES)).toString('base64');
 }
 
 /**
@@ -20,7 +28,7 @@ function ensureFont(id: FontId): Promise<boolean> {
   if (!pending) {
     pending = (async () => {
       try {
-        const base = `https://cdn.jsdelivr.net/fontsource/fonts/${FONTS[id].fontsourceId}@latest/latin`;
+        const base = `https://cdn.jsdelivr.net/fontsource/fonts/${FONTS[id].fontsourceId}@${FONTSOURCE_VERSION}/latin`;
         const [regular, bold] = await Promise.all([fetchBase64(`${base}-400-normal.ttf`), fetchBase64(`${base}-700-normal.ttf`)]);
         // Itálicas opcionales: algunas fuentes no las tienen (se usa la normal).
         const [italic, boldItalic] = await Promise.all([

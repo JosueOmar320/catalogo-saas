@@ -2,7 +2,7 @@
 
 import { Menu, X } from 'lucide-react';
 import { usePathname } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { SocialIcon } from '@/components/SocialIcon';
 import { SOCIAL_NETWORKS } from '@/lib/social/networks';
 import { BackgroundLayers } from './Background';
@@ -14,7 +14,7 @@ import styles from './site.module.css';
 /**
  * Header del sitio con 7 estilos (data-style), logo a la izquierda o al
  * centro, menú a la izquierda/centro/derecha, sticky, transparente sobre el
- * hero (se vuelve sólido al hacer scroll) y menú móvil.
+ * hero (pasa a sólido con un fundido suave al hacer scroll) y menú móvil.
  */
 export function SiteHeader(props: HeaderProps) {
   const { header, brand, items, cta, social, overlayPaths, homePath } = props;
@@ -23,6 +23,7 @@ export function SiteHeader(props: HeaderProps) {
   const overlay = overlayPaths.some((p) => (p.replace(/\/$/, '') || '/') === current);
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const menuId = useId();
   const sentinel = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
@@ -33,9 +34,24 @@ export function SiteHeader(props: HeaderProps) {
     return () => observer.disconnect();
   }, [overlay]);
 
+  // Menú móvil: Escape lo cierra (y devuelve el foco al botón que lo abrió).
+  const toggleRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setOpen(false);
+      toggleRef.current?.focus();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open]);
+
   const isActive = (href: string) => (href.split('?')[0].replace(/\/$/, '') || '/') === current;
   const centered = header.logoPosition === 'center';
   const customBg = header.background.type !== 'inherit';
+  // Con el menú móvil abierto, la barra se ve sólida igual que el panel que despliega.
+  const solid = scrolled || open;
 
   const brandNode = (header.showLogo || header.showName) && (
     <a href={homePath} className={styles.brand} data-page-id={items.find((i) => i.href === homePath)?.pageId}>
@@ -79,24 +95,24 @@ export function SiteHeader(props: HeaderProps) {
   );
 
   const toggle = items.length > 0 && (
-    <button type="button" className={styles.menuToggle} aria-expanded={open} aria-label={open ? 'Cerrar menú' : 'Abrir menú'} onClick={() => setOpen((o) => !o)}>
+    <button ref={toggleRef} type="button" className={styles.menuToggle} aria-expanded={open} aria-controls={menuId} aria-label={open ? 'Cerrar menú' : 'Abrir menú'} onClick={() => setOpen((o) => !o)}>
       {open ? <X size={18} /> : <Menu size={18} />}
     </button>
   );
 
   return (
     <>
-      <span ref={sentinel} aria-hidden />
+      <span ref={sentinel} className={styles.headerSentinel} aria-hidden />
       <header
         className={`${styles.header} ${centered ? styles.headerTwoRows : ''}`}
         data-style={header.style}
         data-sticky={header.sticky}
         data-overlay={overlay}
-        data-scrolled={scrolled}
-        data-custom-bg={customBg && !(overlay && !scrolled)}
+        data-scrolled={solid}
+        data-custom-bg={customBg}
       >
         <div className={styles.headerInner}>
-          <div className={styles.headerSurface}>{customBg && !(overlay && !scrolled) && <BackgroundLayers background={header.background} />}</div>
+          <div className={styles.headerSurface}>{customBg && <BackgroundLayers background={header.background} />}</div>
           <div className={styles.container}>
             {centered ? (
               <div className={styles.headerBar}>
@@ -128,7 +144,7 @@ export function SiteHeader(props: HeaderProps) {
             )}
           </div>
           {open && (
-            <nav className={styles.mobilePanel} aria-label="Menú móvil">
+            <nav id={menuId} className={styles.mobilePanel} aria-label="Menú móvil">
               {navLinks()}
               {cta && (
                 <a href={cta.href} className={styles.btn} data-variant="solid" target={cta.external ? '_blank' : undefined} rel="noopener noreferrer">
