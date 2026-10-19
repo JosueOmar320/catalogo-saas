@@ -3,6 +3,8 @@ import { AlertCircle, ArrowRight, CheckCircle2, Circle, ExternalLink, FileText, 
 import type { Metadata } from 'next';
 import { STATUS_LABELS } from '@/lib/catalog/status';
 import { QrCodeButton } from '@/components/dashboard/QrCodeButton';
+import { ShareKitButton } from '@/components/dashboard/ShareKitButton';
+import { parseTheme } from '@/lib/design/theme';
 import { CopyField } from '@/components/ui/CopyField';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LinkButton } from '@/components/ui/LinkButton';
@@ -17,6 +19,8 @@ import { getViewStats } from '@/features/views/queries';
 import { getLocale, getT } from '@/i18n/server';
 import { requireBusinessContext } from '@/lib/auth/session';
 import { parseContact } from '@/lib/business/profile';
+import { parseItemAttributes } from '@/lib/catalog/item-attributes';
+import { isSaleOver } from '@/lib/catalog/sale';
 import { parseCatalogSettings } from '@/lib/catalog/settings';
 import { catalogUrl } from '@/lib/catalog/view-model';
 import { formatDate, formatPrice, formatRelative } from '@/lib/utils/format';
@@ -46,6 +50,7 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
   const products = items.filter((i) => i.type === 'product');
   const services = items.length - products.length;
   const published = ctx.catalog.status === 'published';
+  const now = new Date();
   const url = catalogUrl(ctx.business.slug);
 
   const steps = [
@@ -61,7 +66,16 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
 
   // Revisión: lo que conviene completar, con enlace a la lista (productos o servicios) donde hay más casos.
   const review = countReview(
-    items.map((i) => ({ type: i.type, hasImage: i.images.length > 0, hasPrice: i.price !== null, categoryId: i.category_id, isAvailable: i.is_available, isVisible: i.is_visible })),
+    items.map((i) => ({
+      type: i.type,
+      hasImage: i.images.length > 0,
+      hasPrice: i.price !== null,
+      categoryId: i.category_id,
+      isAvailable: i.is_available,
+      isVisible: i.is_visible,
+      hasDescription: Boolean(i.short_description || i.description),
+      saleOver: i.compare_at_price !== null && isSaleOver(parseItemAttributes(i.attributes).saleEnds, now),
+    })),
     categories.length > 0,
   );
   const issues = REVIEW_ORDER.filter((filter) => review[filter].count > 0).map((filter) => {
@@ -74,6 +88,8 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
     'sin-categoria': (count) => t('{count} sin categoría: no aparecen al filtrar por categoría.', { count }),
     agotados: (count) => t('{count} marcado(s) como agotados.', { count }),
     ocultos: (count) => t('{count} oculto(s): no se muestran al público.', { count }),
+    'oferta-vencida': (count) => t('{count} con la oferta vencida: ya se muestran a su precio normal; quita el precio anterior o pon otra fecha.', { count }),
+    'sin-descripcion': (count) => t('{count} sin descripción: unas líneas ayudan a decidir.', { count }),
   };
 
   const recent = [...items].sort((a, b) => b.updated_at.localeCompare(a.updated_at)).slice(0, RECENT_COUNT);
@@ -327,7 +343,17 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
             <SectionCard title={t('Tu catálogo')} description={t('Estado: {status}', { status: t(STATUS_LABELS[ctx.catalog.status].label) })}>
               <CopyField value={url} openable={published} />
               <Box sx={{ mt: 1.5 }}>
-                <QrCodeButton url={url} businessName={ctx.business.name} slug={ctx.business.slug} published={published} />
+                <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
+                  <QrCodeButton url={url} businessName={ctx.business.name} slug={ctx.business.slug} published={published} />
+                  <ShareKitButton
+                    url={url}
+                    businessName={ctx.business.name}
+                    slogan={ctx.business.slogan ?? null}
+                    color={parseTheme(ctx.catalog.theme).colors.accent}
+                    slug={ctx.business.slug}
+                    published={published}
+                  />
+                </Stack>
               </Box>
               <Typography variant="caption" color="text.secondary" component="p" sx={{ mt: 1 }}>
                 {published && ctx.catalog.published_at

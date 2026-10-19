@@ -14,6 +14,7 @@ import { formatPrice } from '@/lib/utils/format';
 import type { ItemType } from '@/types/database';
 import type { ReviewFilter } from '../review';
 import { ITEM_TYPE_LABELS } from '../schema';
+import { getItemPerformance } from '@/features/views/queries';
 import { matchKey } from '@/lib/catalog/csv';
 import { ImportExport } from './ImportExport';
 import { ItemsTable, type ItemRowData } from './ItemsTable';
@@ -22,7 +23,7 @@ import { ItemsTable, type ItemRowData } from './ItemsTable';
 export async function ItemsPage({ type, review }: { type: ItemType; review?: ReviewFilter | null }) {
   const ctx = await requireBusinessContext();
   const t = await getT();
-  const [categories, items] = await Promise.all([listCategories(ctx), listItemsWithImages(ctx)]);
+  const [categories, items, performance] = await Promise.all([listCategories(ctx), listItemsWithImages(ctx), getItemPerformance(ctx)]);
   const { locale } = parseCatalogSettings(ctx.catalog.settings);
   const labels = ITEM_TYPE_LABELS[type];
   const categoryNames = new Map(categories.map((c) => [c.id, c.name]));
@@ -49,6 +50,9 @@ export async function ItemsPage({ type, review }: { type: ItemType; review?: Rev
       isAvailable: i.is_available,
       isFeatured: i.is_featured,
       sale: saleOf(i),
+      hasDescription: Boolean(i.short_description || i.description),
+      views: performance.views ? (performance.views[i.id] ?? 0) : null,
+      units: performance.units ? (performance.units[i.id] ?? 0) : null,
     }));
 
   const newHref = `/dashboard/catalog/items/new?type=${type}`;

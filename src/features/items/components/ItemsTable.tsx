@@ -17,7 +17,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import { Copy, ImageIcon, MoreHorizontal, PackageX, Pencil, Search, Star, Trash2 } from 'lucide-react';
+import { Copy, Eye, ImageIcon, MoreHorizontal, PackageX, Pencil, Search, ShoppingBag, Star, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
@@ -44,7 +44,13 @@ export type ItemRowData = {
   isFeatured: boolean;
   /** Oferta con fecha de fin: vigente (con su último día) o ya vencida. */
   sale: { ends: string; over: boolean } | null;
+  hasDescription: boolean;
+  /** Fichas vistas y unidades pedidas en 30 días (null si no se pueden leer). */
+  views: number | null;
+  units: number | null;
 };
+
+type SortKey = 'catalog' | 'views' | 'units';
 
 type Props = {
   items: ItemRowData[];
@@ -72,6 +78,8 @@ export function ItemsTable({ items: initialItems, categories, initialReview = nu
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('all');
   const [review, setReview] = useState<ReviewFilter | 'all'>(initialReview ?? 'all');
+  const [sort, setSort] = useState<SortKey>('catalog');
+  const hasStats = initialItems.some((i) => i.views !== null || i.units !== null);
   const [menu, setMenu] = useState<{ anchor: HTMLElement; item: ItemRowData } | null>(null);
 
   // Sincroniza con datos frescos del servidor tras router.refresh().
@@ -83,13 +91,15 @@ export function ItemsTable({ items: initialItems, categories, initialReview = nu
 
   const visibleItems = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return items.filter(
+    const filtered = items.filter(
       (i) =>
         (category === 'all' || (category === 'none' ? !i.categoryId : i.categoryId === category)) &&
-        (review === 'all' || REVIEW_FILTERS[review].test({ ...i, hasImage: Boolean(i.thumbUrl), hasPrice: i.priceLabel !== null })) &&
+        (review === 'all' || REVIEW_FILTERS[review].test({ ...i, hasImage: Boolean(i.thumbUrl), hasPrice: i.priceLabel !== null, saleOver: i.sale?.over ?? false })) &&
         (!q || i.name.toLowerCase().includes(q) || i.sku?.toLowerCase().includes(q)),
     );
-  }, [items, query, category, review]);
+    // Más vistos / más pedidos (30 días); empates en el orden del catálogo.
+    return sort === 'catalog' ? filtered : [...filtered].sort((a, b) => (b[sort] ?? 0) - (a[sort] ?? 0));
+  }, [items, query, category, review, sort]);
 
   const toggle = (item: ItemRowData, field: ToggleField, value: boolean) => {
     const key = FIELD_KEY[field];
@@ -195,6 +205,19 @@ export function ItemsTable({ items: initialItems, categories, initialReview = nu
               <option key={key} value={key}>{t(filter.label)}</option>
             ))}
           </TextField>
+          {hasStats && (
+            <TextField
+              select
+              value={sort}
+              onChange={(e) => setSort(e.target.value as SortKey)}
+              sx={{ maxWidth: { sm: 200 } }}
+              slotProps={{ select: { native: true }, htmlInput: { 'aria-label': t('Ordenar') } }}
+            >
+              <option value="catalog">{t('Orden del catálogo')}</option>
+              <option value="views">{t('Más vistos (30 días)')}</option>
+              <option value="units">{t('Más pedidos (30 días)')}</option>
+            </TextField>
+          )}
           {(query || category !== 'all' || review !== 'all') && (
             <Typography variant="body2" color="text.secondary" sx={{ alignSelf: 'center', whiteSpace: 'nowrap' }} aria-live="polite">
               {t('{count} de {total}', { count: visibleItems.length, total: items.length })}
@@ -255,6 +278,28 @@ export function ItemsTable({ items: initialItems, categories, initialReview = nu
                     label={item.sale.over ? t('Oferta vencida') : t('Oferta hasta el {date}', { date: item.sale.ends })}
                     sx={{ display: { xs: 'none', md: 'inline-flex' } }}
                   />
+                )}
+                {(item.views !== null || item.units !== null) && (
+                  <Stack
+                    direction="row"
+                    spacing={1.25}
+                    sx={{ display: { xs: 'none', md: 'flex' }, color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}
+                    aria-label={t('{views} visitas y {units} unidades pedidas en 30 días', { views: item.views ?? 0, units: item.units ?? 0 })}
+                    role="group"
+                  >
+                    {item.views !== null && (
+                      <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }} aria-hidden>
+                        <Eye size={13} />
+                        <Typography variant="caption">{item.views}</Typography>
+                      </Stack>
+                    )}
+                    {item.units !== null && (
+                      <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }} aria-hidden>
+                        <ShoppingBag size={13} />
+                        <Typography variant="caption">{item.units}</Typography>
+                      </Stack>
+                    )}
+                  </Stack>
                 )}
                 {!item.isAvailable && <Chip label={t('Agotado')} variant="outlined" sx={{ display: { xs: 'none', sm: 'inline-flex' } }} />}
                 <Typography variant="body2" sx={{ width: 96, textAlign: 'right', display: { xs: 'none', sm: 'block' }, fontVariantNumeric: 'tabular-nums' }}>
