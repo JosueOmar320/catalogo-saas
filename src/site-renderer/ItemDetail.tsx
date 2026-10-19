@@ -14,6 +14,7 @@ import { PriceTag } from './PriceTag';
 import { buttonVariant } from './SiteButton';
 import { VariantPicker } from './VariantPicker';
 import { DietTags } from './diet';
+import { ItemReviews } from './Reviews';
 import { relatedItems } from './related';
 import { ShareItem } from './ShareItem';
 import { siteTranslator, siteYesNo } from './site-i18n';
@@ -81,6 +82,7 @@ export function ItemDetail({ site, item, backHref, env }: { site: SiteViewModel;
           <ShareItem name={item.name} url={item.url} />
         </div>
       </div>
+      {env.mode !== 'preview' && <ItemReviews site={site} item={item} />}
       {related.length > 0 && (
         <section className={styles.related} aria-labelledby="related-title">
           <h2 id="related-title" className={styles.relatedTitle}>{t('También te puede interesar')}</h2>

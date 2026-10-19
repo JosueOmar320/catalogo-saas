@@ -286,6 +286,21 @@ const catalog: Catalog = {
   Hora: 'Time',
   'El horario que elegiste ya pasó: elige otro.': 'The time you chose has passed: choose another.',
   'Para: {when}': 'For: {when}',
+  'Comentario (opcional)': 'Comment (optional)',
+  'Deja tu opinión': 'Leave a review',
+  'Enviando…': 'Sending…',
+  'Enviar opinión': 'Submit review',
+  'No se pudo enviar tu opinión. Intenta de nuevo más tarde.': "We couldn't send your review. Please try again later.",
+  'Tu calificación': 'Your rating',
+  'Tu nombre': 'Your name',
+  '¡Gracias! Tu opinión se publicará cuando el negocio la apruebe.': 'Thank you! Your review will be published once the business approves it.',
+  '1 opinión': '1 review',
+  'Opiniones': 'Reviews',
+  'Todavía no hay opiniones. ¡Sé el primero!': 'No reviews yet. Be the first!',
+  '{count} opiniones': '{count} reviews',
+  '{rating} de 5 estrellas, {count} opiniones': '{rating} out of 5 stars, {count} reviews',
+  'Activa las reseñas en el panel (Reseñas) para mostrarlas aquí.': 'Turn on reviews in the dashboard (Reviews) to show them here.',
+  'Aquí aparecerán las reseñas que apruebes en el panel.': 'Reviews you approve in the dashboard will appear here.',
 };
 
 export default catalog;

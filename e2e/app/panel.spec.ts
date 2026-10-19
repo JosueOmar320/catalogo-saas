@@ -563,6 +563,56 @@ test('editor del sitio: deshacer y rehacer con botones y con el teclado', async 
   await expect(pending).toHaveCount(0);
 });
 
+test('reseñas: el visitante opina, el negocio la aprueba y se publica con su calificación', async ({ page, browser }) => {
+  await page.goto('/dashboard/resenas');
+  const main = page.getByRole('main');
+  await expect(main.getByText('No hay reseñas por revisar.')).toBeVisible();
+  await main.getByRole('switch', { name: 'Pedir opiniones en la ficha de cada producto' }).click();
+  await expect(main.getByRole('switch', { name: 'Pedir opiniones en la ficha de cada producto' })).toBeChecked();
+
+  const visitor = await browser.newContext(ANONYMOUS);
+  const site = await visitor.newPage();
+  const reviews = site.getByRole('region', { name: 'Opiniones' });
+  // La página pública se regenera tras activar las reseñas.
+  await expect(async () => {
+    await site.goto(`/catalogo/${slug}/p/croissant-e2e`);
+    await expect(reviews.getByText('Todavía no hay opiniones. ¡Sé el primero!')).toBeVisible({ timeout: 1000 });
+  }).toPass({ timeout: 15_000 });
+  await reviews.getByRole('button', { name: 'Deja tu opinión' }).click();
+  await reviews.getByRole('radio', { name: '4 de 5 estrellas' }).check();
+  await reviews.getByLabel('Tu nombre').fill('Ana E2E');
+  await reviews.getByLabel('Comentario (opcional)').fill('Crujiente y recién hecho.');
+  const sent = site.waitForResponse((response) => response.url().endsWith('/api/reviews'));
+  await reviews.getByRole('button', { name: 'Enviar opinión' }).click();
+  expect(await (await sent).json()).toEqual({ ok: true });
+  await expect(reviews.getByRole('status')).toHaveText('¡Gracias! Tu opinión se publicará cuando el negocio la apruebe.');
+
+  // Pendiente: no se publica todavía; el inicio del panel avisa.
+  await site.reload();
+  await expect(reviews.getByText('Ana E2E')).toHaveCount(0);
+  await page.goto('/dashboard');
+  await expect(page.getByRole('main').getByText('Tienes 1 reseña nueva por revisar.')).toBeVisible();
+
+  await page.goto('/dashboard/resenas');
+  const item = main.getByRole('listitem').filter({ hasText: 'Ana E2E' });
+  await expect(item.getByText('Sobre Croissant E2E')).toBeVisible();
+  await expect(item.getByText('Crujiente y recién hecho.')).toBeVisible();
+  await item.getByRole('button', { name: 'Publicar' }).click();
+  await expect(page.getByText('Reseña publicada')).toBeVisible();
+  await expect(main.getByText('No hay reseñas por revisar.')).toBeVisible();
+  await main.getByRole('tab', { name: 'Publicadas' }).click();
+  await expect(main.getByRole('listitem').filter({ hasText: 'Ana E2E' })).toBeVisible();
+
+  await expect(async () => {
+    await site.reload();
+    await expect(reviews.getByText('Ana E2E')).toBeVisible({ timeout: 1000 });
+  }).toPass({ timeout: 15_000 });
+  await expect(reviews.getByText('1 opinión')).toBeVisible();
+  const ld = JSON.parse((await site.locator('script[type="application/ld+json"]').first().textContent())!);
+  expect(ld[0].aggregateRating).toMatchObject({ ratingValue: 4, reviewCount: 1 });
+  await visitor.close();
+});
+
 test('el idioma elegido se guarda en el perfil y vuelve al iniciar sesión', async ({ page, browser }) => {
   await page.goto('/dashboard');
   await page.getByRole('button', { name: 'Cambiar idioma' }).click();

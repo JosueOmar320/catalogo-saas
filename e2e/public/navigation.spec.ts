@@ -66,6 +66,47 @@ test.describe('/api/views (visitas del sitio publicado)', () => {
   });
 });
 
+test.describe('reseñas de clientes', () => {
+  test('la ficha muestra el promedio y las opiniones; la tarjeta, sus estrellas; la demo simula el envío', async ({ page }) => {
+    await page.goto('/demo/menu');
+    const card = page.getByRole('main').getByRole('article').filter({ hasText: 'Latte de avena' }).first();
+    await expect(card.getByLabel('4.5 de 5 estrellas, 2 opiniones')).toBeVisible();
+
+    await page.goto('/demo/p/ejemplo-2');
+    const reviews = page.getByRole('region', { name: 'Opiniones' });
+    await expect(reviews.getByText('2 opiniones')).toBeVisible();
+    await expect(reviews.getByText('Luis R.')).toBeVisible();
+    await expect(reviews.getByText('Muy rico, aunque me gusta un poco más caliente.')).toBeVisible();
+
+    await reviews.getByRole('button', { name: 'Deja tu opinión' }).click();
+    const send = reviews.getByRole('button', { name: 'Enviar opinión' });
+    await expect(send).toBeDisabled();
+    await reviews.getByRole('radio', { name: '5 de 5 estrellas' }).check();
+    await reviews.getByLabel('Tu nombre').fill('Ana');
+    await reviews.getByLabel('Comentario (opcional)').fill('¡Delicioso!');
+    await send.click();
+    await expect(reviews.getByRole('status')).toHaveText('¡Gracias! Tu opinión se publicará cuando el negocio la apruebe.');
+  });
+
+  test('un producto sin opiniones invita a dejar la primera', async ({ page }) => {
+    await page.goto('/demo/p/ejemplo-1');
+    await expect(page.getByRole('region', { name: 'Opiniones' }).getByText('Todavía no hay opiniones. ¡Sé el primero!')).toBeVisible();
+  });
+
+  test('/api/reviews valida el cuerpo, el tamaño y el origen; el campo trampa no guarda nada', async ({ request }) => {
+    const valid = { slug: 'cafe-aurora', item: 'latte', name: 'Ana', rating: 5, body: 'Rico' };
+    expect((await request.post('/api/reviews', { data: { ...valid, rating: 6 } })).status()).toBe(400);
+    expect((await request.post('/api/reviews', { data: { ...valid, name: '  ' } })).status()).toBe(400);
+    expect((await request.post('/api/reviews', { data: { ...valid, item: '../admin' } })).status()).toBe(400);
+    expect((await request.post('/api/reviews', { data: { ...valid, body: 'x'.repeat(601) } })).status()).toBe(400);
+    expect((await request.post('/api/reviews', { headers: { 'content-type': 'application/json' }, data: 'x'.repeat(5000) })).status()).toBe(413);
+    expect((await request.post('/api/reviews', { data: valid, headers: { origin: 'https://otro-sitio.example' } })).status()).toBe(403);
+    const bot = await request.post('/api/reviews', { data: { ...valid, website: 'https://spam.example' } });
+    expect(bot.status()).toBe(200);
+    expect(await bot.json()).toEqual({ ok: true });
+  });
+});
+
 test.describe('aviso semanal por correo (sin sesión)', () => {
   test('el cron no responde sin el secreto', async ({ request }) => {
     expect((await request.get('/api/cron/catalog-review')).status()).toBe(401);

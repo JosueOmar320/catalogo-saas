@@ -443,5 +443,45 @@ await as(B);
 await expectEq('other business cannot read A view stats', () => q(`select count(*)::int n from public.site_view_stats_daily where business_id=$1`, [bizA]).then((r) => r[0].n), 0);
 await expectEq('other business cannot read A item view stats', () => q(`select count(*)::int n from public.item_view_stats_daily where business_id=$1`, [bizA]).then((r) => r[0].n), 0);
 
+// --- Reseñas (20261026) ---
+await db.exec('reset role');
+await q(`update public.catalogs set settings = coalesce(settings,'{}') || '{"reviews":{"enabled":true}}' where id=$1`, [catA.id]);
+const itemASlugR = (await q(`select slug from public.catalog_items where id=$1`, [itemA]))[0].slug;
+const review = (item, name = 'Ana', rating = 5, body = 'Muy rico') => q(`select public.submit_review('tienda-a', $1, $2, $3, $4) ok`, [item, name, rating, body]).then((r) => r[0].ok);
+const publicReviews = () => q(`select name, rating from public.get_public_reviews('tienda-a') order by name`);
+
+await as(null);
+await expectErr('anon cannot submit reviews directly', () => review(null), 'permission denied');
+await expectErr('anon cannot read the reviews table', () => q(`select * from public.reviews`), 'permission denied');
+await as(A);
+await expectErr('authenticated cannot submit reviews directly', () => review(null), 'permission denied');
+await expectErr('authenticated cannot insert reviews', () => q(`insert into public.reviews(business_id, name, rating) values ($1,'Yo',5)`, [bizA]), 'permission denied');
+
+await db.exec('reset role; set role service_role;');
+await expectEq('review: business and product reviews enter as pending', async () => [await review(null), await review(itemASlugR, 'Beto', 4, '')], [true, true]);
+await expectEq('review: invalid rating, empty name or foreign product → false', async () => [await review(null, 'X', 6), await review(null, '  '), await review('ajeno'), await review(null, 'X', 3, 'x'.repeat(601))], [false, false, false, false]);
+await expectEq('review: pending ones are not public', () => publicReviews(), []);
+
+await as(A);
+await expectEq('owner sees pending reviews', () => q(`select count(*)::int n from public.reviews where business_id=$1 and status='pending'`, [bizA]).then((r) => r[0].n), 2);
+await expectOk('owner approves', () => q(`update public.reviews set status='approved', reviewed_at=now() where business_id=$1`, [bizA]));
+await expectErr('owner cannot edit what the customer wrote', () => q(`update public.reviews set body='otra cosa' where business_id=$1`, [bizA]), 'permission denied');
+await as(null);
+await expectEq('approved reviews are public (anon)', () => publicReviews(), [{ name: 'Ana', rating: 5 }, { name: 'Beto', rating: 4 }]);
+await db.exec('reset role');
+await q(`update public.catalog_items set is_visible=false where id=$1`, [itemA]);
+await as(null);
+await expectEq('review of a hidden product is not public', () => publicReviews().then((r) => r.map((x) => x.name)), ['Ana']);
+await db.exec('reset role');
+await q(`update public.catalog_items set is_visible=true where id=$1`, [itemA]);
+await q(`update public.catalogs set settings = settings || '{"reviews":{"enabled":false}}' where id=$1`, [catA.id]);
+await as(null);
+await expectEq('reviews turned off → none public', () => publicReviews(), []);
+await db.exec('reset role; set role service_role;');
+await expectEq('reviews turned off → cannot submit', () => review(null), false);
+await as(B);
+await expectEq('other business cannot read A reviews', () => q(`select count(*)::int n from public.reviews where business_id=$1`, [bizA]).then((r) => r[0].n), 0);
+await expectEq('other business cannot moderate A reviews', async () => (await db.query(`update public.reviews set status='rejected' where business_id=$1`, [bizA])).affectedRows, 0);
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);

@@ -673,6 +673,9 @@ const catalog: Catalog = {
   'Mostrar hasta (opcional)': 'Show until (optional)',
   'Después de ese día la barra se oculta sola.': 'After that day the bar hides automatically.',
   'El visitante puede cerrarla': 'Visitors can close it',
+  'Escritos por ti': 'Written by you',
+  'Reseñas de clientes': 'Customer reviews',
+  'Se muestran las reseñas que apruebes en Reseñas (panel), las más recientes primero, con un botón para dejar una opinión.': 'Shows the reviews you approve in Reviews (dashboard), newest first, with a button to leave a review.',
 };
 
 export default catalog;

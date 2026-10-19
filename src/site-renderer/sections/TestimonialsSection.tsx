@@ -1,6 +1,7 @@
 import { Star } from 'lucide-react';
 import { mediaUrl } from '@/lib/utils/storage';
 import { gridVars, Placeholder, SectionFrame, SectionHead } from '../SectionFrame';
+import { ReviewForm } from '../ReviewForm';
 import { SiteImage } from '../SiteImage';
 import { siteTranslator } from '../site-i18n';
 import styles from '../site.module.css';
@@ -9,15 +10,27 @@ import type { SectionProps } from './types';
 export function TestimonialsSection({ section, site, env }: SectionProps<'testimonials'>) {
   const { content } = section;
   const t = siteTranslator(site.settings.language);
-  const items = content.items.filter((item) => item.text.trim());
-  if (items.length === 0 && env.mode === 'public') return null;
+  const fromReviews = content.source === 'reviews';
+  const reviewsOn = site.settings.reviews.enabled;
+  // Reseñas de clientes aprobadas (las más recientes): la de un producto lleva su nombre.
+  const itemNames = new Map(site.items.map((i) => [i.id, i.name]));
+  const items = fromReviews
+    ? (site.reviews ?? []).slice(0, 9).map((r) => ({ id: r.id, name: r.name, role: r.itemId ? (itemNames.get(r.itemId) ?? '') : '', text: r.body, photo: null, rating: r.rating }))
+    : content.items.filter((item) => item.text.trim());
+  if (env.mode === 'public' && (fromReviews ? !reviewsOn : items.length === 0)) return null;
   const single = content.layout === 'single';
   const shown = single ? items.slice(0, 1) : items;
 
   return (
     <SectionFrame section={section} theme={site.theme}>
       <SectionHead eyebrow={content.eyebrow} title={content.title} subtitle={content.subtitle} center={single} />
-      <Placeholder show={items.length === 0}>{t('Agrega testimonios de tus clientes desde el editor.')}</Placeholder>
+      <Placeholder show={items.length === 0 && (!fromReviews || env.mode !== 'public')}>
+        {fromReviews
+          ? reviewsOn
+            ? t('Aquí aparecerán las reseñas que apruebes en el panel.')
+            : t('Activa las reseñas en el panel (Reseñas) para mostrarlas aquí.')
+          : t('Agrega testimonios de tus clientes desde el editor.')}
+      </Placeholder>
       <div className={single ? '' : content.layout === 'slider' ? styles.carousel : styles.grid} style={single ? undefined : gridVars(content.columns)}>
         {shown.map((item) => {
           const photo = mediaUrl(item.photo);
@@ -30,7 +43,7 @@ export function TestimonialsSection({ section, site, env }: SectionProps<'testim
                   ))}
                 </div>
               )}
-              <blockquote className={styles.quote}>“{item.text}”</blockquote>
+              {item.text && <blockquote className={styles.quote}>“{item.text}”</blockquote>}
               <figcaption className={styles.author}>
                 <span className={styles.avatar}>{photo ? <SiteImage src={photo} alt="" sizes="44px" /> : item.name.charAt(0).toUpperCase()}</span>
                 <span>
@@ -42,6 +55,11 @@ export function TestimonialsSection({ section, site, env }: SectionProps<'testim
           );
         })}
       </div>
+      {fromReviews && reviewsOn && env.mode !== 'preview' && (
+        <div className={single ? styles.centerRow : undefined} style={{ marginTop: 24 }}>
+          <ReviewForm slug={site.business.slug} item={null} demo={site.business.slug === 'demo'} />
+        </div>
+      )}
     </SectionFrame>
   );
 }

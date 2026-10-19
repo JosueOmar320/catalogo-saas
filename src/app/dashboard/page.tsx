@@ -15,6 +15,7 @@ import { itemThumbnail, listCategories, listItemsWithImages, listPages } from '@
 import { countReview, REVIEW_FILTERS, REVIEW_ORDER, type ReviewFilter } from '@/features/items/review';
 import { OrderStatsChart } from '@/features/orders/components/OrderStatsChart';
 import { getOrderStats } from '@/features/orders/queries';
+import { countPendingReviews } from '@/features/reviews/queries';
 import { getViewStats } from '@/features/views/queries';
 import { getLocale, getT } from '@/i18n/server';
 import { requireBusinessContext } from '@/lib/auth/session';
@@ -35,7 +36,7 @@ const RECENT_COUNT = 5;
 
 export default async function DashboardHome({ searchParams }: PageProps<'/dashboard'>) {
   const ctx = await requireBusinessContext();
-  const [{ welcome }, categories, items, pages, t, locale, orderStats, viewStats] = await Promise.all([
+  const [{ welcome }, categories, items, pages, t, locale, orderStats, viewStats, pendingReviews] = await Promise.all([
     searchParams,
     listCategories(ctx),
     listItemsWithImages(ctx),
@@ -44,6 +45,7 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
     getLocale(),
     getOrderStats(ctx),
     getViewStats(ctx),
+    countPendingReviews(ctx),
   ]);
   const contact = parseContact(ctx.business.contact);
   const settings = parseCatalogSettings(ctx.catalog.settings);
@@ -132,6 +134,20 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
           {t('¡Tu negocio está listo! Sigue los pasos de abajo para completar tu catálogo.')}
         </Alert>
       )}
+
+      {pendingReviews ? (
+        <Alert
+          severity="info"
+          sx={{ mb: 3, alignItems: 'center' }}
+          action={
+            <LinkButton href="/dashboard/resenas" size="small" color="inherit" endIcon={<ArrowRight size={14} />}>
+              {t('Revisar')}
+            </LinkButton>
+          }
+        >
+          {pendingReviews === 1 ? t('Tienes 1 reseña nueva por revisar.') : t('Tienes {count} reseñas nuevas por revisar.', { count: pendingReviews })}
+        </Alert>
+      ) : null}
 
       <Grid container spacing={2.5}>
         <Grid size={{ xs: 12, lg: 8 }}>
