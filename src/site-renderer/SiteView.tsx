@@ -2,6 +2,7 @@ import { findHome, type SitePage } from '@/lib/site/pages';
 import { pagePath } from '@/lib/site/links';
 import type { SiteViewModel } from '@/lib/site/view-model';
 import { buildHeaderProps } from './chrome';
+import { orderConfig } from './order/config';
 import type { RenderEnv } from './env';
 import { PageView } from './PageView';
 import { SiteFooter } from './SiteFooter';
@@ -19,7 +20,7 @@ export function SiteView({ site, page, env, children }: { site: SiteViewModel; p
   // Con contenido propio (ficha de producto) ningún ítem del menú queda activo.
   const header = buildHeaderProps(site, env, children ? `${env.basePath}/p` : current ? pagePath(env.basePath, current) : env.basePath);
   return (
-    <SiteShell theme={site.theme} language={site.settings.language}>
+    <SiteShell theme={site.theme} language={site.settings.language} order={orderConfig(site)}>
       <SiteHeader {...header} />
       <main className={styles.main}>{children ?? (current && <PageView page={current} site={site} env={{ ...env, currentPageId: current.id }} />)}</main>
       <SiteFooter site={site} navItems={header.items} />

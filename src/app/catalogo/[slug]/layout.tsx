@@ -5,6 +5,7 @@ import siteStyles from '@/site-renderer/site.module.css';
 import { getPublicSite } from '@/features/catalog/public-queries';
 import { siteMetadata } from '@/lib/catalog/metadata';
 import { siteStatusTexts } from '@/site-renderer/status';
+import { orderConfig } from '@/site-renderer/order/config';
 
 // ISR: se sirve desde caché y se invalida por tag cuando el dueño guarda cambios.
 export const revalidate = 3600;
@@ -23,7 +24,7 @@ export default async function PublicSiteLayout({ children, params }: LayoutProps
   const header = buildHeaderProps(site, { mode: 'public', basePath: `/catalogo/${slug}`, currentPageId: null });
 
   return (
-    <SiteShell theme={site.theme} language={site.settings.language}>
+    <SiteShell theme={site.theme} language={site.settings.language} order={orderConfig(site)}>
       <SiteHeader {...header} />
       <main className={siteStyles.main}>{children}</main>
       <SiteFooter site={site} navItems={header.items} />

@@ -188,7 +188,7 @@ export async function createBusiness(input: CreateBusinessValues): Promise<Actio
   const values = parsed.data;
 
   const theme = applyPreset(DEFAULT_THEME, getPreset(values.presetId));
-  const settings = catalogSettingsSchema.parse({ contactActions: { whatsapp: { enabled: true }, phone: { enabled: !values.whatsapp } } });
+  const settings = catalogSettingsSchema.parse({ contactActions: { whatsapp: { enabled: true }, phone: { enabled: !values.whatsapp } }, order: { enabled: Boolean(values.whatsapp) } });
   const { data: businessId, error } = await supabase.rpc('admin_create_business', {
     p_name: values.name,
     p_slug: values.slug,

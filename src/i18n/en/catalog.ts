@@ -473,6 +473,16 @@ const catalog: Catalog = {
   'No se pudo leer la imagen.': "Couldn't read the image.",
   'La imagen sigue siendo muy pesada tras comprimirla.': 'The image is still too large after compressing it.',
   'No se pudo subir la imagen. Revisa tu conexión.': "Couldn't upload the image. Check your connection.",
+  // Pedidos por WhatsApp (Contacto)
+  'Tus clientes arman una lista de productos con cantidades y te la envían por WhatsApp con el total.': 'Your customers build a list of products with quantities and send it to you on WhatsApp with the total.',
+  'Agrega tu número de WhatsApp arriba para recibir pedidos.': 'Add your WhatsApp number above to receive orders.',
+  'Recibir pedidos': 'Receive orders',
+  'Los productos disponibles muestran "Agregar al pedido" en lugar del botón de contacto. Los servicios se siguen consultando.': 'Available products show "Add to order" instead of the contact button. Services still use the contact button.',
+  'Saludo del mensaje': 'Message greeting',
+  'Primera línea del pedido. Variable: {negocio}': 'First line of the order. Variable: {negocio}',
+  'Pedir el nombre del cliente': "Ask for the customer's name",
+  'Campo opcional en el pedido.': 'Optional field in the order.',
+  'Guardar pedidos': 'Save orders',
 };
 
 export default catalog;

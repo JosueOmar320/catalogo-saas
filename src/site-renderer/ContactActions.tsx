@@ -5,6 +5,8 @@ import { defaultText } from './default-texts';
 import { buttonVariant } from './SiteButton';
 import { siteTranslator } from './site-i18n';
 import { Icon } from './Icon';
+import { orderable, toOrderItem } from './order/config';
+import { AddToOrder } from './order/OrderProvider';
 import styles from './site.module.css';
 
 const ICONS: Record<ContactActionType, string> = { whatsapp: 'message-circle', phone: 'phone', email: 'mail' };
@@ -37,20 +39,39 @@ export function ContactActions({ site, item, show = 'all', small, block, appeara
     catalogUrl: site.url,
     item: item && { name: item.name, priceLabel: item.priceLabel, sku: item.sku, url: item.url },
   });
-  const visible = show === 'primary' ? actions.slice(0, 1) : actions;
-  if (visible.length === 0) return null;
+  // Con pedido por WhatsApp, el botón principal de un producto es "Agregar al pedido"
+  // y las demás acciones (consultar, llamar…) quedan como secundarias en la ficha.
+  const ordering = item ? orderable(site, item) : false;
+  const visible = show === 'primary' ? (ordering ? [] : actions.slice(0, 1)) : actions;
+  if (visible.length === 0 && !ordering) return null;
   const theme = site.theme;
+  const offset = ordering ? 1 : 0;
+
+  const buttonClass = `${styles.btn} ${small ? styles.btnSmall : ''} ${block && appearance !== 'icon' ? styles.btnBlock : ''}`;
 
   return (
     <>
+      {ordering && item && (
+        <AddToOrder
+          item={toOrderItem(item)}
+          className={buttonClass}
+          variant={appearance === 'link' ? 'ghost' : buttonVariant(theme, 'primary')}
+          hover={theme.buttons.hover}
+          label={t('Agregar al pedido')}
+          shortLabel={shortLabel ? t('Agregar') : undefined}
+          iconOnly={appearance === 'icon'}
+          small={small}
+          block={block && appearance !== 'icon'}
+        />
+      )}
       {visible.map((action, index) => {
-        const label = labelOverride && index === 0 ? labelOverride : defaultText(action.label, t);
-        const variant = appearance === 'link' ? 'ghost' : buttonVariant(theme, index === 0 ? 'primary' : 'secondary');
+        const label = labelOverride && index + offset === 0 ? labelOverride : defaultText(action.label, t);
+        const variant = appearance === 'link' ? 'ghost' : buttonVariant(theme, index + offset === 0 ? 'primary' : 'secondary');
         return (
           <a
             key={action.type}
             href={action.href}
-            className={`${styles.btn} ${small ? styles.btnSmall : ''} ${block && appearance !== 'icon' ? styles.btnBlock : ''}`}
+            className={buttonClass}
             data-variant={variant}
             data-hover={theme.buttons.hover}
             target={action.external ? '_blank' : undefined}

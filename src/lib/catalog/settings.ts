@@ -34,6 +34,18 @@ export const contactActionsSchema = z.object({
     .prefault({}),
 });
 
+/**
+ * Pedido por WhatsApp: el visitante arma una lista con cantidades en el sitio
+ * y la envía al WhatsApp del negocio con un mensaje ya escrito. Sólo productos.
+ */
+export const orderSchema = z.object({
+  enabled: z.boolean().default(false),
+  /** Primera línea del mensaje. Variables: {negocio}. */
+  intro: z.string().trim().max(200).default('Hola {negocio}, quiero hacer este pedido:'),
+  /** Pide (opcional) el nombre de quien hace el pedido. */
+  askName: z.boolean().default(true),
+});
+
 export const pdfOptionsSchema = z.object({
   layout: z.enum(['grid', 'list']).default('grid'),
   paperSize: z.enum(['A4', 'LETTER']).default('A4'),
@@ -63,12 +75,14 @@ export const catalogSettingsSchema = z.object({
   language: z.enum(LOCALES).default('es'),
   priceFormat: priceFormatSchema.prefault({}),
   contactActions: contactActionsSchema.prefault({}),
+  order: orderSchema.prefault({}),
   pdf: pdfOptionsSchema.prefault({}),
 });
 
 export type CatalogSettings = z.output<typeof catalogSettingsSchema>;
 export type ContactActionsConfig = z.output<typeof contactActionsSchema>;
 export type PdfOptions = z.output<typeof pdfOptionsSchema>;
+export type OrderSettings = z.output<typeof orderSchema>;
 
 export const seoSchema = z.object({
   title: z.string().trim().max(70).default(''),

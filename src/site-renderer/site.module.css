@@ -3787,3 +3787,304 @@ details[open] > .faqQuestion .faqChevron {
     text-align: left;
   }
 }
+
+/* ======================================================= Pedido por WhatsApp */
+
+/* Selector de cantidad: reemplaza al botón "Agregar" cuando el producto ya está en el pedido. */
+.qtyStepper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1.5px solid var(--c-border);
+  border-radius: var(--btn-radius);
+  background: var(--c-bg);
+  color: var(--c-heading);
+  min-height: 40px;
+}
+
+.qtyStepper[data-small] {
+  min-height: 34px;
+}
+
+.qtyStepper[data-block] {
+  width: 100%;
+}
+
+.qtyStepper button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  align-self: stretch;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  border-radius: var(--btn-radius);
+}
+
+.qtyStepper button:hover {
+  background: color-mix(in srgb, var(--c-button) 10%, transparent);
+}
+
+.qtyValue {
+  min-width: 28px;
+  text-align: center;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.qtyStepper button:focus-visible,
+.orderFab:focus-visible,
+.orderIconBtn:focus-visible,
+.orderClear:focus-visible {
+  outline: 2px solid var(--c-button);
+  outline-offset: 2px;
+}
+
+/*
+ * Botón flotante. Contenedor sticky al final del sitio: queda al pie de la
+ * ventana (o del marco de la vista previa) sin usar position: fixed, así no se
+ * escapa de las vistas previas del panel y de la landing. Su alto deja espacio
+ * para que el botón no tape el final del footer; no captura clics.
+ */
+.orderDock {
+  position: sticky;
+  bottom: 0;
+  height: 80px;
+  z-index: 40;
+  order: 99;
+  pointer-events: none;
+}
+
+.orderFab {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100% - 32px);
+  padding: 12px 16px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--c-button);
+  color: var(--c-button-text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 10px 30px -8px rgba(0, 0, 0, 0.35);
+  pointer-events: auto;
+  animation: orderIn 0.2s ease-out;
+}
+
+@keyframes orderIn {
+  from {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orderFab {
+    animation: none;
+  }
+}
+
+.orderCount {
+  min-width: 22px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--c-button-text);
+  color: var(--c-button);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.orderFabTotal {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.9;
+}
+
+@container site (max-width: 599px) {
+  .orderFab {
+    left: 16px;
+    justify-content: center;
+  }
+}
+
+/* Panel del pedido (<dialog> nativo: foco atrapado y Esc para cerrar). */
+.orderDialog {
+  width: min(480px, calc(100vw - 24px));
+  max-height: min(720px, calc(100dvh - 24px));
+  padding: 0;
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  background: var(--c-bg);
+  color: var(--c-text);
+  box-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.4);
+}
+
+.orderDialog::backdrop {
+  background: rgba(15, 15, 20, 0.5);
+}
+
+.orderPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+}
+
+.orderHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.orderHeader h2 {
+  margin: 0;
+  font-family: var(--ty-h3-font, var(--f-heading)), sans-serif;
+  font-size: 1.25em;
+  color: var(--c-heading);
+}
+
+.orderIconBtn {
+  display: inline-flex;
+  padding: 6px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--c-muted);
+  cursor: pointer;
+}
+
+.orderIconBtn:hover {
+  background: color-mix(in srgb, var(--c-text) 8%, transparent);
+}
+
+.orderEmpty {
+  margin: 8px 0;
+  color: var(--c-muted);
+}
+
+.orderLines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.orderLines li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.orderThumb {
+  position: relative;
+  flex: none;
+  width: 48px;
+  height: 48px;
+  overflow: hidden;
+  border-radius: calc(var(--radius) * 0.6);
+  background: var(--c-primary-soft);
+}
+
+.orderThumb img {
+  object-fit: cover;
+}
+
+.orderLineInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.orderLineName {
+  color: var(--c-heading);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.orderLinePrice {
+  font-size: var(--fs-small);
+  color: var(--c-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.orderTotal {
+  display: flex;
+  justify-content: space-between;
+  margin: 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--c-border);
+  color: var(--c-heading);
+  font-size: 1.1em;
+}
+
+.orderHint {
+  margin: -8px 0 0;
+  font-size: var(--fs-small);
+  color: var(--c-muted);
+}
+
+.orderFields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.orderFields label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--fs-small);
+  color: var(--c-muted);
+}
+
+.orderFields input,
+.orderFields textarea {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--c-border);
+  border-radius: calc(var(--radius) * 0.6);
+  background: var(--c-bg);
+  color: var(--c-text);
+  font: inherit;
+  resize: vertical;
+}
+
+.orderFields input:focus,
+.orderFields textarea:focus {
+  outline: 2px solid var(--c-button);
+  outline-offset: -1px;
+  border-color: transparent;
+}
+
+.orderFooter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.orderClear {
+  border: 0;
+  background: transparent;
+  color: var(--c-muted);
+  font: inherit;
+  font-size: var(--fs-small);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  padding: 4px;
+}
