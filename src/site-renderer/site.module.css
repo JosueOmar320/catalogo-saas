@@ -4386,6 +4386,52 @@ details[open] > .faqQuestion .faqChevron {
   font-weight: 400;
 }
 
+.orderPaused {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: calc(var(--radius) * 0.6);
+  border: 1px solid var(--c-accent);
+  color: var(--c-heading);
+  font-size: var(--fs-small);
+  font-weight: 600;
+}
+
+.orderMore h3 {
+  margin: 0 0 6px;
+  font-size: var(--fs-small);
+  font-weight: 600;
+  color: var(--c-muted);
+}
+
+.orderMore ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.orderMore li {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.orderMore .orderThumb {
+  width: 40px;
+  height: 40px;
+}
+
+.orderMore .orderIconBtn {
+  border: 1px solid var(--c-border);
+}
+
+.orderRepeat {
+  gap: 8px;
+}
+
 .orderClosed {
   margin: 0;
   padding: 10px 12px;

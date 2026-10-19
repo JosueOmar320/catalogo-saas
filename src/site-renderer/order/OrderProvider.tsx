@@ -1,9 +1,10 @@
 'use client';
 
-import { Minus, Plus, ShoppingBag, Ticket, Trash2, X } from 'lucide-react';
+import { Minus, Plus, RotateCcw, ShoppingBag, Ticket, Trash2, X } from 'lucide-react';
 import { createContext, useCallback, useContext, useId, useMemo, useRef, useState, useSyncExternalStore, type ReactNode, type Ref, type SyntheticEvent } from 'react';
 import { Icon } from '../Icon';
-import { opensText, useOpenStatus } from '../OpenNow';
+import { formatSaleDate } from '@/lib/catalog/sale';
+import { opensText, useMinute, useOpenStatus } from '../OpenNow';
 import { SiteImage } from '../SiteImage';
 import { useSiteT } from '../SiteI18n';
 import styles from '../site.module.css';
@@ -16,10 +17,12 @@ import {
   findCoupon,
   formatAmount,
   fulfillmentOptions,
+  isOrderingPaused,
   MAX_ORDER_LINES,
   orderTotal,
   orderWhatsappHref,
   PAYMENT_LABELS,
+  refreshLines,
   summarizeOrder,
   type AppliedCoupon,
   type Fulfillment,
@@ -101,6 +104,36 @@ function subscribe(key: string, listener: () => void) {
   };
 }
 
+/* ------------------------------------------------------ Último pedido enviado */
+
+/** El último pedido enviado desde este navegador, para repetirlo (90 días). */
+type LastOrder = { lines: OrderLine[]; at: number };
+const LAST_DAYS = 90;
+const lastCache = new Map<string, LastOrder | null>();
+const lastKey = (key: string) => `${key}:last`;
+
+function readLast(key: string): LastOrder | null {
+  if (lastCache.has(key)) return lastCache.get(key)!;
+  let last: LastOrder | null = null;
+  try {
+    const raw = JSON.parse(localStorage.getItem(lastKey(key)) ?? 'null') as { lines?: unknown; at?: unknown } | null;
+    const at = typeof raw?.at === 'number' ? raw.at : 0;
+    const lines = sanitize({ lines: raw?.lines }).lines;
+    if (lines.length && Date.now() - at < LAST_DAYS * 86_400_000) last = { lines, at };
+  } catch {}
+  lastCache.set(key, last);
+  return last;
+}
+
+function writeLast(key: string, lines: OrderLine[]) {
+  const last = { lines, at: Date.now() };
+  lastCache.set(key, last);
+  try {
+    localStorage.setItem(lastKey(key), JSON.stringify(last));
+  } catch {}
+  notify(key);
+}
+
 /**
  * Avisa al servidor que se envió un pedido (sólo ids y cantidades, para las
  * estadísticas del negocio). sendBeacon no bloquea ni se cancela al abrir
@@ -118,6 +151,13 @@ function trackOrder(slug: string, lines: OrderLine[]) {
 type OrderApi = {
   config: OrderConfig;
   state: OrderState;
+  /** Productos que estaban en el pedido guardado y ya no se pueden pedir. */
+  removed: string[];
+  /** Último pedido enviado (con precios de hoy), si se puede repetir. */
+  last: OrderLine[] | null;
+  repeatLast: () => void;
+  /** Guarda el pedido actual como "último pedido" (al enviarlo). */
+  remember: () => void;
   qtyOf: (id: string) => number;
   add: (item: OrderItem) => void;
   setQty: (id: string, qty: number) => void;
@@ -132,19 +172,33 @@ const OrderContext = createContext<OrderApi | null>(null);
 export function OrderProvider({ config, children }: { config: OrderConfig; children: ReactNode }) {
   const t = useSiteT();
   const key = config.storageKey;
-  const state = useSyncExternalStore(
-    useCallback((listener: () => void) => subscribe(key, listener), [key]),
-    () => read(key),
-    () => EMPTY,
-  );
+  const subscribeKey = useCallback((listener: () => void) => subscribe(key, listener), [key]);
+  const saved = useSyncExternalStore(subscribeKey, () => read(key), () => EMPTY);
+  const savedLast = useSyncExternalStore(subscribeKey, () => readLast(key), () => null);
+  // Lo guardado con los precios de hoy; lo que ya no se puede pedir se quita (y se avisa).
+  const fresh = useMemo(() => refreshLines(saved.lines, config.catalog), [saved.lines, config.catalog]);
+  const state = useMemo(() => (fresh.lines === saved.lines ? saved : { ...saved, lines: fresh.lines }), [fresh.lines, saved]);
+  const last = useMemo(() => (savedLast ? refreshLines(savedLast.lines, config.catalog).lines : []), [savedLast, config.catalog]);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [announcement, setAnnouncement] = useState('');
 
   const api = useMemo<OrderApi>(() => {
-    const current = () => read(key);
+    const current = () => {
+      const raw = read(key);
+      return { ...raw, lines: refreshLines(raw.lines, config.catalog).lines };
+    };
     return {
       config,
       state,
+      removed: fresh.removed,
+      last: last.length ? last : null,
+      repeatLast: () => {
+        if (!last.length) return;
+        write(key, { ...current(), lines: last });
+        setAnnouncement(t('Agregamos tu último pedido.'));
+        dialogRef.current?.showModal();
+      },
+      remember: () => writeLast(key, current().lines),
       qtyOf: (id) => state.lines.find((line) => line.id === id)?.qty ?? 0,
       add: (item) => {
         const { lines, ...rest } = current();
@@ -168,7 +222,7 @@ export function OrderProvider({ config, children }: { config: OrderConfig; child
       clear: () => write(key, EMPTY),
       open: () => dialogRef.current?.showModal(),
     };
-  }, [config, key, state, t]);
+  }, [config, fresh.removed, key, last, state, t]);
 
   return (
     <OrderContext.Provider value={api}>
@@ -255,7 +309,18 @@ export function AddToOrder({ item, className, variant, hover, label, shortLabel,
 function OrderDock() {
   const t = useSiteT();
   const order = useOrder();
-  if (!order || order.state.lines.length === 0) return null;
+  if (!order) return null;
+  if (order.state.lines.length === 0) {
+    if (!order.last) return null;
+    return (
+      <div className={styles.orderDock}>
+        <button type="button" className={`${styles.orderFab} ${styles.orderRepeat}`} onClick={order.repeatLast}>
+          <RotateCcw size={17} aria-hidden />
+          <span>{t('Repetir mi último pedido')}</span>
+        </button>
+      </div>
+    );
+  }
   const count = order.state.lines.reduce((sum, line) => sum + line.qty, 0);
   const total = orderTotal(order.state.lines, order.config.pricing);
   return (
@@ -277,6 +342,7 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
   // Un mismo pedido abierto dos veces en WhatsApp cuenta una sola vez.
   const tracked = useRef<string | null>(null);
   const status = useOpenStatus(order?.config.schedule ?? null);
+  const minute = useMinute();
   if (!order) return null;
   const { config, state } = order;
   const { options, pricing } = config;
@@ -288,9 +354,21 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
   const fulfillment = effectiveFulfillment(options, state.fulfillment);
   const money = (value: number) => formatAmount(value, pricing);
   const message = buildOrderMessage({ lines: state.lines, pricing, intro: config.intro, businessName: config.businessName, customerName: state.name, note: state.note, siteUrl: config.siteUrl, t, options, choices });
-  const href = state.lines.length && !summary.blocker ? orderWhatsappHref(config.whatsapp, message) : null;
-  const blockerText =
-    summary.blocker === 'fulfillment'
+  // Antes de hidratar (minute null) se toma la pausa como vigente: el reloj se revisa en el navegador.
+  const paused = Boolean(config.pause && (minute === null || isOrderingPaused(config.pause, new Date(minute * 60_000))));
+  const href = state.lines.length && !summary.blocker && !paused ? orderWhatsappHref(config.whatsapp, message) : null;
+  const pauseText = config.pause
+    ? [
+        config.pause.until ? t('Pausamos los pedidos hasta el {date}.', { date: formatSaleDate(config.pause.until, pricing.locale) }) : t('Por ahora no estamos recibiendo pedidos.'),
+        config.pause.message,
+      ]
+        .filter(Boolean)
+        .join(' ')
+    : '';
+  const more = config.suggestions.filter((item) => !state.lines.some((line) => line.id === item.id)).slice(0, 3);
+  const blockerText = paused
+    ? t('Los pedidos están en pausa.')
+    : summary.blocker === 'fulfillment'
       ? t('Elige cómo quieres recibir tu pedido.')
       : summary.blocker === 'address'
         ? t('Escribe la dirección de entrega.')
@@ -307,6 +385,7 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
           .filter(Boolean)
           .join(' · ');
   const onSend = () => {
+    order.remember();
     if (!config.trackSlug) return;
     const key = JSON.stringify(state.lines.map((line) => [line.id, line.qty]));
     if (tracked.current === key) return;
@@ -333,6 +412,12 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
           </button>
         </header>
 
+        {paused && <p className={styles.orderPaused} role="status">{pauseText}</p>}
+        {order.removed.length > 0 && (
+          <p className={styles.orderClosed} role="status">
+            {t('Ya no están disponibles y se quitaron del pedido: {names}.', { names: order.removed.join(', ') })}
+          </p>
+        )}
         {state.lines.length === 0 ? (
           <p className={styles.orderEmpty}>{t('Tu pedido está vacío. Agrega productos desde el catálogo.')}</p>
         ) : (
@@ -366,6 +451,24 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
                 </li>
               ))}
             </ul>
+
+            {more.length > 0 && (
+              <section className={styles.orderMore} aria-labelledby={`${titleId}-more`}>
+                <h3 id={`${titleId}-more`}>{t('¿Agregas algo más?')}</h3>
+                <ul>
+                  {more.map((item) => (
+                    <li key={item.id}>
+                      <div className={styles.orderThumb}>{item.image && <SiteImage src={item.image} alt="" sizes="40px" />}</div>
+                      <span className={styles.orderLineName}>{item.name}</span>
+                      <span className={styles.orderLinePrice}>{item.priceLabel}</span>
+                      <button type="button" className={styles.orderIconBtn} onClick={() => order.add(item)} aria-label={t('Agregar {name}', { name: item.name })}>
+                        <Plus size={16} aria-hidden />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
 
             {subtotal && (delivery || discount) && (
               <dl className={styles.orderBreakdown}>

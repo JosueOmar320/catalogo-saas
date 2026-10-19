@@ -98,6 +98,12 @@ export const orderSchema = z.object({
   minimumOrder: optionalAmount(),
   /** Formas de pago que el cliente puede elegir. */
   payments: z.array(z.enum(PAYMENT_METHODS)).max(PAYMENT_METHODS.length).default([]),
+  /** Pausa de pedidos (vacaciones, sin servicio): el sitio avisa y no deja enviar. */
+  paused: z.boolean().default(false),
+  /** Último día de la pausa ("" = hasta reactivarla) y la zona horaria de quien la programó. */
+  pausedUntil: z.union([z.literal(''), z.string().regex(/^\d{4}-\d{2}-\d{2}$/)]).default(''),
+  pauseTimeZone: z.string().max(64).default(''),
+  pauseMessage: z.string().trim().max(160).default(''),
   coupons: z
     .array(couponSchema)
     .max(MAX_COUPONS)

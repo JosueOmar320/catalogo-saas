@@ -213,6 +213,51 @@ test.describe('Pedido por WhatsApp', () => {
     await expect(page.getByRole('region', { name: 'Anuncio' })).toHaveCount(0);
   });
 
+  test('"¿Agregas algo más?" suma un producto con un toque', async ({ page }) => {
+    await page.goto('/demo');
+    await card(page, 'Espresso doble').getByRole('button', { name: 'Agregar al pedido' }).click();
+    await orderButton(page).click();
+    const dialog = page.getByRole('dialog', { name: 'Tu pedido' });
+    const more = dialog.getByRole('region', { name: '¿Agregas algo más?' });
+    // Lo que ya está en el pedido no se sugiere.
+    await expect(more.getByRole('button', { name: 'Agregar Espresso doble' })).toHaveCount(0);
+    const first = more.getByRole('button').first();
+    const name = (await first.getAttribute('aria-label'))!.replace(/^Agregar /, '');
+    await first.click();
+    await expect(dialog.getByRole('group', { name: `Cantidad de ${name}` })).toBeVisible();
+    await expect(orderButton(page)).toContainText('2');
+  });
+
+  test('repetir el último pedido enviado y precios al día en un pedido guardado', async ({ page, context }) => {
+    await context.route('https://wa.me/**', (route) => route.fulfill({ status: 200, contentType: 'text/plain', body: 'WhatsApp' }));
+    await page.goto('/demo');
+    await card(page, 'Croissant de mantequilla').getByRole('button', { name: 'Agregar al pedido' }).click();
+    await orderButton(page).click();
+    const dialog = page.getByRole('dialog', { name: 'Tu pedido' });
+    await dialog.getByRole('radio', { name: 'Recoger en el local' }).check();
+    const popup = context.waitForEvent('page');
+    await dialog.getByRole('link', { name: 'Enviar pedido por WhatsApp' }).click();
+    await (await popup).close();
+    await dialog.getByRole('button', { name: 'Vaciar pedido' }).click();
+    await page.keyboard.press('Escape');
+
+    await page.getByRole('button', { name: 'Repetir mi último pedido' }).click();
+    await expect(dialog.getByRole('group', { name: 'Cantidad de Croissant de mantequilla' })).toBeVisible();
+    await expect(orderButton(page)).toContainText('$48');
+
+    // Un pedido guardado con un precio viejo y un producto que ya no existe.
+    const espresso = '00000000-0000-4000-8000-000000000100';
+    await page.evaluate((id) => {
+      const line = { id, name: 'Espresso doble', sku: null, price: 10, priceLabel: '$10', currency: 'MXN', url: '', image: null, qty: 1 };
+      localStorage.setItem('order:demo', JSON.stringify({ lines: [line, { ...line, id: '00000000-0000-4000-8000-0000000009ff', name: 'Producto viejo' }] }));
+    }, espresso);
+    await page.reload();
+    await expect(orderButton(page)).toContainText('$45');
+    await orderButton(page).click();
+    await expect(dialog.getByText('Ya no están disponibles y se quitaron del pedido: Producto viejo.')).toBeVisible();
+    await expect(dialog.getByRole('group', { name: 'Cantidad de Producto viejo' })).toHaveCount(0);
+  });
+
   test('los servicios y los productos agotados no se agregan al pedido', async ({ page }) => {
     await page.goto('/demo/menu');
     await expect(card(page, 'Rol de canela')).toBeVisible();

@@ -63,6 +63,34 @@ export type Fulfillment = 'pickup' | 'delivery';
 /** Lo que el negocio configuró para entregar y cobrar (subconjunto plano de OrderSettings). */
 export type OrderOptions = Pick<OrderSettings, 'pickup' | 'delivery' | 'deliveryFee' | 'freeDeliveryFrom' | 'deliveryNote' | 'minimumOrder' | 'payments'>;
 
+/* ------------------------------------------------------ Precios al día y pausa */
+
+/** Precio actual de cada línea que se puede pedir ("producto" o "producto:opción"): [precio, etiqueta]. */
+export type CatalogIndex = Record<string, [price: number | null, priceLabel: string | null]>;
+
+/**
+ * Las líneas guardadas en el navegador con el precio de hoy. Lo que ya no se
+ * puede pedir (agotado, oculto, eliminado) sale del pedido y se informa.
+ */
+export function refreshLines(lines: OrderLine[], catalog: CatalogIndex): { lines: OrderLine[]; removed: string[] } {
+  const removed: string[] = [];
+  const fresh = lines.flatMap((line) => {
+    const current = catalog[line.id];
+    if (!current) {
+      removed.push(line.name);
+      return [];
+    }
+    const [price, priceLabel] = current;
+    return [price === line.price && priceLabel === line.priceLabel ? line : { ...line, price, priceLabel }];
+  });
+  return { lines: removed.length || fresh.some((line, i) => line !== lines[i]) ? fresh : lines, removed };
+}
+
+export type OrderPause = { until: string; timeZone: string; message: string };
+
+/** ¿Siguen en pausa los pedidos? Con fecha, se reanudan solos al terminar ese día. */
+export const isOrderingPaused = (pause: OrderPause | null, now: Date) => Boolean(pause && !(pause.until && pause.timeZone && isSaleOver({ on: pause.until, timeZone: pause.timeZone }, now)));
+
 /* ------------------------------------------------------------------ Cupones */
 
 /**

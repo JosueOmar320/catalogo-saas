@@ -1,7 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Alert, Box, Button, Checkbox, Divider, FormControlLabel, FormGroup, FormLabel, Grid, InputAdornment, Stack, Typography } from '@mui/material';
+import { Alert, Box, Button, Checkbox, Divider, FormControlLabel, FormGroup, FormLabel, Grid, InputAdornment, Stack, TextField, Typography } from '@mui/material';
 import { useRouter } from 'next/navigation';
 import { Controller, useForm, useWatch, type Resolver } from 'react-hook-form';
 import { SwitchControl, TextFieldControl } from '@/components/form/fields';
@@ -29,6 +29,7 @@ export function ContactForm({ contact, actions, order, businessName }: { contact
   const orderEnabled = useWatch({ control: orderForm.control, name: 'enabled' });
   const scheduleEnabled = useWatch({ control: contactForm.control, name: 'schedule.enabled' });
   const deliveryEnabled = useWatch({ control: orderForm.control, name: 'delivery' });
+  const pausedOrders = useWatch({ control: orderForm.control, name: 'paused' });
   const money = { input: { startAdornment: <InputAdornment position="start">$</InputAdornment> } };
   const message = useWatch({ control: actionsForm.control, name: 'whatsapp.message' });
   const whatsappEnabled = useWatch({ control: actionsForm.control, name: 'whatsapp.enabled' });
@@ -132,6 +133,40 @@ export function ContactForm({ contact, actions, order, businessName }: { contact
           />
           <TextFieldControl control={orderForm.control} name="intro" label={t('Saludo del mensaje')} disabled={!orderEnabled} helperText={t('Primera línea del pedido. Variable: {negocio}')} />
           <SwitchControl control={orderForm.control} name="askName" label={t('Pedir el nombre del cliente')} description={t('Campo opcional en el pedido.')} />
+          <SwitchControl
+            control={orderForm.control}
+            name="paused"
+            label={t('Pausar pedidos')}
+            description={t('Vacaciones o sin servicio: tus clientes ven el catálogo y un aviso, pero no pueden enviar pedidos.')}
+          />
+          {pausedOrders && (
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <Controller
+                  control={orderForm.control}
+                  name="pausedUntil"
+                  render={({ field }) => (
+                    <TextField
+                      type="date"
+                      label={t('Hasta (opcional)')}
+                      value={field.value}
+                      // Se reanudan solos al terminar ese día, en la zona horaria de quien la programa.
+                      onChange={(event) => {
+                        field.onChange(event.target.value);
+                        orderForm.setValue('pauseTimeZone', event.target.value ? Intl.DateTimeFormat().resolvedOptions().timeZone : '', { shouldDirty: true });
+                      }}
+                      helperText={t('Vacío: hasta que la quites.')}
+                      slotProps={{ inputLabel: { shrink: true } }}
+                      fullWidth
+                    />
+                  )}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 8 }}>
+                <TextFieldControl control={orderForm.control} name="pauseMessage" label={t('Mensaje (opcional)')} placeholder={t('Volvemos el lunes con pan recién horneado.')} fullWidth />
+              </Grid>
+            </Grid>
+          )}
 
           <Divider />
           <Typography variant="subtitle2">{t('Entrega')}</Typography>

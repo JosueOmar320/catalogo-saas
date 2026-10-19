@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { catalogSettingsSchema } from '@/lib/catalog/settings';
-import { buildOrderMessage, clampQty, couponHash, findCoupon, NO_CHOICES, NO_OPTIONS, orderTotal, orderWhatsappHref, summarizeOrder, type OrderLine, type OrderOptions, type OrderPricing, type PublicCoupon } from '@/site-renderer/order/message';
+import { buildOrderMessage, clampQty, couponHash, findCoupon, isOrderingPaused, refreshLines, NO_CHOICES, NO_OPTIONS, orderTotal, orderWhatsappHref, summarizeOrder, type OrderLine, type OrderOptions, type OrderPricing, type PublicCoupon } from '@/site-renderer/order/message';
 import { siteTranslator } from '@/site-renderer/site-i18n';
+import { orderConfig } from '@/site-renderer/order/config';
+import { buildSampleSite } from '@/lib/site/sample-site';
 import { summarizeOrders, windowStart } from '@/lib/orders/stats';
 import { ordersPer100Views, summarizeViews } from '@/lib/views/stats';
 
@@ -191,6 +193,40 @@ describe('Pedido por WhatsApp', () => {
     assert.equal(ordersPer100Views(3, 120), 2.5);
     assert.equal(ordersPer100Views(1, 3), 33.3);
     assert.equal(ordersPer100Views(5, 0), null);
+  });
+
+  it('el pedido guardado se actualiza con los precios de hoy y quita lo que ya no se puede pedir', () => {
+    const lines = [line({ id: 'a', price: 40, priceLabel: '$40', qty: 2 }), line({ id: 'b', name: 'Galleta' }), line({ id: 'c:v1', name: 'Latte (16 oz)' })];
+    const same = refreshLines([lines[0]], { a: [40, '$40'] });
+    assert.equal(same.lines[0], lines[0]); // sin cambios, misma referencia (no re-renderiza)
+    const fresh = refreshLines(lines, { a: [45, '$45'], 'c:v1': [78, '$78'] });
+    assert.deepEqual(fresh.lines.map((l) => [l.id, l.price, l.qty]), [['a', 45, 2], ['c:v1', 78, 1]]);
+    assert.deepEqual(fresh.removed, ['Galleta']);
+  });
+
+  it('pausa de pedidos: sin fecha sigue hasta quitarla; con fecha se reanuda al terminar ese día', () => {
+    const now = new Date('2026-10-20T05:00:00Z'); // 19 oct, 23:00 en Ciudad de México
+    assert.equal(isOrderingPaused(null, now), false);
+    assert.equal(isOrderingPaused({ until: '', timeZone: '', message: '' }, now), true);
+    assert.equal(isOrderingPaused({ until: '2026-10-19', timeZone: 'America/Mexico_City', message: '' }, now), true);
+    assert.equal(isOrderingPaused({ until: '2026-10-19', timeZone: 'America/Mexico_City', message: '' }, new Date('2026-10-20T06:00:00Z')), false);
+  });
+
+  it('la configuración del sitio trae el índice de precios, sugerencias sin opciones y la pausa', () => {
+    const site = buildSampleSite();
+    const config = orderConfig(site)!;
+    const latte = site.items.find((i) => i.name === 'Latte de avena')!;
+    const espresso = site.items.find((i) => i.name === 'Espresso doble')!;
+    assert.deepEqual(config.catalog[espresso.id], [45, '$45']);
+    assert.equal(config.catalog[latte.id], undefined); // con opciones: se pide cada opción
+    assert.deepEqual(config.catalog[`${latte.id}:v2`], [78, '$78']);
+    assert.ok(site.items.filter((i) => i.type === 'service').every((i) => !config.catalog[i.id]));
+    assert.ok(config.suggestions.length > 0 && config.suggestions.length <= 6);
+    assert.ok(config.suggestions.every((item) => item.price !== null && !item.id.includes(':')));
+    assert.equal(config.suggestions[0].id, site.items.find((i) => i.isFeatured && i.type === 'product' && i.isAvailable && !i.variants)!.id);
+    assert.equal(config.pause, null);
+    const paused = orderConfig({ ...site, settings: { ...site.settings, order: { ...site.settings.order, paused: true, pauseMessage: 'Volvemos pronto' } } })!;
+    assert.deepEqual(paused.pause, { until: '', timeZone: '', message: 'Volvemos pronto' });
   });
 
   it('estadísticas: 30 días completos (con ceros), totales y lo más pedido', () => {

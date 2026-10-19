@@ -239,6 +239,15 @@ const catalog: Catalog = {
   'Cupón {code}: −{amount}': 'Coupon {code}: −{amount}',
   Anuncio: 'Announcement',
   'Cerrar anuncio': 'Close announcement',
+  // Recompra, sugerencias y pausa
+  'Agregamos tu último pedido.': 'We added your last order.',
+  'Repetir mi último pedido': 'Repeat my last order',
+  'Pausamos los pedidos hasta el {date}.': 'Orders are paused until {date}.',
+  'Por ahora no estamos recibiendo pedidos.': "We're not taking orders right now.",
+  'Los pedidos están en pausa.': 'Orders are paused.',
+  'Ya no están disponibles y se quitaron del pedido: {names}.': 'No longer available and removed from your order: {names}.',
+  '¿Agregas algo más?': 'Anything else?',
+  'Agregar {name}': 'Add {name}',
 };
 
 export default catalog;
