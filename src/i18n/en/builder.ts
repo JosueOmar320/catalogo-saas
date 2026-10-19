@@ -664,6 +664,15 @@ const catalog: Catalog = {
   'Deshacer ({shortcut})': 'Undo ({shortcut})',
   'Rehacer ({shortcut})': 'Redo ({shortcut})',
   Rehacer: 'Redo',
+  // Barra de anuncios
+  'Barra de anuncios': 'Announcement bar',
+  'Mostrar arriba del sitio': 'Show at the top of the site',
+  'Envío gratis en pedidos desde $300': 'Free delivery on orders over $300',
+  'Texto del enlace': 'Link text',
+  'Vacío = todo el texto es el enlace': 'Empty = the whole text is the link',
+  'Mostrar hasta (opcional)': 'Show until (optional)',
+  'Después de ese día la barra se oculta sola.': 'After that day the bar hides automatically.',
+  'El visitante puede cerrarla': 'Visitors can close it',
 };
 
 export default catalog;

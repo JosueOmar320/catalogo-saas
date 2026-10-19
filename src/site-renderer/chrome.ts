@@ -1,4 +1,4 @@
-import { resolveLink } from '@/lib/site/links';
+import { resolveLink, type LinkContext } from '@/lib/site/links';
 import { resolveNavigation, type ResolvedNavItem } from '@/lib/site/navigation';
 import { pagePath } from '@/lib/site/links';
 import { headerOverlaysPage } from '@/lib/site/resolve';
@@ -18,7 +18,37 @@ export type HeaderProps = {
   homePath: string;
   /** Ruta actual (preview). En público se usa usePathname(). */
   currentPath?: string;
+  /** Barra de anuncios (null si está apagada o sin texto). */
+  announcement: AnnouncementProps | null;
 };
+
+export type AnnouncementProps = {
+  text: string;
+  /** Sin `label`, todo el texto es el enlace. */
+  link: { label: string; href: string; external: boolean } | null;
+  tone: 'accent' | 'dark' | 'soft';
+  /** Último día ("2026-10-31") y zona horaria: se oculta sola al terminar. */
+  endsOn: string;
+  timeZone: string;
+  dismissible: boolean;
+  /** Clave para recordar que el visitante la cerró (cambia si cambia el texto). */
+  storageKey: string;
+};
+
+function announcementProps(site: SiteViewModel, links: LinkContext): AnnouncementProps | null {
+  const bar = site.theme.announcement;
+  if (!bar.enabled || !bar.text) return null;
+  const target = bar.link.kind === 'none' ? null : resolveLink(bar.link, links);
+  return {
+    text: bar.text,
+    link: target ? { label: bar.linkLabel, href: target.href, external: target.external } : null,
+    tone: bar.tone,
+    endsOn: bar.endsOn,
+    timeZone: bar.timeZone,
+    dismissible: bar.dismissible,
+    storageKey: `announcement:${site.business.slug}:${bar.text.length}:${bar.text.slice(0, 40)}`,
+  };
+}
 
 /** Datos serializables del header/footer (se calculan una vez en el servidor). */
 export function buildHeaderProps(site: SiteViewModel, env: RenderEnv, currentPath?: string): HeaderProps {
@@ -49,5 +79,6 @@ export function buildHeaderProps(site: SiteViewModel, env: RenderEnv, currentPat
     overlayPaths: pages.filter((p) => headerOverlaysPage(site.theme, p.sections)).map((p) => pagePath(env.basePath, p)),
     homePath: env.basePath || '/',
     currentPath,
+    announcement: announcementProps(site, links),
   };
 }

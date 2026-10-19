@@ -1,6 +1,6 @@
 'use client';
 
-import { Minus, Plus, ShoppingBag, Trash2, X } from 'lucide-react';
+import { Minus, Plus, ShoppingBag, Ticket, Trash2, X } from 'lucide-react';
 import { createContext, useCallback, useContext, useId, useMemo, useRef, useState, useSyncExternalStore, type ReactNode, type Ref, type SyntheticEvent } from 'react';
 import { Icon } from '../Icon';
 import { opensText, useOpenStatus } from '../OpenNow';
@@ -13,6 +13,7 @@ import {
   buildOrderMessage,
   clampQty,
   effectiveFulfillment,
+  findCoupon,
   formatAmount,
   fulfillmentOptions,
   MAX_ORDER_LINES,
@@ -20,6 +21,7 @@ import {
   orderWhatsappHref,
   PAYMENT_LABELS,
   summarizeOrder,
+  type AppliedCoupon,
   type Fulfillment,
   type OrderItem,
   type OrderLine,
@@ -28,9 +30,9 @@ import {
 /* ------------------------------------------------------------------ Estado */
 
 /** Pedido guardado en el navegador del visitante (localStorage), uno por negocio. */
-type OrderState = { lines: OrderLine[]; name: string; note: string; fulfillment: Fulfillment | null; address: string; payment: PaymentMethod | null };
+type OrderState = { lines: OrderLine[]; name: string; note: string; fulfillment: Fulfillment | null; address: string; payment: PaymentMethod | null; coupon: string };
 
-const EMPTY: OrderState = { lines: [], name: '', note: '', fulfillment: null, address: '', payment: null };
+const EMPTY: OrderState = { lines: [], name: '', note: '', fulfillment: null, address: '', payment: null, coupon: '' };
 const cache = new Map<string, OrderState>();
 const listeners = new Map<string, Set<() => void>>();
 
@@ -54,7 +56,7 @@ function sanitize(raw: unknown): OrderState {
     .slice(0, MAX_ORDER_LINES);
   const fulfillment = input.fulfillment === 'pickup' || input.fulfillment === 'delivery' ? input.fulfillment : null;
   const payment = PAYMENT_METHODS.find((method) => method === input.payment) ?? null;
-  return { lines, name: str(input.name, 80), note: str(input.note, 500), fulfillment, address: str(input.address, 300), payment };
+  return { lines, name: str(input.name, 80), note: str(input.note, 500), fulfillment, address: str(input.address, 300), payment, coupon: str(input.coupon, 24) };
 }
 
 function read(key: string): OrderState {
@@ -278,9 +280,10 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
   if (!order) return null;
   const { config, state } = order;
   const { options, pricing } = config;
-  const choices = { fulfillment: state.fulfillment, address: state.address, payment: state.payment };
+  const coupon = findCoupon(config.coupons, config.couponScope, state.coupon);
+  const choices = { fulfillment: state.fulfillment, address: state.address, payment: state.payment, coupon };
   const summary = summarizeOrder(state.lines, pricing, options, choices);
-  const { subtotal, delivery, total } = summary;
+  const { subtotal, delivery, total, discount } = summary;
   const modes = fulfillmentOptions(options);
   const fulfillment = effectiveFulfillment(options, state.fulfillment);
   const money = (value: number) => formatAmount(value, pricing);
@@ -364,16 +367,24 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
               ))}
             </ul>
 
-            {subtotal && delivery && (
+            {subtotal && (delivery || discount) && (
               <dl className={styles.orderBreakdown}>
                 <div>
                   <dt>{t('Subtotal')}</dt>
                   <dd>{money(subtotal.value)}</dd>
                 </div>
-                <div>
-                  <dt>{t('Envío')}</dt>
-                  <dd>{delivery.kind === 'fee' ? money(delivery.value) : delivery.kind === 'free' ? t('Gratis') : t('Por confirmar')}</dd>
-                </div>
+                {discount && (
+                  <div>
+                    <dt>{t('Cupón {code}', { code: discount.code })}</dt>
+                    <dd>−{money(discount.value)}</dd>
+                  </div>
+                )}
+                {delivery && (
+                  <div>
+                    <dt>{t('Envío')}</dt>
+                    <dd>{delivery.kind === 'fee' ? money(delivery.value) : delivery.kind === 'free' ? t('Gratis') : t('Por confirmar')}</dd>
+                  </div>
+                )}
               </dl>
             )}
             {total && (
@@ -384,6 +395,24 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
             )}
             {subtotal?.partial && <p className={styles.orderHint}>{t('Algunos precios se confirman por WhatsApp.')}</p>}
             {delivery?.kind === 'confirm' && <p className={styles.orderHint}>{t('El costo de envío se confirma por WhatsApp.')}</p>}
+            {config.coupons.length > 0 && (
+              <CouponField
+                applied={coupon}
+                issue={
+                  coupon && summary.couponIssue === 'expired'
+                    ? t('El cupón {code} ya venció.', { code: coupon.code })
+                    : coupon && summary.couponIssue === 'minimum' && coupon.minSubtotal !== null
+                      ? t('El cupón {code} aplica desde {amount}.', { code: coupon.code, amount: money(coupon.minSubtotal) })
+                      : null
+                }
+                onApply={(code) => {
+                  const found = findCoupon(config.coupons, config.couponScope, code);
+                  if (found) order.update({ coupon: found.code });
+                  return Boolean(found);
+                }}
+                onRemove={() => order.update({ coupon: '' })}
+              />
+            )}
             {summary.missingForFreeDelivery !== null && summary.missingForFreeDelivery > 0 && (
               <p className={styles.orderHint}>{t('Te faltan {amount} para el envío gratis.', { amount: money(summary.missingForFreeDelivery) })}</p>
             )}
@@ -482,5 +511,65 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
         </footer>
       </div>
     </dialog>
+  );
+}
+
+/** "¿Tienes un cupón?": campo y botón, o el cupón aplicado con "Quitar". */
+function CouponField({ applied, issue, onApply, onRemove }: { applied: AppliedCoupon | null; issue: string | null; onApply: (code: string) => boolean; onRemove: () => void }) {
+  const t = useSiteT();
+  const [code, setCode] = useState('');
+  const [error, setError] = useState(false);
+  const inputId = useId();
+
+  if (applied) {
+    return (
+      <div className={styles.orderCoupon}>
+        <p className={styles.orderCouponApplied}>
+          <Ticket size={16} aria-hidden />
+          <span>{t('Cupón {code} aplicado', { code: applied.code })}</span>
+          <button type="button" className={styles.orderClear} onClick={onRemove}>
+            {t('Quitar')}
+          </button>
+        </p>
+        {issue && <p className={styles.orderHint} role="status">{issue}</p>}
+      </div>
+    );
+  }
+  const apply = () => {
+    if (!code.trim()) return;
+    const ok = onApply(code);
+    setError(!ok);
+    if (ok) setCode('');
+  };
+  return (
+    <div className={styles.orderCoupon}>
+      <label htmlFor={inputId} className={styles.orderCouponLabel}>{t('¿Tienes un cupón?')}</label>
+      <div className={styles.orderCouponRow}>
+        <input
+          id={inputId}
+          type="text"
+          value={code}
+          maxLength={24}
+          autoCapitalize="characters"
+          autoComplete="off"
+          spellCheck={false}
+          aria-invalid={error || undefined}
+          onChange={(event) => {
+            setCode(event.target.value);
+            setError(false);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              apply();
+            }
+          }}
+        />
+        <button type="button" className={styles.orderCouponBtn} onClick={apply}>
+          {t('Aplicar')}
+        </button>
+      </div>
+      {error && <p className={styles.orderCouponError} role="alert">{t('Ese cupón no existe o ya no está activo.')}</p>}
+    </div>
   );
 }

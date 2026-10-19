@@ -407,5 +407,41 @@ await expectErr('anon cannot read notification_log', () => q(`select * from publ
 await db.exec('reset role');
 await expectErr('notification kind is restricted', () => q(`insert into public.notification_log(user_id, business_id, kind) values ($1,$2,'spam')`, [A, bizA]), 'check constraint');
 
+// --- Visitas del sitio publicado (20261025) ---
+await db.exec('reset role');
+const itemASlug = (await q(`select slug from public.catalog_items where id=$1`, [itemA]))[0].slug;
+const view = (slug = 'tienda-a', item = null) => q(`select public.record_view($1, $2) ok`, [slug, item]).then((r) => r[0].ok);
+const views = () => asSuper(() => q(`select views from public.site_view_stats_daily where business_id=$1`, [bizA]).then((r) => r[0]?.views ?? 0), 'service_role');
+const itemViews = () => asSuper(() => q(`select item_id, views from public.item_view_stats_daily where business_id=$1`, [bizA]).then((r) => r.map((x) => [x.item_id === itemA, x.views])), 'service_role');
+
+await as(null);
+await expectErr('anon cannot call record_view', () => view(), 'permission denied');
+await expectErr('anon cannot read view stats', () => q(`select * from public.site_view_stats_daily`), 'permission denied');
+await as(A);
+await expectErr('authenticated cannot call record_view', () => view(), 'permission denied');
+await expectErr('authenticated cannot write view stats', () => q(`insert into public.site_view_stats_daily(business_id, day, views) values ($1, current_date, 99)`, [bizA]), 'permission denied');
+
+await db.exec('reset role; set role service_role;');
+await expectEq('view: counts pages and the product page of that catalog', async () => [await view(), await view('tienda-a', itemASlug), await views(), await itemViews()], [true, true, 2, [[true, 1]]]);
+await expectEq('view: unknown or foreign item counts the page but not the item', async () => [await view('tienda-a', 'ajeno'), await view('tienda-a', 'no-existe'), await views(), await itemViews()], [true, true, 4, [[true, 1]]]);
+await expectEq('view: unknown business → false', () => view('no-existe'), false);
+await db.exec('reset role');
+await q(`update public.catalog_items set is_visible=false where id=$1`, [itemA]);
+await db.exec('set role service_role');
+await expectEq('view: hidden item is not counted', async () => [await view('tienda-a', itemASlug), await itemViews()], [true, [[true, 1]]]);
+await db.exec('reset role');
+await q(`update public.catalog_items set is_visible=true where id=$1`, [itemA]);
+await q(`update public.catalogs set status='draft' where id=$1`, [catA.id]);
+await db.exec('set role service_role');
+await expectEq('view: unpublished catalog → false', async () => [await view(), await views()], [false, 5]);
+await db.exec('reset role');
+await q(`update public.catalogs set status='published' where id=$1`, [catA.id]);
+
+await as(A);
+await expectEq('owner reads own view stats', () => q(`select views from public.site_view_stats_daily where business_id=$1`, [bizA]).then((r) => r[0].views), 5);
+await as(B);
+await expectEq('other business cannot read A view stats', () => q(`select count(*)::int n from public.site_view_stats_daily where business_id=$1`, [bizA]).then((r) => r[0].n), 0);
+await expectEq('other business cannot read A item view stats', () => q(`select count(*)::int n from public.item_view_stats_daily where business_id=$1`, [bizA]).then((r) => r[0].n), 0);
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);

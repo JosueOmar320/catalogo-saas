@@ -13,12 +13,14 @@ import { itemThumbnail, listCategories, listItemsWithImages, listPages } from '@
 import { countReview, REVIEW_FILTERS, REVIEW_ORDER, type ReviewFilter } from '@/features/items/review';
 import { OrderStatsChart } from '@/features/orders/components/OrderStatsChart';
 import { getOrderStats } from '@/features/orders/queries';
+import { getViewStats } from '@/features/views/queries';
 import { getLocale, getT } from '@/i18n/server';
 import { requireBusinessContext } from '@/lib/auth/session';
 import { parseContact } from '@/lib/business/profile';
 import { parseCatalogSettings } from '@/lib/catalog/settings';
 import { catalogUrl } from '@/lib/catalog/view-model';
 import { formatDate, formatPrice, formatRelative } from '@/lib/utils/format';
+import { ordersPer100Views } from '@/lib/views/stats';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
@@ -29,7 +31,16 @@ const RECENT_COUNT = 5;
 
 export default async function DashboardHome({ searchParams }: PageProps<'/dashboard'>) {
   const ctx = await requireBusinessContext();
-  const [{ welcome }, categories, items, pages, t, locale, orderStats] = await Promise.all([searchParams, listCategories(ctx), listItemsWithImages(ctx), listPages(ctx), getT(), getLocale(), getOrderStats(ctx)]);
+  const [{ welcome }, categories, items, pages, t, locale, orderStats, viewStats] = await Promise.all([
+    searchParams,
+    listCategories(ctx),
+    listItemsWithImages(ctx),
+    listPages(ctx),
+    getT(),
+    getLocale(),
+    getOrderStats(ctx),
+    getViewStats(ctx),
+  ]);
   const contact = parseContact(ctx.business.contact);
   const settings = parseCatalogSettings(ctx.catalog.settings);
   const products = items.filter((i) => i.type === 'product');
@@ -196,7 +207,7 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
                         </Box>
                       ))}
                     </Box>
-                    <OrderStatsChart days={orderStats.days} locale={locale} />
+                    <OrderStatsChart days={orderStats.days.map((d) => ({ day: d.day, count: d.orders }))} locale={locale} />
                     {orderStats.top.length > 0 && (
                       <Box>
                         <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>{t('Lo más pedido')}</Typography>
@@ -212,6 +223,54 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
                     )}
                     <Typography variant="caption" color="text.secondary">
                       {t('Se cuenta cada vez que un cliente envía su pedido desde tu sitio. El valor usa los precios del catálogo; el total final lo acuerdas por WhatsApp.')}
+                    </Typography>
+                  </Stack>
+                )}
+              </SectionCard>
+            )}
+
+            {viewStats && (
+              <SectionCard title={t('Visitas a tu sitio')} description={t('Últimos 30 días')}>
+                {!published ? (
+                  <Typography variant="body2" color="text.secondary">
+                    {t('Publica tu catálogo para empezar a contar las visitas.')}
+                  </Typography>
+                ) : viewStats.views === 0 ? (
+                  <Typography variant="body2" color="text.secondary">
+                    {t('Todavía no hay visitas en estos días. Comparte el enlace o el código QR de tu catálogo.')}
+                  </Typography>
+                ) : (
+                  <Stack spacing={2.5}>
+                    <Box component="dl" sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 2, m: 0 }}>
+                      {[
+                        { label: t('Visitas'), value: String(viewStats.views) },
+                        { label: t('Fichas vistas'), value: String(viewStats.itemViews) },
+                        ...(ordersOn && orderStats
+                          ? [{ label: t('Pedidos por cada 100 visitas'), value: String(ordersPer100Views(orderStats.orders, viewStats.views) ?? 0) }]
+                          : []),
+                      ].map((stat) => (
+                        <Box key={stat.label}>
+                          <Typography component="dt" variant="caption" color="text.secondary">{stat.label}</Typography>
+                          <Typography component="dd" variant="h2" sx={{ m: 0, fontVariantNumeric: 'tabular-nums', overflowWrap: 'anywhere' }}>{stat.value}</Typography>
+                        </Box>
+                      ))}
+                    </Box>
+                    <OrderStatsChart days={viewStats.days} locale={locale} kind="views" />
+                    {viewStats.top.length > 0 && (
+                      <Box>
+                        <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>{t('Lo más visto')}</Typography>
+                        <Stack component="ol" spacing={0.75} sx={{ m: 0, pl: 2.5 }}>
+                          {viewStats.top.map((top) => (
+                            <Typography component="li" variant="body2" key={top.itemId}>
+                              {itemNames.get(top.itemId) ?? t('Producto eliminado')}
+                              <Typography component="span" variant="body2" color="text.secondary">{' · '}{top.views === 1 ? t('1 visita') : t('{count} visitas', { count: top.views })}</Typography>
+                            </Typography>
+                          ))}
+                        </Stack>
+                      </Box>
+                    )}
+                    <Typography variant="caption" color="text.secondary">
+                      {t('Se cuenta cada página que se abre en tu sitio publicado (no la vista previa ni la demo). No se guarda nada de tus visitantes.')}
                     </Typography>
                   </Stack>
                 )}

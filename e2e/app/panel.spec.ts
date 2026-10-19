@@ -87,7 +87,7 @@ test('al publicar, el visitante ve el producto y puede pedirlo por WhatsApp', as
 
 test('el inicio del panel cuenta el pedido enviado', async ({ page }) => {
   await page.goto('/dashboard');
-  await expect(page.getByRole('main').getByText('Últimos 30 días', { exact: true })).toBeVisible();
+  await expect(page.getByRole('main').getByText('Pedidos por WhatsApp', { exact: true })).toBeVisible();
   // El aviso del navegador llega en segundo plano: se recarga hasta verlo.
   await expect(async () => {
     await page.reload();
@@ -97,6 +97,23 @@ test('el inicio del panel cuenta el pedido enviado', async ({ page }) => {
   const main = page.getByRole('main');
   await expect(main.getByText('Lo más pedido', { exact: true })).toBeVisible();
   await expect(main.getByRole('listitem').filter({ hasText: `${productName} · 1 unidad` })).toBeVisible();
+});
+
+test('el inicio del panel cuenta las visitas del sitio publicado y lo más visto', async ({ page, browser }) => {
+  const visitor = await browser.newContext(ANONYMOUS);
+  const site = await visitor.newPage();
+  // El aviso es un sendBeacon: se espera la respuesta del servidor (ya contó) antes de mirar el panel.
+  const counted = site.waitForResponse((response) => response.url().endsWith('/api/views') && response.status() === 204);
+  await site.goto(`/catalogo/${slug}/p/croissant-e2e`);
+  await counted;
+  await visitor.close();
+
+  await expect(async () => {
+    await page.goto('/dashboard');
+    const card = page.getByRole('main').getByText('Visitas a tu sitio', { exact: true });
+    await expect(card).toBeVisible({ timeout: 1000 });
+    await expect(page.getByRole('main').getByRole('listitem').filter({ hasText: new RegExp(`${productName} · \\d+ visitas?`) })).toBeVisible({ timeout: 1000 });
+  }).toPass({ timeout: 15_000 });
 });
 
 test('importar productos desde CSV y volver a importarlos actualiza en vez de duplicar', async ({ page }) => {
@@ -215,6 +232,8 @@ test('entrega, pedido mínimo, pago y horario configurados en el panel llegan al
   await page.getByRole('textbox', { name: 'Costo de envío' }).fill('25');
   await page.getByRole('textbox', { name: 'Pedido mínimo' }).fill('100');
   await page.getByRole('checkbox', { name: 'Efectivo' }).check();
+  await page.getByRole('button', { name: 'Agregar cupón' }).click();
+  await page.getByRole('list', { name: 'Cupones de descuento' }).getByRole('textbox', { name: 'Código' }).fill('e2e10');
   await page.getByRole('button', { name: 'Guardar pedidos' }).click();
   await expect(page.getByText('Configuración guardada')).toBeVisible();
 
@@ -236,9 +255,12 @@ test('entrega, pedido mínimo, pago y horario configurados en el panel llegan al
   await expect(dialog.getByRole('link', { name: 'Enviar pedido por WhatsApp' })).toHaveCount(0);
   await dialog.getByRole('group', { name: 'Cantidad de Smoothie E2E (Grande)' }).getByRole('button', { name: 'Uno más' }).click();
   await dialog.getByRole('radio', { name: 'Efectivo' }).check();
+  // Cupón creado en el panel (se guarda en mayúsculas): 10 % de los productos.
+  await dialog.getByLabel('¿Tienes un cupón?').fill('E2E10');
+  await dialog.getByRole('button', { name: 'Aplicar' }).click();
   const href = await dialog.getByRole('link', { name: 'Enviar pedido por WhatsApp' }).getAttribute('href');
   const text = new URL(href!).searchParams.get('text')!;
-  expect(text).toContain('• 2 × Smoothie E2E (Grande) — $140\n\nSubtotal: $140\nEnvío: $25\nTotal: $165\nEntrega: A domicilio\nDirección: Calle 5 #10\nPago: Efectivo');
+  expect(text).toContain('• 2 × Smoothie E2E (Grande) — $140\n\nSubtotal: $140\nCupón E2E10: −$14\nEnvío: $25\nTotal: $151\nEntrega: A domicilio\nDirección: Calle 5 #10\nPago: Efectivo');
   await visitor.close();
 });
 

@@ -117,6 +117,29 @@ function buildThemeSchema(lenient: boolean) {
         background: buildBackgroundSchema(lenient).prefault({}),
       })
       .prefault({}),
+    /** Barra de anuncios arriba del header ("Envío gratis este fin de semana"). */
+    announcement: z
+      .object({
+        enabled: bool(false),
+        text: f(z.string().trim().max(160), ''),
+        linkLabel: f(z.string().trim().max(30), ''),
+        // Mismo destino que los botones de las secciones (lib/site/section-schemas, sin importarlo: evita un ciclo).
+        link: z
+          .object({
+            kind: f(z.enum(['none', 'page', 'url', 'whatsapp', 'phone', 'email']), 'none'),
+            pageId: f(z.union([z.literal(''), z.uuid()]), ''),
+            url: f(z.string().trim().max(500), ''),
+            message: f(z.string().trim().max(300), ''),
+            newTab: bool(false),
+          })
+          .prefault({}),
+        tone: f(z.enum(['accent', 'dark', 'soft']), 'accent'),
+        /** Último día que se muestra ("" = sin fin) y la zona horaria de quien lo programó. */
+        endsOn: f(z.union([z.literal(''), z.string().regex(/^\d{4}-\d{2}-\d{2}$/)]), ''),
+        timeZone: f(z.string().max(64), ''),
+        dismissible: bool(true),
+      })
+      .prefault({}),
     footer: z
       .object({
         style: f(z.enum(FOOTER_STYLES), 'columns'),

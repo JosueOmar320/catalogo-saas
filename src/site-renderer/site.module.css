@@ -2412,6 +2412,70 @@ a.cardLink:hover .cardTitle {
   font-weight: 600;
 }
 
+/* Barra de anuncios */
+.announcement {
+  position: relative;
+  z-index: 31;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 44px;
+  background: var(--c-accent);
+  color: var(--c-on-accent);
+  font-size: var(--fs-small);
+  text-align: center;
+}
+
+.announcement[data-tone='dark'] {
+  background: #111111;
+  color: #ffffff;
+}
+
+.announcement[data-tone='soft'] {
+  background: var(--c-primary-soft);
+  color: var(--c-heading);
+}
+
+.announcementText {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px 12px;
+}
+
+.announcementText a {
+  color: inherit;
+  font-weight: 600;
+  text-underline-offset: 3px;
+}
+
+.announcementLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.announcementClose {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  padding: 6px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.announcementClose:hover {
+  background: color-mix(in srgb, currentColor 15%, transparent);
+}
+
 /* Abierto ahora / Cerrado */
 .openRow {
   display: flex;
@@ -4256,6 +4320,70 @@ details[open] > .faqQuestion .faqChevron {
 .orderFixed {
   margin: 0;
   color: var(--c-text);
+}
+
+.orderCoupon {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.orderCouponLabel {
+  font-size: var(--fs-small);
+  color: var(--c-muted);
+}
+
+.orderCouponRow {
+  display: flex;
+  gap: 8px;
+}
+
+.orderCouponRow input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 11px;
+  border: 1px solid var(--c-border);
+  border-radius: calc(var(--radius) * 0.6);
+  background: var(--c-bg);
+  color: var(--c-text);
+  font: inherit;
+  text-transform: uppercase;
+}
+
+.orderCouponRow input[aria-invalid='true'] {
+  border-color: var(--c-error);
+}
+
+.orderCouponBtn {
+  padding: 8px 14px;
+  border: 1px solid var(--c-border);
+  border-radius: calc(var(--radius) * 0.6);
+  background: var(--c-surface);
+  color: var(--c-text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.orderCouponError {
+  margin: 0;
+  font-size: var(--fs-small);
+  color: var(--c-error);
+}
+
+.orderCouponApplied {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--c-heading);
+  font-size: var(--fs-small);
+  font-weight: 600;
+}
+
+.orderCouponApplied .orderClear {
+  margin-left: auto;
+  font-weight: 400;
 }
 
 .orderClosed {

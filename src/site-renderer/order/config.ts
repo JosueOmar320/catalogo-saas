@@ -4,7 +4,7 @@ import type { SiteViewModel } from '@/lib/site/view-model';
 import { digitsOnly } from '@/lib/utils/phone';
 import { defaultText } from '../default-texts';
 import { siteTranslator } from '../site-i18n';
-import type { OrderItem, OrderOptions, OrderPricing } from './message';
+import { couponHash, type OrderItem, type OrderOptions, type OrderPricing, type PublicCoupon } from './message';
 
 /** Lo que necesita el pedido en el navegador (datos planos: viaja del servidor al cliente). */
 export type OrderConfig = {
@@ -18,6 +18,10 @@ export type OrderConfig = {
   pricing: OrderPricing;
   /** Entrega, envío, pedido mínimo y formas de pago. */
   options: OrderOptions;
+  /** Cupones activos, sin el código (sólo su huella). */
+  coupons: PublicCoupon[];
+  /** Sal de la huella de los cupones (el negocio). */
+  couponScope: string;
   /** Horario por día (si el negocio lo usa): el panel avisa cuando está cerrado. */
   schedule: Schedule | null;
   /** Negocio al que se le cuenta el pedido enviado (sólo en el sitio publicado). */
@@ -50,6 +54,10 @@ export function orderConfig(site: SiteViewModel, { track = false }: { track?: bo
       minimumOrder: order.minimumOrder,
       payments: order.payments,
     },
+    coupons: order.coupons
+      .filter((coupon) => coupon.active)
+      .map((coupon) => ({ hash: couponHash(site.business.slug, coupon.code), type: coupon.type, value: coupon.value, minSubtotal: coupon.minSubtotal, ends: coupon.ends })),
+    couponScope: site.business.slug,
     schedule: site.business.contact.schedule.enabled ? site.business.contact.schedule : null,
     trackSlug: track ? site.business.slug : null,
   };

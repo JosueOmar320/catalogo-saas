@@ -13,6 +13,7 @@ import { contactActionsSchema, orderSchema, PAYMENT_METHODS, type ContactActions
 import { fillTemplate } from '@/lib/contact/actions';
 import { useT } from '@/i18n/client';
 import { useAction } from '@/lib/hooks/use-action';
+import { CouponsField } from './CouponsField';
 import { ScheduleField } from './ScheduleField';
 import { msg } from '@/i18n/translate';
 
@@ -186,6 +187,8 @@ export function ContactForm({ contact, actions, order, businessName }: { contact
               </Box>
             )}
           />
+          <Divider />
+          <CouponsField control={orderForm.control} />
           <Stack direction="row" sx={{ justifyContent: 'flex-end' }}>
             <Button type="submit" variant="contained" disabled={pending || !orderForm.formState.isDirty}>{t('Guardar pedidos')}</Button>
           </Stack>
