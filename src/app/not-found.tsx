@@ -1,9 +1,17 @@
+'use client';
+
 import Link from 'next/link';
-import { getT } from '@/i18n/server';
+import { useBrowserT } from '@/lib/hooks/use-browser-t';
 import styles from './status.module.css';
 
-export default async function NotFound() {
-  const t = await getT();
+/**
+ * 404 de la app. Cliente a propósito: si leyera la cookie de idioma en el
+ * servidor, un notFound() dentro de una página estática (ISR, p. ej. un
+ * catálogo que no existe) la volvería dinámica en tiempo de ejecución y
+ * Next respondería 500 en lugar de 404. El idioma se elige en el navegador.
+ */
+export default function NotFound() {
+  const { t } = useBrowserT();
   return (
     <main className={styles.page}>
       <div className={styles.card}>

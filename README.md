@@ -13,7 +13,7 @@ SaaS multi-tenant para que un pequeño negocio (cafetería, ferretería, estudio
 
 | Tema | Decisión | Por qué |
 | --- | --- | --- |
-| Aislamiento multi-tenant | **RLS en todas las tablas (12) + Storage**, claves foráneas compuestas `(business_id, id)` y funciones `SECURITY DEFINER` con `search_path` vacío para lo privilegiado. Las Server Actions validan además permisos y entrada (Zod). | La base de datos es la última línea de defensa: un bug en la app o una llamada directa a la API REST no puede cruzar negocios. 149 pruebas lo verifican sobre Postgres real (PGlite). |
+| Aislamiento multi-tenant | **RLS en todas las tablas (12) + Storage**, claves foráneas compuestas `(business_id, id)` y funciones `SECURITY DEFINER` con `search_path` vacío para lo privilegiado. Las Server Actions validan además permisos y entrada (Zod). | La base de datos es la última línea de defensa: un bug en la app o una llamada directa a la API REST no puede cruzar negocios. 153 pruebas lo verifican sobre Postgres real (PGlite). |
 | Catálogo público | Una sola RPC (`get_public_catalog`) cacheada con ISR + tag por negocio; el rol `anon` no lee tablas. El bundle del sitio público no incluye Zod (43 KB gzip). | Rápido y barato: una visita no cacheada hace una llamada; publicar invalida sólo ese negocio. |
 | Un renderer, dos destinos | El mismo modelo de secciones/temas se dibuja en la web (React) y en PDF (react-pdf), con tokens de diseño compartidos. | El PDF siempre coincide con el sitio sin mantener dos diseños. |
 | Guardado del editor | Todo se edita en memoria y se guarda con una transacción (`save_site`) con detección de conflictos. | Sin estados a medias; deshacer y vista previa son gratuitos. |
@@ -184,7 +184,8 @@ Aplica la migración automáticamente. Usa la *API URL* y la *Publishable key* q
 | `npm run test:unit` | Pruebas unitarias (`tests/**`): seguridad (SSRF, redirecciones), dominio, editor, Garfield, PDF. |
 | `npm run test:coverage` | Igual, con cobertura (`coverage/lcov.info`). |
 | `npm run test:db` | Migraciones + RLS, roles, auditoría, límites y aislamiento multi-tenant sobre PGlite (sin Docker). |
-| `npm run check` | typecheck + lint + todas las pruebas (lo mismo que CI, sin el build). |
+| `npm run test:e2e` | Pruebas end-to-end con Playwright sobre el build de producción (compila y levanta `next start` en el puerto 3100). |
+| `npm run check` | typecheck + lint + pruebas unitarias y de base de datos (lo mismo que CI, sin el build ni las E2E). |
 | `npm run admin:create` | Crea o promueve el administrador de la plataforma (usa `.env.local`). |
 | `npm run db:types` | Regenera tipos desde Supabase en `src/types/database.generated.ts`. |
 
@@ -194,10 +195,11 @@ Aplica la migración automáticamente. Usa la *API URL* y la *Publishable key* q
 
 | Capa | Herramienta | Qué cubre |
 | --- | --- | --- |
-| Base de datos (149) | PGlite (Postgres en WASM) con stubs de `auth`/`storage` | Todas las migraciones en orden (incluida la migración de datos v1), RLS por tabla y por rol, Storage, límites de plan, RPCs de administración, auditoría, referencias de medios y límite de intentos. |
-| Unitarias (182) | `node:test` + `tsx` | Anti-SSRF (incluidas IPv4 escondidas en IPv6), redirecciones seguras, slugs, precios, usuarios, planes, acciones de contacto, paginación, reducer del editor (guardado concurrente), Garfield (router local, ejecutores, proveedores con `fetch` simulado), PDF y equivalencia de optimizaciones. |
+| Base de datos (153) | PGlite (Postgres en WASM) con stubs de `auth`/`storage` | Todas las migraciones en orden (incluida la migración de datos v1), RLS por tabla y por rol, Storage, límites de plan, RPCs de administración, auditoría, referencias de medios y límite de intentos. |
+| Unitarias (196) | `node:test` + `tsx` | Anti-SSRF (incluidas IPv4 escondidas en IPv6), redirecciones seguras, slugs, precios, usuarios, planes, acciones de contacto, paginación, reducer del editor (guardado concurrente), Garfield (router local, ejecutores, proveedores con `fetch` simulado), PDF, pedido por WhatsApp (total y mensaje), catálogo de traducciones y equivalencia de optimizaciones. |
+| End-to-end (15) | Playwright (Chromium, escritorio y móvil) sobre `next build` + `next start` | Landing en español/inglés (Accept-Language y selector que se recuerda), modo claro/oscuro, pedido por WhatsApp completo en la demo (cantidades, total, mensaje de wa.me, persistencia, vaciar, Escape), ficha de producto, servicios y agotados sin pedido, móvil sin desbordes, redirección al login y respuestas 404. Sin Supabase: corren igual en CI. |
 
-Las pruebas no usan red, reloj ni datos aleatorios sin control, así que son deterministas en CI. La cobertura (`npm run test:coverage`) mide los módulos que cargan las pruebas: en la última ejecución, 88 % de líneas y 82 % de ramas sobre 77 módulos (lógica de dominio, seguridad y Garfield). La interfaz (componentes React) no tiene pruebas automatizadas: ver [Limitaciones](#limitaciones-conocidas).
+Las pruebas no usan red, reloj ni datos aleatorios sin control, así que son deterministas en CI. La cobertura (`npm run test:coverage`) mide los módulos que cargan las pruebas: en la última ejecución, 88 % de líneas y 82 % de ramas sobre 77 módulos (lógica de dominio, seguridad y Garfield). Las E2E cubren los flujos públicos; el panel con sesión todavía se prueba a mano: ver [Limitaciones](#limitaciones-conocidas).
 
 ## Integración continua
 
@@ -208,6 +210,7 @@ Las pruebas no usan red, reloj ni datos aleatorios sin control, así que son det
 | Typecheck & lint | `npm ci` reproducible (lockfile) + `typecheck` + `lint`. |
 | Tests | Pruebas unitarias con cobertura y pruebas de base de datos; publica `coverage/` como artefacto y un resumen en el job. |
 | Production build | `next build` sin secretos (la app compila sin Supabase). |
+| E2E (Playwright) | Instala Chromium y corre `npm run test:e2e` contra el build de producción, sin secretos; si falla, publica el reporte y las trazas. |
 | Dependency audit | `npm audit --omit=dev --audit-level=high`. |
 | Dependency review | En PRs, bloquea dependencias nuevas con vulnerabilidades altas. |
 | Secret scan | gitleaks sobre todo el historial. |
@@ -215,7 +218,7 @@ Las pruebas no usan red, reloj ni datos aleatorios sin control, así que son det
 Además: [`codeql.yml`](.github/workflows/codeql.yml) (análisis estático de seguridad, semanal y en PRs), [`dependabot.yml`](.github/dependabot.yml) (actualizaciones semanales agrupadas) y [`keepalive.yml`](.github/workflows/keepalive.yml) (consulta `/api/health` de producción cada 3 días). Las acciones están fijadas por SHA y cada job tiene permisos mínimos; ningún job necesita secretos.
 
 **Configuración manual en GitHub** (no se puede hacer desde el repositorio):
-1. *Settings → Branches → Branch protection* para `main`: exigir los checks `Typecheck & lint`, `Tests`, `Production build`, `Dependency audit` y `Secret scan` (y `Analyze (javascript-typescript)` si usas CodeQL).
+1. *Settings → Branches → Branch protection* para `main`: exigir los checks `Typecheck & lint`, `Tests`, `Production build`, `E2E (Playwright)`, `Dependency audit` y `Secret scan` (y `Analyze (javascript-typescript)` si usas CodeQL).
 2. *Settings → Code security*: activar *Dependabot alerts* y *Secret scanning*. CodeQL es gratis en repos públicos; en privados requiere GitHub Advanced Security.
 
 ## Seguridad
@@ -231,7 +234,7 @@ Para reportar un problema de seguridad, ver [`SECURITY.md`](SECURITY.md).
 
 ## Limitaciones conocidas
 
-- La interfaz no tiene pruebas end-to-end (Playwright): requieren una instancia de Supabase de prueba. Las reglas críticas (permisos, validación, cálculo) están cubiertas por las pruebas de base de datos y unitarias.
+- Las pruebas end-to-end cubren el sitio público y la landing; los flujos con sesión (login, panel) necesitan una instancia de Supabase de prueba y todavía se revisan a mano. Las reglas críticas (permisos, validación, cálculo) están cubiertas por las pruebas de base de datos y unitarias.
 - La CSP es mínima (sin `script-src`): una CSP estricta exige nonces por página y haría dinámico el catálogo público.
 - `src/types/database.ts` se mantiene a mano junto con las migraciones; `npm run db:types` genera la versión oficial para compararla.
 - El límite por cuenta del login también puede usarse para bloquear temporalmente (15 min) a un usuario cuyo nombre se conoce; es el compromiso habitual frente a la fuerza bruta.
@@ -280,13 +283,15 @@ Notas de costo en el plan gratuito:
 ```
 supabase/
   migrations/                  v1 (esquema, RLS, Storage) · v2 (páginas, navegación, PDF) · v3 (atributos) · v4 (acceso, roles, auditoría) · v5 (biblioteca) · rendimiento · seguridad
-  tests/rls.test.mjs           149 pruebas de migraciones, aislamiento, roles, auditoría, medios y límites (PGlite)
+  tests/rls.test.mjs           153 pruebas de migraciones, aislamiento, roles, auditoría, medios y límites (PGlite)
 scripts/create-admin.mjs       Crea o promueve el administrador (npm run admin:create)
-tests/                         182 pruebas unitarias (npm run test:unit)
+tests/                         196 pruebas unitarias (npm run test:unit)
   lib/                         seguridad (SSRF, redirecciones, rutas de Storage) y dominio (slugs, precios, planes, contacto…)
   builder/                     reducer del editor (guardado con cambios concurrentes)
   assistant/                   Garfield: router local, ejecutores sitio/PDF, proveedores, herramientas, plantillas
 .github/                       CI (ci.yml), CodeQL y Dependabot
+e2e/public/                    15 pruebas end-to-end con Playwright (npm run test:e2e)
+playwright.config.ts           Proyectos escritorio y móvil; levanta el build de producción
 src/
   proxy.ts                     Sesión de Supabase + protección de rutas
   app/
