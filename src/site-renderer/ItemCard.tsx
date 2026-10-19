@@ -6,6 +6,7 @@ import type { CardStyleId } from '@/lib/design/styles-registry';
 import type { SiteViewModel } from '@/lib/site/view-model';
 import { Badges } from './Badges';
 import { ContactActions } from './ContactActions';
+import { DietTags } from './diet';
 import { itemPath, type RenderEnv } from './env';
 import { PriceTag } from './PriceTag';
 import { SiteImage } from './SiteImage';
@@ -131,6 +132,7 @@ export function ItemCard({ item, site, env, options = {} }: { item: CatalogItemV
           <h3 className={styles.cardTitle}>{item.name}</h3>
           {f.description && item.shortDescription && <p className={styles.cardDesc}>{item.shortDescription}</p>}
           {f.attributes !== 'none' && <ItemAttributes item={item} site={site} mode={f.attributes} />}
+          <DietTags tags={item.diet} t={t} small />
           {f.sku && item.sku && <span className={styles.cardMeta}>{t('Código: {sku}', { sku: item.sku })}</span>}
           {f.price && <PriceTag item={item} t={t} compare={f.compareAt} discount={f.discount} />}
           {f.availability && !item.isAvailable && <span className={styles.availability}>{t('No disponible')}</span>}

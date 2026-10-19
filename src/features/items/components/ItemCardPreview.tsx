@@ -52,6 +52,8 @@ export function ItemCardPreview({ site, values, categoryName }: { site: SiteView
     variants: null,
     extras: null,
     orderHours: null,
+    stock: null,
+    diet: [],
     saleEndsOn: compareAt !== null && values.saleEndsOn ? values.saleEndsOn : null,
   };
 

@@ -1,4 +1,5 @@
 import { resolveCollection } from '@/lib/catalog/collections-core';
+import { LOW_STOCK } from '@/lib/catalog/item-attributes';
 import type { CatalogItemView } from '@/lib/catalog/view-model';
 import type { Background } from '@/lib/design/background';
 import { backgroundTone, resolveBackground } from '@/lib/design/background-core';
@@ -18,15 +19,21 @@ export function resolveSectionItems(content: ItemSourceContent, items: CatalogIt
   return resolveCollection(content.collection, items, options);
 }
 
-export type ResolvedBadge = { key: string; label: string; color: string };
+/** `params`: valores del texto ("¡Quedan {count}!"). */
+export type ResolvedBadge = { key: string; label: string; color: string; params?: Record<string, number> };
 
-export function resolveBadges(item: CatalogItemView, theme: ThemeConfig): ResolvedBadge[] {
+/** `lowStock`: "¡Quedan N!" (sólo en la web: el PDF es estático y las existencias cambian). */
+export function resolveBadges(item: CatalogItemView, theme: ThemeConfig, { lowStock = false }: { lowStock?: boolean } = {}): ResolvedBadge[] {
   const b = theme.badges;
   const out: ResolvedBadge[] = [];
   const push = (key: 'new' | 'featured' | 'sale' | 'popular' | 'soldOut') => {
     if (!out.some((x) => x.key === key)) out.push({ key, label: b[key].label, color: b[key].color });
   };
   if (!item.isAvailable && b.autoSoldOut) push('soldOut');
+  if (lowStock && item.isAvailable && item.stock !== null && item.stock > 0 && item.stock <= LOW_STOCK) {
+    // El texto lo pone quien dibuja (Badges, en el idioma del sitio).
+    out.push({ key: 'lowStock', label: '', color: b.featured.color, params: { count: item.stock } });
+  }
   if (item.compareAtLabel && b.autoSale) push('sale');
   if (item.isFeatured && b.autoFeatured) push('featured');
   for (const badge of item.badges) push(badge);

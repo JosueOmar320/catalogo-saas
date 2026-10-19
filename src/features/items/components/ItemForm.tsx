@@ -27,7 +27,9 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { SaveBar } from '@/components/ui/SaveBar';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { useT } from '@/i18n/client';
+import { DIET_TAGS, type DietTag } from '@/lib/catalog/item-attributes';
 import { CURRENCIES } from '@/lib/catalog/settings';
+import { msg } from '@/i18n/translate';
 import type { SiteViewModel } from '@/lib/site/view-model';
 import { ColorField } from '@/components/form/ColorField';
 import { useAction } from '@/lib/hooks/use-action';
@@ -47,6 +49,16 @@ type Props = {
 };
 
 const FORM_ID = 'item-form';
+
+const DIET_OPTION_LABELS: Record<DietTag, string> = {
+  vegan: msg('Vegano'),
+  vegetarian: msg('Vegetariano'),
+  'gluten-free': msg('Sin gluten'),
+  'lactose-free': msg('Sin lactosa'),
+  'sugar-free': msg('Sin azúcar'),
+  spicy: msg('Picante'),
+  organic: msg('Orgánico'),
+};
 
 export function ItemForm({ itemId, defaultValues, categories, previewSite }: Props) {
   const t = useT();
@@ -256,7 +268,40 @@ export function ItemForm({ itemId, defaultValues, categories, previewSite }: Pro
                 <SwitchControl control={control} name="isVisible" label={t('Visible en el catálogo')} description={t('Si lo apagas, sólo tú lo ves.')} />
                 <SwitchControl control={control} name="isAvailable" label={t('Disponible')} description={t('Si no, se muestra como agotado.')} />
                 <SwitchControl control={control} name="isFeatured" label={t('Destacado')} description={t('Aparece en la sección Destacados.')} />
+                {values.type === 'product' && (
+                  <TextFieldControl
+                    control={control}
+                    name="stock"
+                    label={t('Existencias (opcional)')}
+                    inputMode="numeric"
+                    helperText={t('Vacío: no se controlan. Con pocas se muestra «¡Quedan 3!» y en 0 queda agotado. Los pedidos no las descuentan: actualízalas tú.')}
+                    sx={{ mt: 1.5 }}
+                  />
+                )}
               </Stack>
+            </SectionCard>
+            <SectionCard title={t('Dieta y alérgenos')} description={t('Se muestran en la ficha y tus clientes pueden filtrar por ellas.')}>
+              <Controller
+                control={control}
+                name="diet"
+                render={({ field }) => (
+                  <Stack direction="row" sx={{ gap: 1, flexWrap: 'wrap' }}>
+                    {DIET_TAGS.map((tag) => {
+                      const active = field.value.includes(tag);
+                      return (
+                        <Chip
+                          key={tag}
+                          label={t(DIET_OPTION_LABELS[tag])}
+                          color={active ? 'success' : 'default'}
+                          variant={active ? 'filled' : 'outlined'}
+                          aria-pressed={active}
+                          onClick={() => field.onChange(active ? field.value.filter((d) => d !== tag) : DIET_TAGS.filter((d) => d === tag || field.value.includes(d)))}
+                        />
+                      );
+                    })}
+                  </Stack>
+                )}
+              />
             </SectionCard>
             <SectionCard title={t('Badges')} description={t('Etiquetas sobre la foto. Oferta y Agotado son automáticos.')}>
               <Controller

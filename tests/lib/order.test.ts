@@ -88,7 +88,7 @@ describe('Pedido por WhatsApp', () => {
 
   it('entrega, envío y mínimo: lo nuevo viene apagado y el mensaje no cambia', () => {
     const { order } = catalogSettingsSchema.parse({});
-    assert.deepEqual({ ...NO_OPTIONS }, { pickup: order.pickup, delivery: order.delivery, deliveryFee: order.deliveryFee, freeDeliveryFrom: order.freeDeliveryFrom, deliveryNote: order.deliveryNote, minimumOrder: order.minimumOrder, payments: order.payments });
+    assert.deepEqual({ ...NO_OPTIONS }, { pickup: order.pickup, delivery: order.delivery, deliveryFee: order.deliveryFee, freeDeliveryFrom: order.freeDeliveryFrom, deliveryNote: order.deliveryNote, minimumOrder: order.minimumOrder, payments: order.payments, scheduling: order.scheduling, leadMinutes: order.leadMinutes, scheduleDays: order.scheduleDays, slotMinutes: order.slotMinutes });
     const summary = summarizeOrder([line({ qty: 2 })], pricing);
     assert.deepEqual(summary, { subtotal: { value: 96, partial: false }, delivery: null, total: { value: 96, partial: false }, missingForMinimum: null, missingForFreeDelivery: null, blocker: null, discount: null, couponIssue: null });
     // Montos escritos en el formulario: vacío → sin valor; "1,200.50" y "35,5" se entienden.

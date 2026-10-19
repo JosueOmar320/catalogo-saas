@@ -3,7 +3,7 @@ import { msg } from '@/i18n/translate';
 import { CURRENCIES } from '@/lib/catalog/settings';
 import { priceText, priceToNumber } from '@/lib/utils/validation';
 import { uploadedImageSchema } from '@/features/media/schema';
-import { MANUAL_BADGES, MAX_EXTRA_OPTIONS, MAX_VARIANT_OPTIONS } from '@/lib/catalog/item-attributes';
+import { DIET_TAGS, MANUAL_BADGES, MAX_EXTRA_OPTIONS, MAX_VARIANT_OPTIONS } from '@/lib/catalog/item-attributes';
 import { isTimeZone } from '@/lib/business/schedule';
 import { hexColor } from '@/lib/design/schema-utils';
 
@@ -67,6 +67,9 @@ export const itemFormSchema = z
         }),
       )
       .max(MAX_EXTRA_OPTIONS),
+    /** Existencias ("" = no se controlan). */
+    stock: z.union([z.literal(''), z.string().trim().regex(/^\d{1,7}$/, msg('Usa un número entero, ej. 12'))]),
+    diet: z.array(z.enum(DIET_TAGS)).max(DIET_TAGS.length),
     /** Sólo se puede pedir en este horario del día (desayunos). */
     orderHoursEnabled: z.boolean(),
     orderHoursFrom: z.string(),
@@ -122,6 +125,8 @@ export function itemFormToAttributes(values: z.output<typeof itemFormSchema>) {
     variants: values.type === 'product' ? formVariants(values) : null,
     extras: values.type === 'product' ? formExtras(values) : null,
     orderHours: values.type === 'product' ? formOrderHours(values) : null,
+    stock: values.type === 'product' && values.stock !== '' ? Number(values.stock) : null,
+    diet: values.diet,
     saleEnds: values.saleEndsOn && priceToNumber(values.compareAtPrice) !== null && isTimeZone(values.saleTimeZone) ? { on: values.saleEndsOn, timeZone: values.saleTimeZone } : null,
     customBadge: values.customBadgeLabel ? { label: values.customBadgeLabel, color: values.customBadgeColor } : null,
     values: values.attributeValues,

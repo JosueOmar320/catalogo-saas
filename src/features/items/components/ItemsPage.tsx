@@ -52,6 +52,7 @@ export async function ItemsPage({ type, review }: { type: ItemType; review?: Rev
       isFeatured: i.is_featured,
       sale: saleOf(i),
       hasDescription: Boolean(i.short_description || i.description),
+      stock: parseItemAttributes(i.attributes).stock,
       views: performance.views ? (performance.views[i.id] ?? 0) : null,
       units: performance.units ? (performance.units[i.id] ?? 0) : null,
     }));

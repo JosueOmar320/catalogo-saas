@@ -29,6 +29,7 @@ import { bulkUpdateItems, deleteItem, duplicateItem, restoreItems, toggleItemFie
 import { PriceCell } from './PriceCell';
 import { BulkActions } from './BulkActions';
 import { REVIEW_FILTERS, type ReviewFilter } from '../review';
+import { LOW_STOCK } from '@/lib/catalog/item-attributes';
 
 export type ItemRowData = {
   id: string;
@@ -47,6 +48,8 @@ export type ItemRowData = {
   /** Oferta con fecha de fin: vigente (con su último día) o ya vencida. */
   sale: { ends: string; over: boolean } | null;
   hasDescription: boolean;
+  /** Existencias (null = no se controlan). */
+  stock: number | null;
   /** Fichas vistas y unidades pedidas en 30 días (null si no se pueden leer). */
   views: number | null;
   units: number | null;
@@ -314,6 +317,10 @@ export function ItemsTable({ items: initialItems, categories, initialReview = nu
                       </Stack>
                     )}
                   </Stack>
+                )}
+                {item.isAvailable && item.stock === 0 && <Chip size="small" color="warning" variant="outlined" label={t('Sin existencias')} sx={{ display: { xs: 'none', sm: 'inline-flex' } }} />}
+                {item.isAvailable && item.stock !== null && item.stock > 0 && item.stock <= LOW_STOCK && (
+                  <Chip size="small" color="warning" variant="outlined" label={t('Quedan {count}', { count: item.stock })} sx={{ display: { xs: 'none', sm: 'inline-flex' } }} />
                 )}
                 {!item.isAvailable && <Chip label={t('Agotado')} variant="outlined" sx={{ display: { xs: 'none', sm: 'inline-flex' } }} />}
                 <PriceCell

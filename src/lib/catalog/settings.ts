@@ -98,6 +98,14 @@ export const orderSchema = z.object({
   minimumOrder: optionalAmount(),
   /** Formas de pago que el cliente puede elegir. */
   payments: z.array(z.enum(PAYMENT_METHODS)).max(PAYMENT_METHODS.length).default([]),
+  /** "¿Para cuándo?": el cliente elige día y hora dentro del horario del negocio. */
+  scheduling: z.enum(['off', 'optional', 'required']).default('off'),
+  /** Tiempo mínimo de preparación (minutos desde ahora). */
+  leadMinutes: z.preprocess((v) => (typeof v === 'string' ? Number(v) : v), z.number().int().min(0).max(10_080)).default(60),
+  /** Cuántos días hacia adelante se puede elegir. */
+  scheduleDays: z.preprocess((v) => (typeof v === 'string' ? Number(v) : v), z.number().int().min(1).max(30)).default(7),
+  /** Cada cuántos minutos hay un horario para elegir. */
+  slotMinutes: z.enum(['15', '30', '60']).default('30'),
   /** Pausa de pedidos (vacaciones, sin servicio): el sitio avisa y no deja enviar. */
   paused: z.boolean().default(false),
   /** Último día de la pausa ("" = hasta reactivarla) y la zona horaria de quien la programó. */

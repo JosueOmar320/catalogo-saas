@@ -9,7 +9,7 @@ import styles from './site.module.css';
 
 /** `inline`: dentro del flujo del texto (listas, zigzag) en lugar de sobre la imagen. `t`: idioma del sitio para las etiquetas de fábrica. */
 export function Badges({ item, theme, t, inline }: { item: CatalogItemView; theme: ThemeConfig; t: Translator; inline?: boolean }) {
-  const badges = resolveBadges(item, theme);
+  const badges = resolveBadges(item, theme, { lowStock: true });
   if (badges.length === 0) return null;
   const { style, shape, position } = theme.badges;
   return (
@@ -22,7 +22,7 @@ export function Badges({ item, theme, t, inline }: { item: CatalogItemView; them
           data-shape={shape}
           style={{ '--badge': badge.color, '--badge-text': readableOn(badge.color) } as CSSProperties}
         >
-          {defaultText(badge.label, t)}
+          {badge.key === 'lowStock' ? t('¡Quedan {count}!', badge.params) : defaultText(badge.label, t)}
         </span>
       ))}
     </div>
