@@ -69,7 +69,7 @@ export function GalleryField({ value, onChange }: Props) {
         {value.map((image, index) => (
           <Box
             key={image.path}
-            sx={{ position: 'relative', ...TILE, borderRadius: 1.5, overflow: 'hidden', border: 1, borderColor: index === 0 ? 'primary.main' : 'divider', bgcolor: '#FAFAFA', '&:hover .tile-actions': { opacity: 1 } }}
+            sx={{ position: 'relative', ...TILE, borderRadius: 1.5, overflow: 'hidden', border: 1, borderColor: index === 0 ? 'primary.main' : 'divider', bgcolor: 'action.hover', '&:hover .tile-actions': { opacity: 1 } }}
           >
             <Box
               component="img"

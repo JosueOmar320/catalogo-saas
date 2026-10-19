@@ -24,9 +24,9 @@ export function SeoForm({ seo, fallbackTitle, fallbackDescription, url }: Props)
   return (
     <SectionCard title="SEO y redes" description="Cómo aparece tu catálogo en Google y al compartirlo por WhatsApp o redes. Si dejas campos vacíos, se usan el nombre y la descripción del negocio.">
       <Stack component="form" spacing={2} onSubmit={handleSubmit((values) => run(() => saveSeo(values), { onSuccess: () => { reset(values); router.refresh(); } }))}>
-        <Box sx={{ p: 2, border: 1, borderColor: 'divider', borderRadius: 1.5, bgcolor: '#FCFCFD' }}>
+        <Box sx={{ p: 2, border: 1, borderColor: 'divider', borderRadius: 1.5, bgcolor: 'background.default' }}>
           <Typography variant="caption" color="text.secondary" noWrap component="p">{url}</Typography>
-          <Typography sx={{ color: '#1a0dab', fontSize: 18, lineHeight: 1.3 }} noWrap>{title}</Typography>
+          <Typography sx={(theme) => ({ color: '#1a0dab', ...theme.applyStyles('dark', { color: '#8ab4f8' }), fontSize: 18, lineHeight: 1.3 })} noWrap>{title}</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{description}</Typography>
         </Box>
         <TextFieldControl control={control} name="title" label="Título" placeholder={fallbackTitle} helperText="Recomendado: hasta 60 caracteres." />

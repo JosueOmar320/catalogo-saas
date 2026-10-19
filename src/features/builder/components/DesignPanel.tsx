@@ -74,7 +74,7 @@ function ThemeTab({ theme, setTheme, identity }: { theme: ThemeConfig; setTheme:
                   <Typography sx={{ fontFamily: FONT_FAMILIES[(preset.theme.typography?.headingFont ?? 'inter') as FontId], color: preset.theme.colors?.heading, fontWeight: 700, fontSize: 15, lineHeight: 1 }}>Aa</Typography>
                   <Stack direction="row" spacing={0.5}>
                     {preset.swatch.map((c, i) => (
-                      <Box key={i} sx={{ width: 13, height: 13, borderRadius: '50%', bgcolor: c, border: 1, borderColor: 'rgba(0,0,0,.15)' }} />
+                      <Box key={i} sx={{ width: 13, height: 13, borderRadius: '50%', bgcolor: c, border: 1, borderColor: 'divider' }} />
                     ))}
                   </Stack>
                 </Box>

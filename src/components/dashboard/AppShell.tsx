@@ -5,6 +5,7 @@ import { ChevronDown, Menu as MenuIcon } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useState, type ComponentProps, type ReactNode } from 'react';
+import { ColorModeToggle } from '@/components/ui/ColorModeToggle';
 import { env } from '@/lib/env';
 import { BusinessMenu } from './BusinessMenu';
 import { AccountMenu } from './AccountMenu';
@@ -127,12 +128,13 @@ export function AppShell(props: Props) {
       </Box>
 
       <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-        <AppBar position="sticky" color="inherit" elevation={0} sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(8px)' }}>
+        <AppBar position="sticky" color="inherit" elevation={0} sx={(theme) => ({ borderBottom: 1, borderColor: 'divider', bgcolor: `rgba(${theme.vars.palette.background.paperChannel} / 0.9)`, backdropFilter: 'blur(8px)' })}>
           <Toolbar sx={{ minHeight: '56px !important', gap: 1, px: { xs: 1.5, sm: 3 } }}>
             <IconButton onClick={() => setMobileOpen(true)} sx={{ display: { md: 'none' } }} aria-label="Abrir menú">
               <MenuIcon size={18} />
             </IconButton>
             <Box sx={{ flex: 1 }} />
+            <ColorModeToggle />
             {!admin && <PublishControl />}
           </Toolbar>
         </AppBar>

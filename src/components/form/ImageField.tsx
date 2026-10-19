@@ -76,7 +76,7 @@ export function ImageField({ label, description, kind, value, onChange, aspectRa
           border: 1,
           borderStyle: preview ? 'solid' : 'dashed',
           borderColor: 'divider',
-          bgcolor: '#FAFAFA',
+          bgcolor: 'action.hover',
           backgroundImage: preview ? `url("${preview}")` : 'none',
           backgroundSize: 'cover',
           backgroundPosition: 'center',
@@ -90,7 +90,7 @@ export function ImageField({ label, description, kind, value, onChange, aspectRa
       >
         {!preview && <ImagePlus size={22} />}
         {busy && (
-          <Box sx={{ position: 'absolute', inset: 0, bgcolor: 'rgba(255,255,255,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Box sx={(theme) => ({ position: 'absolute', inset: 0, bgcolor: `rgba(${theme.vars.palette.background.paperChannel} / 0.7)`, display: 'flex', alignItems: 'center', justifyContent: 'center' })}>
             <CircularProgress size={20} />
           </Box>
         )}

@@ -1,12 +1,18 @@
 .page {
+  --bg: #f7f7f8;
+  --ink: #18181b;
+  --muted: #71717a;
+  --text: #52525b;
+  --button-bg: #18181b;
+  --button-ink: #ffffff;
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px 16px;
-  background: #f7f7f8;
+  background: var(--bg);
   font-family: system-ui, -apple-system, sans-serif;
-  color: #18181b;
+  color: var(--ink);
 }
 
 .card {
@@ -18,7 +24,7 @@
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #71717a;
+  color: var(--muted);
   margin: 0 0 8px;
 }
 
@@ -29,7 +35,7 @@
 }
 
 .text {
-  color: #52525b;
+  color: var(--text);
   margin: 0 0 24px;
   line-height: 1.5;
 }
@@ -38,8 +44,8 @@
   display: inline-block;
   padding: 10px 16px;
   border-radius: 6px;
-  background: #18181b;
-  color: #fff;
+  background: var(--button-bg);
+  color: var(--button-ink);
   text-decoration: none;
   font-weight: 600;
   font-size: 14px;
@@ -54,5 +60,15 @@
 .digest {
   margin: 16px 0 0;
   font-size: 12px;
-  color: #71717a;
+  color: var(--muted);
+}
+
+/* Modo oscuro de la app (clase en <html>, ver layout raíz). */
+:global(.dark) .page {
+  --bg: #0e1014;
+  --ink: #ececef;
+  --muted: #a1a1aa;
+  --text: #c4c4cc;
+  --button-bg: #ececef;
+  --button-ink: #18181b;
 }

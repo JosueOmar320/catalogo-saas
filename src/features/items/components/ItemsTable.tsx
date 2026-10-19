@@ -126,9 +126,9 @@ export function ItemsTable({ items: initialItems, categories }: Props) {
             <Box
               component="li"
               key={item.id}
-              sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 1.5, py: 1, borderBottom: 1, borderColor: 'divider', '&:last-child': { borderBottom: 0 }, '&:hover': { bgcolor: '#FAFAFB' } }}
+              sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 1.5, py: 1, borderBottom: 1, borderColor: 'divider', '&:last-child': { borderBottom: 0 }, '&:hover': { bgcolor: 'action.hover' } }}
             >
-              <Avatar variant="rounded" src={item.thumbUrl ?? undefined} sx={{ width: 44, height: 44, bgcolor: '#F1F1F3', color: 'text.disabled' }}>
+              <Avatar variant="rounded" src={item.thumbUrl ?? undefined} sx={{ width: 44, height: 44, bgcolor: 'action.hover', color: 'text.disabled' }}>
                 <ImageIcon size={18} />
               </Avatar>
               <Box component={Link} href={`/dashboard/catalog/items/${item.id}`} sx={{ flex: 1, minWidth: 0, color: 'inherit', textDecoration: 'none', '&:hover .name': { textDecoration: 'underline' } }}>

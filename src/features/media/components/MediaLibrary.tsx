@@ -262,7 +262,7 @@ export function MediaLibrary({ mode = 'manage', multiple = false, storageOnly = 
         sx={{ position: 'relative', flex: 1, minHeight: 240, borderRadius: 2, outline: dragging ? '2px dashed' : 'none', outlineColor: 'primary.main', outlineOffset: 4 }}
       >
         {dragging && (
-          <Stack sx={{ position: 'absolute', inset: 0, zIndex: 2, alignItems: 'center', justifyContent: 'center', bgcolor: 'rgba(255,255,255,0.85)', borderRadius: 2, pointerEvents: 'none' }}>
+          <Stack sx={(theme) => ({ position: 'absolute', inset: 0, zIndex: 2, alignItems: 'center', justifyContent: 'center', bgcolor: `rgba(${theme.vars.palette.background.paperChannel} / 0.85)`, borderRadius: 2, pointerEvents: 'none' })}>
             <Upload size={28} />
             <Typography sx={{ mt: 1, fontWeight: 600 }}>Suelta las imágenes para subirlas{filters.folder !== 'all' ? ` a ${MEDIA_FOLDER_LABELS[filters.folder]}` : ''}</Typography>
           </Stack>
@@ -304,10 +304,10 @@ export function MediaLibrary({ mode = 'manage', multiple = false, storageOnly = 
                       '&:hover': { borderColor: 'primary.main' },
                     }}
                   >
-                    <Box sx={{ position: 'relative', aspectRatio: '1 / 1', bgcolor: 'action.hover', backgroundImage: 'linear-gradient(45deg,#f2f2f2 25%,transparent 25%,transparent 75%,#f2f2f2 75%),linear-gradient(45deg,#f2f2f2 25%,transparent 25%,transparent 75%,#f2f2f2 75%)', backgroundSize: '16px 16px', backgroundPosition: '0 0,8px 8px' }}>
+                    <Box sx={{ position: 'relative', aspectRatio: '1 / 1', bgcolor: 'action.hover', backgroundImage: 'linear-gradient(45deg,var(--checker, #f2f2f2) 25%,transparent 25%,transparent 75%,var(--checker, #f2f2f2) 75%),linear-gradient(45deg,var(--checker, #f2f2f2) 25%,transparent 25%,transparent 75%,var(--checker, #f2f2f2) 75%)', backgroundSize: '16px 16px', backgroundPosition: '0 0,8px 8px' }}>
                       <Box component="img" src={record.thumbUrl} alt={record.alt || record.name} loading="lazy" sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: record.folder === 'logos' ? 'contain' : 'cover', p: record.folder === 'logos' ? 1.5 : 0 }} />
                       {record.provider === 'external' && (
-                        <Chip size="small" icon={<ExternalLink size={11} />} label="Enlace" sx={{ position: 'absolute', left: 6, bottom: 6, height: 20, fontSize: 11, bgcolor: 'rgba(255,255,255,0.92)' }} />
+                        <Chip size="small" icon={<ExternalLink size={11} />} label="Enlace" sx={(theme) => ({ position: 'absolute', left: 6, bottom: 6, height: 20, fontSize: 11, bgcolor: `rgba(${theme.vars.palette.background.paperChannel} / 0.92)` })} />
                       )}
                     </Box>
                     <Box sx={{ px: 1, py: 0.75 }}>
@@ -324,7 +324,7 @@ export function MediaLibrary({ mode = 'manage', multiple = false, storageOnly = 
                       checked={isSelected}
                       onChange={() => toggle(record)}
                       slotProps={{ input: { 'aria-label': `Seleccionar ${record.name}` } }}
-                      sx={{ position: 'absolute', top: 4, right: 4, p: 0.25, opacity: isSelected || selected.length > 0 ? 1 : 0, bgcolor: 'rgba(255,255,255,0.9)', borderRadius: 1, '&:hover': { bgcolor: '#fff' } }}
+                      sx={{ position: 'absolute', top: 4, right: 4, p: 0.25, opacity: isSelected || selected.length > 0 ? 1 : 0, bgcolor: 'background.paper', borderRadius: 1, '&:hover': { bgcolor: 'background.paper' } }}
                     />
                   )}
                 </Box>
