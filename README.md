@@ -185,6 +185,7 @@ Aplica la migración automáticamente. Usa la *API URL* y la *Publishable key* q
 | `npm run test:coverage` | Igual, con cobertura (`coverage/lcov.info`). |
 | `npm run test:db` | Migraciones + RLS, roles, auditoría, límites y aislamiento multi-tenant sobre PGlite (sin Docker). |
 | `npm run test:e2e` | Pruebas end-to-end con Playwright sobre el build de producción (compila y levanta `next start` en el puerto 3100). |
+| `npm run test:e2e:app` | E2E con sesión: levanta Supabase local en Docker, reinicia su base, crea un admin de prueba y prueba login, admin, panel y sitio publicado (puerto 3200). |
 | `npm run check` | typecheck + lint + pruebas unitarias y de base de datos (lo mismo que CI, sin el build ni las E2E). |
 | `npm run admin:create` | Crea o promueve el administrador de la plataforma (usa `.env.local`). |
 | `npm run db:types` | Regenera tipos desde Supabase en `src/types/database.generated.ts`. |
@@ -198,8 +199,9 @@ Aplica la migración automáticamente. Usa la *API URL* y la *Publishable key* q
 | Base de datos (153) | PGlite (Postgres en WASM) con stubs de `auth`/`storage` | Todas las migraciones en orden (incluida la migración de datos v1), RLS por tabla y por rol, Storage, límites de plan, RPCs de administración, auditoría, referencias de medios y límite de intentos. |
 | Unitarias (196) | `node:test` + `tsx` | Anti-SSRF (incluidas IPv4 escondidas en IPv6), redirecciones seguras, slugs, precios, usuarios, planes, acciones de contacto, paginación, reducer del editor (guardado concurrente), Garfield (router local, ejecutores, proveedores con `fetch` simulado), PDF, pedido por WhatsApp (total y mensaje), catálogo de traducciones y equivalencia de optimizaciones. |
 | End-to-end (15) | Playwright (Chromium, escritorio y móvil) sobre `next build` + `next start` | Landing en español/inglés (Accept-Language y selector que se recuerda), modo claro/oscuro, pedido por WhatsApp completo en la demo (cantidades, total, mensaje de wa.me, persistencia, vaciar, Escape), ficha de producto, servicios y agotados sin pedido, móvil sin desbordes, redirección al login y respuestas 404. Sin Supabase: corren igual en CI. |
+| End-to-end con sesión (8) | Playwright + Supabase local (Docker, `supabase/config.toml`) con la base reiniciada en cada ejecución | Login (correcto, contraseña incorrecta, regreso a la página pedida), el admin crea un negocio y se asigna, inicio del panel, producto sin foto/precio en "Revisa tu catálogo" y su filtro, publicar y que un visitante anónimo lo pida por WhatsApp en el sitio real, e idioma guardado en el perfil que se aplica al entrar desde otro navegador. |
 
-Las pruebas no usan red, reloj ni datos aleatorios sin control, así que son deterministas en CI. La cobertura (`npm run test:coverage`) mide los módulos que cargan las pruebas: en la última ejecución, 88 % de líneas y 82 % de ramas sobre 77 módulos (lógica de dominio, seguridad y Garfield). Las E2E cubren los flujos públicos; el panel con sesión todavía se prueba a mano: ver [Limitaciones](#limitaciones-conocidas).
+Las pruebas no usan red, reloj ni datos aleatorios sin control, así que son deterministas en CI. La cobertura (`npm run test:coverage`) mide los módulos que cargan las pruebas: en la última ejecución, 88 % de líneas y 82 % de ramas sobre 77 módulos (lógica de dominio, seguridad y Garfield). Las E2E cubren los flujos públicos y los principales con sesión; las pantallas de edición (editor del sitio, estudio de PDF, medios) se prueban a mano: ver [Limitaciones](#limitaciones-conocidas).
 
 ## Integración continua
 
@@ -211,6 +213,7 @@ Las pruebas no usan red, reloj ni datos aleatorios sin control, así que son det
 | Tests | Pruebas unitarias con cobertura y pruebas de base de datos; publica `coverage/` como artefacto y un resumen en el job. |
 | Production build | `next build` sin secretos (la app compila sin Supabase). |
 | E2E (Playwright) | Instala Chromium y corre `npm run test:e2e` contra el build de producción, sin secretos; si falla, publica el reporte y las trazas. |
+| E2E con sesión (Supabase local) | Levanta Supabase en Docker dentro del runner y corre `npm run test:e2e:app`. Tampoco usa secretos. |
 | Dependency audit | `npm audit --omit=dev --audit-level=high`. |
 | Dependency review | En PRs, bloquea dependencias nuevas con vulnerabilidades altas. |
 | Secret scan | gitleaks sobre todo el historial. |
@@ -234,7 +237,7 @@ Para reportar un problema de seguridad, ver [`SECURITY.md`](SECURITY.md).
 
 ## Limitaciones conocidas
 
-- Las pruebas end-to-end cubren el sitio público y la landing; los flujos con sesión (login, panel) necesitan una instancia de Supabase de prueba y todavía se revisan a mano. Las reglas críticas (permisos, validación, cálculo) están cubiertas por las pruebas de base de datos y unitarias.
+- Las pruebas end-to-end cubren el sitio público, la landing y los flujos principales con sesión; el editor del sitio, el estudio de PDF, la subida de imágenes y Garfield todavía se revisan a mano. Las reglas críticas (permisos, validación, cálculo) están cubiertas por las pruebas de base de datos y unitarias.
 - La CSP es mínima (sin `script-src`): una CSP estricta exige nonces por página y haría dinámico el catálogo público.
 - `src/types/database.ts` se mantiene a mano junto con las migraciones; `npm run db:types` genera la versión oficial para compararla.
 - El límite por cuenta del login también puede usarse para bloquear temporalmente (15 min) a un usuario cuyo nombre se conoce; es el compromiso habitual frente a la fuerza bruta.
@@ -290,8 +293,11 @@ tests/                         196 pruebas unitarias (npm run test:unit)
   builder/                     reducer del editor (guardado con cambios concurrentes)
   assistant/                   Garfield: router local, ejecutores sitio/PDF, proveedores, herramientas, plantillas
 .github/                       CI (ci.yml), CodeQL y Dependabot
-e2e/public/                    15 pruebas end-to-end con Playwright (npm run test:e2e)
-playwright.config.ts           Proyectos escritorio y móvil; levanta el build de producción
+e2e/public/                    15 pruebas end-to-end sin sesión (npm run test:e2e)
+e2e/app/                       8 pruebas end-to-end con sesión sobre Supabase local (npm run test:e2e:app)
+playwright.config.ts           Proyectos escritorio, móvil y app; levanta el build de producción
+scripts/e2e-app.mjs            Levanta Supabase local, reinicia la base, crea el admin de prueba y corre las E2E con sesión
+supabase/config.toml           Supabase local para las E2E (sólo base, auth, API y storage)
 src/
   proxy.ts                     Sesión de Supabase + protección de rutas
   app/

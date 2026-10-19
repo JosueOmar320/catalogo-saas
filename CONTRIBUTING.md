@@ -36,6 +36,14 @@ npm run test:e2e
 
 Compilan la app y la prueban en un navegador real, en escritorio y en móvil. Para probar un servidor ya levantado: `E2E_BASE_URL=http://localhost:3000 npm run test:e2e`. Si una falla, `npx playwright show-trace test-results/…/trace.zip` muestra paso a paso qué vio el navegador.
 
+Si tocaste el login, el admin, el panel o la publicación, corre también las E2E con sesión. Necesitan Docker; la primera vez descargan las imágenes de Supabase:
+
+```bash
+npm run test:e2e:app
+```
+
+Levantan un Supabase **local** (nunca los proyectos de la nube), reinician su base, crean un administrador con una contraseña aleatoria de esa ejecución y prueban el recorrido completo. Para apagarlo: `npx supabase@2.121.0 stop`.
+
 Si cambiaste dependencias, verifica también el lockfile con la versión de npm del CI (npm 11 puede quitar dependencias opcionales de otras plataformas que npm 12 exige, y `npm ci` falla en CI):
 
 ```bash
