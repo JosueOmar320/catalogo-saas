@@ -136,10 +136,11 @@ describe('Extras, notas y horario del producto', () => {
     const latte = buildSampleSite().items.find((i) => i.name === 'Latte de avena')!;
     const [shot, almond, cinnamon] = latte.extras!.options;
     const large = latte.variants!.options[1];
-    const a = optionOrderItem(latte, large, [almond, shot]);
-    const b = optionOrderItem(latte, large, [shot, almond]);
+    const a = optionOrderItem(latte, large, [shot, almond]);
+    const b = optionOrderItem(latte, large, [almond, shot]);
     assert.equal(a.id, b.id);
     assert.equal(a.id, `${latte.id}:v2+x1+x2`);
+    // El nombre lleva los extras en el orden recibido (la ficha los pasa en el orden del producto).
     assert.equal(a.name, 'Latte de avena (16 oz) + Shot extra, Leche de almendra');
     assert.equal(a.price, 98); // 78 + 12 + 8
     assert.equal(a.itemId, latte.id);

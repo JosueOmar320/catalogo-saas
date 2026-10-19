@@ -100,15 +100,17 @@ type ExtraOption = CatalogExtrasView['options'][number];
 
 /**
  * Línea del pedido para lo que eligió el cliente: la opción (si tiene) y los
- * extras. Id "producto:opción+extra1+extra2" (extras ordenados: la misma
- * elección es la misma línea), nombre "Latte (16 oz) + Shot extra, Canela" y
- * precio = opción (o producto) + extras.
+ * extras. Id "producto:opción+extra1+extra2" (ids ordenados: la misma
+ * elección es la misma línea), nombre "Latte (16 oz) + Shot extra, Canela"
+ * (extras en el orden en que llegan: el de la ficha) y precio = opción (o
+ * producto) + extras.
  */
 export function optionOrderItem(item: LineSource, option: CatalogVariantsView['options'][number] | null, extras: ExtraOption[] = []): OrderItem {
-  const chosen = [...extras].sort((a, b) => a.id.localeCompare(b.id));
+  const chosen = extras;
   const base = option ? option.price : item.price;
+  const ids = chosen.map((extra) => extra.id).sort();
   return {
-    id: `${item.id}${option ? `:${option.id}` : ''}${chosen.map((extra) => `+${extra.id}`).join('')}`,
+    id: `${item.id}${option ? `:${option.id}` : ''}${ids.map((id) => `+${id}`).join('')}`,
     itemId: item.id,
     name: `${item.name}${option ? ` (${option.name})` : ''}${chosen.length ? ` + ${chosen.map((extra) => extra.name).join(', ')}` : ''}`,
     sku: option?.sku ?? item.sku,
