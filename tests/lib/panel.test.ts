@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { countReview, isReviewFilter, REVIEW_FILTERS } from '@/features/items/review';
 import { displayUrl, readableOn, shareMessages, wrapText } from '@/lib/share/kit';
+import { nameFromFile } from '@/lib/catalog/photo-names';
 import { APP_EN } from '@/i18n/en';
 import { createTranslator } from '@/i18n/translate';
 import { formatRelative } from '@/lib/utils/format';
@@ -55,5 +56,16 @@ describe('Kit para compartir', () => {
     assert.equal(readableOn('#1A1A1A'), '#ffffff');
     assert.equal(readableOn('#2F54D6'), '#ffffff');
     assert.equal(readableOn('#F5D76E'), '#111111');
+  });
+});
+
+describe('Crear desde fotos', () => {
+  it('sugiere el nombre del archivo e ignora los de cámara y WhatsApp', () => {
+    assert.equal(nameFromFile('pastel-de-chocolate_2.jpg'), 'Pastel de chocolate 2');
+    assert.equal(nameFromFile('croissant.PNG'), 'Croissant');
+    assert.equal(nameFromFile('panDeMuerto.webp'), 'Pan De Muerto');
+    for (const camera of ['IMG_1234.JPG', 'IMG_1234 (1).jpg', 'PXL_20261019_123456789.jpg', 'DSC0001.jpg', '2026-10-19 10.31.12.png', 'WhatsApp Image 2026-10-19 at 10.31.12.jpeg', 'Imagen de WhatsApp 2026-10-19 a las 10.31.12_ab12.jpg']) {
+      assert.equal(nameFromFile(camera), '', camera);
+    }
   });
 });

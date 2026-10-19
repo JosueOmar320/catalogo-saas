@@ -17,6 +17,7 @@ import { ITEM_TYPE_LABELS } from '../schema';
 import { getItemPerformance } from '@/features/views/queries';
 import { matchKey } from '@/lib/catalog/csv';
 import { ImportExport } from './ImportExport';
+import { PhotoBatchButton } from './PhotoBatch';
 import { ItemsTable, type ItemRowData } from './ItemsTable';
 
 /** Página de listado compartida por Productos y Servicios. */
@@ -69,6 +70,7 @@ export async function ItemsPage({ type, review }: { type: ItemType; review?: Rev
         actions={
           <>
             <ImportExport existingKeys={items.map(matchKey)} categoryNames={categories.map((c) => c.name)} defaultType={type} />
+            <PhotoBatchButton businessId={ctx.business.id} type={type} categories={categories.map((c) => ({ id: c.id, name: c.name }))} />
             <LinkButton href={newHref} variant="contained" startIcon={<Plus size={15} />}>
               {t(labels.newLabel)}
             </LinkButton>

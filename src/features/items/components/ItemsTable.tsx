@@ -22,9 +22,11 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { useConfirm } from '@/components/feedback/ConfirmProvider';
+import { useToast } from '@/components/feedback/ToastProvider';
 import { useT } from '@/i18n/client';
 import { useAction } from '@/lib/hooks/use-action';
-import { bulkUpdateItems, deleteItem, duplicateItem, toggleItemField, type BulkItemsInput } from '../actions';
+import { bulkUpdateItems, deleteItem, duplicateItem, restoreItems, toggleItemField, type BulkItemsInput } from '../actions';
+import { PriceCell } from './PriceCell';
 import { BulkActions } from './BulkActions';
 import { REVIEW_FILTERS, type ReviewFilter } from '../review';
 
@@ -72,6 +74,7 @@ export function ItemsTable({ items: initialItems, categories, initialReview = nu
   const t = useT();
   const router = useRouter();
   const confirm = useConfirm();
+  const toast = useToast();
   const { run, pending } = useAction();
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [items, setItems] = useState(initialItems);
@@ -115,14 +118,24 @@ export function ItemsTable({ items: initialItems, categories, initialReview = nu
     setMenu(null);
     const ok = await confirm({
       title: t('¿Eliminar "{name}"?', { name: item.name }),
-      description: t('Dejará de mostrarse en el catálogo. Esta acción no se puede deshacer desde el panel.'),
+      description: t('Dejará de mostrarse en el catálogo. Podrás deshacerlo justo después.'),
       confirmLabel: t('Eliminar'),
       destructive: true,
     });
     if (!ok) return;
     setItems((list) => list.filter((i) => i.id !== item.id));
-    await run(() => deleteItem(item.id), { onSuccess: () => router.refresh() });
+    const result = await run(() => deleteItem(item.id), { successToast: false });
+    if (!result?.ok) return;
+    router.refresh();
+    offerUndo([item.id], t('"{name}" eliminado', { name: item.name }));
   };
+
+  /** Aviso con "Deshacer": restaura lo recién eliminado (borrado lógico). */
+  const offerUndo = (ids: string[], message: string) =>
+    toast.success(message, {
+      label: t('Deshacer'),
+      onClick: () => void run(() => restoreItems(ids), { onSuccess: () => router.refresh() }),
+    });
 
   const selectedRows = items.filter((i) => selected.has(i.id));
   const visibleSelected = visibleItems.filter((i) => selected.has(i.id)).length;
@@ -149,14 +162,15 @@ export function ItemsTable({ items: initialItems, categories, initialReview = nu
     if (action.type === 'delete') {
       const ok = await confirm({
         title: ids.length === 1 ? t('¿Eliminar 1 ítem?') : t('¿Eliminar {count} ítems?', { count: ids.length }),
-        description: t('Dejarán de mostrarse en el catálogo. Esta acción no se puede deshacer desde el panel.'),
+        description: t('Dejarán de mostrarse en el catálogo. Podrás deshacerlo justo después.'),
         confirmLabel: t('Eliminar'),
         destructive: true,
       });
       if (!ok) return;
     }
-    const result = await run(() => bulkUpdateItems({ ids, action }));
+    const result = await run(() => bulkUpdateItems({ ids, action }), { successToast: action.type !== 'delete' });
     if (!result?.ok) return;
+    if (action.type === 'delete') offerUndo(ids, ids.length === 1 ? t('1 ítem eliminado') : t('{count} ítems eliminados', { count: ids.length }));
     // Reflejo inmediato; los datos definitivos llegan con router.refresh().
     const chosen = new Set(ids);
     setItems((list) => {
@@ -302,9 +316,11 @@ export function ItemsTable({ items: initialItems, categories, initialReview = nu
                   </Stack>
                 )}
                 {!item.isAvailable && <Chip label={t('Agotado')} variant="outlined" sx={{ display: { xs: 'none', sm: 'inline-flex' } }} />}
-                <Typography variant="body2" sx={{ width: 96, textAlign: 'right', display: { xs: 'none', sm: 'block' }, fontVariantNumeric: 'tabular-nums' }}>
-                  {item.priceLabel ?? '—'}
-                </Typography>
+                <PriceCell
+                  item={item}
+                  locale={locale}
+                  onSaved={(price, priceLabel) => setItems((list) => list.map((i) => (i.id === item.id ? { ...i, price, priceLabel } : i)))}
+                />
                 <Tooltip title={item.isVisible ? t('Visible en el catálogo') : t('Oculto')}>
                   <Switch checked={item.isVisible} onChange={(e) => toggle(item, 'is_visible', e.target.checked)} slotProps={{ input: { 'aria-label': t('Visible en el catálogo') } }} />
                 </Tooltip>

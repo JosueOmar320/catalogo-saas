@@ -293,7 +293,6 @@ const catalog: Catalog = {
   Destacados: 'Featured',
   Precios: 'Prices',
   'Quitar selección': 'Clear selection',
-  'Dejarán de mostrarse en el catálogo. Esta acción no se puede deshacer desde el panel.': "They'll no longer be shown in the catalog. This can't be undone from the panel.",
   'Selecciona varios para cambiarlos a la vez': 'Select several to change them at once',
   'Seleccionar todos los de la lista': 'Select all in the list',
   'Seleccionar {name}': 'Select {name}',

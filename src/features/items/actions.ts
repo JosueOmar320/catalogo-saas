@@ -10,6 +10,10 @@ import { isWithinLimit } from '@/lib/plans/entitlements';
 import { dbErrorMessage, fail, ok, type ActionResult } from '@/lib/utils/result';
 import { slugify, withRandomSuffix } from '@/lib/utils/slug';
 import { isPathOwnedBy } from '@/lib/utils/storage';
+import { MAX_PHOTO_BATCH } from '@/lib/catalog/photo-names';
+import { fetchAllRows } from '@/lib/supabase/paginate';
+import { parseCatalogSettings } from '@/lib/catalog/settings';
+import { uploadedImageSchema } from '@/features/media/schema';
 import { parseInput, uuidSchema } from '@/lib/utils/validation';
 import type { Json, TablesUpdate } from '@/types/database';
 import { releaseStorageObjects } from '@/features/media/server';
@@ -311,4 +315,112 @@ export async function listQuickItems(): Promise<ActionResult<{ id: string; name:
     .limit(1000);
   if (error) return fail(dbErrorMessage(error));
   return ok(data);
+}
+
+const restoreSchema = z.array(z.uuid()).min(1).max(500);
+
+/** "Deshacer" tras eliminar: vuelve a mostrar los ítems recién eliminados (borrado lógico). */
+export async function restoreItems(ids: string[]): Promise<ActionResult<{ restored: number }>> {
+  const ctx = await requireBusinessContext();
+  const parsed = restoreSchema.safeParse(ids);
+  if (!parsed.success) return fail(msg('Ítem inválido.'));
+  const { data, error } = await ctx.supabase
+    .from('catalog_items')
+    .update({ deleted_at: null })
+    .in('id', parsed.data)
+    .eq('catalog_id', ctx.catalog.id)
+    .not('deleted_at', 'is', null)
+    .select('id');
+  if (error) return fail(dbErrorMessage(error, msg('No se pudo restaurar. Si creaste otro ítem con el mismo nombre, cámbiale el nombre e intenta de nuevo.')));
+  afterChange(ctx);
+  return ok({ restored: data.length }, data.length === 1 ? msg('Ítem restaurado') : msg('Ítems restaurados'));
+}
+
+const priceSchema = z.object({ id: z.uuid(), price: z.number().min(0).max(99_999_999).nullable() });
+
+/**
+ * Edición rápida del precio desde la lista. Si el precio anterior (oferta)
+ * deja de ser mayor que el nuevo, se quita, igual que en el ajuste masivo.
+ */
+export async function setItemPrice(input: z.input<typeof priceSchema>): Promise<ActionResult<{ price: number | null }>> {
+  const ctx = await requireBusinessContext();
+  const parsed = priceSchema.safeParse(input);
+  if (!parsed.success) return fail(msg('Precio inválido.'));
+  const { id, price } = parsed.data;
+  const scoped = () => ctx.supabase.from('catalog_items');
+  const { data: current, error: readError } = await scoped().select('compare_at_price').eq('id', id).eq('catalog_id', ctx.catalog.id).is('deleted_at', null).maybeSingle();
+  if (readError) return fail(dbErrorMessage(readError));
+  if (!current) return fail(msg('El ítem ya no existe.'));
+  const compare = current.compare_at_price === null ? null : Number(current.compare_at_price);
+  const values = { price, ...(compare !== null && (price === null || compare <= price) ? { compare_at_price: null } : {}) };
+  const { error } = await scoped().update(values).eq('id', id).eq('catalog_id', ctx.catalog.id);
+  if (error) return fail(dbErrorMessage(error));
+  afterChange(ctx);
+  return ok({ price }, msg('Precio actualizado'));
+}
+
+const photoBatchSchema = z.object({
+  type: z.enum(['product', 'service']),
+  categoryId: z.uuid().nullable(),
+  visible: z.boolean(),
+  items: z
+    .array(z.object({ name: z.string().trim().min(1).max(160), image: uploadedImageSchema }))
+    .min(1)
+    .max(MAX_PHOTO_BATCH),
+});
+
+/**
+ * "Crear desde fotos": un ítem por foto ya subida (nombre y foto; el precio
+ * y lo demás se completan después). Por defecto quedan ocultos, para que no
+ * salgan al público a medias. Respeta el límite del plan.
+ */
+export async function createItemsFromPhotos(input: z.input<typeof photoBatchSchema>): Promise<ActionResult<{ created: number }>> {
+  const ctx = await requireBusinessContext();
+  const parsed = photoBatchSchema.safeParse(input);
+  if (!parsed.success) return fail(msg('Revisa los nombres de los productos.'));
+  const { type, categoryId, visible, items } = parsed.data;
+  if (items.some(({ image }) => !isPathOwnedBy(image.path, ctx.business.id) || (image.thumbPath && !isPathOwnedBy(image.thumbPath, ctx.business.id)))) {
+    return fail(msg('Una de las imágenes no es válida. Vuelve a subirla.'));
+  }
+  if (!(await categoryBelongsToCatalog(ctx, categoryId))) return fail(msg('La categoría ya no existe.'));
+
+  const maxItems = ctx.entitlements.limits.max_items;
+  const { count } = await ctx.supabase.from('catalog_items').select('id', { count: 'exact', head: true }).eq('business_id', ctx.business.id).is('deleted_at', null);
+  if (maxItems !== null && !isWithinLimit(maxItems, (count ?? 0) + items.length - 1)) {
+    const t = await getT();
+    return fail(t('Tu plan permite hasta {max} ítems: tienes {current} y quieres agregar {count}.', { max: maxItems, current: count ?? 0, count: items.length }));
+  }
+
+  // URLs del catálogo, también las de ítems eliminados: así restaurar uno ("Deshacer") no choca.
+  const existing = await fetchAllRows((from, to) => ctx.supabase.from('catalog_items').select('slug').eq('catalog_id', ctx.catalog.id).order('id').range(from, to));
+  const used = new Set(existing.map((row) => row.slug));
+  let position = await nextPosition(ctx);
+  const rows = items.map(({ name }) => {
+    let slug = slugify(name, 60) || 'item';
+    while (used.has(slug)) slug = withRandomSuffix(slugify(name, 60) || 'item');
+    used.add(slug);
+    return { name, slug, type, category_id: categoryId, is_visible: visible, position: position++, currency: parseCatalogSettings(ctx.catalog.settings).currency, business_id: ctx.business.id, catalog_id: ctx.catalog.id };
+  });
+  const { data: created, error } = await ctx.supabase.from('catalog_items').insert(rows).select('id, slug');
+  if (error) return fail(error.message.includes('plan_limit_reached') ? msg('Se alcanzó el límite de tu plan.') : dbErrorMessage(error));
+
+  const idBySlug = new Map(created.map((row) => [row.slug, row.id]));
+  const { error: imageError } = await ctx.supabase.from('catalog_item_images').insert(
+    items.map(({ image }, index) => ({
+      business_id: ctx.business.id,
+      item_id: idBySlug.get(rows[index].slug)!,
+      position: 0,
+      alt: null,
+      storage_path: image.path,
+      thumb_path: image.thumbPath,
+      width: image.width,
+      height: image.height,
+      size_bytes: image.sizeBytes,
+      mime_type: image.mimeType,
+    })),
+  );
+  if (imageError) return fail(dbErrorMessage(imageError, msg('No se pudo guardar una imagen.')));
+  afterChange(ctx);
+  const t = await getT();
+  return ok({ created: created.length }, created.length === 1 ? t('Se creó 1 ítem') : t('Se crearon {count} ítems', { count: created.length }));
 }
