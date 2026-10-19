@@ -29,11 +29,11 @@ function sanitize(raw: unknown): OrderState {
     .flatMap((value): OrderLine[] => {
       if (!value || typeof value !== 'object') return [];
       const line = value as Record<string, unknown>;
-      const id = str(line.id, 64);
+      const id = str(line.id, 120);
       const name = str(line.name, 200);
       const qty = clampQty(Number(line.qty));
       if (!id || !name || qty < 1) return [];
-      return [{ id, name, qty, sku: str(line.sku, 64) || null, price: numOrNull(line.price), priceLabel: str(line.priceLabel, 60) || null, currency: str(line.currency, 3), url: str(line.url, 500), image: str(line.image, 500) || null }];
+      return [{ id, itemId: str(line.itemId, 64) || null, name, qty, sku: str(line.sku, 64) || null, price: numOrNull(line.price), priceLabel: str(line.priceLabel, 60) || null, currency: str(line.currency, 3), url: str(line.url, 500), image: str(line.image, 500) || null }];
     })
     .slice(0, MAX_ORDER_LINES);
   return { lines, name: str(input.name, 80), note: str(input.note, 500) };
@@ -88,7 +88,7 @@ function subscribe(key: string, listener: () => void) {
  */
 function trackOrder(slug: string, lines: OrderLine[]) {
   try {
-    const body = JSON.stringify({ slug, items: lines.map((line) => ({ id: line.id, qty: line.qty })) });
+    const body = JSON.stringify({ slug, items: lines.map((line) => ({ id: line.itemId ?? line.id, qty: line.qty })) });
     navigator.sendBeacon?.('/api/orders', new Blob([body], { type: 'application/json' }));
   } catch {}
 }

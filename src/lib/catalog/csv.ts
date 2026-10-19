@@ -68,6 +68,7 @@ export const ITEM_COLUMNS = [
   { key: 'visible', header: 'visible', aliases: ['mostrar', 'publicado'] },
   { key: 'featured', header: 'destacado', aliases: ['featured'] },
   { key: 'tags', header: 'etiquetas', aliases: ['tags'] },
+  { key: 'images', header: 'imagenes', aliases: ['imágenes', 'imagen', 'images', 'image', 'image_url', 'fotos', 'foto', 'photos'] },
 ] as const;
 
 export type ItemColumn = (typeof ITEM_COLUMNS)[number]['key'];
@@ -124,11 +125,28 @@ export type ImportRow = {
   visible: boolean;
   featured: boolean;
   tags: string[];
+  /** Enlaces de fotos (http/https): se descargan después de importar, sólo si el ítem no tiene fotos. */
+  images: string[];
 };
 
 export type ImportIssue = { line: number; message: string; params?: Record<string, string | number> };
 
 export const MAX_IMPORT_ROWS = 500;
+export const MAX_IMPORT_IMAGES = 5;
+
+/** "url1 | url2" o separadas por espacios o saltos de línea → enlaces; null si alguno no es http(s). */
+export function parseImageCell(value: string): string[] | null {
+  const urls = value.split(/[\s|]+/).filter(Boolean);
+  for (const url of urls) {
+    try {
+      const parsed = new URL(url);
+      if ((parsed.protocol !== 'http:' && parsed.protocol !== 'https:') || url.length > 1000) return null;
+    } catch {
+      return null;
+    }
+  }
+  return [...new Set(urls)].slice(0, MAX_IMPORT_IMAGES);
+}
 
 const TYPES: Record<string, 'product' | 'service'> = { producto: 'product', product: 'product', servicio: 'service', service: 'service', '': 'product' };
 
@@ -165,6 +183,7 @@ export function parseItemTable(table: string[][], defaultType: 'product' | 'serv
     const available = parseBoolean(get('available'), true);
     const visible = parseBoolean(get('visible'), true);
     const featured = parseBoolean(get('featured'), false);
+    const images = parseImageCell(get('images'));
 
     const problem =
       (!type && msg('Tipo inválido: usa "producto" o "servicio".')) ||
@@ -177,7 +196,8 @@ export function parseItemTable(table: string[][], defaultType: 'product' | 'serv
       (get('sku').length > LIMITS.sku && msg('El código es muy largo.')) ||
       (get('priceNote').length > LIMITS.priceNote && msg('La nota de precio es muy larga.')) ||
       (get('shortDescription').length > LIMITS.shortDescription && msg('La descripción corta es muy larga.')) ||
-      (get('description').length > LIMITS.description && msg('La descripción es muy larga.'));
+      (get('description').length > LIMITS.description && msg('La descripción es muy larga.')) ||
+      (images === null && msg('Las imágenes deben ser enlaces que empiecen con http:// o https://.'));
     if (problem) {
       issues.push({ line, message: problem });
       continue;
@@ -202,6 +222,7 @@ export function parseItemTable(table: string[][], defaultType: 'product' | 'serv
         .filter(Boolean)
         .slice(0, 15)
         .map((tag) => tag.slice(0, 30)),
+      images: images!,
     });
   }
   return { rows, issues, columns: found };
@@ -228,6 +249,8 @@ export type ExportItem = {
   visible: boolean;
   featured: boolean;
   tags: string[];
+  /** Enlaces públicos de las fotos (al volver a importar se descargan sólo si el ítem no tiene). */
+  images?: string[];
 };
 
 const yesNo = (value: boolean) => (value ? 'sí' : 'no');
@@ -251,6 +274,7 @@ export function itemsToCsv(items: ExportItem[]): string {
       yesNo(i.visible),
       yesNo(i.featured),
       i.tags.join(' | '),
+      (i.images ?? []).join(' | '),
     ]),
   ]);
 }

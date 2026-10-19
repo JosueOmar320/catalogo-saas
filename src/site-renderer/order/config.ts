@@ -1,4 +1,4 @@
-import type { CatalogItemView } from '@/lib/catalog/view-model';
+import type { CatalogItemView, CatalogVariantsView } from '@/lib/catalog/view-model';
 import type { SiteViewModel } from '@/lib/site/view-model';
 import { digitsOnly } from '@/lib/utils/phone';
 import { defaultText } from '../default-texts';
@@ -51,6 +51,24 @@ export function toOrderItem(item: CatalogItemView): OrderItem {
     sku: item.sku,
     price: item.price,
     priceLabel: item.priceLabel,
+    currency: item.currency,
+    url: item.url,
+    image: item.images[0]?.thumbUrl ?? null,
+  };
+}
+
+/** Línea del pedido para una opción: su propio id, nombre "Producto (Opción)" y precio. */
+export function variantOrderItem(
+  item: Pick<CatalogItemView, 'id' | 'name' | 'sku' | 'currency' | 'url' | 'images'>,
+  option: CatalogVariantsView['options'][number],
+): OrderItem {
+  return {
+    id: `${item.id}:${option.id}`,
+    itemId: item.id,
+    name: `${item.name} (${option.name})`,
+    sku: option.sku ?? item.sku,
+    price: option.price,
+    priceLabel: option.priceLabel,
     currency: item.currency,
     url: item.url,
     image: item.images[0]?.thumbUrl ?? null,

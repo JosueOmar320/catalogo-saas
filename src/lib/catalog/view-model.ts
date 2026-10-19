@@ -3,6 +3,7 @@ import { formatPrice } from '@/lib/utils/format';
 import { publicStorageUrl } from '@/lib/utils/storage';
 import type { ItemType, Tables } from '@/types/database';
 import { parseAttributeValues, type AttributeDef, type AttributeValues } from './attributes';
+import { hasAvailableOption, optionPrice, variantPriceSummary } from './variants';
 import { parseItemAttributes, type ItemAttributes } from './item-attributes';
 import type { PriceFormat } from './settings';
 
@@ -46,6 +47,13 @@ export type CatalogItemView = {
   createdAt: string;
   /** URL absoluta (para mensajes de WhatsApp y SEO). */
   url: string;
+  /** Opciones (tamaños, sabores…) con su precio ya formateado; null si no tiene. */
+  variants: CatalogVariantsView | null;
+};
+
+export type CatalogVariantsView = {
+  label: string;
+  options: { id: string; name: string; price: number | null; priceLabel: string | null; sku: string | null; available: boolean }[];
 };
 
 export type CatalogCategoryView = {
@@ -91,6 +99,10 @@ function toItemView(item: ItemInput, businessSlug: string, { locale, attributeDe
   const price = item.price === null ? null : Number(item.price);
   const compareAt = item.compare_at_price === null ? null : Number(item.compare_at_price);
   const attributes = parseItemAttributes(item.attributes);
+  const format = (value: number) => formatPrice(value, item.currency, locale, priceFormat);
+  // Con opciones, el precio visible es el menor (con "desde" si varían).
+  const summary = variantPriceSummary(price, attributes.variants);
+  const shownPrice = summary.price;
   const images = [...item.images]
     .sort((a, b) => a.position - b.position)
     .flatMap((image) => {
@@ -106,14 +118,14 @@ function toItemView(item: ItemInput, businessSlug: string, { locale, attributeDe
     name: item.name,
     shortDescription: item.short_description,
     description: item.description,
-    price,
-    compareAtPrice: compareAt,
+    price: shownPrice,
+    compareAtPrice: attributes.variants ? null : compareAt,
     currency: item.currency,
-    priceLabel: price === null ? null : formatPrice(price, item.currency, locale, priceFormat),
-    compareAtLabel: compareAt !== null && price !== null && compareAt > price ? formatPrice(compareAt, item.currency, locale, { ...priceFormat, prefix: '' }) : null,
-    priceNote: item.price_note,
+    priceLabel: shownPrice === null ? null : format(shownPrice),
+    compareAtLabel: !attributes.variants && compareAt !== null && price !== null && compareAt > price ? formatPrice(compareAt, item.currency, locale, { ...priceFormat, prefix: '' }) : null,
+    priceNote: item.price_note || (summary.from ? 'desde' : null),
     sku: item.sku,
-    isAvailable: item.is_available,
+    isAvailable: item.is_available && hasAvailableOption(attributes.variants),
     isFeatured: item.is_featured,
     tags: item.tags ?? [],
     categoryId: item.category_id,
@@ -123,5 +135,12 @@ function toItemView(item: ItemInput, businessSlug: string, { locale, attributeDe
     attributes: parseAttributeValues((item.attributes as { values?: unknown } | null)?.values, attributeDefs),
     createdAt: item.created_at,
     url: itemUrl(businessSlug, item.slug),
+    variants: attributes.variants && {
+      label: attributes.variants.label,
+      options: attributes.variants.options.map((o) => {
+        const value = optionPrice(o, price);
+        return { id: o.id, name: o.name, price: value, priceLabel: value === null ? null : format(value), sku: o.sku, available: o.available };
+      }),
+    },
   };
 }

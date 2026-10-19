@@ -483,6 +483,23 @@ const catalog: Catalog = {
   'Pedir el nombre del cliente': "Ask for the customer's name",
   'Campo opcional en el pedido.': 'Optional field in the order.',
   'Guardar pedidos': 'Save orders',
+  // Opciones del producto (variantes)
+  'Tiene opciones': 'Has options',
+  'Tamaños, tallas, sabores o colores con su propio precio. El cliente elige una al pedir.':
+    'Sizes, flavors or colors with their own price. Customers pick one when ordering.',
+  '¿Qué eligen?': 'What do they choose?',
+  Opción: 'Option',
+  'Quitar la opción {index}': 'Remove option {index}',
+  'Agregar opción': 'Add option',
+  'Una opción sin precio usa el precio del producto. En el catálogo se muestra el menor precio con "desde".':
+    'An option without a price uses the product price. The catalog shows the lowest price with "from".',
+  Agotada: 'Sold out',
+  'Disponible: {name}': 'Available: {name}',
+  'opción {index}': 'option {index}',
+  'Escribe qué eligen tus clientes (p. ej. Tamaño)': 'Write what your customers choose (e.g. Size)',
+  'Agrega al menos una opción': 'Add at least one option',
+  Talla: 'Clothing size',
+  Sabor: 'Flavor',
 };
 
 export default catalog;

@@ -9,13 +9,18 @@ import { priceToNumber } from '@/lib/utils/validation';
 import { publicStorageUrl } from '@/lib/utils/storage';
 import { ItemCard } from '@/site-renderer/ItemCard';
 import { SiteShell } from '@/site-renderer/SiteShell';
-import type { ItemFormValues } from '../schema';
+import { variantPriceSummary } from '@/lib/catalog/variants';
+import { formVariants, type ItemFormValues } from '../schema';
 
 /** Vista previa en vivo de la tarjeta, con el mismo componente del sitio público. */
 export function ItemCardPreview({ site, values, categoryName }: { site: SiteViewModel; values: ItemFormValues; categoryName?: string }) {
   const t = useT();
-  const price = priceToNumber(values.price ?? '');
-  const compareAt = priceToNumber(values.compareAtPrice ?? '');
+  const basePrice = priceToNumber(values.price ?? '');
+  const variants = formVariants({ variantsEnabled: values.variantsEnabled ?? false, variantsLabel: values.variantsLabel ?? '', variants: values.variants ?? [] });
+  // Igual que en el sitio: con opciones, el menor precio y "desde" si varían.
+  const summary = variantPriceSummary(basePrice !== null && Number.isNaN(basePrice) ? null : basePrice, variants);
+  const price = summary.price;
+  const compareAt = variants ? null : priceToNumber(values.compareAtPrice ?? '');
   const locale = site.settings.locale;
   const item: CatalogItemView = {
     id: 'preview',
@@ -29,7 +34,7 @@ export function ItemCardPreview({ site, values, categoryName }: { site: SiteView
     currency: values.currency,
     priceLabel: price === null || Number.isNaN(price) ? null : formatPrice(price, values.currency, locale, site.settings.priceFormat),
     compareAtLabel: compareAt !== null && price !== null && compareAt > price ? formatPrice(compareAt, values.currency, locale) : null,
-    priceNote: values.priceNote || null,
+    priceNote: values.priceNote || (summary.from ? 'desde' : null),
     sku: values.sku || null,
     isAvailable: values.isAvailable,
     isFeatured: values.isFeatured,
@@ -44,6 +49,7 @@ export function ItemCardPreview({ site, values, categoryName }: { site: SiteView
     attributes: values.attributeValues ?? {},
     createdAt: new Date(0).toISOString(),
     url: site.url,
+    variants: null,
   };
 
   return (

@@ -24,6 +24,9 @@ export function emptyItemValues(type: ItemType, currency: ItemFormValues['curren
     customBadgeLabel: '',
     customBadgeColor: '#0F766E',
     attributeValues: {},
+    variantsEnabled: false,
+    variantsLabel: '',
+    variants: [],
   };
 }
 
@@ -36,6 +39,9 @@ export function itemToFormValues(item: Omit<AdminItem, 'images'> & { images: Tab
     customBadgeLabel: attributes.customBadge?.label ?? '',
     customBadgeColor: attributes.customBadge?.color ?? '#0F766E',
     attributeValues: ((item.attributes as { values?: ItemFormValues['attributeValues'] } | null)?.values ?? {}) as ItemFormValues['attributeValues'],
+    variantsEnabled: attributes.variants !== null,
+    variantsLabel: attributes.variants?.label ?? '',
+    variants: (attributes.variants?.options ?? []).map((o) => ({ id: o.id, name: o.name, price: priceString(o.price), sku: o.sku ?? '', available: o.available })),
     type: item.type,
     name: item.name,
     categoryId: item.category_id ?? '',

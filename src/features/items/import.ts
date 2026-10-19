@@ -6,19 +6,23 @@ import { getT } from '@/i18n/server';
 import { msg } from '@/i18n/translate';
 import { requireBusinessContext } from '@/lib/auth/session';
 import { invalidatePublicCatalog } from '@/lib/catalog/cache';
-import { matchKey, MAX_IMPORT_ROWS } from '@/lib/catalog/csv';
+import { matchKey, MAX_IMPORT_IMAGES, MAX_IMPORT_ROWS } from '@/lib/catalog/csv';
 import { parseCatalogSettings } from '@/lib/catalog/settings';
 import { isWithinLimit } from '@/lib/plans/entitlements';
 import { fetchAllRows } from '@/lib/supabase/paginate';
 import { dbErrorMessage, fail, ok, type ActionResult } from '@/lib/utils/result';
 import { slugify, withRandomSuffix } from '@/lib/utils/slug';
 import { parseInput } from '@/lib/utils/validation';
+import { importFromUrl, MediaError } from '@/features/media/service';
 
 /**
  * Importa productos y servicios desde las filas que ya validó la vista previa
  * (lib/catalog/csv). Aquí se vuelve a validar todo: el navegador no es de
  * confianza. Reconoce los existentes por código (o por nombre y tipo) y los
- * actualiza; los demás se crean. Las imágenes no se importan.
+ * actualiza; los demás se crean. Las fotos (enlaces) se descargan después,
+ * una por una desde el navegador con importItemImages, para no pasar del
+ * tiempo de una función; sólo a los ítems que aún no tienen fotos, así volver
+ * a importar el mismo archivo no las duplica.
  */
 const text = (max: number) => z.string().trim().max(max).nullable();
 const price = z.number().min(0).max(99_999_999).nullable();
@@ -37,6 +41,7 @@ const rowSchema = z.object({
   visible: z.boolean(),
   featured: z.boolean(),
   tags: z.array(z.string().trim().min(1).max(30)).max(15),
+  images: z.array(z.url({ protocol: /^https?$/ }).max(1000)).max(MAX_IMPORT_IMAGES).default([]),
 });
 
 const importSchema = z.object({
@@ -48,7 +53,10 @@ export type ImportItemsInput = z.input<typeof importSchema>;
 
 const nameKey = (name: string) => name.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 
-export async function importItems(input: ImportItemsInput): Promise<ActionResult<{ created: number; updated: number; categories: number }>> {
+/** Fotos por descargar: un ítem sin fotos y los enlaces de su fila. */
+export type PendingImages = { itemId: string; name: string; urls: string[] };
+
+export async function importItems(input: ImportItemsInput): Promise<ActionResult<{ created: number; updated: number; categories: number; images: PendingImages[] }>> {
   const ctx = await requireBusinessContext();
   const parsed = parseInput(importSchema, input);
   if (!parsed.success) return parsed.result;
@@ -125,15 +133,82 @@ export async function importItems(input: ImportItemsInput): Promise<ActionResult
     usedSlugs.add(slug);
     return { ...values(row), slug, position: position++, currency, business_id: ctx.business.id, catalog_id: ctx.catalog.id };
   });
+  const createdIds = new Map<string, string>();
   for (let i = 0; i < inserts.length; i += 100) {
-    const { error } = await ctx.supabase.from('catalog_items').insert(inserts.slice(i, i + 100));
+    const { data, error } = await ctx.supabase.from('catalog_items').insert(inserts.slice(i, i + 100)).select('id, name, sku, type');
     if (error) return fail(error.message.includes('plan_limit_reached') ? msg('Se alcanzó el límite de tu plan durante la importación.') : dbErrorMessage(error));
+    for (const item of data) createdIds.set(matchKey(item), item.id);
   }
+
+  // Fotos: a los nuevos siempre; a los existentes sólo si todavía no tienen.
+  const withImages = rows.filter((row) => row.images.length > 0);
+  const updatedIds = withImages.flatMap((row) => existingByKey.get(matchKey(row))?.id ?? []);
+  const hasImages = new Set<string>();
+  for (let i = 0; i < updatedIds.length; i += 100) {
+    const { data, error } = await ctx.supabase.from('catalog_item_images').select('item_id').in('item_id', updatedIds.slice(i, i + 100));
+    if (error) return fail(dbErrorMessage(error));
+    for (const image of data) hasImages.add(image.item_id);
+  }
+  const images = withImages.flatMap((row): PendingImages[] => {
+    const itemId = createdIds.get(matchKey(row)) ?? existingByKey.get(matchKey(row))?.id;
+    return itemId && !hasImages.has(itemId) ? [{ itemId, name: row.name, urls: row.images }] : [];
+  });
 
   invalidatePublicCatalog(ctx.business.slug);
   revalidatePath('/dashboard', 'layout');
   return ok(
-    { created: inserts.length, updated: toUpdate.length, categories: createdCategories },
+    { created: inserts.length, updated: toUpdate.length, categories: createdCategories, images },
     t('Importación lista: {created} nuevos y {updated} actualizados.', { created: inserts.length, updated: toUpdate.length }),
   );
+}
+
+const imagesSchema = z.object({ itemId: z.uuid(), urls: z.array(z.url({ protocol: /^https?$/ }).max(1000)).min(1).max(MAX_IMPORT_IMAGES) });
+
+/**
+ * Descarga las fotos de un ítem importado (descarga segura de la biblioteca:
+ * sólo imágenes públicas, con límite de tamaño) y las agrega en orden. Si el
+ * ítem ya tiene fotos no hace nada. Devuelve los enlaces que fallaron.
+ */
+export async function importItemImages(input: z.input<typeof imagesSchema>): Promise<ActionResult<{ added: number; failed: string[] }>> {
+  const ctx = await requireBusinessContext();
+  const parsed = parseInput(imagesSchema, input);
+  if (!parsed.success) return parsed.result;
+  const { itemId, urls } = parsed.data;
+
+  const { data: item, error } = await ctx.supabase.from('catalog_items').select('id, name').eq('id', itemId).eq('catalog_id', ctx.catalog.id).is('deleted_at', null).maybeSingle();
+  if (error) return fail(dbErrorMessage(error));
+  if (!item) return fail(msg('No se encontró el ítem.'));
+  const { count } = await ctx.supabase.from('catalog_item_images').select('id', { count: 'exact', head: true }).eq('item_id', itemId);
+  if (count) return ok({ added: 0, failed: [] });
+
+  const scope = { supabase: ctx.supabase, businessId: ctx.business.id };
+  const failed: string[] = [];
+  let added = 0;
+  for (const url of urls) {
+    try {
+      const record = await importFromUrl(scope, url, { folder: 'products', alt: item.name, name: item.name });
+      const { error: insertError } = await ctx.supabase.from('catalog_item_images').insert({
+        business_id: ctx.business.id,
+        item_id: itemId,
+        position: added,
+        alt: null,
+        storage_path: record.path,
+        thumb_path: record.thumbPath,
+        width: record.width,
+        height: record.height,
+        size_bytes: record.sizeBytes,
+        mime_type: record.mimeType,
+      });
+      if (insertError) throw insertError;
+      added++;
+    } catch (cause) {
+      if (!(cause instanceof MediaError)) console.error('[import-images]', cause);
+      failed.push(url);
+    }
+  }
+  if (added) {
+    invalidatePublicCatalog(ctx.business.slug);
+    revalidatePath('/dashboard', 'layout');
+  }
+  return ok({ added, failed });
 }

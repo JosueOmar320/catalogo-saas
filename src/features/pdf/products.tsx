@@ -88,7 +88,30 @@ function Attrs({ c, item, center, color, list }: { c: Ctx; item: CatalogItemView
   );
 }
 
-function Price({ c, item, size, center, color }: { c: Ctx; item: CatalogItemView; size?: number; center?: boolean; color?: string }) {
+function Price(props: { c: Ctx; item: CatalogItemView; size?: number; center?: boolean; color?: string }) {
+  if (!props.c.f.price) return null;
+  return (
+    <>
+      <PriceValue {...props} />
+      <Options {...props} />
+    </>
+  );
+}
+
+/** Opciones con su precio: "Tamaño: 12 oz $68 · 16 oz $78". */
+function Options({ c, item, center, color }: { c: Ctx; item: CatalogItemView; center?: boolean; color?: string }) {
+  if (!item.variants) return null;
+  const { t, siteT } = c.doc;
+  const options = item.variants.options.map((o) => [o.name, o.priceLabel, o.available ? null : `(${siteT('Agotado')})`].filter(Boolean).join(' '));
+  return (
+    <Text style={{ fontSize: t.size.tiny, color: color ?? t.colors.mutedText, marginTop: 3, textAlign: center ? 'center' : 'left', lineHeight: 1.35 }}>
+      {item.variants.label ? `${item.variants.label}: ` : ''}
+      {options.join('  ·  ')}
+    </Text>
+  );
+}
+
+function PriceValue({ c, item, size, center, color }: { c: Ctx; item: CatalogItemView; size?: number; center?: boolean; color?: string }) {
   if (!c.f.price) return null;
   const { t, siteT, skin } = c.doc;
   const percent = c.f.discount ? discountPercent(item) : null;

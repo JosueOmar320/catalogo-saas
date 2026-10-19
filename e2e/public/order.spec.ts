@@ -105,6 +105,35 @@ test.describe('Pedido por WhatsApp', () => {
     await expect(orderButton(page)).toContainText('$45');
   });
 
+  test('un producto con opciones se elige en la ficha y cada opción es una línea del pedido', async ({ page }) => {
+    await page.goto('/demo/menu');
+    const latte = card(page, 'Latte de avena');
+    await expect(latte).toContainText('desde');
+    await expect(latte).toContainText('$68');
+    // En la tarjeta no se agrega directo: lleva a la ficha para elegir.
+    await expect(latte.getByRole('button', { name: 'Agregar al pedido' })).toHaveCount(0);
+    await latte.getByRole('link', { name: 'Elegir opción' }).click();
+
+    await expect(page.getByRole('heading', { level: 1, name: 'Latte de avena' })).toBeVisible();
+    const sizes = page.getByRole('radiogroup', { name: /Tamaño/ });
+    await expect(sizes.getByRole('radio', { name: '12 oz' })).toHaveAttribute('aria-checked', 'true');
+    await sizes.getByRole('radio', { name: '16 oz' }).click();
+    await expect(sizes.getByRole('radio', { name: '16 oz' })).toHaveAttribute('aria-checked', 'true');
+    await expect(page.getByText('$78', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Agregar al pedido' })).toHaveCount(1);
+    await page.getByRole('button', { name: 'Agregar al pedido' }).click();
+    await expect(page.getByRole('group', { name: 'Cantidad de Latte de avena (16 oz)' })).toBeVisible();
+
+    await sizes.getByRole('radio', { name: '12 oz' }).click();
+    await page.getByRole('button', { name: 'Agregar al pedido' }).click();
+    await expect(orderButton(page)).toContainText('$146');
+
+    await orderButton(page).click();
+    const text = await whatsappMessage(page);
+    expect(text).toContain('• 1 × Latte de avena (16 oz) (CAF-002) — $78');
+    expect(text).toContain('• 1 × Latte de avena (12 oz) (CAF-002) — $68');
+  });
+
   test('los servicios y los productos agotados no se agregan al pedido', async ({ page }) => {
     await page.goto('/demo/menu');
     await expect(card(page, 'Rol de canela')).toBeVisible();

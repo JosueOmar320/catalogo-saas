@@ -138,7 +138,7 @@ export function ItemCard({ item, site, env, options = {} }: { item: CatalogItemV
       </ItemLink>
       {f.button && item.isAvailable && (
         <div className={styles.cardActions}>
-          <ContactActions site={site} item={item} show="primary" small block appearance={cards.button === 'none' ? 'solid' : cards.button} shortLabel={t('Consultar')} />
+          <ContactActions site={site} item={item} env={env} show="primary" small block appearance={cards.button === 'none' ? 'solid' : cards.button} shortLabel={t('Consultar')} />
         </div>
       )}
     </article>

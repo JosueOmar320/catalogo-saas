@@ -72,7 +72,8 @@ export function SwitchControl<T extends FieldValues>({
   name,
   label,
   description,
-}: BaseProps<T> & { label: string; description?: string }) {
+  onChange,
+}: BaseProps<T> & { label: string; description?: string; onChange?: (checked: boolean) => void }) {
   return (
     <Controller
       control={control}
@@ -81,7 +82,17 @@ export function SwitchControl<T extends FieldValues>({
         <FormControlLabel
           sx={{ alignItems: 'flex-start', m: 0, py: 0.5, gap: 1.25, width: '100%', justifyContent: 'space-between' }}
           labelPlacement="start"
-          control={<Switch checked={Boolean(field.value)} onChange={(e) => field.onChange(e.target.checked)} onBlur={field.onBlur} sx={{ mt: 0.25 }} />}
+          control={
+            <Switch
+              checked={Boolean(field.value)}
+              onChange={(e) => {
+                field.onChange(e.target.checked);
+                onChange?.(e.target.checked);
+              }}
+              onBlur={field.onBlur}
+              sx={{ mt: 0.25 }}
+            />
+          }
           label={
             <Stack spacing={0.25}>
               <Typography variant="body2" sx={{ fontWeight: 500 }}>{label}</Typography>
