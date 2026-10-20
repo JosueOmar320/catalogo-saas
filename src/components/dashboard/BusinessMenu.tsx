@@ -30,7 +30,7 @@ export function BusinessMenu({ current, businesses, username, isAdmin, planName 
         onClick={(e) => setAnchor(e.currentTarget)}
         sx={{ width: '100%', justifyContent: 'flex-start', gap: 1.25, p: 1, borderRadius: 1.5, textAlign: 'left', '&:hover': { bgcolor: 'action.hover' } }}
       >
-        <Avatar src={current.logoUrl ?? undefined} variant="rounded" sx={{ width: 32, height: 32, fontSize: 14, bgcolor: 'secondary.main' }}>
+        <Avatar src={current.logoUrl ?? undefined} alt="" variant="rounded" sx={{ width: 32, height: 32, fontSize: 14, bgcolor: 'secondary.main' }}>
           {current.name.charAt(0).toUpperCase()}
         </Avatar>
         <Box sx={{ flex: 1, minWidth: 0 }}>

@@ -2488,8 +2488,10 @@ a.cardLink:hover .cardTitle {
 .dietTags li {
   padding: 3px 10px;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--c-success, #1f8a4c) 45%, transparent);
-  color: var(--c-success, #1f8a4c);
+  border: 1px solid color-mix(in srgb, var(--c-success, #1f8a4c) 55%, transparent);
+  /* El texto usa el color del tema (contraste garantizado en claro y oscuro); el verde va en el borde y el fondo. */
+  background: color-mix(in srgb, var(--c-success, #1f8a4c) 10%, transparent);
+  color: var(--c-heading);
   font-size: var(--fs-small);
   font-weight: 600;
 }

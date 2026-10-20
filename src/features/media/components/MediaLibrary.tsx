@@ -220,11 +220,11 @@ export function MediaLibrary({ mode = 'manage', multiple = false, storageOnly = 
         />
         <Stack direction="row" sx={{ gap: 1, flexWrap: 'wrap' }}>
           {!storageOnly && (
-            <TextField select size="small" value={filters.source} onChange={(e) => set({ source: e.target.value as typeof filters.source })} sx={{ minWidth: 170 }} aria-label={t('Origen')}>
+            <TextField select size="small" value={filters.source} onChange={(e) => set({ source: e.target.value as typeof filters.source })} sx={{ minWidth: 170 }} slotProps={{ select: { SelectDisplayProps: { 'aria-label': t('Origen') } } }}>
               {SOURCE_OPTIONS.map((o) => <MenuItem key={o.value} value={o.value}>{t(o.label)}</MenuItem>)}
             </TextField>
           )}
-          <TextField select size="small" value={filters.sort} onChange={(e) => set({ sort: e.target.value as MediaSort })} sx={{ minWidth: 150 }} aria-label={t('Orden')}>
+          <TextField select size="small" value={filters.sort} onChange={(e) => set({ sort: e.target.value as MediaSort })} sx={{ minWidth: 150 }} slotProps={{ select: { SelectDisplayProps: { 'aria-label': t('Orden') } } }}>
             {(Object.keys(SORT_LABELS) as MediaSort[]).map((s) => <MenuItem key={s} value={s}>{t(SORT_LABELS[s])}</MenuItem>)}
           </TextField>
           <Button variant="contained" startIcon={<Upload size={15} />} onClick={() => fileRef.current?.click()}>{t('Subir')}</Button>
@@ -292,7 +292,7 @@ export function MediaLibrary({ mode = 'manage', multiple = false, storageOnly = 
           </Stack>
         )}
         {items === null ? (
-          <Stack sx={{ py: 8, alignItems: 'center' }}><CircularProgress size={26} /></Stack>
+          <Stack sx={{ py: 8, alignItems: 'center' }}><CircularProgress aria-label={t('Cargando')} size={26} /></Stack>
         ) : empty ? (
           <Stack sx={{ py: 7, px: 2, alignItems: 'center', textAlign: 'center', gap: 1.5, border: 1, borderStyle: 'dashed', borderColor: 'divider', borderRadius: 2 }}>
             <Images size={30} />
@@ -305,7 +305,7 @@ export function MediaLibrary({ mode = 'manage', multiple = false, storageOnly = 
           <Box sx={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${picking ? 132 : 150}px, 1fr))`, gap: 1.25 }}>
             {uploading.map((key) => (
               <Stack key={key} sx={{ aspectRatio: '1 / 1', borderRadius: 1.5, border: 1, borderColor: 'divider', alignItems: 'center', justifyContent: 'center', bgcolor: 'action.hover' }}>
-                <CircularProgress size={22} />
+                <CircularProgress aria-label={t('Cargando')} size={22} />
                 <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>{t('Subiendo…')}</Typography>
               </Stack>
             ))}
@@ -527,11 +527,11 @@ function MediaDetailBody({ record, canManage, onClose, onChange, onDelete, onCop
         <Button size="small" variant="outlined" color="inherit" startIcon={<ExternalLink size={14} />} href={record.url} target="_blank" rel="noopener noreferrer">{t('Abrir')}</Button>
         {canManage && record.provider === 'external' && (
           <Tooltip title={t('Copia la imagen a tu biblioteca: deja de depender del otro sitio y se puede usar en productos y logo.')}>
-            <span><Button size="small" variant="outlined" startIcon={busy === 'import' ? <CircularProgress size={12} /> : <Download size={14} />} onClick={importCopy} disabled={Boolean(busy)}>{t('Importar copia')}</Button></span>
+            <span><Button size="small" variant="outlined" startIcon={busy === 'import' ? <CircularProgress aria-label={t('Cargando')} size={12} /> : <Download size={14} />} onClick={importCopy} disabled={Boolean(busy)}>{t('Importar copia')}</Button></span>
           </Tooltip>
         )}
         {canManage && (
-          <Button size="small" variant="outlined" color="inherit" startIcon={busy === 'replace' ? <CircularProgress size={12} /> : <RefreshCw size={14} />} onClick={() => replaceRef.current?.click()} disabled={Boolean(busy)}>{t('Reemplazar')}</Button>
+          <Button size="small" variant="outlined" color="inherit" startIcon={busy === 'replace' ? <CircularProgress aria-label={t('Cargando')} size={12} /> : <RefreshCw size={14} />} onClick={() => replaceRef.current?.click()} disabled={Boolean(busy)}>{t('Reemplazar')}</Button>
         )}
         {canManage && <Button size="small" color="error" startIcon={<Trash2 size={14} />} onClick={() => onDelete(record.id)}>{t('Borrar')}</Button>}
       </Stack>
@@ -540,7 +540,7 @@ function MediaDetailBody({ record, canManage, onClose, onChange, onDelete, onCop
       <Divider sx={{ mb: 2 }} />
       <Typography variant="overline" color="text.secondary">{t('Dónde se usa')}</Typography>
       {usage === null ? (
-        <CircularProgress size={16} sx={{ display: 'block', my: 1 }} />
+        <CircularProgress aria-label={t('Cargando')} size={16} sx={{ display: 'block', my: 1 }} />
       ) : usage.length === 0 ? (
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>{t('En ningún lugar todavía.')}</Typography>
       ) : (

@@ -23,9 +23,9 @@ export function AccountForms({ username, fullName, email, catalogReview }: { use
     <Stack spacing={2.5}>
       <SectionCard title={t('Datos')}>
         <Stack component="form" spacing={2} sx={{ pb: 2 }} onSubmit={account.handleSubmit((v) => run(() => updateAccount(v), { onSuccess: () => account.reset(v) }))}>
-          <TextField label={t('Nombre de usuario')} value={username} disabled helperText={t('Para cambiarlo, contacta al administrador.')} />
+          <TextField label={t('Nombre de usuario')} value={username} slotProps={{ htmlInput: { readOnly: true } }} helperText={t('Para cambiarlo, contacta al administrador.')} />
           <TextFieldControl control={account.control} name="fullName" label={t('Nombre')} />
-          {email && <TextField label={t('Email de contacto')} value={email} disabled />}
+          {email && <TextField label={t('Email de contacto')} value={email} slotProps={{ htmlInput: { readOnly: true } }} />}
           <Stack direction="row" sx={{ justifyContent: 'flex-end' }}>
             <Button type="submit" variant="contained" disabled={pending || !account.formState.isDirty}>{t('Guardar')}</Button>
           </Stack>

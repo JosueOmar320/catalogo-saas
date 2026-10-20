@@ -119,7 +119,7 @@ export function GalleryField({ value, onChange }: Props) {
 
         {Array.from({ length: uploading }).map((_, i) => (
           <Box key={`uploading-${i}`} sx={{ ...TILE, borderRadius: 1.5, border: 1, borderColor: 'divider', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <CircularProgress size={20} />
+            <CircularProgress aria-label={t('Cargando')} size={20} />
           </Box>
         ))}
 
