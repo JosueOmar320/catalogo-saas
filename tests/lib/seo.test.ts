@@ -56,6 +56,18 @@ describe('Datos estructurados de la ficha', () => {
     assert.deepEqual(crumbs.itemListElement.map((c) => c.position), [1, 2, 3]);
   });
 
+  it('con reseñas aprobadas: calificación promedio y las reseñas; sin reseñas activas, nada', () => {
+    const latte = site.items.find((i) => i.name === 'Latte de avena')!;
+    const [product] = itemJsonLd(site, latte) as unknown as [{ aggregateRating: Record<string, unknown>; review: { author: { name: string }; reviewRating: { ratingValue: number }; datePublished: string }[] }];
+    assert.deepEqual(product.aggregateRating, { '@type': 'AggregateRating', ratingValue: 4.5, reviewCount: 2, bestRating: 5, worstRating: 1 });
+    assert.deepEqual(product.review.map((r) => [r.author.name, r.reviewRating.ratingValue, r.datePublished]), [['Luis R.', 5, '2026-10-10'], ['Sofía P.', 4, '2026-10-05']]);
+    const off = { ...site, settings: { ...site.settings, reviews: { enabled: false } } };
+    const [plain] = itemJsonLd(off, latte) as unknown as [Record<string, unknown>];
+    assert.equal(plain.aggregateRating, undefined);
+    const coldBrew = site.items.find((i) => i.name === 'Cold brew')!;
+    assert.equal((itemJsonLd(site, coldBrew)[0] as Record<string, unknown>).aggregateRating, undefined);
+  });
+
   it('servicio sin precio: Service, sin ofertas', () => {
     const service = site.items.find((i) => i.name === 'Café para oficinas')!;
     const [data] = itemJsonLd(site, service) as unknown as [Record<string, unknown>];

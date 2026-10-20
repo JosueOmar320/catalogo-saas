@@ -1,3 +1,4 @@
+import { ratingOf } from '@/lib/catalog/reviews';
 import type { CatalogItemView } from '@/lib/catalog/view-model';
 import { pagePath } from '@/lib/site/links';
 import type { SiteViewModel } from '@/lib/site/view-model';
@@ -5,7 +6,8 @@ import type { SiteViewModel } from '@/lib/site/view-model';
 /**
  * Datos estructurados (schema.org) de la ficha de un producto o servicio:
  * precio (o rango, si tiene opciones), disponibilidad, fin de la oferta y la
- * ruta Catálogo › Categoría › Producto para los buscadores.
+ * ruta Catálogo › Categoría › Producto para los buscadores. Con reseñas
+ * aprobadas: la calificación promedio y las más recientes.
  */
 export function itemJsonLd(site: SiteViewModel, item: CatalogItemView) {
   const availability = (available: boolean) => (available ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock');
@@ -31,6 +33,9 @@ export function itemJsonLd(site: SiteViewModel, item: CatalogItemView) {
         }
       : undefined;
 
+  const reviews = site.settings.reviews.enabled ? (site.reviews ?? []).filter((r) => r.itemId === item.id) : [];
+  const rating = ratingOf(reviews);
+
   const category = site.categories.find((c) => c.id === item.categoryId);
   // La categoría enlaza a la página con el catálogo, filtrada (igual que la sección "Categorías").
   const catalogPage = site.pages.find((p) => p.sections.some((s) => s.type === 'catalog'));
@@ -52,6 +57,18 @@ export function itemJsonLd(site: SiteViewModel, item: CatalogItemView) {
       ...(category ? { category: category.name } : {}),
       ...(item.type === 'service' ? { provider: { '@type': 'Organization', name: site.business.name } } : { brand: { '@type': 'Brand', name: site.business.name } }),
       ...(offers ? { offers } : {}),
+      ...(rating
+        ? {
+            aggregateRating: { '@type': 'AggregateRating', ratingValue: rating.average, reviewCount: rating.count, bestRating: 5, worstRating: 1 },
+            review: reviews.slice(0, 5).map((r) => ({
+              '@type': 'Review',
+              author: { '@type': 'Person', name: r.name },
+              datePublished: r.createdAt.slice(0, 10),
+              reviewRating: { '@type': 'Rating', ratingValue: r.rating, bestRating: 5, worstRating: 1 },
+              ...(r.body ? { reviewBody: r.body } : {}),
+            })),
+          }
+        : {}),
     },
     {
       '@context': 'https://schema.org',

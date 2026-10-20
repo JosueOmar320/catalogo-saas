@@ -4673,3 +4673,177 @@ details[open] > .faqQuestion .faqChevron {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* ------------------------------------------------------------------ Reseñas */
+
+.ratingBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-small);
+  color: var(--c-muted);
+}
+
+.ratingBadge svg {
+  color: #f5a524;
+}
+
+.reviews {
+  margin-top: calc(56px * var(--pad-scale));
+  padding-top: calc(32px * var(--pad-scale));
+  border-top: 1px solid var(--c-border);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.reviews .relatedTitle {
+  margin: 0;
+}
+
+.reviewSummary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  color: var(--c-muted);
+}
+
+.reviewSummary strong {
+  color: var(--c-heading);
+  font-size: 1.15em;
+}
+
+.reviewList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.reviewList li {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--c-border);
+}
+
+.reviewList li:first-child {
+  padding-top: 0;
+}
+
+.reviewList p {
+  margin: 6px 0 0;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.reviewHead {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--c-heading);
+}
+
+.reviewHead time {
+  font-size: var(--fs-small);
+  color: var(--c-muted);
+}
+
+.reviewThanks {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: calc(var(--radius) * 0.6);
+  background: var(--c-surface);
+  color: var(--c-heading);
+}
+
+.reviewForm {
+  width: 100%;
+  max-width: 460px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  background: var(--c-surface);
+  text-align: start;
+}
+
+.reviewForm > label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--fs-small);
+  color: var(--c-muted);
+}
+
+.reviewForm input[type='text'],
+.reviewForm textarea {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--c-border);
+  border-radius: calc(var(--radius) * 0.6);
+  background: var(--c-bg);
+  color: var(--c-text);
+  font: inherit;
+  resize: vertical;
+}
+
+.reviewForm input[type='text']:focus,
+.reviewForm textarea:focus {
+  outline: 2px solid var(--c-button);
+  outline-offset: -1px;
+  border-color: transparent;
+}
+
+.reviewForm .btn {
+  align-self: flex-start;
+}
+
+.reviewStars {
+  display: flex;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: #f5a524;
+}
+
+.reviewStars legend {
+  margin-bottom: 4px;
+  font-size: var(--fs-small);
+  color: var(--c-muted);
+}
+
+.reviewStars label {
+  position: relative;
+  display: inline-flex;
+  cursor: pointer;
+}
+
+.reviewStars input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+.reviewStars label:has(input:focus-visible) {
+  outline: 2px solid var(--c-button);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.honeypot {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}

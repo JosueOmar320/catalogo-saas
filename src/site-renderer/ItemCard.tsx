@@ -9,6 +9,7 @@ import { ContactActions } from './ContactActions';
 import { DietTags } from './diet';
 import { itemPath, type RenderEnv } from './env';
 import { PriceTag } from './PriceTag';
+import { RatingBadge } from './Reviews';
 import { SiteImage } from './SiteImage';
 import { siteTranslator, siteYesNo } from './site-i18n';
 import styles from './site.module.css';
@@ -130,6 +131,7 @@ export function ItemCard({ item, site, env, options = {} }: { item: CatalogItemV
         <div className={styles.cardBody}>
           {f.category && options.categoryName && <span className={styles.cardEyebrow}>{options.categoryName}</span>}
           <h3 className={styles.cardTitle}>{item.name}</h3>
+          {site.settings.reviews.enabled && <RatingBadge site={site} item={item} />}
           {f.description && item.shortDescription && <p className={styles.cardDesc}>{item.shortDescription}</p>}
           {f.attributes !== 'none' && <ItemAttributes item={item} site={site} mode={f.attributes} />}
           <DietTags tags={item.diet} t={t} small />

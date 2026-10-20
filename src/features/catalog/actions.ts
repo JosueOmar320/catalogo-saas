@@ -13,6 +13,7 @@ import {
   parseCatalogSettings,
   pdfOptionsSchema,
   priceFormatSchema,
+  reviewsSchema,
   seoSchema,
   CURRENCIES,
 } from '@/lib/catalog/settings';
@@ -56,6 +57,7 @@ const settingsPatchSchema = z.object({
   order: orderSchema.optional(),
   pdf: pdfOptionsSchema.optional(),
   priceFormat: priceFormatSchema.optional(),
+  reviews: reviewsSchema.optional(),
 });
 
 /** Actualiza parcialmente catalogs.settings, validando el resultado completo. */

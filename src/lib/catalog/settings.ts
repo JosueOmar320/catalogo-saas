@@ -141,6 +141,9 @@ export const priceFormatSchema = z.object({
 
 export type PriceFormat = z.output<typeof priceFormatSchema>;
 
+/** Reseñas de clientes: el sitio muestra las aprobadas y el formulario para dejar una. */
+export const reviewsSchema = z.object({ enabled: z.boolean().default(false) }).prefault({});
+
 export const catalogSettingsSchema = z.object({
   currency: z.enum(CURRENCIES).default('USD'),
   /** Formato de números y precios (Intl). */
@@ -151,6 +154,8 @@ export const catalogSettingsSchema = z.object({
   contactActions: contactActionsSchema.prefault({}),
   order: orderSchema.prefault({}),
   pdf: pdfOptionsSchema.prefault({}),
+  /** Reseñas de clientes (las aprueba el negocio antes de publicarse). */
+  reviews: reviewsSchema,
 });
 
 export type CatalogSettings = z.output<typeof catalogSettingsSchema>;

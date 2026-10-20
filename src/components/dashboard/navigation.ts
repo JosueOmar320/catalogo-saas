@@ -1,4 +1,4 @@
-import { Building2, FileDown, Globe, History, Home, Image as ImageIcon, LayoutDashboard, LibraryBig, Package, Settings, SlidersHorizontal, Users, type LucideIcon } from 'lucide-react';
+import { Building2, FileDown, Globe, History, Home, Image as ImageIcon, LayoutDashboard, LibraryBig, MessageSquareText, Package, Settings, SlidersHorizontal, Users, type LucideIcon } from 'lucide-react';
 import { msg } from '@/i18n/translate';
 
 /** Las etiquetas se marcan con msg(): quien las muestra las traduce con t(). */
@@ -29,6 +29,7 @@ export const NAVIGATION: NavEntry[] = [
     ],
   },
   { label: msg('Medios'), icon: ImageIcon, href: '/dashboard/media' },
+  { label: msg('Reseñas'), icon: MessageSquareText, href: '/dashboard/resenas' },
   {
     label: msg('Sitio web'),
     icon: Globe,

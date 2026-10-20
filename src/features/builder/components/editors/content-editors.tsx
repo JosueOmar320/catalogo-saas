@@ -1,6 +1,6 @@
 'use client';
 
-import { Autocomplete, Button, Stack, TextField } from '@mui/material';
+import { Autocomplete, Button, Stack, TextField, Typography } from '@mui/material';
 import { Images } from 'lucide-react';
 import { useState, type ComponentType } from 'react';
 import { ColumnsSectionEditor } from './columns-editor';
@@ -374,6 +374,20 @@ function TestimonialsEditor(props: EditorProps<'testimonials'>) {
         <Heading {...props} />
       </Group>
       <Group title={t('Testimonios')}>
+        <Segmented
+          label={t('Origen')}
+          value={c.source}
+          onChange={(source) => set({ source })}
+          options={[
+            { value: 'manual', label: t('Escritos por ti') },
+            { value: 'reviews', label: t('Reseñas de clientes') },
+          ]}
+        />
+        {c.source === 'reviews' ? (
+          <Typography variant="caption" color="text.secondary">
+            {t('Se muestran las reseñas que apruebes en Reseñas (panel), las más recientes primero, con un botón para dejar una opinión.')}
+          </Typography>
+        ) : (
         <ListEditor
           items={c.items}
           onChange={(items) => set({ items })}
@@ -390,6 +404,7 @@ function TestimonialsEditor(props: EditorProps<'testimonials'>) {
             </>
           )}
         />
+        )}
       </Group>
       <Group title={t('Presentación')}>
         <Segmented label={t('Formato')} value={c.layout} onChange={(layout) => set({ layout })} options={[{ value: 'grid', label: t('Cuadrícula') }, { value: 'slider', label: t('Carrusel') }, { value: 'single', label: t('Destacado') }]} />

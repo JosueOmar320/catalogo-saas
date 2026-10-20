@@ -337,6 +337,8 @@ function build(lenient: boolean) {
           [],
         ),
         layout: f(z.enum(['grid', 'slider', 'single']), 'grid'),
+        /** "Escritos por ti" (los de arriba) o las reseñas de clientes aprobadas en el panel. */
+        source: f(z.enum(['manual', 'reviews']), 'manual'),
         columns: columns(3, 2, 1),
       }),
     ),

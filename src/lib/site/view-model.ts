@@ -4,6 +4,7 @@ import { parseCatalogSettings, parseSeo, type CatalogSeo, type CatalogSettings }
 import { catalogUrl, mapCategories, mapItems, type CatalogCategoryView, type CatalogItemView, type CategoryInput, type ItemInput } from '@/lib/catalog/view-model';
 import { parseTheme, type ThemeConfig } from '@/lib/design/theme';
 import { publicStorageUrl } from '@/lib/utils/storage';
+import type { PublicReview } from '@/lib/catalog/reviews';
 import type { Tables } from '@/types/database';
 import { parseNavigation, type NavigationConfig } from './navigation';
 import { pageFromRow, type SitePage } from './pages';
@@ -37,6 +38,8 @@ export type SiteViewModel = {
   /** URL absoluta de la raíz pública del sitio. */
   url: string;
   publishedAt: string | null;
+  /** Reseñas aprobadas (sólo el sitio publicado y la demo las traen). */
+  reviews?: PublicReview[];
 };
 
 export type SiteInput = {

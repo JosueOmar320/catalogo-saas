@@ -230,7 +230,7 @@ type SampleOptions = {
 };
 
 export function buildSampleSite(options: SampleOptions = {}): SiteViewModel {
-  const settings = catalogSettingsSchema.parse({ currency: 'MXN', contactActions: { phone: { enabled: true } }, order: { enabled: true, pickup: true, delivery: true, deliveryFee: 35, freeDeliveryFrom: 300, deliveryNote: 'Zona centro, 30–45 min', payments: ['cash', 'card', 'transfer'], scheduling: 'optional', leadMinutes: 30, coupons: [{ code: 'BIENVENIDA', type: 'percent', value: 10, minSubtotal: 100 }] } });
+  const settings = catalogSettingsSchema.parse({ currency: 'MXN', contactActions: { phone: { enabled: true } }, order: { enabled: true, pickup: true, delivery: true, deliveryFee: 35, freeDeliveryFrom: 300, deliveryNote: 'Zona centro, 30–45 min', payments: ['cash', 'card', 'transfer'], scheduling: 'optional', leadMinutes: 30, coupons: [{ code: 'BIENVENIDA', type: 'percent', value: 10, minSubtotal: 100 }] }, reviews: { enabled: true } });
   const url = `${env.siteUrl}/demo`;
   const pages = options.pages ?? buildSamplePages();
   return {
@@ -279,5 +279,12 @@ export function buildSampleSite(options: SampleOptions = {}): SiteViewModel {
     showBranding: true,
     url,
     publishedAt: null,
+    // Reseñas de ejemplo (aprobadas): se ven en la ficha, las tarjetas y la sección de testimonios.
+    reviews: [
+      { id: 'r1', itemId: null, name: 'Mariana G.', rating: 5, body: 'El mejor café de la colonia. Siempre amables y el pan recién salido.', createdAt: '2026-10-12T15:00:00Z' },
+      { id: 'r2', itemId: '00000000-0000-4000-8000-000000000101', name: 'Luis R.', rating: 5, body: 'El latte de avena con un shot extra es mi favorito.', createdAt: '2026-10-10T15:00:00Z' },
+      { id: 'r3', itemId: '00000000-0000-4000-8000-000000000101', name: 'Sofía P.', rating: 4, body: 'Muy rico, aunque me gusta un poco más caliente.', createdAt: '2026-10-05T15:00:00Z' },
+      { id: 'r4', itemId: null, name: 'Jorge M.', rating: 5, body: 'Pedí por WhatsApp para la oficina y llegó a tiempo.', createdAt: '2026-09-28T15:00:00Z' },
+    ],
   };
 }
