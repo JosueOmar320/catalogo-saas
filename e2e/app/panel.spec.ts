@@ -940,6 +940,93 @@ test('promoción automática configurada en el panel: se aplica sola en el pedid
   await visitor.close();
 });
 
+test('editor: submenú, columna propia en el pie, página sin header ni pie y plantillas de sección', async ({ page, browser }) => {
+  await page.goto('/dashboard/sitio?panel=navigation');
+  // Submenú "Conócenos" con Nosotros y Contacto adentro.
+  await page.getByRole('button', { name: 'Submenú', exact: true }).click();
+  await page.getByRole('group', { name: 'Más', exact: true }).getByLabel('Texto', { exact: true }).fill('Conócenos');
+  for (const name of ['Nosotros', 'Contacto']) {
+    await page.getByRole('group', { name, exact: true }).getByRole('combobox', { name: 'Dentro de' }).click();
+    await page.getByRole('option', { name: 'Conócenos' }).click();
+  }
+  // Columna "Ayuda" en el pie de página.
+  await page.getByRole('button', { name: 'Columnas de enlaces propias' }).click();
+  await page.getByRole('button', { name: 'Agregar columna' }).click();
+  await page.getByLabel('Título', { exact: true }).last().fill('Ayuda');
+  await page.getByRole('button', { name: 'Agregar enlace' }).click();
+  await page.getByLabel('Texto', { exact: true }).last().fill('Envíos');
+  await page.getByRole('combobox', { name: 'Al hacer clic' }).last().click();
+  await page.getByRole('option', { name: 'Enlace externo' }).click();
+  await page.getByLabel('URL', { exact: true }).last().fill('https://ejemplo.com/envios');
+
+  // "Nosotros" como página de aterrizaje: sin header ni pie de página.
+  await page.getByRole('tab', { name: 'Páginas' }).click();
+  await page.getByRole('button', { name: 'Opciones de Nosotros' }).click();
+  await page.getByRole('menuitem', { name: 'Configurar página' }).click();
+  await page.getByRole('combobox', { name: 'Header', exact: true }).click();
+  await page.getByRole('option', { name: 'Sin header (página de aterrizaje)' }).click();
+  await page.getByRole('switch', { name: 'Ocultar el pie de página' }).click();
+  await page.getByRole('button', { name: 'Volver', exact: true }).click();
+
+  // Guardar una sección como plantilla y agregar una copia desde "Mis plantillas".
+  await page.getByRole('button', { name: /Nuestra historia/ }).click();
+  await page.getByRole('button', { name: 'Guardar como plantilla' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Guardar como plantilla' });
+  await dialog.getByLabel('Nombre').fill('Historia E2E');
+  await dialog.getByRole('button', { name: 'Guardar', exact: true }).click();
+  await expect(page.getByText('Plantilla guardada')).toBeVisible();
+  await page.getByRole('button', { name: 'Volver a las secciones' }).click();
+  await page.getByRole('button', { name: 'Sección', exact: true }).click();
+  await expect(page.getByText('Mis plantillas')).toBeVisible();
+  await page.getByRole('button', { name: /^Historia E2E/ }).click();
+  await page.getByRole('button', { name: 'Volver a las secciones' }).click();
+  await expect(page.getByRole('button', { name: /Nuestra historia/ })).toHaveCount(2);
+
+  const save = page.getByRole('button', { name: 'Guardar cambios' });
+  await save.click();
+  await expect(save).toBeDisabled();
+  // La plantilla sigue después de recargar.
+  await page.goto('/dashboard/sitio');
+  await page.getByRole('button', { name: 'Sección', exact: true }).click();
+  await expect(page.getByRole('button', { name: /^Historia E2E/ })).toBeVisible();
+
+  const visitor = await browser.newContext(ANONYMOUS);
+  const site = await visitor.newPage();
+  const submenu = site.getByRole('banner').getByRole('button', { name: 'Conócenos' });
+  await expect(async () => {
+    await site.goto(`/catalogo/${slug}`);
+    await expect(submenu).toBeVisible({ timeout: 2000 });
+  }).toPass({ timeout: 20_000 });
+  // La ventana de bienvenida (de una prueba anterior) aparece al entrar: se cierra primero.
+  const welcome = site.getByRole('dialog', { name: '¡Bienvenido E2E!' });
+  await expect(welcome).toBeVisible();
+  await welcome.getByRole('button', { name: 'Cerrar' }).click();
+
+  // Teclado: Enter abre, Escape cierra y devuelve el foco.
+  await submenu.focus();
+  await site.keyboard.press('Enter');
+  await expect(submenu).toHaveAttribute('aria-expanded', 'true');
+  const about = site.getByRole('banner').getByRole('link', { name: 'Nosotros' });
+  await expect(about).toBeVisible();
+  await site.keyboard.press('Escape');
+  await expect(submenu).toHaveAttribute('aria-expanded', 'false');
+  await expect(submenu).toBeFocused();
+  // Mouse: el clic deja el submenú abierto.
+  await submenu.click();
+  await expect(about).toBeVisible();
+
+  const footer = site.getByRole('contentinfo');
+  await expect(footer.getByText('Ayuda', { exact: true })).toBeVisible();
+  await expect(footer.getByRole('link', { name: 'Envíos' })).toHaveAttribute('href', 'https://ejemplo.com/envios');
+
+  await about.click();
+  await expect(site).toHaveURL(new RegExp(`/catalogo/${slug}/nosotros$`));
+  await expect(site.getByRole('heading', { name: 'Nuestra historia' }).first()).toBeVisible();
+  await expect(site.getByRole('banner')).toHaveCount(0);
+  await expect(site.getByRole('contentinfo')).toHaveCount(0);
+  await visitor.close();
+});
+
 test('código propio: el administrador lo habilita; HTML limpio, widget aislado y CSS sólo en el sitio', async ({ page, browser }) => {
   // Sin habilitar, el editor no ofrece las secciones de código.
   await page.goto('/dashboard/sitio');

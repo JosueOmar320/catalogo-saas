@@ -560,6 +560,104 @@
   border-radius: 0;
 }
 
+/* Submenú (escritorio) */
+.navGroup {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.navGroupToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.navGroup > a + .navGroupToggle {
+  padding-inline: 2px 6px;
+  margin-left: -8px;
+}
+
+.navGroupToggle svg {
+  transition: transform 0.15s ease;
+}
+
+.navGroup[data-open] .navGroupToggle svg {
+  transform: rotate(180deg);
+}
+
+.navGroupToggle[data-current] {
+  color: var(--c-heading);
+  font-weight: 700;
+}
+
+.navDropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 40;
+  min-width: 200px;
+  max-width: 300px;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--c-surface);
+  border: 1px solid var(--t-border);
+  border-radius: max(8px, calc(var(--radius) * 0.8));
+  box-shadow: 0 12px 32px rgba(16, 24, 40, 0.14);
+  text-align: left;
+  /* Colores propios: sobre un header superpuesto o oscuro el texto heredado sería blanco. */
+  --c-heading: var(--t-heading);
+  --c-text: var(--t-text);
+  color: var(--c-text);
+}
+
+.navDropdown[hidden] {
+  display: none;
+}
+
+.navDropdownLink {
+  display: block;
+  padding: 9px 12px;
+  border-radius: calc(var(--radius) * 0.6);
+  color: inherit;
+  text-decoration: none;
+  font-size: calc(var(--fs-base) * 0.94);
+}
+
+.navDropdownLink:hover,
+.navDropdownLink:focus-visible {
+  background: color-mix(in srgb, var(--c-accent) 10%, transparent);
+}
+
+.navDropdownLink[aria-current='page'] {
+  color: var(--c-heading);
+  font-weight: 700;
+}
+
+/* Submenú (menú móvil): abierto, con sangría */
+.mobileGroup {
+  display: flex;
+  flex-direction: column;
+}
+
+.mobileGroupLabel {
+  padding: 12px 8px 4px;
+  font-size: var(--fs-small);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--t-muted);
+}
+
+.mobilePanel .navLink.mobileSubLink {
+  padding-left: 24px;
+}
+
 .headerSpacer {
   flex: 1;
 }
@@ -710,6 +808,16 @@
   .footer[data-style='columns'] .footerGrid,
   .footer[data-style='dark'] .footerGrid {
     grid-template-columns: 1.4fr 1fr 1fr 1fr;
+  }
+
+  .footer[data-style='columns'] .footerGrid[data-many],
+  .footer[data-style='dark'] .footerGrid[data-many] {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  }
+
+  .footer[data-style='columns'] .footerGrid[data-many] > :first-child,
+  .footer[data-style='dark'] .footerGrid[data-many] > :first-child {
+    grid-column: 1 / -1;
   }
 }
 
@@ -4011,6 +4119,107 @@ details[open] > .faqQuestion .faqChevron {
 
 .colSpacer[data-size='lg'] {
   height: 56px;
+}
+
+/* ============================================================== Ajustes para tablet (y celular, que hereda) */
+
+@container site (max-width: 959px) {
+  .section[data-tablet-pt] {
+    padding-top: calc(var(--pt-t) * var(--pad-scale));
+  }
+
+  .section[data-tablet-pb] {
+    padding-bottom: calc(var(--pb-t) * var(--pad-scale));
+  }
+
+  .section[data-tablet-align='center'] > .container {
+    text-align: center;
+  }
+
+  .section[data-tablet-align='center'] .sectionHead,
+  .section[data-tablet-align='center'] .btnRow {
+    margin-inline: auto;
+    justify-content: center;
+  }
+
+  .section[data-tablet-align='left'] > .container {
+    text-align: left;
+  }
+}
+
+@container site (min-width: 600px) and (max-width: 959px) {
+  .hideTablet {
+    display: none !important;
+  }
+}
+
+/* ============================================================== Animación de entrada al hacer scroll
+   Sólo CSS (animation-timeline): sin soporte o con "reducir movimiento", el contenido se ve sin animar. */
+
+@keyframes revealFade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes revealUp {
+  from {
+    opacity: 0;
+    transform: translateY(48px);
+  }
+}
+
+@keyframes revealZoom {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+}
+
+@keyframes revealLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-56px);
+  }
+}
+
+@keyframes revealRight {
+  from {
+    opacity: 0;
+    transform: translateX(56px);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .section[data-anim] > .container {
+      animation: revealFade linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 70%;
+    }
+
+    .section[data-anim='up'] > .container {
+      animation-name: revealUp;
+    }
+
+    .section[data-anim='zoom'] > .container {
+      animation-name: revealZoom;
+    }
+
+    .section[data-anim='left'] > .container {
+      animation-name: revealLeft;
+    }
+
+    .section[data-anim='right'] > .container {
+      animation-name: revealRight;
+    }
+
+    /* El desplazamiento lateral no debe crear scroll horizontal. */
+    .section[data-anim='left'],
+    .section[data-anim='right'] {
+      overflow-x: clip;
+    }
+  }
 }
 
 /* ============================================================== Ajustes sólo para celular (v5) */

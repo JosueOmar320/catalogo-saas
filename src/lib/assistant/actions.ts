@@ -32,7 +32,7 @@ export const sectionSpecSchema = z.object({
   // El código propio (HTML y widgets) no lo agrega Garfield.
   type: z.enum(SECTION_TYPES).exclude(['html', 'embed']),
   content: obj.optional().describe('Campos de contenido del tipo (ver guía de secciones). Lo que falte toma su valor por defecto.'),
-  style: obj.optional().describe('Estilo de la sección: background, textColor, paddingTop, paddingBottom, width, hideOnMobile, hideOnDesktop.'),
+  style: obj.optional().describe('Estilo de la sección: background, textColor, paddingTop, paddingBottom (o "custom" con paddingTopPx/paddingBottomPx en px), width, animation (none|fade|up|zoom|left|right), tablet y mobile (paddingTop, paddingBottom, textAlign), hideOnMobile, hideOnTablet, hideOnDesktop.'),
   name: z.string().max(60).optional().describe('Nombre interno opcional.'),
   as: alias,
 });

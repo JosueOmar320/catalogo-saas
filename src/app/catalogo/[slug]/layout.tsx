@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { buildHeaderProps, SiteFooter, SiteHeader, SiteShell } from '@/site-renderer';
+import { buildHeaderProps, footerColumns, SiteFooter, SiteHeader, SiteShell } from '@/site-renderer';
+import { FooterGate } from '@/site-renderer/ChromeGate';
 import siteStyles from '@/site-renderer/site.module.css';
 import { getPublicSite } from '@/features/catalog/public-queries';
 import { siteMetadata } from '@/lib/catalog/metadata';
@@ -23,14 +24,17 @@ export default async function PublicSiteLayout({ children, params }: LayoutProps
   const { slug } = await params;
   const site = await getPublicSite(slug);
   if (!site) notFound();
-  const header = buildHeaderProps(site, { mode: 'public', basePath: `/catalogo/${slug}`, currentPageId: null });
+  const env = { mode: 'public', basePath: `/catalogo/${slug}`, currentPageId: null } as const;
+  const header = buildHeaderProps(site, env);
 
   return (
     <SiteShell theme={site.theme} language={site.settings.language} order={orderConfig(site, { track: true })}>
       <SiteCustomCss site={site} />
       <SiteHeader {...header} />
       <main className={siteStyles.main}>{children}</main>
-      <SiteFooter site={site} navItems={header.items} />
+      <FooterGate hiddenPaths={header.footerHiddenPaths}>
+        <SiteFooter site={site} navItems={header.items} columns={footerColumns(site, env)} />
+      </FooterGate>
       <ViewTracker slug={site.business.slug} />
     </SiteShell>
   );

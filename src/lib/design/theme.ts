@@ -175,6 +175,38 @@ function buildThemeSchema(lenient: boolean) {
         showSocial: bool(true),
         showNav: bool(true),
         customText: f(z.string().max(500), ''),
+        /** Columnas propias de enlaces (p. ej. "Ayuda": envíos, devoluciones…). */
+        columns: f(
+          z
+            .array(
+              z.object({
+                id: z.string().min(1).max(64),
+                title: f(z.string().trim().max(40), ''),
+                links: f(
+                  z
+                    .array(
+                      z.object({
+                        id: z.string().min(1).max(64),
+                        label: f(z.string().trim().max(40), ''),
+                        link: z
+                          .object({
+                            kind: f(z.enum(['none', 'page', 'url', 'whatsapp', 'phone', 'email']), 'page'),
+                            pageId: f(z.union([z.literal(''), z.uuid()]), ''),
+                            url: f(z.string().trim().max(500), ''),
+                            message: f(z.string().trim().max(300), ''),
+                            newTab: bool(false),
+                          })
+                          .prefault({}),
+                      }),
+                    )
+                    .max(8),
+                  [],
+                ),
+              }),
+            )
+            .max(4),
+          [],
+        ),
         background: buildBackgroundSchema(lenient).prefault({}),
       })
       .prefault({}),

@@ -297,7 +297,7 @@ export function planAssistantActions(initial: BuilderState, actions: AssistantAc
   function setNavVisibility(pageId: string, visible: boolean) {
     const exists = s.navigation.items.some((i) => i.kind === 'page' && i.pageId === pageId);
     if (exists) setNavigation(s.navigation.items.map((i) => (i.kind === 'page' && i.pageId === pageId ? { ...i, visible } : i)));
-    else if (visible) setNavigation([...s.navigation.items, { id: crypto.randomUUID(), kind: 'page', pageId, label: '', url: '', visible: true, style: 'link', newTab: false }]);
+    else if (visible) setNavigation([...s.navigation.items, { id: crypto.randomUUID(), kind: 'page', pageId, label: '', url: '', visible: true, style: 'link', newTab: false, parentId: '' }]);
   }
 
   const touch = (pageId: string, sectionId: string | null) => {
@@ -514,11 +514,11 @@ export function planAssistantActions(initial: BuilderState, actions: AssistantAc
           const page = findPage(a.page);
           const existing = s.navigation.items.find((i) => i.kind === 'page' && i.pageId === page.id);
           if (existing) setNavigation(s.navigation.items.map((i) => (i.id === existing.id ? { ...i, visible: true, label: a.label ?? i.label, style: a.style ?? i.style } : i)));
-          else setNavigation([...s.navigation.items, { id: crypto.randomUUID(), kind: 'page', pageId: page.id, label: a.label ?? '', url: '', visible: true, style: a.style ?? 'link', newTab: false }]);
+          else setNavigation([...s.navigation.items, { id: crypto.randomUUID(), kind: 'page', pageId: page.id, label: a.label ?? '', url: '', visible: true, style: a.style ?? 'link', newTab: false, parentId: '' }]);
           return { label: t('Menú: enlace a «{title}»', { title: page.title }), risk };
         }
         if (a.kind === 'url' && !/^https?:\/\//.test(a.url ?? '')) fail(t('El enlace debe empezar con https://'));
-        setNavigation([...s.navigation.items, { id: crypto.randomUUID(), kind: a.kind, pageId: '', label: a.label ?? '', url: a.url ?? '', visible: true, style: a.style ?? 'link', newTab: a.kind === 'url' }]);
+        setNavigation([...s.navigation.items, { id: crypto.randomUUID(), kind: a.kind, pageId: '', label: a.label ?? '', url: a.url ?? '', visible: true, style: a.style ?? 'link', newTab: a.kind === 'url', parentId: '' }]);
         return { label: a.label ? t('Menú: nuevo enlace «{label}»', { label: a.label }) : t('Menú: nuevo enlace {kind}', { kind: a.kind }), risk };
       }
       case 'update_nav_item': {

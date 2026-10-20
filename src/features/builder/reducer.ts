@@ -89,7 +89,7 @@ export function builderReducer(state: BuilderState, action: BuilderAction): Buil
     case 'addPage': {
       const newPage = { ...action.page, slug: uniqueSlug(action.page.slug, state.pages) };
       const navigation = action.showInNav
-        ? { items: [...state.navigation.items, { id: crypto.randomUUID(), kind: 'page' as const, pageId: newPage.id, label: '', url: '', visible: true, style: 'link' as const, newTab: false }] }
+        ? { items: [...state.navigation.items, { id: crypto.randomUUID(), kind: 'page' as const, pageId: newPage.id, label: '', url: '', visible: true, style: 'link' as const, newTab: false, parentId: '' }] }
         : state.navigation;
       return pagesChanged(state, [...state.pages, newPage], { navigation, selectedPageId: newPage.id, selectedSectionId: null });
     }

@@ -363,6 +363,8 @@ const catalog: Catalog = {
   '{value} % desde {from}': '{value}% off from {from}',
   'Activa los pedidos por WhatsApp para que tus clientes pidan desde esta lista.': 'Turn on WhatsApp orders so customers can order from this list.',
   'Aquí aparecerán tus productos.': 'Your products will appear here.',
+  'Más opciones de {label}': 'More options for {label}',
+  'Más': 'More',
   'Contenido externo': 'External content',
   'Pega el código del widget en el editor.': 'Paste the widget code in the editor.',
   'El código propio no está habilitado para este sitio: esta sección no se publica.': 'Custom code is not enabled for this site: this section is not published.',

@@ -7,10 +7,12 @@ import { canManageCatalog, requireBusinessContext } from '@/lib/auth/session';
 import { invalidatePublicCatalog } from '@/lib/catalog/cache';
 import { sanitizeCustomHtml } from '@/lib/site/custom-code';
 import { pageToRow, type SitePage } from '@/lib/site/pages';
+import { sectionSchema, type Section } from '@/lib/site/section-schemas';
 import { dbErrorMessage, fail, ok, type ActionResult } from '@/lib/utils/result';
 import { collectMediaPaths } from '@/lib/utils/storage';
 import { invalidMediaRefs } from '@/features/media/server';
 import type { Json } from '@/types/database';
+import { toSectionTemplate, type SectionTemplate } from './queries';
 import { saveSiteSchema, type SaveSiteInput } from './schema';
 
 /** El HTML propio se guarda ya limpio (y se vuelve a limpiar al mostrarlo). */
@@ -57,4 +59,33 @@ export async function saveSite(input: SaveSiteInput): Promise<ActionResult> {
   invalidatePublicCatalog(ctx.business.slug);
   revalidatePath('/dashboard', 'layout');
   return ok(undefined, msg('Sitio guardado'));
+}
+
+/** "Guardar como plantilla": copia la sección para reusarla en otras páginas. */
+export async function saveSectionTemplate(name: string, section: Section): Promise<ActionResult<SectionTemplate>> {
+  const ctx = await requireBusinessContext();
+  if (!canManageCatalog(ctx)) return fail(msg('Sólo el dueño o un administrador puede editar el sitio.'));
+  const cleanName = name.trim().slice(0, 60);
+  if (!cleanName) return fail(msg('Escribe un nombre'));
+  const parsed = sectionSchema.safeParse(section);
+  if (!parsed.success) return fail(msg('Revisa los datos de la sección: hay un valor inválido.'));
+  if ((await invalidMediaRefs(ctx, collectMediaPaths(parsed.data))).length > 0) return fail(msg('Una de las imágenes no es válida. Elígela de nuevo desde la biblioteca.'));
+
+  const { data, error } = await ctx.supabase
+    .from('section_templates')
+    .insert({ business_id: ctx.business.id, name: cleanName, section: parsed.data as unknown as Json })
+    .select('id, name, section')
+    .single();
+  if (error?.message.includes('section_template_limit_reached')) return fail(msg('Llegaste al máximo de 50 plantillas. Borra alguna para guardar otra.'));
+  const template = data && toSectionTemplate(data);
+  if (error || !template) return fail(dbErrorMessage(error, msg('No se pudo guardar la plantilla.')));
+  return ok(template, msg('Plantilla guardada'));
+}
+
+export async function deleteSectionTemplate(id: string): Promise<ActionResult> {
+  const ctx = await requireBusinessContext();
+  if (!canManageCatalog(ctx)) return fail(msg('Sólo el dueño o un administrador puede editar el sitio.'));
+  const { error } = await ctx.supabase.from('section_templates').delete().eq('id', id).eq('business_id', ctx.business.id);
+  if (error) return fail(dbErrorMessage(error, msg('No se pudo borrar la plantilla.')));
+  return ok(undefined, msg('Plantilla borrada'));
 }

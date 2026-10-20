@@ -1,6 +1,7 @@
 import 'server-only';
 import type { BusinessContext } from '@/lib/auth/session';
 import { buildSampleSite } from '@/lib/site/sample-site';
+import { parseSections, type Section } from '@/lib/site/section-schemas';
 import { buildStarterSite } from '@/lib/site/starter';
 import type { SiteViewModel } from '@/lib/site/view-model';
 import { getSiteForAdmin } from '@/features/catalog/queries';
@@ -13,14 +14,29 @@ export type BuilderData = {
   isStarter: boolean;
   /** Se muestran ítems de ejemplo porque el catálogo está vacío. */
   usesSampleItems: boolean;
+  sectionTemplates: SectionTemplate[];
 };
+
+/** Sección guardada por el negocio para reusarla ("Mis plantillas"). */
+export type SectionTemplate = { id: string; name: string; section: Section };
+
+export function toSectionTemplate(row: { id: string; name: string; section: unknown }): SectionTemplate | null {
+  const [section] = parseSections([row.section]);
+  return section ? { id: row.id, name: row.name, section } : null;
+}
+
+async function listSectionTemplates(ctx: BusinessContext): Promise<SectionTemplate[]> {
+  const { data } = await ctx.supabase.from('section_templates').select('id, name, section').eq('business_id', ctx.business.id).order('created_at', { ascending: false }).limit(50);
+  return (data ?? []).flatMap((row) => toSectionTemplate(row) ?? []);
+}
 
 /**
  * Datos del builder: el sitio con TODAS las páginas (publicadas o no) y los
  * ítems visibles. Si el catálogo está vacío, la preview usa ítems de ejemplo.
  */
 export async function getBuilderData(ctx: BusinessContext): Promise<BuilderData> {
-  let site = await getSiteForAdmin(ctx);
+  const [loaded, sectionTemplates] = await Promise.all([getSiteForAdmin(ctx), listSectionTemplates(ctx)]);
+  let site = loaded;
   const pages = site.pages;
 
   // Defensa: catálogos sin páginas (p. ej. creados antes de la migración de datos).
@@ -34,5 +50,5 @@ export async function getBuilderData(ctx: BusinessContext): Promise<BuilderData>
     site = { ...site, items: sample.items, categories: sample.categories };
   }
 
-  return { site, persistedPageIds: pages.map((p) => p.id), isStarter, usesSampleItems };
+  return { site, persistedPageIds: pages.map((p) => p.id), isStarter, usesSampleItems, sectionTemplates };
 }

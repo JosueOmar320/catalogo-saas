@@ -9,13 +9,14 @@ import { artDirect } from '@/lib/site/art-direction';
 import { newPage } from '@/lib/site/pages';
 import { withBrandGradients } from '@/lib/site/resolve';
 import { SECTION_GROUPS, SECTION_META } from '@/lib/site/section-registry';
-import { createSection, SECTION_TYPES, type SectionType } from '@/lib/site/section-schemas';
+import { createSection, SECTION_TYPES, type Section } from '@/lib/site/section-schemas';
 import { PAGE_BLUEPRINTS } from '@/lib/site/starter';
 import { Icon } from '@/site-renderer/Icon';
 import { useOptionalGarfield } from '@/features/assistant/components/GarfieldProvider';
 import { GarfieldHint } from '@/features/assistant/components/GarfieldPanel';
 import { useBuilder, useSelectedPage } from '../state';
 import { SiteTemplatesDialog } from './SiteTemplatesDialog';
+import { TemplateList } from './SectionTemplates';
 import { useT } from '@/i18n/client';
 
 /** Lista de páginas + secciones de la página seleccionada. */
@@ -162,7 +163,16 @@ export function PagesPanel({ customCode = false }: { customCode?: boolean }) {
         </Stack>
       </Stack>
 
-      {adding === 'section' && <SectionPicker customCode={customCode} onPick={(type) => { dispatch({ type: 'addSection', section: createSection(type) }); setAdding(null); }} onClose={() => setAdding(null)} />}
+      {adding === 'section' && (
+        <SectionPicker
+          customCode={customCode}
+          onPick={(section) => {
+            dispatch({ type: 'addSection', section });
+            setAdding(null);
+          }}
+          onClose={() => setAdding(null)}
+        />
+      )}
 
       {page.sections.length === 0 ? (
         <Stack spacing={1}>
@@ -207,7 +217,7 @@ export function PagesPanel({ customCode = false }: { customCode?: boolean }) {
   );
 }
 
-function SectionPicker({ onPick, onClose, customCode }: { onPick: (type: SectionType) => void; onClose: () => void; customCode: boolean }) {
+function SectionPicker({ onPick, onClose, customCode }: { onPick: (section: Section) => void; onClose: () => void; customCode: boolean }) {
   const t = useT();
   return (
     <Box sx={{ mb: 1.5, p: 1, border: 1, borderColor: 'divider', borderRadius: 1.5 }}>
@@ -215,12 +225,13 @@ function SectionPicker({ onPick, onClose, customCode }: { onPick: (type: Section
         <Typography variant="caption" sx={{ fontWeight: 600, flex: 1 }}>{t('Agregar sección')}</Typography>
         <IconButton size="small" onClick={onClose} aria-label={t('Cerrar')}><X size={14} /></IconButton>
       </Stack>
+      <TemplateList onPick={onPick} />
       {/* Las secciones de código propio sólo si el administrador lo habilitó. */}
       {SECTION_GROUPS.filter((group) => customCode || group !== 'Código').map((group) => (
         <Box key={group} sx={{ mt: 1 }}>
           <Typography variant="overline" color="text.secondary" sx={{ px: 1 }}>{t(group)}</Typography>
           {SECTION_TYPES.filter((st) => SECTION_META[st].group === group).map((type) => (
-            <ButtonBase key={type} onClick={() => onPick(type)} sx={{ display: 'flex', gap: 1.25, width: '100%', textAlign: 'left', alignItems: 'flex-start', p: 1, borderRadius: 1, '&:hover': { bgcolor: 'action.hover' } }}>
+            <ButtonBase key={type} onClick={() => onPick(createSection(type))} sx={{ display: 'flex', gap: 1.25, width: '100%', textAlign: 'left', alignItems: 'flex-start', p: 1, borderRadius: 1, '&:hover': { bgcolor: 'action.hover' } }}>
               <Box sx={{ color: 'primary.main', mt: 0.25, display: 'flex' }}><Icon id={SECTION_META[type].icon} size={18} /></Box>
               <Box>
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>{t(SECTION_META[type].label)}</Typography>
