@@ -93,6 +93,12 @@ export const seasonSchema = z
 
 export const MAX_PAIRINGS = 4;
 
+/** Precio programado (sólo productos sin opciones): desde ese día vale `price`. */
+export const nextPriceSchema = z
+  .object({ on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), price: z.number().min(0).max(99_999_999), timeZone: z.string().max(64).refine(isTimeZone) })
+  .nullable()
+  .default(null);
+
 /** Etiquetas de dieta y alérgenos (se muestran en la ficha y se filtran en el catálogo). */
 export const DIET_TAGS = ['vegan', 'vegetarian', 'gluten-free', 'lactose-free', 'sugar-free', 'spicy', 'organic'] as const;
 export type DietTag = (typeof DIET_TAGS)[number];
@@ -117,6 +123,7 @@ export const itemAttributesSchema = z.object({
   diet: z.array(z.enum(DIET_TAGS)).max(DIET_TAGS.length).default([]),
   tiers: tiersSchema,
   season: seasonSchema,
+  nextPrice: nextPriceSchema,
   /** «Combínalo con»: productos o servicios que se sugieren en la ficha (en este orden). */
   pairings: z.array(z.uuid()).max(MAX_PAIRINGS).default([]),
   /** Fin de la oferta (precio anterior): después se vuelve al precio normal. */
@@ -140,6 +147,7 @@ export function parseItemAttributes(raw: unknown): ItemAttributes {
     diet: z.array(z.enum(DIET_TAGS)).catch([]).parse(partial.diet ?? []),
     tiers: tiersSchema.catch([]).parse(partial.tiers ?? []),
     season: seasonSchema.catch(null).parse(partial.season ?? null),
+    nextPrice: nextPriceSchema.catch(null).parse(partial.nextPrice ?? null),
     pairings: z.array(z.uuid()).max(MAX_PAIRINGS).catch([]).parse(partial.pairings ?? []),
     orderHours: orderHoursSchema.catch(null).parse(partial.orderHours),
     saleEnds: saleEndsSchema.catch(null).parse(partial.saleEnds),

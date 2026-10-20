@@ -178,6 +178,7 @@ export function ContactForm({ contact, actions, order, businessName, catalogUrl 
           <SwitchControl control={orderForm.control} name="pickup" label={t('Recoger en el local')} description={t('El cliente pasa por su pedido.')} />
           <TablesField control={orderForm.control} catalogUrl={catalogUrl} businessName={businessName} />
           <BranchesField control={orderForm.control} />
+          <SwitchControl control={orderForm.control} name="tips" label={t('Propina opcional')} description={t('El cliente puede dejar 10, 15 o 20 % de los productos; el mensaje la desglosa.')} />
           <SwitchControl control={orderForm.control} name="delivery" label={t('Envío a domicilio')} description={t('El cliente escribe su dirección al pedir.')} />
           {deliveryEnabled && (
             <Grid container spacing={2}>

@@ -4,6 +4,12 @@ import { catalogSettingsSchema } from '@/lib/catalog/settings';
 import { applyTiers, buildOrderMessage, clampQty, couponHash, findCoupon, isOrderingPaused, refreshLines, NO_CHOICES, NO_OPTIONS, orderTotal, orderWhatsappHref, summarizeOrder, tierFor, type OrderLine, type OrderOptions, type OrderPricing, type PublicCoupon } from '@/site-renderer/order/message';
 import { siteTranslator } from '@/site-renderer/site-i18n';
 import { decodeList, encodeList, mergeLines } from '@/site-renderer/order/share-list';
+import { effectivePrice } from '@/lib/catalog/next-price';
+import { mapItems, type ItemInput } from '@/lib/catalog/view-model';
+import { emptyItemValues } from '@/features/items/defaults';
+import { itemFormSchema, itemFormToAttributes } from '@/features/items/schema';
+import { dailyReportCsv, productReportCsv } from '@/lib/reports/stats-csv';
+import { createTranslator } from '@/i18n/translate';
 import { marginOf } from '@/lib/catalog/margin';
 import { orderConfig } from '@/site-renderer/order/config';
 import { buildSampleSite } from '@/lib/site/sample-site';
@@ -90,9 +96,9 @@ describe('Pedido por WhatsApp', () => {
 
   it('entrega, envío y mínimo: lo nuevo viene apagado y el mensaje no cambia', () => {
     const { order } = catalogSettingsSchema.parse({});
-    assert.deepEqual({ ...NO_OPTIONS }, { pickup: order.pickup, delivery: order.delivery, deliveryFee: order.deliveryFee, freeDeliveryFrom: order.freeDeliveryFrom, deliveryNote: order.deliveryNote, zones: order.zones, tables: order.tables, branches: order.branches, minimumOrder: order.minimumOrder, payments: order.payments, scheduling: order.scheduling, leadMinutes: order.leadMinutes, scheduleDays: order.scheduleDays, slotMinutes: order.slotMinutes });
+    assert.deepEqual({ ...NO_OPTIONS }, { pickup: order.pickup, delivery: order.delivery, deliveryFee: order.deliveryFee, freeDeliveryFrom: order.freeDeliveryFrom, deliveryNote: order.deliveryNote, zones: order.zones, tables: order.tables, branches: order.branches, tips: order.tips, minimumOrder: order.minimumOrder, payments: order.payments, scheduling: order.scheduling, leadMinutes: order.leadMinutes, scheduleDays: order.scheduleDays, slotMinutes: order.slotMinutes });
     const summary = summarizeOrder([line({ qty: 2 })], pricing);
-    assert.deepEqual(summary, { subtotal: { value: 96, partial: false }, delivery: null, total: { value: 96, partial: false }, minimum: null, zone: null, table: null, branch: null, missingForMinimum: null, missingForFreeDelivery: null, blocker: null, discount: null, couponIssue: null });
+    assert.deepEqual(summary, { subtotal: { value: 96, partial: false }, delivery: null, total: { value: 96, partial: false }, minimum: null, zone: null, table: null, branch: null, tip: null, missingForMinimum: null, missingForFreeDelivery: null, blocker: null, discount: null, couponIssue: null });
     // Montos escritos en el formulario: vacío → sin valor; "1,200.50" y "35,5" se entienden.
     const parsed = catalogSettingsSchema.parse({ order: { deliveryFee: '35,5', freeDeliveryFrom: '1,200.50', minimumOrder: '' } }).order;
     assert.deepEqual([parsed.deliveryFee, parsed.freeDeliveryFrom, parsed.minimumOrder], [35.5, 1200.5, null]);
@@ -372,3 +378,42 @@ describe('Compartir mi lista y margen', () => {
     assert.equal(marginOf(0, 10), null);
   });
 });
+
+describe('Propina, precio programado y reportes', () => {
+  it('propina sobre los productos después del cupón; sólo si el negocio la pide y es una de las opciones', () => {
+    const options: OrderOptions = { ...NO_OPTIONS, tips: true, delivery: true, deliveryFee: 30 };
+    const lines = [line({ qty: 2 })]; // 96
+    const coupon = { hash: 'x', type: 'amount' as const, value: 16, minSubtotal: null, ends: null, code: 'MENOS16' };
+    const summary = summarizeOrder(lines, pricing, options, { ...NO_CHOICES, address: 'Centro', coupon, tip: 15 }); // (96 − 16) × 15 % = 12
+    assert.deepEqual([summary.tip, summary.total?.value], [{ percent: 15, value: 12 }, 122]);
+    assert.equal(summarizeOrder(lines, pricing, { ...options, tips: false }, { ...NO_CHOICES, address: 'Centro', tip: 15 }).tip, null);
+    assert.equal(summarizeOrder(lines, pricing, options, { ...NO_CHOICES, address: 'Centro', tip: 37 }).tip, null);
+    const text = buildOrderMessage({ lines, pricing, intro: 'Hola', businessName: 'Café', siteUrl: 'https://x.test', t: siteTranslator('es'), options: { ...options, delivery: false }, choices: { ...NO_CHOICES, tip: 10 } });
+    assert.match(text, /Subtotal: \$96\nPropina \(10 %\): \$9\.60\nTotal: \$105\.60/);
+  });
+
+  it('precio programado: vale desde ese día en la zona de quien lo programó', () => {
+    const next = { on: '2026-11-01', price: 55, timeZone: 'America/Mexico_City' };
+    assert.equal(effectivePrice(50, next, new Date('2026-11-01T05:59:00Z')), 50); // 31 oct, 23:59
+    assert.equal(effectivePrice(50, next, new Date('2026-11-01T06:00:00Z')), 55);
+    assert.equal(effectivePrice(50, null, new Date('2030-01-01T00:00:00Z')), 50);
+    const row = { id: '11111111-1111-4111-8111-111111111111', slug: 'pan', type: 'product', name: 'Pan', short_description: null, description: null, price: 50, compare_at_price: null, currency: 'MXN', price_note: null, sku: null, is_available: true, is_featured: false, is_visible: true, tags: [], category_id: null, position: 0, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z', attributes: { nextPrice: next }, images: [] } as unknown as ItemInput;
+    assert.deepEqual(mapItems([row], [], 'cafe', { locale: 'es-MX', now: new Date('2026-10-20T12:00:00Z') }).map((i) => i.price), [50]);
+    assert.deepEqual(mapItems([row], [], 'cafe', { locale: 'es-MX', now: new Date('2026-11-02T12:00:00Z') }).map((i) => i.price), [55]);
+    const values = itemFormSchema.parse({ ...emptyItemValues('product', 'MXN'), name: 'Pan', price: '50', nextPrice: '55', nextPriceOn: '2026-11-01', saleTimeZone: 'America/Mexico_City' });
+    assert.deepEqual(itemFormToAttributes(values).nextPrice, next);
+    assert.equal(itemFormSchema.safeParse({ ...emptyItemValues('product', 'MXN'), name: 'Pan', price: '50', nextPrice: '55' }).success, false);
+  });
+
+  it('reportes CSV: un día por fila (también en cero) con totales; productos de más a menos pedidos', () => {
+    const counts = new Map([
+      ['2026-10-18', { views: 10, itemViews: 4, orders: 2, units: 3, value: 150.5 }],
+      ['2026-10-19', { views: 5 }],
+    ]);
+    const daily = dailyReportCsv(createTranslator('es', null), counts, new Date('2026-10-19T12:00:00Z'), 3).replace(/^\uFEFF/, '').trim().split('\r\n');
+    assert.deepEqual(daily, ['Fecha,Visitas,Fichas vistas,Pedidos,Unidades,Valor estimado', '2026-10-17,0,0,0,0,0.00', '2026-10-18,10,4,2,3,150.50', '2026-10-19,5,0,0,0,0.00', 'Total,15,4,2,3,150.50']);
+    const products = productReportCsv(createTranslator('es', null), [{ id: 'a', name: 'Flan', sku: null, type: 'product' }, { id: 'b', name: 'Pan, dulce', sku: 'P-1', type: 'product' }], new Map([['a', 9]]), new Map([['b', 4]])).replace(/^\uFEFF/, '').trim().split('\r\n');
+    assert.deepEqual(products, ['Nombre,Código,Tipo,Visitas a la ficha,Unidades pedidas', '"Pan, dulce",P-1,Producto,0,4', 'Flan,,Producto,9,0']);
+  });
+});
+

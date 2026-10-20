@@ -95,7 +95,7 @@ export type Fulfillment = 'pickup' | 'delivery';
 /** Lo que el negocio configuró para entregar y cobrar (subconjunto plano de OrderSettings). */
 export type OrderOptions = Pick<
   OrderSettings,
-  'pickup' | 'delivery' | 'deliveryFee' | 'freeDeliveryFrom' | 'deliveryNote' | 'zones' | 'tables' | 'branches' | 'minimumOrder' | 'payments' | 'scheduling' | 'leadMinutes' | 'scheduleDays' | 'slotMinutes'
+  'pickup' | 'delivery' | 'deliveryFee' | 'freeDeliveryFrom' | 'deliveryNote' | 'zones' | 'tables' | 'branches' | 'tips' | 'minimumOrder' | 'payments' | 'scheduling' | 'leadMinutes' | 'scheduleDays' | 'slotMinutes'
 >;
 
 /* ------------------------------------------------------ Precios al día y pausa */
@@ -180,6 +180,8 @@ export type OrderChoices = {
   table?: string | null;
   /** Sucursal elegida (su nombre), si el negocio tiene sucursales. */
   branch?: string | null;
+  /** Propina elegida (porcentaje de los productos), si el negocio la pide. */
+  tip?: number | null;
   payment: PaymentMethod | null;
   coupon?: AppliedCoupon | null;
   /** Día y hora elegidos ("¿Para cuándo?"), en la zona del negocio; null = lo antes posible. */
@@ -195,6 +197,7 @@ export const NO_OPTIONS: OrderOptions = {
   zones: [],
   tables: false,
   branches: [],
+  tips: false,
   minimumOrder: null,
   payments: [],
   scheduling: 'off',
@@ -236,6 +239,8 @@ export type OrderSummary = {
   table: string | null;
   /** Sucursal a la que va el pedido (con una sola, ésa). */
   branch: Branch | null;
+  /** Propina (sobre los productos, después del cupón). */
+  tip: { percent: number; value: number } | null;
   /** Cuánto falta para el pedido mínimo (sólo si todos los precios se conocen). */
   missingForMinimum: number | null;
   /** Cuánto falta para el envío gratis. */
@@ -249,6 +254,9 @@ export type OrderSummary = {
 };
 
 const cents = (value: number) => Math.round(value * 100) / 100;
+
+/** Propinas que se ofrecen (porcentaje de los productos). */
+export const TIP_OPTIONS = [10, 15, 20];
 
 /** La sucursal del pedido: con una sola, ésa; con varias, la elegida (por nombre) o null. */
 export function findBranch(options: OrderOptions, name: string | null | undefined): Branch | null {
@@ -299,8 +307,11 @@ export function summarizeOrder(lines: OrderLine[], pricing: OrderPricing, option
     }
   }
 
+  const tipPercent = options.tips && choices.tip && TIP_OPTIONS.includes(choices.tip) ? choices.tip : 0;
+  const tip = subtotal && tipPercent ? { percent: tipPercent, value: cents(((subtotal.value - (discount?.value ?? 0)) * tipPercent) / 100) } : null;
+
   const total = subtotal && {
-    value: cents(subtotal.value - (discount?.value ?? 0) + (delivery?.kind === 'fee' ? delivery.value : 0)),
+    value: cents(subtotal.value - (discount?.value ?? 0) + (delivery?.kind === 'fee' ? delivery.value : 0) + (tip?.value ?? 0)),
     partial: subtotal.partial || delivery?.kind === 'confirm',
   };
   // En la mesa no hay pedido mínimo (es para la entrega o para recoger).
@@ -322,7 +333,7 @@ export function summarizeOrder(lines: OrderLine[], pricing: OrderPricing, option
           : !table && options.scheduling === 'required' && !choices.when
             ? 'when'
             : null;
-  return { subtotal, delivery, total, minimum, zone, table, branch, missingForMinimum, missingForFreeDelivery, blocker, discount, couponIssue };
+  return { subtotal, delivery, total, minimum, zone, table, branch, tip, missingForMinimum, missingForFreeDelivery, blocker, discount, couponIssue };
 }
 
 export type OrderMessageInput = {
@@ -374,19 +385,20 @@ export function buildOrderMessage({ lines, pricing, intro, businessName, custome
     return `• ${line.qty} × ${line.name}${sku}${price}${note ? `\n   ${t('Nota: {note}', { note })}` : ''}`;
   });
 
-  const { subtotal, delivery, discount, total, zone, table, branch } = summarizeOrder(lines, pricing, options, choices, now);
+  const { subtotal, delivery, discount, total, zone, table, branch, tip } = summarizeOrder(lines, pricing, options, choices, now);
   const summary: string[] = [];
   const productsTotal = (amount: Amount, key: 'Total' | 'Subtotal') => {
     const value = formatAmount(amount.value, pricing);
     if (key === 'Subtotal') return amount.partial ? t('Subtotal: {amount} (sin los productos por confirmar)', { amount: value }) : t('Subtotal: {amount}', { amount: value });
     return amount.partial ? t('Total: {amount} (sin los productos por confirmar)', { amount: value }) : t('Total: {amount}', { amount: value });
   };
-  if (subtotal && total && (delivery || discount)) {
+  if (subtotal && total && (delivery || discount || tip)) {
     summary.push(productsTotal(subtotal, 'Subtotal'));
     if (discount) summary.push(t('Cupón {code}: −{amount}', { code: discount.code, amount: formatAmount(discount.value, pricing) }));
     if (delivery?.kind === 'fee') summary.push(t('Envío: {amount}', { amount: formatAmount(delivery.value, pricing) }));
     else if (delivery) summary.push(delivery.kind === 'free' ? t('Envío: gratis') : t('Envío: por confirmar'));
-    if (discount || delivery?.kind === 'fee') summary.push(productsTotal({ value: total.value, partial: subtotal.partial }, 'Total'));
+    if (tip) summary.push(t('Propina ({percent} %): {amount}', { percent: tip.percent, amount: formatAmount(tip.value, pricing) }));
+    if (discount || delivery?.kind === 'fee' || tip) summary.push(productsTotal({ value: total.value, partial: subtotal.partial }, 'Total'));
   } else if (subtotal) summary.push(productsTotal(subtotal, 'Total'));
 
   const fulfillment = table ? null : effectiveFulfillment(options, choices.fulfillment);

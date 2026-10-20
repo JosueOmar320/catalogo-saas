@@ -759,6 +759,17 @@ const catalog: Catalog = {
   'Vendes por debajo del costo: pierdes {amount} por pieza.': 'You sell below cost: you lose {amount} per unit.',
   'Bajo el costo': 'Below cost',
   'Margen {percent} %': 'Margin {percent}%',
+  'Reporte por día (CSV)': 'Daily report (CSV)',
+  'Reporte por producto (CSV)': 'Product report (CSV)',
+  'A partir del': 'Starting on',
+  'Nuevo precio (programado)': 'New price (scheduled)',
+  'Opcional: desde la fecha, tu sitio y los pedidos usan este precio.': 'Optional: from that date, your site and orders use this price.',
+  'Cambia a {price} el {date}': 'Changes to {price} on {date}',
+  'Escribe el nuevo precio y desde cuándo vale': 'Enter the new price and when it starts',
+  'El cliente puede dejar 10, 15 o 20 % de los productos; el mensaje la desglosa.': 'Customers can leave 10, 15 or 20% of the products; the message itemizes it.',
+  'Propina opcional': 'Optional tip',
+  'Unidades pedidas': 'Units ordered',
+  'Visitas a la ficha': 'Product page views',
 };
 
 export default catalog;
