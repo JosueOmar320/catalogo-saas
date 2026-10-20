@@ -23,7 +23,7 @@ export function resolveSectionItems(content: ItemSourceContent, items: CatalogIt
 export type ResolvedBadge = { key: string; label: string; color: string; params?: Record<string, number> };
 
 /** `lowStock`: "¡Quedan N!" (sólo en la web: el PDF es estático y las existencias cambian). */
-export function resolveBadges(item: CatalogItemView, theme: ThemeConfig, { lowStock = false }: { lowStock?: boolean } = {}): ResolvedBadge[] {
+export function resolveBadges(item: CatalogItemView, theme: ThemeConfig, { lowStock = false, now = new Date() }: { lowStock?: boolean; now?: Date } = {}): ResolvedBadge[] {
   const b = theme.badges;
   const out: ResolvedBadge[] = [];
   const push = (key: 'new' | 'featured' | 'sale' | 'popular' | 'soldOut') => {
@@ -36,6 +36,8 @@ export function resolveBadges(item: CatalogItemView, theme: ThemeConfig, { lowSt
   }
   if (item.compareAtLabel && b.autoSale) push('sale');
   if (item.isFeatured && b.autoFeatured) push('featured');
+  // "Nuevo" automático: los primeros días desde que se creó.
+  if (b.autoNewDays > 0 && now.getTime() - Date.parse(item.createdAt) < b.autoNewDays * 86_400_000) push('new');
   for (const badge of item.badges) push(badge);
   if (item.customBadge) out.push({ key: 'custom', label: item.customBadge.label, color: item.customBadge.color });
   return out.slice(0, 3);

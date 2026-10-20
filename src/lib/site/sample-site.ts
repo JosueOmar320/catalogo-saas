@@ -221,7 +221,10 @@ export function buildSamplePages(): SitePage[] {
   };
   // Ids de sección deterministas (ninguna referencia apunta a ellos).
   let seq = 0;
-  return [home, menu, events, about, contact].map((page) => ({
+  // Pedido rápido: en /demo/pedido-rapido (fuera del menú del ejemplo).
+  const quick = newPage('Pedido rápido', 'pedido-rapido', [createSection('quickorder', { title: 'Pedido rápido', subtitle: 'Todo el menú en una lista: elige cantidades y envía tu pedido.' })], 'products', pid(6));
+
+  return [home, menu, events, about, contact, quick].map((page) => ({
     ...page,
     sections: page.sections.map((section) => ({ ...section, id: `00000000-0000-4000-8000-0000000b${String(++seq).padStart(4, '0')}` })),
   }));
@@ -282,7 +285,7 @@ export function buildSampleSite(options: SampleOptions = {}): SiteViewModel {
       { id: 'incluye', name: 'Incluye', type: 'list', unit: '', options: [], filterable: false, showInCard: false, showInDetail: true, showInPdf: true },
     ],
     pages,
-    navigation: navigationFromPages(pages),
+    navigation: navigationFromPages(pages.filter((page) => page.slug !== 'pedido-rapido')),
     showBranding: true,
     url,
     publishedAt: null,

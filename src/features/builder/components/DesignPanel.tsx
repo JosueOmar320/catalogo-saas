@@ -315,6 +315,17 @@ function CardsTab({ theme, patch }: TabProps) {
         <SwitchRow label={t('Oferta automática')} description={t('Si tiene precio anterior.')} checked={badges.autoSale} onChange={(autoSale) => patch('badges', { autoSale })} />
         <SwitchRow label={t('Agotado automático')} checked={badges.autoSoldOut} onChange={(autoSoldOut) => patch('badges', { autoSoldOut })} />
         <SwitchRow label={t('Destacado automático')} description={t('Para ítems marcados como destacados.')} checked={badges.autoFeatured} onChange={(autoFeatured) => patch('badges', { autoFeatured })} />
+        <Segmented
+          label={t('Nuevo automático')}
+          value={badges.autoNewDays}
+          onChange={(autoNewDays) => patch('badges', { autoNewDays })}
+          options={[
+            { value: 0, label: t('No') },
+            { value: 7, label: t('7 días') },
+            { value: 14, label: t('14 días') },
+            { value: 30, label: t('30 días') },
+          ]}
+        />
         {BADGE_KEYS.map((key) => (
           <Stack key={key} direction="row" spacing={1} sx={{ alignItems: 'center' }}>
             <TextInput label={t(BADGE_LABELS[key])} value={badges[key].label} onChange={(label) => patch('badges', { [key]: { ...badges[key], label } })} maxLength={20} />

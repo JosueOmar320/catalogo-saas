@@ -210,6 +210,32 @@ function CatalogEditor(props: EditorProps<'catalog'>) {
   );
 }
 
+/* ------------------------------------------------------------ Pedido rápido */
+
+function QuickOrderEditor(props: EditorProps<'quickorder'>) {
+  const t = useT();
+  const set = useContent(props);
+  const c = props.section.content;
+  const categories = props.site.categories;
+  return (
+    <>
+      <Group>
+        <Heading {...props} />
+      </Group>
+      <Group title={t('Productos')} description={t('Los que tienen opciones o extras llevan a su ficha para elegir. Necesita los pedidos por WhatsApp activos.')}>
+        <SelectInput
+          label={t('Mostrar')}
+          value={c.categoryId}
+          onChange={(categoryId) => set({ categoryId })}
+          options={[{ value: '', label: t('Todos los productos') }, ...categories.map((cat) => ({ value: cat.id, label: cat.name }))]}
+        />
+        <SwitchRow label={t('Agrupar por categoría')} checked={c.groupByCategory} onChange={(groupByCategory) => set({ groupByCategory })} />
+        <SwitchRow label={t('Fotos')} checked={c.showImages} onChange={(showImages) => set({ showImages })} />
+      </Group>
+    </>
+  );
+}
+
 /* ------------------------------------------------------------ Categorías */
 
 function CategoriesEditor(props: EditorProps<'categories'>) {
@@ -485,5 +511,6 @@ export const CONTENT_EDITORS: { [T in SectionType]: ComponentType<EditorProps<T>
   social: SocialEditor,
   spacer: SpacerEditor,
   ...EXTRA_EDITORS,
+  quickorder: QuickOrderEditor,
   columns: ColumnsSectionEditor,
 };

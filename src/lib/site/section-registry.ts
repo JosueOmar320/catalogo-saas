@@ -24,6 +24,7 @@ export const SECTION_META: Record<SectionType, { label: string; description: str
   team: { label: msg('Equipo'), description: msg('Personas con foto, cargo y descripción.'), icon: 'users', group: 'Contenido' },
   stats: { label: msg('Estadísticas'), description: msg('Cifras destacadas: clientes, años, proyectos…'), icon: 'chart', group: 'Contenido' },
   logos: { label: msg('Logos'), description: msg('Marcas, clientes o certificaciones.'), icon: 'badge-check', group: 'Contenido' },
+  quickorder: { label: msg('Pedido rápido'), description: msg('Todos tus productos en una lista compacta con su cantidad: para pedir muchos de una vez (mayoreo, clientes frecuentes).'), icon: 'clipboard-list', group: 'Catálogo' },
   columns: { label: msg('Columnas (libre)'), description: msg('Arma tu composición: imagen + texto, tarjetas, listas con íconos, varios botones, cifras…'), icon: 'columns', group: 'Principal' },
 };
 

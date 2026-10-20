@@ -770,6 +770,15 @@ const catalog: Catalog = {
   'Propina opcional': 'Optional tip',
   'Unidades pedidas': 'Units ordered',
   'Visitas a la ficha': 'Product page views',
+  'Activa': 'Active',
+  'Agregar promoción': 'Add promotion',
+  'Desde (compra)': 'From (purchase)',
+  'Pausada': 'Paused',
+  'Promociones automáticas': 'Automatic promotions',
+  'Promoción {index} activa': 'Promotion {index} active',
+  'Quitar la promoción {index}': 'Remove promotion {index}',
+  'Sin código: se aplican solas desde cierto monto y el pedido avisa cuánto falta. No se suman a un cupón: vale el descuento mayor.': 'No code: they apply on their own from a certain amount and the order shows how much is missing. They don’t stack with a coupon: the larger discount wins.',
+  'Usa un número, ej. 300': 'Use a number, e.g. 300',
 };
 
 export default catalog;

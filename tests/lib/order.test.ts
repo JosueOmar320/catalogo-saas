@@ -10,6 +10,7 @@ import { emptyItemValues } from '@/features/items/defaults';
 import { itemFormSchema, itemFormToAttributes } from '@/features/items/schema';
 import { dailyReportCsv, productReportCsv } from '@/lib/reports/stats-csv';
 import { createTranslator } from '@/i18n/translate';
+import { resolveBadges } from '@/lib/site/resolve';
 import { marginOf } from '@/lib/catalog/margin';
 import { orderConfig } from '@/site-renderer/order/config';
 import { buildSampleSite } from '@/lib/site/sample-site';
@@ -96,9 +97,9 @@ describe('Pedido por WhatsApp', () => {
 
   it('entrega, envío y mínimo: lo nuevo viene apagado y el mensaje no cambia', () => {
     const { order } = catalogSettingsSchema.parse({});
-    assert.deepEqual({ ...NO_OPTIONS }, { pickup: order.pickup, delivery: order.delivery, deliveryFee: order.deliveryFee, freeDeliveryFrom: order.freeDeliveryFrom, deliveryNote: order.deliveryNote, zones: order.zones, tables: order.tables, branches: order.branches, tips: order.tips, minimumOrder: order.minimumOrder, payments: order.payments, scheduling: order.scheduling, leadMinutes: order.leadMinutes, scheduleDays: order.scheduleDays, slotMinutes: order.slotMinutes });
+    assert.deepEqual({ ...NO_OPTIONS }, { pickup: order.pickup, delivery: order.delivery, deliveryFee: order.deliveryFee, freeDeliveryFrom: order.freeDeliveryFrom, deliveryNote: order.deliveryNote, zones: order.zones, tables: order.tables, branches: order.branches, tips: order.tips, promotions: order.promotions, minimumOrder: order.minimumOrder, payments: order.payments, scheduling: order.scheduling, leadMinutes: order.leadMinutes, scheduleDays: order.scheduleDays, slotMinutes: order.slotMinutes });
     const summary = summarizeOrder([line({ qty: 2 })], pricing);
-    assert.deepEqual(summary, { subtotal: { value: 96, partial: false }, delivery: null, total: { value: 96, partial: false }, minimum: null, zone: null, table: null, branch: null, tip: null, missingForMinimum: null, missingForFreeDelivery: null, blocker: null, discount: null, couponIssue: null });
+    assert.deepEqual(summary, { subtotal: { value: 96, partial: false }, delivery: null, total: { value: 96, partial: false }, minimum: null, zone: null, table: null, branch: null, tip: null, missingForMinimum: null, missingForFreeDelivery: null, blocker: null, discount: null, couponIssue: null, promotion: null, nextPromotion: null });
     // Montos escritos en el formulario: vacío → sin valor; "1,200.50" y "35,5" se entienden.
     const parsed = catalogSettingsSchema.parse({ order: { deliveryFee: '35,5', freeDeliveryFrom: '1,200.50', minimumOrder: '' } }).order;
     assert.deepEqual([parsed.deliveryFee, parsed.freeDeliveryFrom, parsed.minimumOrder], [35.5, 1200.5, null]);
@@ -414,6 +415,44 @@ describe('Propina, precio programado y reportes', () => {
     assert.deepEqual(daily, ['Fecha,Visitas,Fichas vistas,Pedidos,Unidades,Valor estimado', '2026-10-17,0,0,0,0,0.00', '2026-10-18,10,4,2,3,150.50', '2026-10-19,5,0,0,0,0.00', 'Total,15,4,2,3,150.50']);
     const products = productReportCsv(createTranslator('es', null), [{ id: 'a', name: 'Flan', sku: null, type: 'product' }, { id: 'b', name: 'Pan, dulce', sku: 'P-1', type: 'product' }], new Map([['a', 9]]), new Map([['b', 4]])).replace(/^\uFEFF/, '').trim().split('\r\n');
     assert.deepEqual(products, ['Nombre,Código,Tipo,Visitas a la ficha,Unidades pedidas', '"Pan, dulce",P-1,Producto,0,4', 'Flan,,Producto,9,0']);
+  });
+});
+
+describe('Promociones automáticas y «Nuevo» automático', () => {
+  const promotions = [
+    { type: 'percent' as const, value: 10, minSubtotal: 300, active: true },
+    { type: 'amount' as const, value: 50, minSubtotal: 400, active: true },
+    { type: 'percent' as const, value: 50, minSubtotal: 100, active: false },
+  ];
+  const options: OrderOptions = { ...NO_OPTIONS, promotions };
+
+  it('aplica la que más descuenta entre las alcanzadas y avisa cuánto falta para la siguiente', () => {
+    const below = summarizeOrder([line({ qty: 5 })], pricing, options); // 240
+    assert.deepEqual([below.promotion, below.nextPromotion?.missing, below.total?.value], [null, 60, 240]);
+    const ten = summarizeOrder([line({ qty: 7 })], pricing, options); // 336 → 10 % = 33.60
+    assert.deepEqual([ten.promotion?.value, ten.nextPromotion?.missing, ten.total?.value], [33.6, 64, 302.4]);
+    const fifty = summarizeOrder([line({ qty: 9 })], pricing, options); // 432 → $50 > 43.20
+    assert.deepEqual([fifty.promotion?.value, fifty.nextPromotion, fifty.total?.value], [50, null, 382]);
+    const text = buildOrderMessage({ lines: [line({ qty: 7 })], pricing, intro: 'Hola', businessName: 'Café', siteUrl: 'https://x.test', t: siteTranslator('es'), options });
+    assert.match(text, /Subtotal: \$336\nPromoción \(10 % desde \$300\): −\$33\.60\nTotal: \$302\.40/);
+  });
+
+  it('no se suma a un cupón: vale el descuento mayor', () => {
+    const small = { hash: 'x', type: 'amount' as const, value: 20, minSubtotal: null, ends: null, code: 'VEINTE' };
+    const big = { ...small, value: 80, code: 'OCHENTA' };
+    const withSmall = summarizeOrder([line({ qty: 7 })], pricing, options, { ...NO_CHOICES, coupon: small });
+    assert.deepEqual([withSmall.discount, withSmall.promotion?.value, withSmall.couponIssue], [null, 33.6, 'promotion']);
+    const withBig = summarizeOrder([line({ qty: 7 })], pricing, options, { ...NO_CHOICES, coupon: big });
+    assert.deepEqual([withBig.discount?.value, withBig.promotion, withBig.couponIssue, withBig.total?.value], [80, null, null, 256]);
+  });
+
+  it('«Nuevo» automático los primeros días desde que se creó (si el tema lo activa)', () => {
+    const site = buildSampleSite();
+    const item = { ...site.items[0], badges: [], createdAt: '2026-10-10T00:00:00Z' };
+    const keys = (days: 0 | 7 | 14 | 30, now: string) => resolveBadges(item, { ...site.theme, badges: { ...site.theme.badges, autoNewDays: days } }, { now: new Date(now) }).map((b) => b.key);
+    assert.ok(keys(14, '2026-10-19T00:00:00Z').includes('new'));
+    assert.ok(!keys(7, '2026-10-19T00:00:00Z').includes('new'));
+    assert.ok(!keys(0, '2026-10-11T00:00:00Z').includes('new'));
   });
 });
 

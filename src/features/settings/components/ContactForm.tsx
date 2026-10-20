@@ -14,6 +14,7 @@ import { fillTemplate } from '@/lib/contact/actions';
 import { useT } from '@/i18n/client';
 import { useAction } from '@/lib/hooks/use-action';
 import { CouponsField } from './CouponsField';
+import { PromotionsField } from './PromotionsField';
 import { BranchesField } from './BranchesField';
 import { TablesField } from './TablesField';
 import { ZonesField } from './ZonesField';
@@ -270,6 +271,7 @@ export function ContactForm({ contact, actions, order, businessName, catalogUrl 
             )}
           />
           <Divider />
+          <PromotionsField control={orderForm.control} />
           <CouponsField control={orderForm.control} />
           <Stack direction="row" sx={{ justifyContent: 'flex-end' }}>
             <Button type="submit" variant="contained" disabled={pending || !orderForm.formState.isDirty}>{t('Guardar pedidos')}</Button>

@@ -434,5 +434,20 @@ test.describe('Pedido por WhatsApp', () => {
     await page.keyboard.press('Escape');
     await expect(viewer).toBeHidden();
   });
+
+  test('pedido rápido: la lista agrega productos sin abrir la ficha; los que tienen opciones llevan a elegir', async ({ page }) => {
+    await page.goto('/demo/pedido-rapido');
+    const main = page.getByRole('main');
+    const coffee = main.getByRole('list', { name: 'Café de especialidad' });
+    const espresso = coffee.getByRole('listitem').filter({ hasText: 'Espresso doble' });
+    await espresso.getByRole('button', { name: 'Agregar al pedido' }).click();
+    await espresso.getByRole('group', { name: 'Cantidad de Espresso doble' }).getByRole('button', { name: 'Uno más' }).click();
+    await expect(coffee.getByRole('listitem').filter({ hasText: 'Latte de avena' }).getByRole('link', { name: 'Elegir opción' })).toHaveAttribute('href', /\/demo\/p\/ejemplo-2$/);
+    await expect(main.getByRole('listitem').filter({ hasText: 'Rol de canela' }).getByText('No disponible')).toBeVisible();
+    await expect(main.getByRole('listitem').filter({ hasText: 'Croissant de mantequilla' }).getByText('Mayoreo: desde 6, $42 c/u')).toBeVisible();
+    await expect(orderButton(page)).toContainText('2');
+    // No está en el menú del ejemplo.
+    await expect(page.getByRole('banner').getByRole('link', { name: 'Pedido rápido' })).toHaveCount(0);
+  });
 });
 

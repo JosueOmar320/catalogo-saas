@@ -5223,3 +5223,104 @@ input.qtyValue:focus-visible {
   font-size: var(--fs-small);
   color: rgb(255 255 255 / 0.8);
 }
+
+/* ------------------------------------------------------------ Pedido rápido */
+
+.quickGroup + .quickGroup {
+  margin-top: 28px;
+}
+
+.quickGroupTitle {
+  margin: 0 0 8px;
+  font-family: var(--ty-h3-font, var(--f-heading)), sans-serif;
+  font-size: 1.15em;
+  color: var(--c-heading);
+}
+
+.quickList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--c-border);
+}
+
+.quickRow {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--c-border);
+}
+
+.quickRow:not(:has(.quickThumb)) {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+.quickThumb {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: calc(var(--radius) * 0.6);
+  overflow: hidden;
+  background: var(--c-primary-soft);
+  color: var(--c-muted);
+}
+
+.quickThumb img {
+  object-fit: cover;
+}
+
+.quickName {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  color: var(--c-heading);
+  font-weight: 500;
+}
+
+.quickName a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.quickName a:hover {
+  text-decoration: underline;
+}
+
+.quickName small {
+  font-weight: 400;
+  font-size: var(--fs-small);
+  color: var(--c-accent);
+}
+
+.quickPrice {
+  color: var(--c-price, var(--c-heading));
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.quickAction {
+  display: flex;
+  justify-content: flex-end;
+  min-width: 112px;
+}
+
+@container site (max-width: 599px) {
+  .quickRow {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .quickRow:not(:has(.quickThumb)) {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .quickAction {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+}

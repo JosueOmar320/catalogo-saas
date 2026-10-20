@@ -687,6 +687,14 @@ const catalog: Catalog = {
   'Ventana de bienvenida': 'Welcome pop-up',
   'Ver más': 'Learn more',
   '¡Bienvenido!': 'Welcome!',
+  '14 días': '14 days',
+  '30 días': '30 days',
+  '7 días': '7 days',
+  'Nuevo automático': 'Automatic “New”',
+  'Los que tienen opciones o extras llevan a su ficha para elegir. Necesita los pedidos por WhatsApp activos.': 'Items with options or extras link to their page to choose. Requires WhatsApp orders to be on.',
+  'Todos los productos': 'All products',
+  'Pedido rápido': 'Quick order',
+  'Todos tus productos en una lista compacta con su cantidad: para pedir muchos de una vez (mayoreo, clientes frecuentes).': 'All your products in a compact list with quantities: to order many at once (wholesale, regular customers).',
 };
 
 export default catalog;

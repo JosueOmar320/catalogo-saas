@@ -355,6 +355,14 @@ const catalog: Catalog = {
   'Propina ({percent} %)': 'Tip ({percent}%)',
   'Sin propina': 'No tip',
   'Propina ({percent} %): {amount}': 'Tip ({percent}%): {amount}',
+  'Promoción ({promotion})': 'Promotion ({promotion})',
+  'Te faltan {amount} para tu promoción: {promotion}.': '{amount} more for your promotion: {promotion}.',
+  'Tu promoción descuenta más que el cupón {code}: se aplica la promoción.': 'Your promotion saves more than coupon {code}: the promotion applies.',
+  'Promoción ({promotion}): −{amount}': 'Promotion ({promotion}): −{amount}',
+  '{amount} menos desde {from}': '{amount} off from {from}',
+  '{value} % desde {from}': '{value}% off from {from}',
+  'Activa los pedidos por WhatsApp para que tus clientes pidan desde esta lista.': 'Turn on WhatsApp orders so customers can order from this list.',
+  'Aquí aparecerán tus productos.': 'Your products will appear here.',
 };
 
 export default catalog;

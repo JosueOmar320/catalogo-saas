@@ -28,6 +28,7 @@ import {
   orderWhatsappHref,
   PAYMENT_LABELS,
   refreshLines,
+  promotionLabel,
   summarizeOrder,
   TIP_OPTIONS,
   type AppliedCoupon,
@@ -694,7 +695,7 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
               </section>
             )}
 
-            {subtotal && (delivery || discount || summary.tip) && (
+            {subtotal && (delivery || discount || summary.tip || summary.promotion) && (
               <dl className={styles.orderBreakdown}>
                 <div>
                   <dt>{t('Subtotal')}</dt>
@@ -704,6 +705,12 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
                   <div>
                     <dt>{t('Cupón {code}', { code: discount.code })}</dt>
                     <dd>−{money(discount.value)}</dd>
+                  </div>
+                )}
+                {summary.promotion && (
+                  <div>
+                    <dt>{t('Promoción ({promotion})', { promotion: promotionLabel(summary.promotion.promotion, pricing, t) })}</dt>
+                    <dd>−{money(summary.promotion.value)}</dd>
                   </div>
                 )}
                 {delivery && (
@@ -736,7 +743,9 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
                     ? t('El cupón {code} ya venció.', { code: coupon.code })
                     : coupon && summary.couponIssue === 'minimum' && coupon.minSubtotal !== null
                       ? t('El cupón {code} aplica desde {amount}.', { code: coupon.code, amount: money(coupon.minSubtotal) })
-                      : null
+                      : coupon && summary.couponIssue === 'promotion'
+                        ? t('Tu promoción descuenta más que el cupón {code}: se aplica la promoción.', { code: coupon.code })
+                        : null
                 }
                 onApply={(code) => {
                   const found = findCoupon(config.coupons, config.couponScope, code);
@@ -745,6 +754,11 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
                 }}
                 onRemove={() => order.update({ coupon: '' })}
               />
+            )}
+            {summary.nextPromotion && (
+              <p className={styles.orderHint}>
+                {t('Te faltan {amount} para tu promoción: {promotion}.', { amount: money(summary.nextPromotion.missing), promotion: promotionLabel(summary.nextPromotion.promotion, pricing, t) })}
+              </p>
             )}
             {summary.missingForFreeDelivery !== null && summary.missingForFreeDelivery > 0 && (
               <p className={styles.orderHint}>{t('Te faltan {amount} para el envío gratis.', { amount: money(summary.missingForFreeDelivery) })}</p>
