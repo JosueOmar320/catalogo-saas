@@ -55,6 +55,10 @@ export type CatalogItemView = {
   /** Existencias (null = no se controlan). */
   stock: number | null;
   diet: DietTag[];
+  /** «Combínalo con»: ids elegidos por el negocio (pueden no estar visibles). */
+  pairings: string[];
+  /** Temporada (sólo se ve entre esas fechas); null si no tiene. */
+  season: { from: string; until: string } | null;
   /** Precios por mayoreo (de menor a mayor cantidad), con el precio formateado; vacío si no tiene. */
   tiers: { minQty: number; price: number; priceLabel: string }[];
   /** Horario del día en que se puede pedir (desayunos); null = siempre. */
@@ -171,6 +175,8 @@ function toItemView(item: ItemInput, businessSlug: string, { locale, attributeDe
     orderHours: attributes.orderHours,
     stock: attributes.stock,
     diet: attributes.diet,
+    pairings: attributes.pairings,
+    season: attributes.season && { from: attributes.season.from, until: attributes.season.until },
     // Sólo productos sin opciones y con precio: el mayoreo baja el precio por unidad.
     tiers: item.type === 'product' && !attributes.variants && price !== null ? attributes.tiers.map((tier) => ({ ...tier, priceLabel: format(tier.price) })) : [],
     saleEndsOn: !attributes.variants && compareAt !== null && price !== null && compareAt > price ? (attributes.saleEnds?.on ?? null) : null,

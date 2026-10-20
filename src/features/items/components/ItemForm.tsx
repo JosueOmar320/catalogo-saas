@@ -31,6 +31,7 @@ import { DIET_TAGS, type DietTag } from '@/lib/catalog/item-attributes';
 import { CURRENCIES } from '@/lib/catalog/settings';
 import { msg } from '@/i18n/translate';
 import type { SiteViewModel } from '@/lib/site/view-model';
+import type { CatalogItemView } from '@/lib/catalog/view-model';
 import { ColorField } from '@/components/form/ColorField';
 import { useAction } from '@/lib/hooks/use-action';
 import { useUnsavedChangesWarning } from '@/lib/hooks/use-unsaved-changes';
@@ -41,6 +42,7 @@ import { ItemCardPreview } from './ItemCardPreview';
 import { ExtrasField, OrderHoursField } from './ExtrasField';
 import { TiersField } from './TiersField';
 import { VariantsField } from './VariantsField';
+import { CopyFromProduct } from './CopyFromProduct';
 
 type Props = {
   itemId: string | null;
@@ -66,7 +68,23 @@ export function ItemForm({ itemId, defaultValues, categories, previewSite }: Pro
   const router = useRouter();
   const { run, pending } = useAction();
   const form = useForm<ItemFormValues>({ resolver: zodResolver(itemFormSchema), defaultValues });
-  const { control, handleSubmit, reset, setError, formState } = form;
+  const { control, handleSubmit, reset, setError, setValue, formState } = form;
+  const others = previewSite.items.filter((item) => item.id !== itemId);
+  const newId = () => crypto.randomUUID().slice(0, 8);
+  const dirty = { shouldDirty: true, shouldValidate: formState.isSubmitted };
+  const copyVariants = (source: CatalogItemView) => {
+    if (!source.variants) return;
+    setValue('variantsEnabled', true, dirty);
+    setValue('variantsLabel', source.variants.label, dirty);
+    setValue('variants', source.variants.options.map((o) => ({ id: newId(), name: o.name, price: o.price === null ? '' : String(o.price), sku: '', available: o.available })), dirty);
+  };
+  const copyExtras = (source: CatalogItemView) => {
+    if (!source.extras) return;
+    setValue('extrasEnabled', true, dirty);
+    setValue('extrasLabel', source.extras.label, dirty);
+    setValue('extrasMax', source.extras.max === null ? '' : String(source.extras.max), dirty);
+    setValue('extras', source.extras.options.map((o) => ({ id: newId(), name: o.name, price: o.price ? String(o.price) : '', available: o.available })), dirty);
+  };
   const values = useWatch({ control }) as ItemFormValues;
   const labels = ITEM_TYPE_LABELS[values.type];
   const isNew = itemId === null;
@@ -200,13 +218,33 @@ export function ItemForm({ itemId, defaultValues, categories, previewSite }: Pro
             )}
 
             {values.type === 'product' && (
-              <SectionCard title={t('Opciones')}>
+              <SectionCard
+                title={t('Opciones')}
+                action={
+                  <CopyFromProduct
+                    label={t('Copiar las opciones de otro producto')}
+                    sources={others.filter((item) => item.variants)}
+                    detail={(item) => item.variants!.options.map((o) => o.name).join(', ')}
+                    onPick={copyVariants}
+                  />
+                }
+              >
                 <VariantsField control={control} basePrice={values.price ?? ''} />
               </SectionCard>
             )}
 
             {values.type === 'product' && (
-              <SectionCard title={t('Extras y horario')}>
+              <SectionCard
+                title={t('Extras y horario')}
+                action={
+                  <CopyFromProduct
+                    label={t('Copiar los extras de otro producto')}
+                    sources={others.filter((item) => item.extras)}
+                    detail={(item) => item.extras!.options.map((o) => o.name).join(', ')}
+                    onPick={copyExtras}
+                  />
+                }
+              >
                 <Stack spacing={3}>
                   <ExtrasField control={control} />
                   <OrderHoursField control={control} />
@@ -275,6 +313,13 @@ export function ItemForm({ itemId, defaultValues, categories, previewSite }: Pro
                 <SwitchControl control={control} name="isVisible" label={t('Visible en el catálogo')} description={t('Si lo apagas, sólo tú lo ves.')} />
                 <SwitchControl control={control} name="isAvailable" label={t('Disponible')} description={t('Si no, se muestra como agotado.')} />
                 <SwitchControl control={control} name="isFeatured" label={t('Destacado')} description={t('Aparece en la sección Destacados.')} />
+                <Stack direction="row" spacing={1} sx={{ mt: 1.5 }}>
+                  <TextFieldControl control={control} name="seasonFrom" type="date" label={t('Visible desde')} slotProps={{ inputLabel: { shrink: true } }} />
+                  <TextFieldControl control={control} name="seasonUntil" type="date" label={t('Visible hasta')} slotProps={{ inputLabel: { shrink: true } }} />
+                </Stack>
+                <Typography variant="caption" color="text.secondary">
+                  {t('Opcional, para productos de temporada: fuera de esas fechas no se ve en tu sitio (aquí sí).')}
+                </Typography>
                 {values.type === 'product' && (
                   <TextFieldControl
                     control={control}
@@ -338,6 +383,23 @@ export function ItemForm({ itemId, defaultValues, categories, previewSite }: Pro
                   <Controller control={control} name="customBadgeColor" render={({ field }) => <ColorField label={t('Color del badge')} value={field.value} onChange={field.onChange} />} />
                 )}
               </Stack>
+            </SectionCard>
+            <SectionCard title={t('Combínalo con')} description={t('Hasta 4 productos o servicios que se sugieren en la ficha. Sin elegir, se sugieren solos.')}>
+              <Controller
+                control={control}
+                name="pairings"
+                render={({ field, fieldState }) => (
+                  <Autocomplete
+                    multiple
+                    options={others.map((item) => item.id)}
+                    value={field.value}
+                    onChange={(_, ids) => field.onChange(ids.slice(0, 4))}
+                    getOptionLabel={(id) => others.find((item) => item.id === id)?.name ?? t('Ítem eliminado')}
+                    getOptionDisabled={(id) => field.value.length >= 4 && !field.value.includes(id)}
+                    renderInput={(params) => <TextField {...params} label={t('Productos sugeridos')} error={Boolean(fieldState.error)} helperText={fieldState.error?.message ? t(fieldState.error.message) : undefined} />}
+                  />
+                )}
+              />
             </SectionCard>
             <SectionCard title={t('Categoría')}>
               <SelectControl

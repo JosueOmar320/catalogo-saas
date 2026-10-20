@@ -45,13 +45,15 @@ type SampleItem = {
   orderHours?: { from: string; to: string };
   stock?: number;
   diet?: DietTag[];
+  /** «Combínalo con»: índices de otros ítems de ejemplo. */
+  pairings?: number[];
   /** Mayoreo: [desde cuántas piezas, precio c/u]. */
   tiers?: [minQty: number, price: number][];
 };
 
 const ITEMS: SampleItem[] = [
   { name: 'Espresso doble', category: 0, short: 'Intenso, con notas a cacao y frutos rojos.', price: 45, photo: '1510591509098-f4fdc6d0ff04', featured: true, sku: 'CAF-001', badges: ['popular'], attrs: { origen: 'Chiapas', tamano: '2 oz' } },
-  { name: 'Latte de avena', category: 0, short: 'Espresso con bebida de avena texturizada.', price: 68, photo: '1461023058943-07fcbe16d735', sku: 'CAF-002', note: 'desde', badges: ['new'], attrs: { origen: 'Veracruz', tamano: '12 oz' }, variants: { label: 'Tamaño', options: [['12 oz', null], ['16 oz', 78]] }, extras: { label: 'Extras', max: 2, options: [['Shot extra', 12], ['Leche de almendra', 8], ['Canela', 0]] }, diet: ['vegan', 'lactose-free'] },
+  { name: 'Latte de avena', category: 0, short: 'Espresso con bebida de avena texturizada.', price: 68, photo: '1461023058943-07fcbe16d735', sku: 'CAF-002', note: 'desde', badges: ['new'], attrs: { origen: 'Veracruz', tamano: '12 oz' }, variants: { label: 'Tamaño', options: [['12 oz', null], ['16 oz', 78]] }, extras: { label: 'Extras', max: 2, options: [['Shot extra', 12], ['Leche de almendra', 8], ['Canela', 0]] }, diet: ['vegan', 'lactose-free'], pairings: [4, 5] },
   { name: 'Cold brew', category: 0, short: 'Extracción en frío por 18 horas. Suave y dulce.', price: 72, compareAt: 85, photo: '1517701604599-bb29b565090c', featured: true, sku: 'CAF-003', attrs: { origen: 'Chiapas', tamano: '16 oz' } },
   { name: 'Café en grano 340 g', category: 0, short: 'Chiapas, lavado. Ideal para filtrado.', price: 290, photo: '1559056199-641a0ac8b55e', sku: 'CAF-010', note: 'bolsa', featured: true, stock: 3, diet: ['organic'], attrs: { origen: 'Chiapas', tamano: '340 g', incluye: ['Molienda a elección', 'Fecha de tueste en la bolsa'] } },
   { name: 'Croissant de mantequilla', category: 1, short: 'Hojaldre francés con 27 capas.', price: 48, photo: '1555507036-ab1f4038808a', featured: true, sku: 'PAN-001', badges: ['popular'], tiers: [[6, 42], [12, 38]] },
@@ -99,6 +101,8 @@ function sampleItems(currency: string, url: string): CatalogItemView[] {
     orderHours: item.orderHours ?? null,
     stock: item.stock ?? null,
     diet: item.diet ?? [],
+    season: null,
+    pairings: (item.pairings ?? []).map((i) => `00000000-0000-4000-8000-0000000001${String(i).padStart(2, '0')}`),
     tiers: (item.tiers ?? []).map(([minQty, price]) => ({ minQty, price, priceLabel: formatPrice(price, currency) })),
     variants: item.variants
       ? {

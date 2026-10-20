@@ -9,6 +9,7 @@ import { itemThumbnail, listCategories, listItemsWithImages } from '@/features/c
 import { requireBusinessContext } from '@/lib/auth/session';
 import { parseItemAttributes } from '@/lib/catalog/item-attributes';
 import { formatSaleDate, isSaleOver } from '@/lib/catalog/sale';
+import { seasonStatus } from '@/lib/catalog/season';
 import { parseCatalogSettings } from '@/lib/catalog/settings';
 import { formatPrice } from '@/lib/utils/format';
 import type { ItemType } from '@/types/database';
@@ -35,6 +36,13 @@ export async function ItemsPage({ type, review }: { type: ItemType; review?: Rev
     const ends = parseItemAttributes(i.attributes).saleEnds;
     return ends && i.compare_at_price !== null ? { ends: formatSaleDate(ends.on, panelLocale), over: isSaleOver(ends, now) } : null;
   };
+  // Temporada: sólo se avisa cuando hoy no se ve en el sitio.
+  const seasonOf = (i: (typeof items)[number]): ItemRowData['season'] => {
+    const season = parseItemAttributes(i.attributes).season;
+    const status = seasonStatus(season, now);
+    if (!season || status === 'active') return null;
+    return status === 'upcoming' ? { status, date: formatSaleDate(season.from, panelLocale) } : { status: 'ended', date: formatSaleDate(season.until, panelLocale) };
+  };
   const rows: ItemRowData[] = items
     .filter((i) => i.type === type)
     .map((i) => ({
@@ -53,6 +61,7 @@ export async function ItemsPage({ type, review }: { type: ItemType; review?: Rev
       sale: saleOf(i),
       hasDescription: Boolean(i.short_description || i.description),
       stock: parseItemAttributes(i.attributes).stock,
+      season: seasonOf(i),
       views: performance.views ? (performance.views[i.id] ?? 0) : null,
       units: performance.units ? (performance.units[i.id] ?? 0) : null,
     }));

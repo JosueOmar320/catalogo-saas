@@ -3,7 +3,7 @@ import { msg } from '@/i18n/translate';
 import { CURRENCIES } from '@/lib/catalog/settings';
 import { priceText, priceToNumber } from '@/lib/utils/validation';
 import { uploadedImageSchema } from '@/features/media/schema';
-import { DIET_TAGS, MANUAL_BADGES, MAX_EXTRA_OPTIONS, MAX_PRICE_TIERS, MAX_VARIANT_OPTIONS } from '@/lib/catalog/item-attributes';
+import { DIET_TAGS, MANUAL_BADGES, MAX_EXTRA_OPTIONS, MAX_PAIRINGS, MAX_PRICE_TIERS, MAX_VARIANT_OPTIONS } from '@/lib/catalog/item-attributes';
 import { isTimeZone } from '@/lib/business/schedule';
 import { hexColor } from '@/lib/design/schema-utils';
 
@@ -70,6 +70,11 @@ export const itemFormSchema = z
     /** Existencias ("" = no se controlan). */
     stock: z.union([z.literal(''), z.string().trim().regex(/^\d{1,7}$/, msg('Usa un número entero, ej. 12'))]),
     diet: z.array(z.enum(DIET_TAGS)).max(DIET_TAGS.length),
+    /** Temporada: se ve en el sitio sólo entre estas fechas ("" = sin límite de ese lado). */
+    seasonFrom: z.union([z.literal(''), z.string().regex(/^\d{4}-\d{2}-\d{2}$/)]),
+    seasonUntil: z.union([z.literal(''), z.string().regex(/^\d{4}-\d{2}-\d{2}$/)]),
+    /** «Combínalo con»: hasta 4 productos o servicios sugeridos en la ficha. */
+    pairings: z.array(z.uuid()).max(MAX_PAIRINGS, msg('Elige hasta 4')),
     /** Precios por mayoreo: desde cuántas piezas y a qué precio cada una. */
     tiers: z.array(z.object({ minQty: z.union([z.literal(''), z.string().trim().regex(/^\d{1,2}$/, msg('Usa un número entero, ej. 12'))]), price: priceText })).max(MAX_PRICE_TIERS),
     /** Sólo se puede pedir en este horario del día (desayunos). */
@@ -99,6 +104,7 @@ export const itemFormSchema = z
     path: ['tiers'],
     message: msg('Hay dos filas con la misma cantidad'),
   })
+  .refine((v) => !v.seasonFrom || !v.seasonUntil || v.seasonFrom <= v.seasonUntil, { path: ['seasonUntil'], message: msg('Debe ser igual o posterior a la fecha de inicio') })
   .refine((v) => !v.orderHoursEnabled || (TIME.test(v.orderHoursFrom) && TIME.test(v.orderHoursTo) && v.orderHoursFrom !== v.orderHoursTo), {
     path: ['orderHoursTo'],
     message: msg('Elige una hora de inicio y otra de fin distintas'),
@@ -138,6 +144,9 @@ export function itemFormToAttributes(values: z.output<typeof itemFormSchema>) {
     stock: values.type === 'product' && values.stock !== '' ? Number(values.stock) : null,
     diet: values.diet,
     tiers: values.type === 'product' && !values.variantsEnabled ? formTiers(values.tiers) : [],
+    // La zona horaria es la de quien edita (igual que el fin de la oferta).
+    season: (values.seasonFrom || values.seasonUntil) && isTimeZone(values.saleTimeZone) ? { from: values.seasonFrom, until: values.seasonUntil, timeZone: values.saleTimeZone } : null,
+    pairings: [...new Set(values.pairings)].slice(0, MAX_PAIRINGS),
     saleEnds: values.saleEndsOn && priceToNumber(values.compareAtPrice) !== null && isTimeZone(values.saleTimeZone) ? { on: values.saleEndsOn, timeZone: values.saleTimeZone } : null,
     customBadge: values.customBadgeLabel ? { label: values.customBadgeLabel, color: values.customBadgeColor } : null,
     values: values.attributeValues,

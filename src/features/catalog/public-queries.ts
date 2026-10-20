@@ -56,7 +56,7 @@ export const getPublicSite = cache(async (slug: string): Promise<SiteViewModel |
     items: payload.items as ItemInput[],
     pages: payload.pages ?? [],
     removeBranding: payload.business.remove_branding,
-  });
+  }, { public: true });
   site.reviews = site.settings.reviews.enabled ? reviews : [];
   if (site.pages.length > 0) return site;
   // Sin páginas (p. ej. antes de aplicar la migración v2): mismo sitio que en la v1.
