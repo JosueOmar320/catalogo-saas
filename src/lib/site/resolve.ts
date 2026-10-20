@@ -5,6 +5,7 @@ import type { Background } from '@/lib/design/background';
 import { backgroundTone, resolveBackground } from '@/lib/design/background-core';
 import { contrastRatio, isDark, mix } from '@/lib/design/color';
 import type { ThemeConfig } from '@/lib/design/theme';
+import type { PageHeaderMode } from './pages';
 import type { SectionOf } from './section-schemas';
 import type { SiteViewModel } from './view-model';
 
@@ -68,9 +69,15 @@ export function firstVisibleSection<T extends { visible: boolean }>(sections: T[
   return sections.find((s) => s.visible);
 }
 
-/** El header "transparente" se superpone sólo si la página empieza con un hero. */
-export function headerOverlaysPage(theme: ThemeConfig, sections: { visible: boolean; type: string }[]): boolean {
-  return theme.header.style === 'transparent' && firstVisibleSection(sections)?.type === 'hero';
+/**
+ * ¿El header se superpone a la primera sección? Por defecto sólo el estilo
+ * "transparente" sobre un hero; cada página puede forzarlo o desactivarlo.
+ */
+export function headerOverlaysPage(theme: ThemeConfig, sections: { visible: boolean; type: string }[], mode: PageHeaderMode = 'auto'): boolean {
+  const first = firstVisibleSection(sections);
+  if (mode === 'overlay') return Boolean(first);
+  if (mode !== 'auto') return false;
+  return theme.header.style === 'transparent' && first?.type === 'hero';
 }
 
 /**

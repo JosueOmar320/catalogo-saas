@@ -1,23 +1,27 @@
 import { Clock, Globe, Mail, MapPin, MessageCircle, Phone } from 'lucide-react';
 import { digitsOnly, hoursText } from '@/lib/business/profile';
 import { env as appEnv } from '@/lib/env';
-import type { ResolvedNavItem } from '@/lib/site/navigation';
+import { flattenNavigation, type ResolvedNavItem } from '@/lib/site/navigation';
 import type { SiteViewModel } from '@/lib/site/view-model';
 import { BackgroundLayers } from './Background';
+import type { FooterColumn } from './chrome';
 import { OpenNow } from './OpenNow';
 import { siteTranslator } from './site-i18n';
 import { SocialLinks } from './SocialLinks';
 import styles from './site.module.css';
 
-export function SiteFooter({ site, navItems }: { site: SiteViewModel; navItems: ResolvedNavItem[] }) {
+export function SiteFooter({ site, navItems, columns }: { site: SiteViewModel; navItems: ResolvedNavItem[]; columns: FooterColumn[] }) {
   const { footer } = site.theme;
   const { contact } = site.business;
   const address = [contact.address, contact.city].filter(Boolean).join(', ');
   const hasContact = Boolean(contact.phone || contact.whatsapp || contact.email || address || contact.website);
   const customBg = footer.background.type !== 'inherit';
-  const pageLinks = navItems.filter((i) => i.style === 'link');
+  const pageLinks = flattenNavigation(navItems).filter((i) => i.style === 'link');
   const t = siteTranslator(site.settings.language);
   const hours = hoursText(contact, site.settings.locale, t('Cerrado'));
+  const showPages = footer.showNav && pageLinks.length > 1 && footer.style !== 'simple';
+  // Con muchas columnas, el negocio va en su propia fila y las demás se acomodan solas.
+  const columnCount = columns.length + Number(showPages) + Number(footer.showContact && hasContact) + Number(footer.showHours && Boolean(hours));
   // "Sitio creado con {app}": el enlace va donde está la variable (el orden cambia según el idioma).
   const [brandingBefore, brandingAfter = ''] = t('Sitio creado con {app}').split('{app}');
 
@@ -25,7 +29,7 @@ export function SiteFooter({ site, navItems }: { site: SiteViewModel; navItems: 
     <footer className={`${styles.footer} ${styles.layered}`} data-style={footer.style} data-custom-bg={customBg}>
       {customBg && <BackgroundLayers background={footer.background} />}
       <div className={styles.container}>
-        <div className={styles.footerGrid}>
+        <div className={styles.footerGrid} data-many={columnCount > 3 || undefined}>
           <div>
             <p className={`${styles.heading} ${styles.h3}`}>{site.business.name}</p>
             {(footer.customText || site.business.slogan) && <p className={`${styles.muted} ${styles.preLine} ${styles.tightText}`}>{footer.customText || site.business.slogan}</p>}
@@ -36,7 +40,20 @@ export function SiteFooter({ site, navItems }: { site: SiteViewModel; navItems: 
             )}
           </div>
 
-          {footer.showNav && pageLinks.length > 1 && footer.style !== 'simple' && (
+          {columns.map((column) => (
+            <div key={column.id}>
+              {column.title && <p className={styles.footerTitle}>{column.title}</p>}
+              <ul className={styles.footerList}>
+                {column.links.map((link) => (
+                  <li key={link.id}>
+                    <a href={link.href} data-page-id={link.pageId} target={link.external ? '_blank' : undefined} rel={link.external ? 'noopener noreferrer' : undefined}>{link.label}</a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+
+          {showPages && (
             <div>
               <p className={styles.footerTitle}>{t('Páginas')}</p>
               <ul className={styles.footerList}>

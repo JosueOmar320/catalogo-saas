@@ -363,6 +363,8 @@ const catalog: Catalog = {
   '{value} % desde {from}': '{value}% off from {from}',
   'Activa los pedidos por WhatsApp para que tus clientes pidan desde esta lista.': 'Turn on WhatsApp orders so customers can order from this list.',
   'Aquí aparecerán tus productos.': 'Your products will appear here.',
+  'Más opciones de {label}': 'More options for {label}',
+  'Más': 'More',
 };
 
 export default catalog;

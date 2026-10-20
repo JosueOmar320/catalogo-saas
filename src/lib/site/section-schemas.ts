@@ -97,8 +97,11 @@ function build(lenient: boolean) {
     .object({
       background: buildBackgroundSchema(lenient).prefault({}),
       textColor: f(z.enum(['auto', 'light', 'dark']), 'auto'),
-      paddingTop: f(z.enum(['default', 'none', 'sm', 'md', 'lg', 'xl']), 'default'),
-      paddingBottom: f(z.enum(['default', 'none', 'sm', 'md', 'lg', 'xl']), 'default'),
+      paddingTop: f(z.enum(['default', 'none', 'sm', 'md', 'lg', 'xl', 'custom']), 'default'),
+      paddingBottom: f(z.enum(['default', 'none', 'sm', 'md', 'lg', 'xl', 'custom']), 'default'),
+      /** Relleno exacto en px (cuando paddingTop/paddingBottom = 'custom'). */
+      paddingTopPx: f(z.number().int().min(0).max(400), 64),
+      paddingBottomPx: f(z.number().int().min(0).max(400), 64),
       width: f(z.enum(['narrow', 'contained', 'wide', 'full']), 'contained'),
       /* Diseño */
       minHeight: f(z.enum(['auto', 'sm', 'md', 'lg', 'screen']), 'auto'),
@@ -120,10 +123,21 @@ function build(lenient: boolean) {
       /* Divisores decorativos entre secciones. */
       dividerTop: divider,
       dividerBottom: divider,
+      /** Animación de entrada al hacer scroll (sólo CSS; sin movimiento si el visitante lo pidió). */
+      animation: f(z.enum(['none', 'fade', 'up', 'zoom', 'left', 'right']), 'none'),
       hideOnMobile: bool(false),
+      hideOnTablet: bool(false),
       hideOnDesktop: bool(false),
       anchor: f(z.string().regex(/^[a-z0-9-]*$/).max(40), ''),
-      /** Ajustes sólo para celulares (inherit = como en escritorio). */
+      /** Ajustes para tablets (inherit = como en escritorio). Los celulares heredan de aquí. */
+      tablet: z
+        .object({
+          paddingTop: f(z.enum(['inherit', 'none', 'sm', 'md', 'lg']), 'inherit'),
+          paddingBottom: f(z.enum(['inherit', 'none', 'sm', 'md', 'lg']), 'inherit'),
+          textAlign: f(z.enum(['inherit', 'left', 'center']), 'inherit'),
+        })
+        .prefault({}),
+      /** Ajustes sólo para celulares (inherit = como en tablet, o en escritorio). */
       mobile: z
         .object({
           paddingTop: f(z.enum(['inherit', 'none', 'sm', 'md', 'lg']), 'inherit'),

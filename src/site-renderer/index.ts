@@ -1,4 +1,4 @@
-export { buildHeaderProps } from './chrome';
+export { buildHeaderProps, footerColumns } from './chrome';
 export type { RenderEnv } from './env';
 export { ItemDetail } from './ItemDetail';
 export { PageView } from './PageView';

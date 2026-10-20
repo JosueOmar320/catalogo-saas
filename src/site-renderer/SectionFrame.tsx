@@ -13,6 +13,11 @@ const SHADOW = {
   strong: '0 18px 44px rgba(16,24,40,.16), 0 6px 12px rgba(16,24,40,.08)',
 } as const;
 
+/** Relleno exacto en escritorio y tablet; en celular se reduce igual que los tamaños fijos (--pad-scale). */
+function padding(value: Exclude<Section['style']['paddingTop'], 'default'>, px: number): string {
+  return value === 'custom' ? `${px}px` : PADDING[value];
+}
+
 type Divider = Section['style']['dividerTop'];
 
 /** Formas (dibujadas para el borde inferior; arriba se reflejan). viewBox 1200×120. */
@@ -54,13 +59,15 @@ export function SectionFrame({ section, theme, children, backgroundOnContent, pr
   const { style } = section;
   const textMode = resolveTextMode(style.textColor, style.background, theme);
   const vars: Record<string, string> = {};
-  if (style.paddingTop !== 'default') vars['--pt'] = PADDING[style.paddingTop];
-  if (style.paddingBottom !== 'default') vars['--pb'] = PADDING[style.paddingBottom];
+  if (style.paddingTop !== 'default') vars['--pt'] = padding(style.paddingTop, style.paddingTopPx);
+  if (style.paddingBottom !== 'default') vars['--pb'] = padding(style.paddingBottom, style.paddingBottomPx);
   if (style.border.width > 0) vars['--s-border'] = `${style.border.width}px solid ${style.border.color || 'var(--c-border)'}`;
   if (style.border.radius > 0) vars['--s-radius'] = `${style.border.radius}px`;
   if (style.shadow !== 'none') vars['--s-shadow'] = SHADOW[style.shadow];
-  // Celular: padding propio (si se definió).
-  const mobile = style.mobile;
+  // Tablet y celular: padding propio (si se definió). El celular hereda de la tablet.
+  const { tablet, mobile } = style;
+  if (tablet.paddingTop !== 'inherit') vars['--pt-t'] = PADDING[tablet.paddingTop];
+  if (tablet.paddingBottom !== 'inherit') vars['--pb-t'] = PADDING[tablet.paddingBottom];
   if (mobile.paddingTop !== 'inherit') vars['--pt-m'] = PADDING[mobile.paddingTop];
   if (mobile.paddingBottom !== 'inherit') vars['--pb-m'] = PADDING[mobile.paddingBottom];
   const container = style.width === 'full' ? styles.containerFull : style.width === 'wide' ? styles.containerWide : style.width === 'narrow' ? styles.containerNarrow : '';
@@ -76,6 +83,10 @@ export function SectionFrame({ section, theme, children, backgroundOnContent, pr
       data-margin={style.marginTop !== 'none' ? style.marginTop : undefined}
       data-overlap={style.overlap !== 'none' ? style.overlap : undefined}
       data-boxed={style.boxed || undefined}
+      data-anim={style.animation !== 'none' ? style.animation : undefined}
+      data-tablet-pt={tablet.paddingTop !== 'inherit' || undefined}
+      data-tablet-pb={tablet.paddingBottom !== 'inherit' || undefined}
+      data-tablet-align={tablet.textAlign !== 'inherit' ? tablet.textAlign : undefined}
       data-mobile-pt={mobile.paddingTop !== 'inherit' || undefined}
       data-mobile-pb={mobile.paddingBottom !== 'inherit' || undefined}
       data-mobile-align={mobile.textAlign !== 'inherit' ? mobile.textAlign : undefined}
@@ -84,6 +95,7 @@ export function SectionFrame({ section, theme, children, backgroundOnContent, pr
         styles.section,
         textMode === 'light' ? styles.onDark : textMode === 'dark' ? styles.onLight : '',
         style.hideOnMobile ? styles.hideMobile : '',
+        style.hideOnTablet ? styles.hideTablet : '',
         style.hideOnDesktop ? styles.hideDesktop : '',
         className ?? '',
       ].join(' ')}

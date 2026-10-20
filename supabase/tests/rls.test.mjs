@@ -541,5 +541,24 @@ await expectErr('nor point another business at A item (RLS or FK)', () => q(`ins
 await as(null);
 await expectEq('the public catalog does not include costs', () => q(`select public.get_public_catalog('tienda-a')::text t`).then((r) => /"cost"|item_costs/.test(r[0].t)), false);
 
+/* ------------------------------------------------------------ Plantillas de sección */
+const tpl = (biz, name = 'Hero de verano') => q(`insert into public.section_templates(business_id, name, section) values ($1,$2,'{"type":"hero"}'::jsonb) returning id`, [biz, name]).then((r) => r[0].id);
+await as(null);
+await expectErr('anon cannot read section templates', () => q(`select * from public.section_templates`), 'permission denied');
+await as(A);
+let tplA;
+await expectOk('owner saves a section template', async () => { tplA = await tpl(bizA); return tplA; });
+await expectEq('owner lists own templates', () => q(`select name from public.section_templates where business_id=$1`, [bizA]).then((r) => r.map((x) => x.name)), ['Hero de verano']);
+await expectErr('name cannot be blank', () => tpl(bizA, '   '), 'check constraint');
+await expectErr('section must be an object', () => q(`insert into public.section_templates(business_id, name, section) values ($1,'x','[]'::jsonb)`, [bizA]), 'check constraint');
+await as(B);
+await expectEq('other business cannot read A templates', () => q(`select count(*)::int n from public.section_templates where business_id=$1`, [bizA]).then((r) => r[0].n), 0);
+await expectErr('other business cannot save into A', () => tpl(bizA), 'row-level security');
+await expectEq('other business cannot delete A templates', () => q(`delete from public.section_templates where id=$1 returning id`, [tplA]).then((r) => r.length), 0);
+await as(A);
+await expectErr('at most 50 templates per business', async () => { for (let i = 0; i < 50; i++) await tpl(bizA, `Plantilla ${i}`); }, 'section_template_limit_reached');
+await expectEq('the limit kept 50', () => q(`select count(*)::int n from public.section_templates where business_id=$1`, [bizA]).then((r) => r[0].n), 50);
+await expectOk('owner deletes own templates', () => q(`delete from public.section_templates where business_id=$1`, [bizA]));
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);

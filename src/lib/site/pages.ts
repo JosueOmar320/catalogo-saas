@@ -10,11 +10,21 @@ export const RESERVED_PAGE_SLUGS = ['p'];
 export const PAGE_TEMPLATES = ['home', 'products', 'services', 'about', 'contact', 'gallery', 'promotions', 'custom'] as const;
 export type PageTemplate = (typeof PAGE_TEMPLATES)[number];
 
+export const PAGE_HEADER_MODES = ['auto', 'overlay', 'solid', 'hidden'] as const;
+export type PageHeaderMode = (typeof PAGE_HEADER_MODES)[number];
+
 function buildPageParts(lenient: boolean) {
   const f = fieldFactory(lenient);
   const style = z
     .object({
       background: buildBackgroundSchema(lenient).prefault({}),
+      /**
+       * Header en esta página: auto = según el estilo (el transparente se
+       * superpone a un hero), overlay = siempre sobre la primera sección,
+       * solid = nunca superpuesto, hidden = sin header (landing).
+       */
+      header: f(z.enum(PAGE_HEADER_MODES), 'auto'),
+      hideFooter: f(z.boolean(), false),
     })
     .prefault({});
   const seo = z

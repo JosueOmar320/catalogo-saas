@@ -188,6 +188,8 @@ type SiteViewStatsDailyRow = { business_id: string; day: string; views: number }
 type ItemViewStatsDailyRow = { business_id: string; day: string; item_id: string; views: number };
 /** Costo de un producto (privado: sólo los miembros del negocio; no va al catálogo público). */
 type ItemCostRow = { item_id: string; business_id: string; cost: number; updated_at: string };
+/** Secciones que el negocio guardó como plantilla en el editor (máx. 50). */
+type SectionTemplateRow = { id: string; business_id: string; name: string; section: Json; created_at: string };
 /** Búsquedas sin resultados del sitio publicado (término en minúsculas, por día UTC; las escribe record_search_miss). */
 type SearchMissStatsDailyRow = { business_id: string; day: string; term: string; searches: number };
 
@@ -260,6 +262,7 @@ export type Database = {
       item_view_stats_daily: Table<ItemViewStatsDailyRow, 'business_id' | 'day' | 'item_id'>;
       search_miss_stats_daily: Table<SearchMissStatsDailyRow, 'business_id' | 'day' | 'term'>;
       item_costs: Table<ItemCostRow, 'item_id' | 'business_id' | 'cost'>;
+      section_templates: Table<SectionTemplateRow, 'business_id' | 'name' | 'section'>;
       notification_log: Table<NotificationLogRow, 'user_id' | 'business_id' | 'kind'>;
     };
     Views: { [_ in never]: never };

@@ -15,6 +15,9 @@ export type HeaderProps = {
   social: SiteViewModel['business']['socialLinks'];
   /** Rutas de las páginas donde el header se superpone al hero. */
   overlayPaths: string[];
+  /** Rutas de las páginas sin header / sin pie de página (landings). */
+  headerHiddenPaths: string[];
+  footerHiddenPaths: string[];
   homePath: string;
   /** Ruta actual (preview). En público se usa usePathname(). */
   currentPath?: string;
@@ -87,6 +90,23 @@ function announcementProps(site: SiteViewModel, links: LinkContext): Announcemen
   };
 }
 
+export type FooterColumn = { id: string; title: string; links: { id: string; label: string; href: string; external: boolean; pageId?: string }[] };
+
+/** Columnas propias del pie de página con sus URLs finales (sin enlaces que no se pueden resolver ni columnas vacías). */
+export function footerColumns(site: SiteViewModel, env: RenderEnv): FooterColumn[] {
+  const links = linkContext(site, env);
+  return site.theme.footer.columns.flatMap((column) => {
+    const resolved = column.links.flatMap((item) => {
+      const target = resolveLink(item.link, links);
+      const page = item.link.kind === 'page' ? site.pages.find((p) => p.id === item.link.pageId) : undefined;
+      if (!target || (page && !page.isPublished)) return [];
+      const label = item.label || page?.title || '';
+      return label ? [{ id: item.id, label, ...target }] : [];
+    });
+    return resolved.length > 0 ? [{ id: column.id, title: column.title, links: resolved }] : [];
+  });
+}
+
 /** Datos serializables del header/footer (se calculan una vez en el servidor). */
 export function buildHeaderProps(site: SiteViewModel, env: RenderEnv, currentPath?: string): HeaderProps {
   const links = linkContext(site, env);
@@ -113,7 +133,9 @@ export function buildHeaderProps(site: SiteViewModel, env: RenderEnv, currentPat
     items: resolveNavigation(site.navigation, pages, links),
     cta,
     social: header.showSocial ? site.business.socialLinks : [],
-    overlayPaths: pages.filter((p) => headerOverlaysPage(site.theme, p.sections)).map((p) => pagePath(env.basePath, p)),
+    overlayPaths: pages.filter((p) => headerOverlaysPage(site.theme, p.sections, p.style.header)).map((p) => pagePath(env.basePath, p)),
+    headerHiddenPaths: pages.filter((p) => p.style.header === 'hidden').map((p) => pagePath(env.basePath, p)),
+    footerHiddenPaths: pages.filter((p) => p.style.hideFooter).map((p) => pagePath(env.basePath, p)),
     homePath: env.basePath || '/',
     currentPath,
     announcement: announcementProps(site, links),
