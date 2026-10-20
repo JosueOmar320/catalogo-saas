@@ -4,7 +4,7 @@ import { z } from 'zod';
 import type { AssistantMode } from '@/lib/assistant/context';
 import { parseModeActions, responseSchemaFor, type AnyAction } from '@/lib/assistant/modes';
 import { systemBlocks } from './prompt';
-import { MAX_TOOL_ROUNDS, ProviderError, QuotaExceededError, userTurn, type AssistantModel, type ModelInput, type ModelResult } from './types';
+import { MAX_TOOL_ROUNDS, ProviderError, QuotaExceededError, userTurn, type AssistantModel, type ModelInput, type ModelResult, type TaskInput, type TaskModel } from './types';
 
 const MAX_TOKENS = 8000;
 
@@ -19,8 +19,9 @@ function respondSchema(mode: AssistantMode) {
 }
 
 /** Claude con una herramienta forzada ("respond"): la salida siempre es estructurada. */
-export class ClaudeModel implements AssistantModel {
+export class ClaudeModel implements AssistantModel, TaskModel {
   readonly mode = 'ai' as const;
+  readonly provider = 'anthropic';
   private client: Anthropic;
 
   constructor(
@@ -30,9 +31,32 @@ export class ClaudeModel implements AssistantModel {
     this.client = new Anthropic({ apiKey, maxRetries: 1, timeout: 60_000 });
   }
 
-  async respond({ messages, context, locale }: ModelInput): Promise<ModelResult> {
+  respond({ messages, context, locale }: ModelInput): Promise<ModelResult> {
+    return this.guard(() => this.run({ messages, context, locale }));
+  }
+
+  /** Tarea con respuesta estructurada: herramienta forzada con el schema de la tarea. */
+  generate<T>(task: TaskInput<T>): Promise<T> {
+    return this.guard(async () => {
+      const { $schema: _schema, ...inputSchema } = z.toJSONSchema(task.schema, { io: 'input', unrepresentable: 'any' }) as Record<string, unknown>;
+      const response = await this.client.messages.create({
+        model: this.model,
+        max_tokens: task.maxTokens ?? 2000,
+        system: task.system,
+        tools: [{ name: 'respond', description: 'Respuesta final.', input_schema: inputSchema as Anthropic.Tool.InputSchema }],
+        tool_choice: { type: 'tool', name: 'respond' },
+        messages: [{ role: 'user', content: task.prompt }],
+      });
+      const toolUse = response.content.find((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use' && b.name === 'respond');
+      const parsed = task.schema.safeParse(toolUse?.input);
+      if (!parsed.success) throw new ProviderError('Claude no respondió en el formato esperado.', 502);
+      return parsed.data;
+    });
+  }
+
+  private async guard<R>(run: () => Promise<R>): Promise<R> {
     try {
-      return await this.run({ messages, context, locale });
+      return await run();
     } catch (error) {
       if (error instanceof Anthropic.APIError) {
         if (error.status === 429) throw new QuotaExceededError('Límite de uso de Claude alcanzado.');

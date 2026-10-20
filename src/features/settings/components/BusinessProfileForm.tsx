@@ -5,6 +5,7 @@ import { Button, InputAdornment, MenuItem, Stack, TextField, Typography } from '
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
+import { WriteWithGarfield } from '@/features/assistant/components/WriteWithGarfield';
 import { TextFieldControl } from '@/components/form/fields';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { updateBusinessProfile } from '@/features/business/actions';
@@ -24,7 +25,7 @@ export function BusinessProfileForm({ defaultValues, currency, language, priceFo
   const t = useT();
   const router = useRouter();
   const { run, pending } = useAction();
-  const { control, handleSubmit, setError, reset, formState } = useForm<BusinessProfileValues>({
+  const { control, handleSubmit, setError, reset, formState, getValues, setValue } = useForm<BusinessProfileValues>({
     resolver: zodResolver(businessProfileSchema),
     defaultValues,
   });
@@ -53,7 +54,9 @@ export function BusinessProfileForm({ defaultValues, currency, language, priceFo
             slotProps={{ input: { startAdornment: <InputAdornment position="start">{env.siteUrl.replace(/^https?:\/\//, '')}/catalogo/</InputAdornment> } }}
           />
           <TextFieldControl control={control} name="slogan" label={t('Slogan')} placeholder={t('Ej. Café recién tostado, pan recién horneado.')} helperText={t('Frase corta: aparece en el hero, el pie de página, el PDF y al compartir.')} />
+          <WriteWithGarfield kind="business_slogan" getInput={() => ({ current: getValues('slogan') ?? '' })} onPick={(text) => setValue('slogan', text, { shouldDirty: true, shouldValidate: true })} />
           <TextFieldControl control={control} name="description" label={t('Descripción')} multiline minRows={3} helperText={t('Se usa en buscadores y como respaldo del slogan.')} />
+          <WriteWithGarfield kind="business_description" getInput={() => ({ current: getValues('description') ?? '' })} onPick={(text) => setValue('description', text, { shouldDirty: true, shouldValidate: true })} />
           <Stack direction="row" sx={{ justifyContent: 'flex-end' }}>
             <Button type="submit" variant="contained" disabled={pending || !formState.isDirty || slugState === 'taken'}>{t('Guardar')}</Button>
           </Stack>

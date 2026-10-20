@@ -8,13 +8,15 @@ import { listQuickItems } from '@/features/items/actions';
 import { useT } from '@/i18n/client';
 import { msg } from '@/i18n/translate';
 import { ADMIN_NAVIGATION, NAVIGATION } from './navigation';
+import { GarfieldAvatar } from '@/features/assistant/components/GarfieldAvatar';
+import { askGarfield } from '@/features/assistant/components/PanelGarfield';
 
 /**
  * Búsqueda rápida del panel (⌘K / Ctrl+K): secciones, acciones y productos o
  * servicios por nombre o código. Teclado: ↑ ↓ para moverse, Enter para abrir,
  * Esc para cerrar. Los ítems se piden una vez al abrir por primera vez.
  */
-type Entry = { id: string; group: 'go' | 'action' | 'items'; label: string; hint?: string; href: string; icon: ReactNode };
+type Entry = { id: string; group: 'go' | 'action' | 'items' | 'ask'; label: string; hint?: string; href: string; icon: ReactNode; run?: () => void };
 
 const normalize = (value: string) => value.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 const matches = (query: string, ...fields: (string | null | undefined)[]) => {
@@ -101,16 +103,19 @@ export function CommandPalette({ admin }: { admin: boolean }) {
               icon: item.type === 'product' ? <Package size={16} /> : <Wrench size={16} />,
             }))
         : [];
-    return [...found, ...go, ...actions];
+    // Una pregunta ("¿cómo creo un cupón?") va a Garfield; siempre al final, para no tapar los resultados.
+    const ask: Entry[] = !admin && query.trim().length >= 3 ? [{ id: 'ask', group: 'ask', label: t('Preguntar a Garfield: «{query}»', { query: query.trim() }), href: '', icon: <GarfieldAvatar size={18} ring={false} />, run: () => askGarfield(query.trim()) }] : [];
+    return [...found, ...go, ...actions, ...ask];
   }, [admin, items, query, t]);
 
   const go = (entry: Entry | undefined) => {
     if (!entry) return;
     setOpen(false);
-    router.push(entry.href);
+    if (entry.run) entry.run();
+    else router.push(entry.href);
   };
 
-  const GROUP_LABEL = { items: t('Productos y servicios'), go: t('Ir a'), action: t('Acciones') };
+  const GROUP_LABEL = { items: t('Productos y servicios'), go: t('Ir a'), action: t('Acciones'), ask: 'Garfield' };
   const activeEntry = entries[Math.min(active, entries.length - 1)];
 
   return (
