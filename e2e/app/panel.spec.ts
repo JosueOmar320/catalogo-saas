@@ -845,6 +845,67 @@ test('costo privado: margen en el formulario y la lista, y aviso al bajar precio
   await prices.getByRole('button', { name: 'Cancelar' }).click();
 });
 
+test('propina en el pedido, precio programado y reporte descargable', async ({ page, browser }) => {
+  await page.goto('/dashboard/settings/contacto');
+  await page.getByRole('switch', { name: /Propina opcional/ }).click();
+  await page.getByRole('button', { name: 'Guardar pedidos' }).click();
+  await expect(page.getByText('Configuración guardada')).toBeVisible();
+
+  // Precio programado a futuro: la lista lo avisa y el sitio sigue con el precio actual.
+  await page.goto('/dashboard/catalog/products');
+  await page.getByRole('link', { name: 'Galleta mayoreo E2E' }).first().click();
+  await expect(page).toHaveURL(/\/dashboard\/catalog\/items\/[0-9a-f-]{36}$/);
+  const editUrl = page.url();
+  await page.getByRole('textbox', { name: 'Nuevo precio (programado)' }).fill('12');
+  await page.getByLabel('A partir del').fill('2099-01-01');
+  await page.getByRole('button', { name: 'Guardar', exact: true }).first().click();
+  await expect(page.getByText('Cambios guardados')).toBeVisible();
+  await page.goto('/dashboard/catalog/products');
+  await expect(page.getByRole('listitem').filter({ hasText: 'Galleta mayoreo E2E' }).getByText('Cambia a $12 el 1 de enero')).toBeVisible();
+
+  // Con una fecha que ya pasó, al guardar el nuevo precio queda como el precio.
+  await page.goto(editUrl);
+  await page.getByLabel('A partir del').filter({ visible: true }).fill('2020-01-01');
+  await page.getByRole('button', { name: 'Guardar', exact: true }).first().click();
+  await expect(page.getByText('Cambios guardados')).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('textbox', { name: 'Precio', exact: true })).toHaveValue('12');
+  await expect(page.getByRole('textbox', { name: 'Nuevo precio (programado)' })).toHaveValue('');
+
+  // Reporte por día en CSV.
+  await page.goto('/dashboard');
+  const download = page.waitForEvent('download');
+  await page.getByRole('link', { name: 'Reporte por día (CSV)' }).click();
+  const file = await download;
+  expect(file.suggestedFilename()).toMatch(new RegExp(`^reporte-dias-${slug}-\\d{4}-\\d{2}-\\d{2}\\.csv$`));
+  const csv = await (await import('node:fs/promises')).readFile((await file.path())!, 'utf8');
+  expect(csv.replace(/^\uFEFF/, '').split('\r\n')[0]).toBe('Fecha,Visitas,Fichas vistas,Pedidos,Unidades,Valor estimado');
+  expect(csv).toMatch(/\r\nTotal,\d+,\d+,\d+,\d+,[\d.]+\r\n$/);
+
+  // Propina en el pedido del visitante.
+  const visitor = await browser.newContext(ANONYMOUS);
+  const site = await visitor.newPage();
+  await site.goto(`/catalogo/${slug}/p/smoothie-e2e`);
+  await site.getByRole('dialog', { name: '¡Bienvenido E2E!' }).getByRole('button', { name: 'Cerrar' }).click();
+  await site.getByRole('radio', { name: 'Grande' }).click();
+  await site.getByRole('button', { name: 'Agregar al pedido' }).click();
+  await site.getByRole('button', { name: /^Ver pedido/ }).click();
+  const dialog = site.getByRole('dialog', { name: 'Tu pedido' });
+  await expect(async () => {
+    await site.reload();
+    await site.getByRole('button', { name: /^Ver pedido/ }).click();
+    await expect(dialog.getByRole('group', { name: 'Propina (opcional)' })).toBeVisible({ timeout: 1000 });
+  }).toPass({ timeout: 15_000 });
+  await dialog.getByRole('group', { name: 'Cantidad de Smoothie E2E (Grande)' }).getByRole('button', { name: 'Uno más' }).click();
+  await dialog.getByRole('radio', { name: 'Norte', exact: true }).check();
+  await dialog.getByLabel('Zona de entrega').selectOption('Centro');
+  await dialog.getByLabel('Dirección de entrega').fill('Calle 5 #10');
+  await dialog.getByRole('radio', { name: '10 %' }).check();
+  const href = await dialog.getByRole('link', { name: 'Enviar pedido por WhatsApp' }).getAttribute('href');
+  expect(new URL(href!).searchParams.get('text')).toContain('Subtotal: $140\nEnvío: $20\nPropina (10 %): $14\nTotal: $174');
+  await visitor.close();
+});
+
 test('el idioma elegido se guarda en el perfil y vuelve al iniciar sesión', async ({ page, browser }) => {
   await page.goto('/dashboard');
   await page.getByRole('button', { name: 'Cambiar idioma' }).click();

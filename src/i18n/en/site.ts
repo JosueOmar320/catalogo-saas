@@ -351,6 +351,10 @@ const catalog: Catalog = {
   'No, gracias': 'No, thanks',
   'Te compartieron una lista con 1 producto: {names}.': 'Someone shared a list with 1 product: {names}.',
   'Te compartieron una lista con {count} productos: {names}.': 'Someone shared a list with {count} products: {names}.',
+  'Propina (opcional)': 'Tip (optional)',
+  'Propina ({percent} %)': 'Tip ({percent}%)',
+  'Sin propina': 'No tip',
+  'Propina ({percent} %): {amount}': 'Tip ({percent}%): {amount}',
 };
 
 export default catalog;

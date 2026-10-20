@@ -1,3 +1,4 @@
+import { effectivePrice } from './next-price';
 import { env } from '@/lib/env';
 import { formatPrice } from '@/lib/utils/format';
 import { publicStorageUrl } from '@/lib/utils/storage';
@@ -118,8 +119,9 @@ export function mapItems(items: ItemInput[], categories: CatalogCategoryView[], 
 }
 
 function toItemView(item: ItemInput, businessSlug: string, { locale, attributeDefs = [], priceFormat, now = new Date() }: MapOptions): CatalogItemView {
-  const price = item.price === null ? null : Number(item.price);
   const attributes = parseItemAttributes(item.attributes);
+  // Con precio programado que ya empezó, vale ése (sin opciones: las opciones tienen el suyo).
+  const price = effectivePrice(item.price === null ? null : Number(item.price), attributes.variants ? null : attributes.nextPrice, now);
   // Una oferta vencida vuelve sola al precio normal: el anterior deja de mostrarse.
   const saleOver = isSaleOver(attributes.saleEnds, now);
   const compareAt = item.compare_at_price === null || saleOver ? null : Number(item.compare_at_price);

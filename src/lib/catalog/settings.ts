@@ -127,6 +127,8 @@ export const orderSchema = z.object({
     .max(MAX_BRANCHES)
     .refine((list) => new Set(list.map((b) => b.name.toLowerCase())).size === list.length, msg('Hay sucursales con el mismo nombre'))
     .default([]),
+  /** Propina opcional (10, 15 o 20 % de los productos): el cliente elige y el mensaje la desglosa. */
+  tips: z.boolean().default(false),
   /** Pedidos en mesa: con el código QR de cada mesa (?mesa=5) el pedido va a esa mesa, sin entrega. */
   tables: z.boolean().default(false),
   /** Pedido mínimo (sobre el subtotal). */

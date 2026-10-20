@@ -26,6 +26,9 @@ export const itemFormSchema = z
     compareAtPrice: priceText,
     /** Costo (privado: no se publica; para el margen). */
     cost: priceText,
+    /** Precio programado: desde ese día ("" = sin programar) vale `nextPrice`. */
+    nextPriceOn: z.union([z.literal(''), z.string().regex(/^\d{4}-\d{2}-\d{2}$/)]),
+    nextPrice: priceText,
     currency: z.enum(CURRENCIES),
     priceNote: z.string().trim().max(40),
     sku: z.string().trim().max(64),
@@ -106,6 +109,7 @@ export const itemFormSchema = z
     path: ['tiers'],
     message: msg('Hay dos filas con la misma cantidad'),
   })
+  .refine((v) => (v.nextPriceOn === '') === !v.nextPrice?.trim(), { path: ['nextPrice'], message: msg('Escribe el nuevo precio y desde cuándo vale') })
   .refine((v) => !v.seasonFrom || !v.seasonUntil || v.seasonFrom <= v.seasonUntil, { path: ['seasonUntil'], message: msg('Debe ser igual o posterior a la fecha de inicio') })
   .refine((v) => !v.orderHoursEnabled || (TIME.test(v.orderHoursFrom) && TIME.test(v.orderHoursTo) && v.orderHoursFrom !== v.orderHoursTo), {
     path: ['orderHoursTo'],
@@ -149,10 +153,17 @@ export function itemFormToAttributes(values: z.output<typeof itemFormSchema>) {
     // La zona horaria es la de quien edita (igual que el fin de la oferta).
     season: (values.seasonFrom || values.seasonUntil) && isTimeZone(values.saleTimeZone) ? { from: values.seasonFrom, until: values.seasonUntil, timeZone: values.saleTimeZone } : null,
     pairings: [...new Set(values.pairings)].slice(0, MAX_PAIRINGS),
+    nextPrice: formNextPrice(values),
     saleEnds: values.saleEndsOn && priceToNumber(values.compareAtPrice) !== null && isTimeZone(values.saleTimeZone) ? { on: values.saleEndsOn, timeZone: values.saleTimeZone } : null,
     customBadge: values.customBadgeLabel ? { label: values.customBadgeLabel, color: values.customBadgeColor } : null,
     values: values.attributeValues,
   };
+}
+
+/** Precio programado del formulario (sólo productos sin opciones, con fecha, precio y zona horaria válidos). */
+export function formNextPrice(values: Pick<z.output<typeof itemFormSchema>, 'type' | 'variantsEnabled' | 'nextPriceOn' | 'nextPrice' | 'saleTimeZone'>) {
+  const price = priceToNumber(values.nextPrice);
+  return values.type === 'product' && !values.variantsEnabled && values.nextPriceOn && price !== null && isTimeZone(values.saleTimeZone) ? { on: values.nextPriceOn, price, timeZone: values.saleTimeZone } : null;
 }
 
 /** Filas de mayoreo → atributos guardados: completas, de menor a mayor cantidad. */

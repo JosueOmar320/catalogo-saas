@@ -1,5 +1,5 @@
-import { Alert, Avatar, Box, Grid, LinearProgress, Stack, Typography } from '@mui/material';
-import { AlertCircle, ArrowRight, CheckCircle2, Circle, ExternalLink, FileText, FolderTree, ImageIcon, LayoutTemplate, MessageCircle, Package, Palette, Plus, Wrench } from 'lucide-react';
+import { Alert, Avatar, Box, Button, Grid, LinearProgress, Stack, Typography } from '@mui/material';
+import { AlertCircle, ArrowRight, CheckCircle2, Circle, Download, ExternalLink, FileText, FolderTree, ImageIcon, LayoutTemplate, MessageCircle, Package, Palette, Plus, Wrench } from 'lucide-react';
 import type { Metadata } from 'next';
 import { STATUS_LABELS } from '@/lib/catalog/status';
 import { QrCodeButton } from '@/components/dashboard/QrCodeButton';
@@ -26,6 +26,7 @@ import { parseCatalogSettings } from '@/lib/catalog/settings';
 import { catalogUrl } from '@/lib/catalog/view-model';
 import { formatDate, formatPrice, formatRelative } from '@/lib/utils/format';
 import { ordersPer100Views } from '@/lib/views/stats';
+import { effectivePrice } from '@/lib/catalog/next-price';
 import { inSeason } from '@/lib/catalog/season';
 import { variantPriceSummary } from '@/lib/catalog/variants';
 import { priceListText } from '@/site-renderer/price-list';
@@ -123,7 +124,9 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
     items: listed
       .filter((i) => i.category_id === group.id || (group.id === null && !categories.some((c) => c.id === i.category_id)))
       .map((i) => {
-        const summary = variantPriceSummary(i.price === null ? null : Number(i.price), parseItemAttributes(i.attributes).variants);
+        const attributes = parseItemAttributes(i.attributes);
+        const base = effectivePrice(i.price === null ? null : Number(i.price), attributes.variants ? null : attributes.nextPrice, now);
+        const summary = variantPriceSummary(base, attributes.variants);
         return { name: i.name, price: summary.price === null ? null : money(summary.price), from: summary.from };
       }),
   }));
@@ -323,6 +326,14 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
                     <Typography variant="caption" color="text.secondary">
                       {t('Se cuenta cada página que se abre en tu sitio publicado (no la vista previa ni la demo). No se guarda nada de tus visitantes.')}
                     </Typography>
+                    <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
+                      <Button href="/api/stats/export?tipo=dias" size="small" variant="outlined" color="inherit" startIcon={<Download size={14} />}>
+                        {t('Reporte por día (CSV)')}
+                      </Button>
+                      <Button href="/api/stats/export?tipo=productos" size="small" variant="outlined" color="inherit" startIcon={<Download size={14} />}>
+                        {t('Reporte por producto (CSV)')}
+                      </Button>
+                    </Stack>
                   </Stack>
                 )}
               </SectionCard>

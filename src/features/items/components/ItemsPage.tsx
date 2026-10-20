@@ -11,6 +11,7 @@ import { parseItemAttributes } from '@/lib/catalog/item-attributes';
 import { formatSaleDate, isSaleOver } from '@/lib/catalog/sale';
 import { itemUrl } from '@/lib/catalog/view-model';
 import { marginOf } from '@/lib/catalog/margin';
+import { effectivePrice, nextPriceStarted } from '@/lib/catalog/next-price';
 import { seasonStatus } from '@/lib/catalog/season';
 import { parseCatalogSettings } from '@/lib/catalog/settings';
 import { formatPrice } from '@/lib/utils/format';
@@ -45,6 +46,16 @@ export async function ItemsPage({ type, review }: { type: ItemType; review?: Rev
     if (!season || status === 'active') return null;
     return status === 'upcoming' ? { status, date: formatSaleDate(season.from, panelLocale) } : { status: 'ended', date: formatSaleDate(season.until, panelLocale) };
   };
+  // Precio programado: el que vale hoy y, si todavía no empieza, el aviso.
+  const nextOf = (i: (typeof items)[number]) => {
+    const attributes = parseItemAttributes(i.attributes);
+    return attributes.variants ? null : attributes.nextPrice;
+  };
+  const priceOf = (i: (typeof items)[number]) => effectivePrice(i.price === null ? null : Number(i.price), nextOf(i), now);
+  const upcomingPrice = (i: (typeof items)[number]): ItemRowData['nextPrice'] => {
+    const next = nextOf(i);
+    return next && !nextPriceStarted(next, now) ? { label: formatPrice(next.price, i.currency, locale), date: formatSaleDate(next.on, panelLocale) } : null;
+  };
   const rows: ItemRowData[] = items
     .filter((i) => i.type === type)
     .map((i) => ({
@@ -53,8 +64,9 @@ export async function ItemsPage({ type, review }: { type: ItemType; review?: Rev
       sku: i.sku,
       categoryId: i.category_id,
       categoryName: i.category_id ? (categoryNames.get(i.category_id) ?? null) : null,
-      priceLabel: i.price === null ? null : formatPrice(Number(i.price), i.currency, locale),
-      price: i.price === null ? null : Number(i.price),
+      priceLabel: priceOf(i) === null ? null : formatPrice(priceOf(i)!, i.currency, locale),
+      price: priceOf(i),
+      nextPrice: upcomingPrice(i),
       currency: i.currency,
       thumbUrl: itemThumbnail(i),
       isVisible: i.is_visible,
@@ -66,7 +78,7 @@ export async function ItemsPage({ type, review }: { type: ItemType; review?: Rev
       season: seasonOf(i),
       url: itemUrl(ctx.business.slug, i.slug),
       cost: costs.get(i.id) ?? null,
-      margin: marginOf(i.price === null ? null : Number(i.price), costs.get(i.id) ?? null)?.percent ?? null,
+      margin: marginOf(priceOf(i), costs.get(i.id) ?? null)?.percent ?? null,
       views: performance.views ? (performance.views[i.id] ?? 0) : null,
       units: performance.units ? (performance.units[i.id] ?? 0) : null,
     }));

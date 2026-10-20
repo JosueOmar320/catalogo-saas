@@ -29,6 +29,7 @@ import {
   PAYMENT_LABELS,
   refreshLines,
   summarizeOrder,
+  TIP_OPTIONS,
   type AppliedCoupon,
   type Fulfillment,
   type OrderItem,
@@ -49,6 +50,8 @@ type OrderState = {
   zone: string;
   /** Sucursal elegida (si el negocio tiene varias): se recuerda para el siguiente pedido. */
   branch: string;
+  /** Propina elegida (porcentaje; 0 = sin propina). */
+  tip: number;
   payment: PaymentMethod | null;
   coupon: string;
   when: When | null;
@@ -56,7 +59,7 @@ type OrderState = {
   reference: string;
 };
 
-const EMPTY: OrderState = { lines: [], name: '', note: '', fulfillment: null, address: '', zone: '', branch: '', payment: null, coupon: '', when: null, reference: '' };
+const EMPTY: OrderState = { lines: [], name: '', note: '', fulfillment: null, address: '', zone: '', branch: '', tip: 0, payment: null, coupon: '', when: null, reference: '' };
 
 /** Sin letras ni números que se confundan (0/O, 1/I/L). */
 const REFERENCE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -95,7 +98,7 @@ function sanitize(raw: unknown): OrderState {
     rawWhen && typeof rawWhen.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rawWhen.date) && typeof rawWhen.time === 'string' && /^\d{2}:\d{2}$/.test(rawWhen.time)
       ? { date: rawWhen.date, time: rawWhen.time }
       : null;
-  return { lines, name: str(input.name, 80), note: str(input.note, 500), fulfillment, address: str(input.address, 300), zone: str(input.zone, 60), branch: str(input.branch, 60), payment, coupon: str(input.coupon, 24), when, reference: typeof input.reference === 'string' && REFERENCE.test(input.reference) ? input.reference : '' };
+  return { lines, name: str(input.name, 80), note: str(input.note, 500), fulfillment, address: str(input.address, 300), zone: str(input.zone, 60), branch: str(input.branch, 60), tip: TIP_OPTIONS.find((value) => value === input.tip) ?? 0, payment, coupon: str(input.coupon, 24), when, reference: typeof input.reference === 'string' && REFERENCE.test(input.reference) ? input.reference : '' };
 }
 
 function read(key: string): OrderState {
@@ -532,7 +535,7 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
       ? pickupSlots(config.schedule, new Date(minute * 60_000), { leadMinutes: options.leadMinutes, days: options.scheduleDays, step: Number(options.slotMinutes) })
       : [];
   const when = state.when && pickupDays.some((d) => d.date === state.when!.date && d.slots.includes(state.when!.time)) ? state.when : null;
-  const choices = { fulfillment: state.fulfillment, address: state.address, zone: state.zone, branch: state.branch, table: order.table, payment: state.payment, coupon, when };
+  const choices = { fulfillment: state.fulfillment, address: state.address, zone: state.zone, branch: state.branch, tip: state.tip, table: order.table, payment: state.payment, coupon, when };
   const summary = summarizeOrder(state.lines, pricing, options, choices);
   const { subtotal, delivery, total, discount } = summary;
   const modes = fulfillmentOptions(options);
@@ -691,7 +694,7 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
               </section>
             )}
 
-            {subtotal && (delivery || discount) && (
+            {subtotal && (delivery || discount || summary.tip) && (
               <dl className={styles.orderBreakdown}>
                 <div>
                   <dt>{t('Subtotal')}</dt>
@@ -707,6 +710,12 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
                   <div>
                     <dt>{t('Envío')}</dt>
                     <dd>{delivery.kind === 'fee' ? money(delivery.value) : delivery.kind === 'free' ? t('Gratis') : t('Por confirmar')}</dd>
+                  </div>
+                )}
+                {summary.tip && (
+                  <div>
+                    <dt>{t('Propina ({percent} %)', { percent: summary.tip.percent })}</dt>
+                    <dd>{money(summary.tip.value)}</dd>
                   </div>
                 )}
               </dl>
@@ -824,6 +833,19 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
                   locale={pricing.locale}
                   onChange={(next) => order.update({ when: next })}
                 />
+              )}
+              {options.tips && subtotal && (
+                <fieldset className={styles.orderChoices}>
+                  <legend>{t('Propina (opcional)')}</legend>
+                  <div className={styles.orderOptions}>
+                    {[0, ...TIP_OPTIONS].map((percent) => (
+                      <label key={percent} className={styles.orderOption}>
+                        <input type="radio" name="tip" value={percent} checked={state.tip === percent} onChange={() => order.update({ tip: percent })} />
+                        <span>{percent === 0 ? t('Sin propina') : `${percent} %`}</span>
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
               )}
               {options.payments.length > 0 && (
                 <fieldset className={styles.orderChoices}>

@@ -15,6 +15,7 @@ import { fetchAllRows } from '@/lib/supabase/paginate';
 import { parseCatalogSettings } from '@/lib/catalog/settings';
 import { uploadedImageSchema } from '@/features/media/schema';
 import { parseInput, priceToNumber, uuidSchema } from '@/lib/utils/validation';
+import { nextPriceStarted } from '@/lib/catalog/next-price';
 import type { Json, TablesUpdate } from '@/types/database';
 import { releaseStorageObjects } from '@/features/media/server';
 import { parseAttributeDefs, parseAttributeValues } from '@/lib/catalog/attributes';
@@ -77,6 +78,11 @@ export async function saveItem(itemId: string | null, input: ItemFormValues): Pr
   const defs = parseAttributeDefs(ctx.catalog.attribute_defs);
   const attributes = { ...existingAttributes, ...itemFormToAttributes(values), values: parseAttributeValues(values.attributeValues, defs) };
   const row = { ...itemFormToRow(values), attributes: attributes as Json };
+  // El precio programado que ya empezó pasa a ser el precio guardado (y deja de estar programado).
+  if (attributes.nextPrice && nextPriceStarted(attributes.nextPrice, new Date())) {
+    row.price = attributes.nextPrice.price;
+    attributes.nextPrice = null;
+  }
   if (!(await categoryBelongsToCatalog(ctx, row.category_id))) return fail(msg('La categoría ya no existe.'));
 
   let id = itemId;

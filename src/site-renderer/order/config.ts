@@ -68,6 +68,7 @@ export function orderConfig(site: SiteViewModel, { track = false }: { track?: bo
       zones: order.zones,
       tables: order.tables,
       branches: order.branches,
+      tips: order.tips,
       minimumOrder: order.minimumOrder,
       payments: order.payments,
       scheduling: order.scheduling,

@@ -52,6 +52,8 @@ export type ItemRowData = {
   stock: number | null;
   /** Ficha pública (para las etiquetas con QR). */
   url: string;
+  /** Precio programado que todavía no empieza: el nuevo precio y desde cuándo. */
+  nextPrice: { label: string; date: string } | null;
   /** Costo privado y margen (%) con el precio actual; null sin costo. */
   cost: number | null;
   margin: number | null;
@@ -296,6 +298,15 @@ export function ItemsTable({ items: initialItems, categories, initialReview = nu
                     {[item.categoryName ?? t('Sin categoría'), item.sku].filter(Boolean).join(' · ')}
                   </Typography>
                 </Box>
+                {item.nextPrice && (
+                  <Chip
+                    size="small"
+                    variant="outlined"
+                    color="info"
+                    label={t('Cambia a {price} el {date}', { price: item.nextPrice.label, date: item.nextPrice.date })}
+                    sx={{ display: { xs: 'none', md: 'inline-flex' } }}
+                  />
+                )}
                 {item.margin !== null && (
                   <Chip
                     size="small"

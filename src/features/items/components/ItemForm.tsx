@@ -210,6 +210,23 @@ export function ItemForm({ itemId, defaultValues, categories, previewSite }: Pro
                     />
                   </Grid>
                 )}
+                {values.type === 'product' && !values.variantsEnabled && (
+                  <>
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <TextFieldControl
+                        control={control}
+                        name="nextPrice"
+                        label={t('Nuevo precio (programado)')}
+                        inputMode="decimal"
+                        helperText={t('Opcional: desde la fecha, tu sitio y los pedidos usan este precio.')}
+                        slotProps={{ input: { startAdornment: <InputAdornment position="start">$</InputAdornment> } }}
+                      />
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <TextFieldControl control={control} name="nextPriceOn" type="date" label={t('A partir del')} slotProps={{ inputLabel: { shrink: true } }} />
+                    </Grid>
+                  </>
+                )}
                 {values.type === 'product' && (
                   <Grid size={{ xs: 12, sm: 6 }}>
                     <TextFieldControl
