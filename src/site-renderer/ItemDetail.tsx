@@ -1,5 +1,6 @@
 import { ArrowLeft } from 'lucide-react';
 import { visibleAttributes } from '@/lib/catalog/attributes';
+import { shortTime } from '@/lib/business/schedule';
 import { formatSaleDate } from '@/lib/catalog/sale';
 import type { CatalogItemView } from '@/lib/catalog/view-model';
 import type { SiteViewModel } from '@/lib/site/view-model';
@@ -41,6 +42,9 @@ export function ItemDetail({ site, item, backHref, env }: { site: SiteViewModel;
             <span className={styles.saleEnds}>{t('Oferta hasta el {date}', { date: formatSaleDate(item.saleEndsOn, site.settings.locale) })}</span>
           )}
           {!item.isAvailable && <span className={styles.availability}>{t('No disponible por ahora')}</span>}
+          {item.orderHours && (
+            <span className={styles.cardMeta}>{t('Se pide de {from} a {to}', { from: shortTime(item.orderHours.from), to: shortTime(item.orderHours.to) })}</span>
+          )}
           {item.shortDescription && <p className={styles.lead}>{item.shortDescription}</p>}
           {item.description && <p className={styles.preLine}>{item.description}</p>}
           {specs.length > 0 && (
@@ -63,14 +67,14 @@ export function ItemDetail({ site, item, backHref, env }: { site: SiteViewModel;
               ))}
             </div>
           )}
-          {item.variants && (
+          {(item.variants || item.extras) && (
             <VariantPicker
               item={item}
               button={orderable(site, item) ? { className: styles.btn, variant: buttonVariant(site.theme, 'primary'), hover: site.theme.buttons.hover } : null}
             />
           )}
           <div className={styles.btnRow}>
-            <ContactActions site={site} item={item} skipOrder={Boolean(item.variants)} />
+            <ContactActions site={site} item={item} skipOrder={Boolean(item.variants || item.extras)} />
           </div>
           <ShareItem name={item.name} url={item.url} />
         </div>

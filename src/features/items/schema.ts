@@ -3,7 +3,7 @@ import { msg } from '@/i18n/translate';
 import { CURRENCIES } from '@/lib/catalog/settings';
 import { priceText, priceToNumber } from '@/lib/utils/validation';
 import { uploadedImageSchema } from '@/features/media/schema';
-import { MANUAL_BADGES, MAX_VARIANT_OPTIONS } from '@/lib/catalog/item-attributes';
+import { MANUAL_BADGES, MAX_EXTRA_OPTIONS, MAX_VARIANT_OPTIONS } from '@/lib/catalog/item-attributes';
 import { isTimeZone } from '@/lib/business/schedule';
 import { hexColor } from '@/lib/design/schema-utils';
 
@@ -52,6 +52,25 @@ export const itemFormSchema = z
         }),
       )
       .max(MAX_VARIANT_OPTIONS),
+    /** Extras opcionales con precio que se suma (Shot extra +$12). Con `extrasEnabled` en false se ignoran. */
+    extrasEnabled: z.boolean(),
+    extrasLabel: z.string().trim().max(30),
+    /** Cuántos puede elegir el cliente ("" = sin límite). */
+    extrasMax: z.union([z.literal(''), z.string().regex(/^\d{1,2}$/, msg('Usa un número, ej. 2'))]),
+    extras: z
+      .array(
+        z.object({
+          id: z.string().min(1).max(40),
+          name: z.string().trim().max(40),
+          price: priceText,
+          available: z.boolean(),
+        }),
+      )
+      .max(MAX_EXTRA_OPTIONS),
+    /** Sólo se puede pedir en este horario del día (desayunos). */
+    orderHoursEnabled: z.boolean(),
+    orderHoursFrom: z.string(),
+    orderHoursTo: z.string(),
     /** Valores de atributos personalizados (se validan contra las definiciones en el servidor). */
     attributeValues: z.record(z.string().max(40), z.union([z.string().max(200), z.number(), z.boolean(), z.array(z.string().max(120)).max(20)])),
   })
@@ -64,7 +83,15 @@ export const itemFormSchema = z
     { path: ['compareAtPrice'], message: msg('Debe ser mayor que el precio actual') },
   )
   .refine((v) => !v.variantsEnabled || v.variantsLabel.trim() !== '', { path: ['variantsLabel'], message: msg('Escribe qué eligen tus clientes (p. ej. Tamaño)') })
-  .refine((v) => !v.variantsEnabled || v.variants.some((o) => o.name.trim() !== ''), { path: ['variants'], message: msg('Agrega al menos una opción') });
+  .refine((v) => !v.variantsEnabled || v.variants.some((o) => o.name.trim() !== ''), { path: ['variants'], message: msg('Agrega al menos una opción') })
+  .refine((v) => !v.extrasEnabled || v.extrasLabel.trim() !== '', { path: ['extrasLabel'], message: msg('Escribe cómo se llaman (p. ej. Extras)') })
+  .refine((v) => !v.extrasEnabled || v.extras.some((o) => o.name.trim() !== ''), { path: ['extras'], message: msg('Agrega al menos un extra') })
+  .refine((v) => !v.orderHoursEnabled || (TIME.test(v.orderHoursFrom) && TIME.test(v.orderHoursTo) && v.orderHoursFrom !== v.orderHoursTo), {
+    path: ['orderHoursTo'],
+    message: msg('Elige una hora de inicio y otra de fin distintas'),
+  });
+
+const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 export type ItemFormValues = z.input<typeof itemFormSchema>;
 
@@ -93,10 +120,28 @@ export function itemFormToAttributes(values: z.output<typeof itemFormSchema>) {
   return {
     badges: values.badges.filter((b) => b !== 'featured' || values.isFeatured),
     variants: values.type === 'product' ? formVariants(values) : null,
+    extras: values.type === 'product' ? formExtras(values) : null,
+    orderHours: values.type === 'product' ? formOrderHours(values) : null,
     saleEnds: values.saleEndsOn && priceToNumber(values.compareAtPrice) !== null && isTimeZone(values.saleTimeZone) ? { on: values.saleEndsOn, timeZone: values.saleTimeZone } : null,
     customBadge: values.customBadgeLabel ? { label: values.customBadgeLabel, color: values.customBadgeColor } : null,
     values: values.attributeValues,
   };
+}
+
+/** Extras del formulario → atributos guardados (las filas sin nombre se descartan; sin precio = gratis). */
+export function formExtras(values: Pick<z.output<typeof itemFormSchema>, 'extrasEnabled' | 'extrasLabel' | 'extrasMax' | 'extras'>) {
+  const options = values.extras.filter((o) => o.name.trim() !== '');
+  if (!values.extrasEnabled || options.length === 0) return null;
+  const max = values.extrasMax ? Math.min(Math.max(Number(values.extrasMax), 1), options.length) : null;
+  return {
+    label: values.extrasLabel.trim(),
+    max,
+    options: options.map((o) => ({ id: o.id, name: o.name.trim(), price: priceToNumber(o.price) ?? 0, available: o.available })),
+  };
+}
+
+export function formOrderHours(values: Pick<z.output<typeof itemFormSchema>, 'orderHoursEnabled' | 'orderHoursFrom' | 'orderHoursTo'>) {
+  return values.orderHoursEnabled && TIME.test(values.orderHoursFrom) && TIME.test(values.orderHoursTo) ? { from: values.orderHoursFrom, to: values.orderHoursTo } : null;
 }
 
 /** Opciones del formulario → atributos guardados (las filas sin nombre se descartan). */

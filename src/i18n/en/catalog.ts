@@ -564,6 +564,24 @@ const catalog: Catalog = {
   'Vacío: hasta que la quites.': 'Empty: until you turn it off.',
   'Mensaje (opcional)': 'Message (optional)',
   'Volvemos el lunes con pan recién horneado.': "We're back on Monday with fresh bread.",
+  // Extras y horario del producto
+  'Tiene extras': 'Has extras',
+  'Complementos que el cliente puede sumar al pedir, con su precio (o gratis).': 'Add-ons customers can add when ordering, with their price (or free).',
+  Extras: 'Extras',
+  'Máximo a elegir': 'Maximum to choose',
+  Extra: 'Extra',
+  'Shot extra': 'Extra shot',
+  'Extra {index} disponible': 'Extra {index} available',
+  'Quitar el extra {index}': 'Remove extra {index}',
+  'Agregar extra': 'Add extra',
+  'Sólo en un horario': 'Only at certain hours',
+  'Por ejemplo, desayunos: fuera de ese horario se ve, pero no se puede pedir.': "For example, breakfast: outside those hours it's shown but can't be ordered.",
+  'Se usa la zona horaria de tu horario por día (Contacto).': 'Uses the time zone of your hours by day (Contact).',
+  'Extras y horario': 'Extras and hours',
+  'Usa un número, ej. 2': 'Use a number, e.g. 2',
+  'Escribe cómo se llaman (p. ej. Extras)': 'Write what they are called (e.g. Extras)',
+  'Agrega al menos un extra': 'Add at least one extra',
+  'Elige una hora de inicio y otra de fin distintas': 'Choose different start and end times',
 };
 
 export default catalog;

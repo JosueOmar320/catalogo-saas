@@ -36,6 +36,7 @@ import { saveItem } from '../actions';
 import { ITEM_TYPE_LABELS, itemFormSchema, type ItemFormValues } from '../schema';
 import { ItemAttributesFields } from './ItemAttributesFields';
 import { ItemCardPreview } from './ItemCardPreview';
+import { ExtrasField, OrderHoursField } from './ExtrasField';
 import { VariantsField } from './VariantsField';
 
 type Props = {
@@ -182,6 +183,15 @@ export function ItemForm({ itemId, defaultValues, categories, previewSite }: Pro
             {values.type === 'product' && (
               <SectionCard title={t('Opciones')}>
                 <VariantsField control={control} basePrice={values.price ?? ''} />
+              </SectionCard>
+            )}
+
+            {values.type === 'product' && (
+              <SectionCard title={t('Extras y horario')}>
+                <Stack spacing={3}>
+                  <ExtrasField control={control} />
+                  <OrderHoursField control={control} />
+                </Stack>
               </SectionCard>
             )}
 

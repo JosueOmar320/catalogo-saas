@@ -1,8 +1,9 @@
 'use client';
 
-import { Minus, Plus, RotateCcw, ShoppingBag, Ticket, Trash2, X } from 'lucide-react';
+import { Clock, Minus, Plus, RotateCcw, ShoppingBag, Ticket, Trash2, X } from 'lucide-react';
 import { createContext, useCallback, useContext, useId, useMemo, useRef, useState, useSyncExternalStore, type ReactNode, type Ref, type SyntheticEvent } from 'react';
 import { Icon } from '../Icon';
+import { shortTime, withinHours } from '@/lib/business/schedule';
 import { formatSaleDate } from '@/lib/catalog/sale';
 import { opensText, useMinute, useOpenStatus } from '../OpenNow';
 import { SiteImage } from '../SiteImage';
@@ -54,7 +55,8 @@ function sanitize(raw: unknown): OrderState {
       const name = str(line.name, 200);
       const qty = clampQty(Number(line.qty));
       if (!id || !name || qty < 1) return [];
-      return [{ id, itemId: str(line.itemId, 64) || null, name, qty, sku: str(line.sku, 64) || null, price: numOrNull(line.price), priceLabel: str(line.priceLabel, 60) || null, currency: str(line.currency, 3), url: str(line.url, 500), image: str(line.image, 500) || null }];
+      const note = str(line.note, 120);
+      return [{ id, itemId: str(line.itemId, 64) || null, name, qty, sku: str(line.sku, 64) || null, price: numOrNull(line.price), priceLabel: str(line.priceLabel, 60) || null, currency: str(line.currency, 3), url: str(line.url, 500), image: str(line.image, 500) || null, ...(note ? { note } : {}) }];
     })
     .slice(0, MAX_ORDER_LINES);
   const fulfillment = input.fulfillment === 'pickup' || input.fulfillment === 'delivery' ? input.fulfillment : null;
@@ -161,6 +163,8 @@ type OrderApi = {
   qtyOf: (id: string) => number;
   add: (item: OrderItem) => void;
   setQty: (id: string, qty: number) => void;
+  /** Nota del cliente para una línea ("sin cebolla"). */
+  setNote: (id: string, note: string) => void;
   update: (patch: Partial<Omit<OrderState, 'lines'>>) => void;
   clear: () => void;
   open: () => void;
@@ -218,6 +222,10 @@ export function OrderProvider({ config, children }: { config: OrderConfig; child
         const value = clampQty(qty);
         write(key, { ...rest, lines: value ? lines.map((line) => (line.id === id ? { ...line, qty: value } : line)) : lines.filter((line) => line.id !== id) });
       },
+      setNote: (id, note) => {
+        const { lines, ...rest } = current();
+        write(key, { ...rest, lines: lines.map((line) => (line.id === id ? { ...line, note: note.slice(0, 120) } : line)) });
+      },
       update: (patch) => write(key, { ...current(), ...patch }),
       clear: () => write(key, EMPTY),
       open: () => dialogRef.current?.showModal(),
@@ -237,6 +245,9 @@ export function OrderProvider({ config, children }: { config: OrderConfig; child
 }
 
 const useOrder = () => useContext(OrderContext);
+
+/** Formato de precios del pedido (null fuera de un sitio con pedidos). */
+export const useOrderPricing = () => useContext(OrderContext)?.config.pricing ?? null;
 
 /* --------------------------------------------------------- Botón de producto */
 
@@ -261,8 +272,20 @@ type AddProps = {
 export function AddToOrder({ item, className, variant, hover, label, shortLabel, iconOnly, small, block }: AddProps) {
   const t = useSiteT();
   const order = useOrder();
+  const minute = useMinute();
   const qty = order?.qtyOf(item.id) ?? 0;
   const iconSize = small ? 15 : 17;
+  const hours = order?.config.orderHours[item.itemId ?? item.id] ?? null;
+
+  // Fuera de su horario (desayunos…) no se agrega; se dice cuándo. Antes de hidratar se muestra normal.
+  if (order && hours && minute !== null && !withinHours(hours, order.config.timeZone, new Date(minute * 60_000))) {
+    const when = t('Se pide de {from} a {to}', { from: shortTime(hours.from), to: shortTime(hours.to) });
+    return (
+      <button type="button" className={className} data-variant="outline" data-hover={hover} disabled aria-label={iconOnly ? when : undefined} title={when}>
+        {iconOnly ? <Clock size={iconSize} aria-hidden /> : when}
+      </button>
+    );
+  }
 
   if (order && qty > 0) {
     return (
@@ -354,9 +377,16 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
   const fulfillment = effectiveFulfillment(options, state.fulfillment);
   const money = (value: number) => formatAmount(value, pricing);
   const message = buildOrderMessage({ lines: state.lines, pricing, intro: config.intro, businessName: config.businessName, customerName: state.name, note: state.note, siteUrl: config.siteUrl, t, options, choices });
+  const now = minute === null ? null : new Date(minute * 60_000);
+  const outOfHours = now
+    ? state.lines.flatMap((line) => {
+        const hours = config.orderHours[line.itemId ?? line.id];
+        return hours && !withinHours(hours, config.timeZone, now) ? [{ name: line.name, hours }] : [];
+      })
+    : [];
   // Antes de hidratar (minute null) se toma la pausa como vigente: el reloj se revisa en el navegador.
   const paused = Boolean(config.pause && (minute === null || isOrderingPaused(config.pause, new Date(minute * 60_000))));
-  const href = state.lines.length && !summary.blocker && !paused ? orderWhatsappHref(config.whatsapp, message) : null;
+  const href = state.lines.length && !summary.blocker && !paused && outOfHours.length === 0 ? orderWhatsappHref(config.whatsapp, message) : null;
   const pauseText = config.pause
     ? [
         config.pause.until ? t('Pausamos los pedidos hasta el {date}.', { date: formatSaleDate(config.pause.until, pricing.locale) }) : t('Por ahora no estamos recibiendo pedidos.'),
@@ -368,6 +398,8 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
   const more = config.suggestions.filter((item) => !state.lines.some((line) => line.id === item.id)).slice(0, 3);
   const blockerText = paused
     ? t('Los pedidos están en pausa.')
+    : outOfHours.length
+      ? t('{name} se pide de {from} a {to}. Quítalo o vuelve en ese horario.', { name: outOfHours[0].name, from: shortTime(outOfHours[0].hours.from), to: shortTime(outOfHours[0].hours.to) })
     : summary.blocker === 'fulfillment'
       ? t('Elige cómo quieres recibir tu pedido.')
       : summary.blocker === 'address'
@@ -433,6 +465,7 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
                   <div className={styles.orderThumb}>{line.image && <SiteImage src={line.image} alt="" sizes="48px" />}</div>
                   <div className={styles.orderLineInfo}>
                     <span className={styles.orderLineName}>{line.name}</span>
+                    <LineNote note={line.note ?? ''} name={line.name} onChange={(note) => order.setNote(line.id, note)} />
                     <span className={styles.orderLinePrice}>
                       {line.price !== null && line.currency === config.pricing.currency
                         ? formatAmount(line.price * line.qty, config.pricing)
@@ -674,5 +707,30 @@ function CouponField({ applied, issue, onApply, onRemove }: { applied: AppliedCo
       </div>
       {error && <p className={styles.orderCouponError} role="alert">{t('Ese cupón no existe o ya no está activo.')}</p>}
     </div>
+  );
+}
+
+/** "Agregar nota" bajo cada producto del pedido ("sin cebolla"): se abre al pedirla o si ya tiene una. */
+function LineNote({ note, name, onChange }: { note: string; name: string; onChange: (note: string) => void }) {
+  const t = useSiteT();
+  const [open, setOpen] = useState(false);
+  if (!open && !note) {
+    return (
+      <button type="button" className={styles.orderNoteToggle} onClick={() => setOpen(true)}>
+        {t('Agregar nota')}
+      </button>
+    );
+  }
+  return (
+    <input
+      type="text"
+      className={styles.orderLineNote}
+      value={note}
+      maxLength={120}
+      autoFocus={open && !note}
+      placeholder={t('Ej. sin cebolla')}
+      aria-label={t('Nota para {name}', { name })}
+      onChange={(event) => onChange(event.target.value)}
+    />
   );
 }

@@ -221,6 +221,34 @@ test('un producto con opciones muestra "desde" y el visitante elige la opción',
   await visitor.close();
 });
 
+test('extras y horario de un producto creados en el panel se ven en la ficha publicada', async ({ page, browser }) => {
+  await page.goto('/dashboard/catalog/items/new?type=product');
+  await page.getByRole('textbox', { name: 'Nombre', exact: true }).fill('Bowl E2E');
+  await page.getByRole('textbox', { name: 'Precio', exact: true }).fill('80');
+  await page.getByRole('switch', { name: /Tiene extras/ }).click();
+  await page.getByRole('textbox', { name: 'Título' }).fill('Toppings');
+  const extras = page.getByRole('list', { name: 'Extras' }).getByRole('listitem');
+  await extras.nth(0).getByRole('textbox', { name: 'Extra' }).fill('Granola');
+  await extras.nth(0).getByRole('textbox', { name: 'Precio' }).fill('10');
+  await extras.nth(1).getByRole('textbox', { name: 'Extra' }).fill('Miel');
+  await page.getByRole('switch', { name: /Sólo en un horario/ }).click();
+  await page.getByRole('button', { name: 'Crear', exact: true }).click();
+  await expect(page).toHaveURL(/\/dashboard\/catalog\/items\/[0-9a-f-]{36}$/);
+
+  const visitor = await browser.newContext({ ...ANONYMOUS, timezoneId: 'UTC' });
+  const site = await visitor.newPage();
+  // 9:00 en la zona del visitante (el negocio no tiene horario por día): dentro de 7:00–12:00.
+  await site.clock.setFixedTime(new Date('2026-10-19T09:00:00Z'));
+  await site.goto(`/catalogo/${slug}/p/bowl-e2e`);
+  await expect(site.getByText('Se pide de 7:00 a 12:00')).toBeVisible();
+  await site.getByRole('group', { name: /Toppings/ }).getByRole('checkbox', { name: /Granola/ }).check();
+  await site.getByRole('group', { name: /Toppings/ }).getByRole('checkbox', { name: /Miel/ }).check();
+  await expect(site.getByText('$90', { exact: true })).toBeVisible();
+  await site.getByRole('button', { name: 'Agregar al pedido' }).click();
+  await expect(site.getByRole('group', { name: 'Cantidad de Bowl E2E + Granola, Miel' })).toBeVisible();
+  await visitor.close();
+});
+
 test('entrega, pedido mínimo, pago y horario configurados en el panel llegan al pedido del visitante', async ({ page, browser }) => {
   await page.goto('/dashboard/settings/contacto');
   await page.getByRole('switch', { name: /Horario por día/ }).click();

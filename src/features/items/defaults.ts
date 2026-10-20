@@ -29,6 +29,13 @@ export function emptyItemValues(type: ItemType, currency: ItemFormValues['curren
     variantsEnabled: false,
     variantsLabel: '',
     variants: [],
+    extrasEnabled: false,
+    extrasLabel: '',
+    extrasMax: '',
+    extras: [],
+    orderHoursEnabled: false,
+    orderHoursFrom: '07:00',
+    orderHoursTo: '12:00',
   };
 }
 
@@ -44,6 +51,13 @@ export function itemToFormValues(item: Omit<AdminItem, 'images'> & { images: Tab
     variantsEnabled: attributes.variants !== null,
     variantsLabel: attributes.variants?.label ?? '',
     variants: (attributes.variants?.options ?? []).map((o) => ({ id: o.id, name: o.name, price: priceString(o.price), sku: o.sku ?? '', available: o.available })),
+    extrasEnabled: attributes.extras !== null,
+    extrasLabel: attributes.extras?.label ?? '',
+    extrasMax: attributes.extras?.max ? String(attributes.extras.max) : '',
+    extras: (attributes.extras?.options ?? []).map((o) => ({ id: o.id, name: o.name, price: o.price ? priceString(o.price) : '', available: o.available })),
+    orderHoursEnabled: attributes.orderHours !== null,
+    orderHoursFrom: attributes.orderHours?.from ?? '07:00',
+    orderHoursTo: attributes.orderHours?.to ?? '12:00',
     type: item.type,
     name: item.name,
     categoryId: item.category_id ?? '',

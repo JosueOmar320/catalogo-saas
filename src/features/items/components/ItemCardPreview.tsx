@@ -50,6 +50,8 @@ export function ItemCardPreview({ site, values, categoryName }: { site: SiteView
     createdAt: new Date(0).toISOString(),
     url: site.url,
     variants: null,
+    extras: null,
+    orderHours: null,
     saleEndsOn: compareAt !== null && values.saleEndsOn ? values.saleEndsOn : null,
   };
 
