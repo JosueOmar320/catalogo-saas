@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import sharp from 'sharp';
 import { unsubscribeToken } from '../../src/lib/email/links';
 import { admin, login } from './session';
 
@@ -416,6 +417,44 @@ test('kit para compartir, rendimiento por producto y nuevas revisiones', async (
   await page.getByRole('combobox', { name: 'Ordenar' }).selectOption('views');
   await expect(page.getByRole('main').getByRole('listitem').first()).toContainText(productName);
   await expect(page.getByRole('group', { name: new RegExp(`\\d+ visitas y \\d+ unidades pedidas en 30 días`) }).first()).toBeVisible();
+});
+
+test('edición rápida: crear desde fotos, precio en la lista y deshacer al eliminar', async ({ page }) => {
+  // Una foto real (PNG de 64 × 64): el navegador la procesa y la sube como cualquier otra.
+  const png = await sharp({ create: { width: 64, height: 64, channels: 3, background: '#c08040' } }).png().toBuffer();
+  await page.goto('/dashboard/catalog/products');
+  await page.getByRole('button', { name: 'Crear desde fotos' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Crear productos desde fotos' });
+  await dialog.locator('input[type=file]').setInputFiles([
+    { name: 'tarta-de-queso.png', mimeType: 'image/png', buffer: png },
+    { name: 'IMG_1234.png', mimeType: 'image/png', buffer: png },
+  ]);
+  await expect(dialog.getByRole('textbox', { name: 'Nombre para la foto 1' })).toHaveValue('Tarta de queso');
+  // La de la cámara no trae un nombre útil: hay que escribirlo.
+  await expect(dialog.getByRole('button', { name: 'Crear 2 ítems' })).toBeDisabled();
+  await dialog.getByRole('textbox', { name: 'Nombre para la foto 2' }).fill('Brownie E2E');
+  await dialog.getByRole('button', { name: 'Crear 2 ítems' }).click();
+  await expect(page.getByText('Se crearon 2 ítems')).toBeVisible({ timeout: 20_000 });
+  const tarta = page.getByRole('listitem').filter({ hasText: 'Tarta de queso' });
+  await expect(tarta.getByRole('switch', { name: 'Visible en el catálogo' })).not.toBeChecked(); // ocultos hasta completarlos
+  await expect(tarta.getByRole('img')).toBeVisible();
+
+  // Precio en la lista: clic, escribir y Enter.
+  await tarta.getByRole('button', { name: /^Cambiar el precio de Tarta de queso/ }).click();
+  await tarta.getByRole('textbox', { name: 'Precio de Tarta de queso' }).fill('1,250.50');
+  await tarta.getByRole('textbox', { name: 'Precio de Tarta de queso' }).press('Enter');
+  await expect(page.getByText('Precio actualizado')).toBeVisible();
+  await expect(tarta.getByText('$1,250.50')).toBeVisible();
+
+  // Eliminar y deshacer.
+  await page.getByRole('button', { name: 'Acciones de Brownie E2E' }).click();
+  await page.getByRole('menuitem', { name: 'Eliminar' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Eliminar' }).click();
+  await expect(page.getByText('"Brownie E2E" eliminado')).toBeVisible();
+  await expect(page.getByRole('listitem').filter({ hasText: 'Brownie E2E' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Deshacer' }).click();
+  await expect(page.getByText('Ítem restaurado')).toBeVisible();
+  await expect(page.getByRole('listitem').filter({ hasText: 'Brownie E2E' })).toBeVisible();
 });
 
 test('aviso semanal: a quién le llega y la baja con el enlace del correo', async ({ page, browser, request }) => {
