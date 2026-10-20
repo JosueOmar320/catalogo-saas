@@ -140,6 +140,27 @@ test('«Combínalo con»: la ficha sugiere lo que eligió el negocio', async ({ 
   await expect(page.getByRole('region', { name: 'También te puede interesar' })).toHaveCount(0);
 });
 
+test.describe('/api/search-misses (búsquedas sin resultados)', () => {
+  test('valida el cuerpo, el tamaño y el origen; lo que parece un dato personal no se guarda', async ({ request }) => {
+    expect((await request.post('/api/search-misses', { data: { slug: 'X Y', term: 'pastel' } })).status()).toBe(400);
+    expect((await request.post('/api/search-misses', { data: { slug: 'cafe-aurora', term: 'ab' } })).status()).toBe(400);
+    expect((await request.post('/api/search-misses', { headers: { 'content-type': 'application/json' }, data: 'x'.repeat(800) })).status()).toBe(413);
+    expect((await request.post('/api/search-misses', { data: { slug: 'cafe-aurora', term: 'pastel' }, headers: { origin: 'https://otro-sitio.example' } })).status()).toBe(403);
+    expect((await request.post('/api/search-misses', { data: { slug: 'cafe-aurora', term: 'ana@correo.mx' } })).status()).toBe(204);
+    expect((await request.post('/api/search-misses', { data: { slug: 'cafe-aurora', term: 'pastel' } })).status()).toBe(204);
+  });
+
+  test('la demo no cuenta búsquedas', async ({ page }) => {
+    const beacons: string[] = [];
+    page.on('request', (request) => request.url().endsWith('/api/search-misses') && beacons.push(request.url()));
+    await page.goto('/demo/menu');
+    await page.getByRole('searchbox').fill('pastel de chocolate');
+    await expect(page.getByText('Sin resultados')).toBeVisible();
+    await page.waitForTimeout(2000);
+    expect(beacons).toEqual([]);
+  });
+});
+
 test.describe('aviso semanal por correo (sin sesión)', () => {
   test('el cron no responde sin el secreto', async ({ request }) => {
     expect((await request.get('/api/cron/catalog-review')).status()).toBe(401);

@@ -186,6 +186,8 @@ type ReviewRow = { id: string; business_id: string; item_id: string | null; name
 type SiteViewStatsDailyRow = { business_id: string; day: string; views: number };
 /** Fichas de producto o servicio vistas (por día UTC). */
 type ItemViewStatsDailyRow = { business_id: string; day: string; item_id: string; views: number };
+/** Búsquedas sin resultados del sitio publicado (término en minúsculas, por día UTC; las escribe record_search_miss). */
+type SearchMissStatsDailyRow = { business_id: string; day: string; term: string; searches: number };
 
 /** Pedidos por WhatsApp enviados (contadores por día UTC; los escribe record_order). */
 type OrderStatsDailyRow = {
@@ -254,6 +256,7 @@ export type Database = {
       site_view_stats_daily: Table<SiteViewStatsDailyRow, 'business_id' | 'day'>;
       reviews: Table<ReviewRow, 'business_id' | 'name' | 'rating'>;
       item_view_stats_daily: Table<ItemViewStatsDailyRow, 'business_id' | 'day' | 'item_id'>;
+      search_miss_stats_daily: Table<SearchMissStatsDailyRow, 'business_id' | 'day' | 'term'>;
       notification_log: Table<NotificationLogRow, 'user_id' | 'business_id' | 'kind'>;
     };
     Views: { [_ in never]: never };
@@ -294,6 +297,7 @@ export type Database = {
       rate_limit_consume: { Args: { p_key: string; p_limit: number; p_window_seconds: number }; Returns: boolean };
       record_order: { Args: { p_business_slug: string; p_items: { id: string; qty: number }[] }; Returns: boolean };
       record_view: { Args: { p_business_slug: string; p_item_slug?: string | null }; Returns: boolean };
+      record_search_miss: { Args: { p_business_slug: string; p_term: string }; Returns: boolean };
       submit_review: { Args: { p_business_slug: string; p_item_slug: string | null; p_name: string; p_rating: number; p_body: string }; Returns: boolean };
       get_public_reviews: { Args: { p_business_slug: string }; Returns: { id: string; item_id: string | null; name: string; rating: number; body: string; created_at: string }[] };
       media_references: { Args: { p_business: string; p_path: string }; Returns: { place: string; ref_id: string; label: string }[] };

@@ -788,6 +788,40 @@ test('ventana de bienvenida y sucursales configuradas en el panel llegan al siti
   await visitor.close();
 });
 
+test('búsquedas sin resultados, lista de precios y etiquetas con QR', async ({ page, browser, context }) => {
+  const visitor = await browser.newContext(ANONYMOUS);
+  const site = await visitor.newPage();
+  await site.goto(`/catalogo/${slug}/productos`);
+  // La ventana de bienvenida (prueba anterior) aparece a cada visitante nuevo.
+  await site.getByRole('dialog', { name: '¡Bienvenido E2E!' }).getByRole('button', { name: 'Cerrar' }).click();
+  const counted = site.waitForResponse((response) => response.url().endsWith('/api/search-misses') && response.status() === 204);
+  await site.getByRole('searchbox').fill('Pastel de Chocolate');
+  await expect(site.getByText('Sin resultados')).toBeVisible();
+  await counted;
+  await visitor.close();
+
+  await page.goto('/dashboard');
+  const misses = page.getByRole('list', { name: 'Búsquedas sin resultados' });
+  await expect(misses.getByRole('listitem')).toHaveText(['«pastel de chocolate» · 1 vez']);
+
+  await page.getByRole('button', { name: 'Kit para compartir' }).click();
+  const list = page.getByRole('dialog').getByRole('textbox', { name: 'Lista de precios (para WhatsApp)' });
+  await expect(list).toHaveValue(/^\*Café E2E .+\* — Lista de precios/);
+  await expect(list).toHaveValue(/• Smoothie E2E — desde \$50/);
+  await expect(list).toHaveValue(new RegExp(`Pide aquí: .*/catalogo/${slug}$`));
+  await page.keyboard.press('Escape');
+
+  await page.goto('/dashboard/catalog/products');
+  await page.getByRole('checkbox', { name: 'Seleccionar Smoothie E2E' }).check();
+  const sheet = context.waitForEvent('page');
+  await page.getByRole('toolbar', { name: 'Acciones para los ítems seleccionados' }).getByRole('button', { name: 'Etiquetas con QR' }).click();
+  const labels = await sheet;
+  await expect(labels.locator('section')).toHaveCount(1);
+  await expect(labels.getByRole('heading', { name: 'Smoothie E2E' })).toBeVisible();
+  await expect(labels.locator('section svg')).toHaveCount(1);
+  await labels.close();
+});
+
 test('el idioma elegido se guarda en el perfil y vuelve al iniciar sesión', async ({ page, browser }) => {
   await page.goto('/dashboard');
   await page.getByRole('button', { name: 'Cambiar idioma' }).click();

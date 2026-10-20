@@ -483,5 +483,44 @@ await as(B);
 await expectEq('other business cannot read A reviews', () => q(`select count(*)::int n from public.reviews where business_id=$1`, [bizA]).then((r) => r[0].n), 0);
 await expectEq('other business cannot moderate A reviews', async () => (await db.query(`update public.reviews set status='rejected' where business_id=$1`, [bizA])).affectedRows, 0);
 
+// --- Búsquedas sin resultados (20261027) ---
+await db.exec('reset role');
+const miss = (term, slug = 'tienda-a') => q(`select public.record_search_miss($1, $2) ok`, [slug, term]).then((r) => r[0].ok);
+const misses = () => asSuper(() => q(`select term, searches from public.search_miss_stats_daily where business_id=$1 order by term`, [bizA]), 'service_role');
+
+await as(null);
+await expectErr('anon cannot call record_search_miss', () => miss('pastel'), 'permission denied');
+await expectErr('anon cannot read search misses', () => q(`select * from public.search_miss_stats_daily`), 'permission denied');
+await as(A);
+await expectErr('authenticated cannot call record_search_miss', () => miss('pastel'), 'permission denied');
+await expectErr('authenticated cannot write search misses', () => q(`insert into public.search_miss_stats_daily(business_id, day, term, searches) values ($1, current_date, 'x y', 9)`, [bizA]), 'permission denied');
+
+await db.exec('reset role; set role service_role;');
+await expectEq('search miss: normalizes and counts per term', async () => [await miss('  Pastel   de  Chocolate '), await miss('pastel de chocolate'), await miss('flan'), await misses()], [
+  true,
+  true,
+  true,
+  [
+    { term: 'flan', searches: 1 },
+    { term: 'pastel de chocolate', searches: 2 },
+  ],
+]);
+await expectEq('search miss: too short, too long or unknown business → false', async () => [await miss('a'), await miss('x'.repeat(61)), await miss('flan', 'no-existe')], [false, false, false]);
+await db.exec('reset role');
+await q(`insert into public.search_miss_stats_daily(business_id, day, term, searches) select $1, (now() at time zone 'utc')::date, 'relleno ' || g, 1 from generate_series(1, 198) g`, [bizA]);
+await db.exec('set role service_role');
+await expectEq('search miss: at most 200 distinct terms per day (known terms still count)', async () => [await miss('nuevo'), await miss('flan')], [false, true]);
+await db.exec('reset role');
+await q(`update public.catalogs set status='draft' where id=$1`, [catA.id]);
+await db.exec('set role service_role');
+await expectEq('search miss: unpublished catalog → false', () => miss('flan'), false);
+await db.exec('reset role');
+await q(`update public.catalogs set status='published' where id=$1`, [catA.id]);
+
+await as(A);
+await expectEq('owner reads own search misses', () => q(`select searches from public.search_miss_stats_daily where business_id=$1 and term='flan'`, [bizA]).then((r) => r[0].searches), 2);
+await as(B);
+await expectEq('other business cannot read A search misses', () => q(`select count(*)::int n from public.search_miss_stats_daily where business_id=$1`, [bizA]).then((r) => r[0].n), 0);
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);
