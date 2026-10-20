@@ -718,6 +718,19 @@ const catalog: Catalog = {
   'Pedidos en mesa': 'Table orders',
   'Pon un código QR en cada mesa: tus clientes piden desde su celular y el mensaje dice la mesa (sin entrega ni dirección).': 'Put a QR code on each table: customers order from their phone and the message says the table (no delivery or address).',
   'Las cantidades deben ir de menor a mayor': 'Quantities must go from lowest to highest',
+  'Copiar de…': 'Copy from…',
+  'Combínalo con': 'Pair it with',
+  'Copiar las opciones de otro producto': 'Copy options from another product',
+  'Copiar los extras de otro producto': 'Copy extras from another product',
+  'Hasta 4 productos o servicios que se sugieren en la ficha. Sin elegir, se sugieren solos.': 'Up to 4 products or services suggested on the product page. If you pick none, they are suggested automatically.',
+  'Opcional, para productos de temporada: fuera de esas fechas no se ve en tu sitio (aquí sí).': 'Optional, for seasonal products: outside these dates it is hidden on your site (not here).',
+  'Productos sugeridos': 'Suggested products',
+  'Visible desde': 'Visible from',
+  'Visible hasta': 'Visible until',
+  'Se verá desde el {date}': 'Visible from {date}',
+  'Temporada terminada el {date}': 'Season ended on {date}',
+  'Debe ser igual o posterior a la fecha de inicio': 'Must be on or after the start date',
+  'Elige hasta 4': 'Choose up to 4',
 };
 
 export default catalog;

@@ -26,7 +26,9 @@ export function ItemDetail({ site, item, backHref, env }: { site: SiteViewModel;
   const category = site.categories.find((c) => c.id === item.categoryId);
   const specs = visibleAttributes(item.attributes, site.attributeDefs, 'detail', siteYesNo(site.settings.language));
   const t = siteTranslator(site.settings.language);
-  const related = relatedItems(site, item);
+  // «Combínalo con» elegidos por el negocio (los que se ven hoy); si no hay, los automáticos.
+  const paired = item.pairings.flatMap((id) => site.items.filter((other) => other.id === id && other.id !== item.id));
+  const related = paired.length ? paired : relatedItems(site, item);
   return (
     <div className={styles.container}>
       <a href={backHref} className={styles.backLink}>
@@ -55,6 +57,9 @@ export function ItemDetail({ site, item, backHref, env }: { site: SiteViewModel;
                 ))}
               </ul>
             </div>
+          )}
+          {item.season?.until && (
+            <span className={styles.saleEnds}>{t('De temporada: hasta el {date}', { date: formatSaleDate(item.season.until, site.settings.locale) })}</span>
           )}
           {site.theme.cards.showPrice && item.saleEndsOn && (
             <span className={styles.saleEnds}>{t('Oferta hasta el {date}', { date: formatSaleDate(item.saleEndsOn, site.settings.locale) })}</span>
@@ -102,7 +107,7 @@ export function ItemDetail({ site, item, backHref, env }: { site: SiteViewModel;
       {env.mode !== 'preview' && <ItemReviews site={site} item={item} />}
       {related.length > 0 && (
         <section className={styles.related} aria-labelledby="related-title">
-          <h2 id="related-title" className={styles.relatedTitle}>{t('También te puede interesar')}</h2>
+          <h2 id="related-title" className={styles.relatedTitle}>{paired.length ? t('Combínalo con') : t('También te puede interesar')}</h2>
           <div className={styles.relatedGrid}>
             {related.map((other) => (
               <ItemCard key={other.id} item={other} site={site} env={env} options={{ sizes: '(max-width: 600px) 50vw, 280px', categoryName: site.categories.find((c) => c.id === other.categoryId)?.name }} />

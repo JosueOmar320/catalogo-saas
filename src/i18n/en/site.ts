@@ -329,6 +329,8 @@ const catalog: Catalog = {
   '(mayoreo, {price} c/u)': '(bulk, {price} each)',
   'Folio: {reference}': 'Order #: {reference}',
   'Mesa: {table}': 'Table: {table}',
+  'Combínalo con': 'Pair it with',
+  'De temporada: hasta el {date}': 'Seasonal: until {date}',
 };
 
 export default catalog;

@@ -50,6 +50,8 @@ export type ItemRowData = {
   hasDescription: boolean;
   /** Existencias (null = no se controlan). */
   stock: number | null;
+  /** Fuera de temporada hoy: aún no empieza o ya terminó (y desde/hasta cuándo). */
+  season: { status: 'upcoming' | 'ended'; date: string } | null;
   /** Fichas vistas y unidades pedidas en 30 días (null si no se pueden leer). */
   views: number | null;
   units: number | null;
@@ -287,6 +289,14 @@ export function ItemsTable({ items: initialItems, categories, initialReview = nu
                     {[item.categoryName ?? t('Sin categoría'), item.sku].filter(Boolean).join(' · ')}
                   </Typography>
                 </Box>
+                {item.season && (
+                  <Chip
+                    size="small"
+                    variant="outlined"
+                    label={item.season.status === 'upcoming' ? t('Se verá desde el {date}', { date: item.season.date }) : t('Temporada terminada el {date}', { date: item.season.date })}
+                    sx={{ display: { xs: 'none', md: 'inline-flex' } }}
+                  />
+                )}
                 {item.sale && (
                   <Chip
                     size="small"

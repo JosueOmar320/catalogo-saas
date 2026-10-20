@@ -699,6 +699,42 @@ test('mayoreo y pedidos en mesa configurados en el panel llegan a la ficha y al 
   await visitor.close();
 });
 
+test('temporada, copiar extras de otro producto y «Combínalo con» elegidos en el panel', async ({ page, browser }) => {
+  await page.goto('/dashboard/catalog/items/new?type=product');
+  await page.getByRole('textbox', { name: 'Nombre', exact: true }).fill('Rosca E2E');
+  await page.getByRole('textbox', { name: 'Precio', exact: true }).fill('300');
+  await page.getByLabel('Visible desde').fill('2099-01-01');
+  await page.getByRole('button', { name: 'Copiar de…' }).last().click();
+  await page.getByRole('menu', { name: 'Copiar los extras de otro producto' }).getByRole('menuitem', { name: /Bowl E2E/ }).click();
+  await expect(page.getByRole('list', { name: 'Extras' }).getByRole('textbox', { name: 'Extra' }).first()).toHaveValue('Granola');
+  await page.getByRole('combobox', { name: 'Productos sugeridos' }).click();
+  await page.getByRole('option', { name: 'Croissant E2E' }).click();
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Crear', exact: true }).click();
+  await expect(page).toHaveURL(/\/dashboard\/catalog\/items\/[0-9a-f-]{36}$/);
+  const editUrl = page.url();
+
+  await page.goto('/dashboard/catalog/products');
+  await expect(page.getByRole('listitem').filter({ hasText: 'Rosca E2E' }).getByText('Se verá desde el 1 de enero')).toBeVisible();
+  const visitor = await browser.newContext(ANONYMOUS);
+  const site = await visitor.newPage();
+  expect((await site.goto(`/catalogo/${slug}/p/rosca-e2e`))?.status()).toBe(404);
+
+  // Sin fecha de inicio: ya se ve, con los extras copiados y lo elegido para combinar.
+  await page.goto(editUrl);
+  await page.getByLabel('Visible desde').filter({ visible: true }).fill('');
+  await page.getByRole('button', { name: 'Guardar', exact: true }).first().click();
+  await expect(page.getByText('Cambios guardados')).toBeVisible();
+  await expect(async () => {
+    const response = await site.goto(`/catalogo/${slug}/p/rosca-e2e`);
+    expect(response?.status()).toBe(200);
+  }).toPass({ timeout: 15_000 });
+  await expect(site.getByRole('group', { name: /Toppings/ }).getByRole('checkbox', { name: /Granola/ })).toBeVisible();
+  const pairs = site.getByRole('region', { name: 'Combínalo con' });
+  await expect(pairs.getByRole('heading', { name: 'Croissant E2E' })).toBeVisible();
+  await visitor.close();
+});
+
 test('el idioma elegido se guarda en el perfil y vuelve al iniciar sesión', async ({ page, browser }) => {
   await page.goto('/dashboard');
   await page.getByRole('button', { name: 'Cambiar idioma' }).click();

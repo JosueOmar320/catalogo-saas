@@ -8,6 +8,9 @@ import { parseItemAttributes, type ItemVariants } from '@/lib/catalog/item-attri
 import { variantPriceSummary } from '@/lib/catalog/variants';
 import { mapItems, type ItemInput } from '@/lib/catalog/view-model';
 import { buildSampleSite } from '@/lib/site/sample-site';
+import { buildSiteViewModel } from '@/lib/site/view-model';
+import { inSeason, seasonStatus } from '@/lib/catalog/season';
+import { catalogSitemapEntries } from '@/lib/catalog/sitemap';
 import { optionOrderItem, orderConfig, variantOrderItem } from '@/site-renderer/order/config';
 import { buildOrderMessage, refreshLines } from '@/site-renderer/order/message';
 import { siteTranslator } from '@/site-renderer/site-i18n';
@@ -231,5 +234,53 @@ describe('Precios por mayoreo', () => {
     assert.deepEqual(croissant.tiers.map((tier) => [tier.minQty, tier.price]), [[6, 42], [12, 38]]);
     assert.match(croissant.tiers[0].priceLabel, /42/);
     assert.deepEqual(orderConfig(site)!.tiers[croissant.id], [[6, 42], [12, 38]]);
+  });
+});
+
+describe('Temporada y «Combínalo con»', () => {
+  const TZ = 'America/Mexico_City';
+  const base = { ...emptyItemValues('product', 'MXN'), name: 'Pan de muerto', price: '45', saleTimeZone: TZ };
+
+  it('la temporada decide si se ve hoy (en la zona de quien la programó)', () => {
+    const season = { from: '2026-10-20', until: '2026-11-02', timeZone: TZ };
+    assert.equal(seasonStatus(null, new Date('2026-10-19T18:00:00Z')), null);
+    assert.equal(seasonStatus(season, new Date('2026-10-20T05:00:00Z')), 'upcoming'); // 19 oct, 23:00
+    assert.equal(seasonStatus(season, new Date('2026-10-20T06:00:00Z')), 'active');
+    assert.equal(seasonStatus(season, new Date('2026-11-03T05:59:00Z')), 'active'); // 2 nov, 23:59
+    assert.equal(seasonStatus(season, new Date('2026-11-03T06:00:00Z')), 'ended');
+    assert.equal(inSeason({ from: '', until: '2026-11-02', timeZone: TZ }, new Date('2026-01-01T12:00:00Z')), true);
+  });
+
+  it('el formulario guarda las fechas con la zona horaria; sin fechas, nada; al revés, error', () => {
+    const values = itemFormSchema.parse({ ...base, seasonFrom: '2026-10-20', seasonUntil: '2026-11-02', pairings: ['00000000-0000-4000-8000-000000000104', '00000000-0000-4000-8000-000000000104'] });
+    const attributes = itemFormToAttributes(values);
+    assert.deepEqual(attributes.season, { from: '2026-10-20', until: '2026-11-02', timeZone: TZ });
+    assert.deepEqual(attributes.pairings, ['00000000-0000-4000-8000-000000000104']);
+    assert.equal(itemFormToAttributes(itemFormSchema.parse(base)).season, null);
+    assert.equal(itemFormSchema.safeParse({ ...base, seasonFrom: '2026-11-02', seasonUntil: '2026-10-20' }).success, false);
+    assert.deepEqual(parseItemAttributes({ season: { from: '2026-11-02', until: '2026-10-20', timeZone: TZ }, stock: 2 }).season, null);
+  });
+
+  it('el sitio publicado no trae lo que está fuera de temporada; el panel sí', () => {
+    const row = (slug: string, season: unknown) =>
+      ({ id: `11111111-1111-4111-8111-11111111111${slug.length}`, slug, type: 'product', name: slug, short_description: null, description: null, price: 40, compare_at_price: null, currency: 'MXN', price_note: null, sku: null, is_available: true, is_featured: false, is_visible: true, tags: [], category_id: null, position: 0, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z', attributes: { season }, images: [] }) as unknown as ItemInput;
+    const input = {
+      business: { name: 'Pan', slug: 'pan', description: null, logo_path: null, contact: {}, social_links: [] },
+      catalog: { theme: null, settings: {}, seo: {}, cover_path: null, favicon_path: null, published_at: null },
+      categories: [],
+      items: [row('rosca', { from: '2027-01-01', until: '2027-01-06', timeZone: TZ }), row('pan', null)],
+      pages: [],
+      removeBranding: false,
+    };
+    const now = new Date('2026-10-19T18:00:00Z');
+    assert.deepEqual(buildSiteViewModel(input, { public: true, now }).items.map((i) => i.slug), ['pan']);
+    assert.deepEqual(buildSiteViewModel(input, { now }).items.map((i) => i.slug).sort(), ['pan', 'rosca']);
+    const sitemap = catalogSitemapEntries({ businesses: [{ id: 'b', slug: 'pan' }], catalogs: [{ id: 'c', business_id: 'b', seo: {}, updated_at: '2026-10-01' }], pages: [], items: [{ catalog_id: 'c', slug: 'rosca', updated_at: '2026-10-01', attributes: { season: { from: '2027-01-01', until: '', timeZone: TZ } } }] }, 100, now);
+    assert.deepEqual(sitemap.map((e) => e.url.replace(/^https?:\/\/[^/]+/, '')), ['/catalogo/pan']);
+  });
+
+  it('la demo sugiere en el latte lo elegido («Combínalo con»)', () => {
+    const latte = buildSampleSite().items.find((i) => i.name === 'Latte de avena')!;
+    assert.deepEqual(latte.pairings, ['00000000-0000-4000-8000-000000000104', '00000000-0000-4000-8000-000000000105']);
   });
 });

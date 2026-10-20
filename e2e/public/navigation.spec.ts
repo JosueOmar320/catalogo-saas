@@ -131,6 +131,15 @@ test('favoritos: se guardan con el corazón, filtran el catálogo y se recuerdan
   await expect(main.getByRole('button', { name: /^Favoritos/ })).toHaveCount(0);
 });
 
+test('«Combínalo con»: la ficha sugiere lo que eligió el negocio', async ({ page }) => {
+  await page.goto('/demo/p/ejemplo-2');
+  const pairs = page.getByRole('region', { name: 'Combínalo con' });
+  await expect(pairs.getByRole('article')).toHaveCount(2);
+  await expect(pairs.getByRole('heading', { name: 'Croissant de mantequilla' })).toBeVisible();
+  await expect(pairs.getByRole('heading', { name: 'Pan de masa madre' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'También te puede interesar' })).toHaveCount(0);
+});
+
 test.describe('aviso semanal por correo (sin sesión)', () => {
   test('el cron no responde sin el secreto', async ({ request }) => {
     expect((await request.get('/api/cron/catalog-review')).status()).toBe(401);

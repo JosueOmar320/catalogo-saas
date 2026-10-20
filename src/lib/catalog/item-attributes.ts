@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { msg } from '@/i18n/translate';
 import { hexColor } from '@/lib/design/schema-utils';
+import { isTimeZone } from '@/lib/business/schedule';
 import { saleEndsSchema } from './sale';
 
 /**
@@ -82,6 +83,16 @@ export const tiersSchema = z
   .default([]);
 export type PriceTier = z.output<typeof priceTierSchema>;
 
+/** Temporada: el sitio muestra el producto sólo entre esas fechas (vacía = sin límite de ese lado). */
+const dateText = z.union([z.literal(''), z.string().regex(/^\d{4}-\d{2}-\d{2}$/)]).default('');
+export const seasonSchema = z
+  .object({ from: dateText, until: dateText, timeZone: z.string().max(64).refine(isTimeZone) })
+  .refine((s) => (s.from || s.until) && (!s.from || !s.until || s.from <= s.until))
+  .nullable()
+  .default(null);
+
+export const MAX_PAIRINGS = 4;
+
 /** Etiquetas de dieta y alérgenos (se muestran en la ficha y se filtran en el catálogo). */
 export const DIET_TAGS = ['vegan', 'vegetarian', 'gluten-free', 'lactose-free', 'sugar-free', 'spicy', 'organic'] as const;
 export type DietTag = (typeof DIET_TAGS)[number];
@@ -105,6 +116,9 @@ export const itemAttributesSchema = z.object({
   stock: z.number().int().min(0).max(1_000_000).nullable().default(null),
   diet: z.array(z.enum(DIET_TAGS)).max(DIET_TAGS.length).default([]),
   tiers: tiersSchema,
+  season: seasonSchema,
+  /** «Combínalo con»: productos o servicios que se sugieren en la ficha (en este orden). */
+  pairings: z.array(z.uuid()).max(MAX_PAIRINGS).default([]),
   /** Fin de la oferta (precio anterior): después se vuelve al precio normal. */
   saleEnds: saleEndsSchema,
 });
@@ -125,6 +139,8 @@ export function parseItemAttributes(raw: unknown): ItemAttributes {
     stock: z.number().int().min(0).max(1_000_000).nullable().catch(null).parse(partial.stock ?? null),
     diet: z.array(z.enum(DIET_TAGS)).catch([]).parse(partial.diet ?? []),
     tiers: tiersSchema.catch([]).parse(partial.tiers ?? []),
+    season: seasonSchema.catch(null).parse(partial.season ?? null),
+    pairings: z.array(z.uuid()).max(MAX_PAIRINGS).catch([]).parse(partial.pairings ?? []),
     orderHours: orderHoursSchema.catch(null).parse(partial.orderHours),
     saleEnds: saleEndsSchema.catch(null).parse(partial.saleEnds),
   };

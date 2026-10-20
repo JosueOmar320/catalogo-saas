@@ -1,5 +1,7 @@
 import { parseContact, parseSocialLinks, type BusinessContact, type SocialLink } from '@/lib/business/profile';
 import { parseAttributeDefs, type AttributeDef } from '@/lib/catalog/attributes';
+import { parseItemAttributes } from '@/lib/catalog/item-attributes';
+import { inSeason } from '@/lib/catalog/season';
 import { parseCatalogSettings, parseSeo, type CatalogSeo, type CatalogSettings } from '@/lib/catalog/settings';
 import { catalogUrl, mapCategories, mapItems, type CatalogCategoryView, type CatalogItemView, type CategoryInput, type ItemInput } from '@/lib/catalog/view-model';
 import { parseTheme, type ThemeConfig } from '@/lib/design/theme';
@@ -51,7 +53,11 @@ export type SiteInput = {
   removeBranding: boolean;
 };
 
-export function buildSiteViewModel(input: SiteInput): SiteViewModel {
+/**
+ * `public`: el sitio publicado (y la demo) — sin los productos fuera de
+ * temporada. El panel los conserva (vista previa, PDF del panel).
+ */
+export function buildSiteViewModel(input: SiteInput, { public: isPublic = false, now = new Date() }: { public?: boolean; now?: Date } = {}): SiteViewModel {
   const settings = parseCatalogSettings(input.catalog.settings);
   const categories = mapCategories(input.categories);
   const attributeDefs = parseAttributeDefs(input.catalog.attribute_defs);
@@ -71,7 +77,12 @@ export function buildSiteViewModel(input: SiteInput): SiteViewModel {
     coverUrl: publicStorageUrl(input.catalog.cover_path),
     faviconUrl: publicStorageUrl(input.catalog.favicon_path),
     categories,
-    items: mapItems(input.items, categories, input.business.slug, { locale: settings.locale, attributeDefs, priceFormat: settings.priceFormat }),
+    items: mapItems(isPublic ? input.items.filter((item) => inSeason(parseItemAttributes(item.attributes).season, now)) : input.items, categories, input.business.slug, {
+      locale: settings.locale,
+      attributeDefs,
+      priceFormat: settings.priceFormat,
+      now,
+    }),
     attributeDefs,
     pages: input.pages.map(pageFromRow),
     navigation: parseNavigation(input.catalog.navigation),
