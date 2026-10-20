@@ -11,7 +11,7 @@ import { themeToVars } from './theme-vars';
 /** Raíz del sitio: variables del tema, fondo global, idioma del negocio y pedido por WhatsApp (si está activo). */
 export function SiteShell({ theme, language = 'es', order, children, className }: { theme: ThemeConfig; language?: Locale; order?: OrderConfig | null; children: ReactNode; className?: string }) {
   return (
-    <div className={`${styles.root} ${className ?? ''}`} style={themeToVars(theme)} lang={language}>
+    <div className={`${styles.root} ${className ?? ''}`} style={themeToVars(theme)} lang={language} data-site="">
       <BackgroundLayers background={theme.background} />
       <SiteI18nProvider language={language}>{order ? <OrderProvider config={order}>{children}</OrderProvider> : children}</SiteI18nProvider>
     </div>

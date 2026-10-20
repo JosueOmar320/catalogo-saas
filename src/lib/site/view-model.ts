@@ -37,6 +37,8 @@ export type SiteViewModel = {
   pages: SitePage[];
   navigation: NavigationConfig;
   showBranding: boolean;
+  /** Código propio habilitado (HTML, widgets y CSS del sitio); si no, no se muestra. */
+  customCode: boolean;
   /** URL absoluta de la raíz pública del sitio. */
   url: string;
   publishedAt: string | null;
@@ -51,6 +53,7 @@ export type SiteInput = {
   items: ItemInput[];
   pages: Parameters<typeof pageFromRow>[0][];
   removeBranding: boolean;
+  customCode?: boolean;
 };
 
 /**
@@ -87,6 +90,7 @@ export function buildSiteViewModel(input: SiteInput, { public: isPublic = false,
     pages: input.pages.map(pageFromRow),
     navigation: parseNavigation(input.catalog.navigation),
     showBranding: !input.removeBranding,
+    customCode: input.customCode ?? false,
     url: catalogUrl(input.business.slug),
     publishedAt: input.catalog.published_at,
   };

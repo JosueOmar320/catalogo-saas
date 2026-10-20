@@ -96,6 +96,7 @@ export async function getSiteForAdmin(ctx: BusinessContext): Promise<SiteViewMod
     items: items.filter((i) => i.is_visible && (i.category_id === null || activeIds.has(i.category_id))),
     pages: [],
     removeBranding: ctx.entitlements.features.remove_branding,
+    customCode: ctx.customCode,
   });
   return { ...site, pages };
 }

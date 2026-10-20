@@ -4,6 +4,7 @@ import { ICON_IDS } from '@/lib/design/icons';
 import { fieldFactory, hexColor } from '@/lib/design/schema-utils';
 import { collectionSchema, lenientCollectionSchema, SORT_OPTIONS } from '@/lib/catalog/collections';
 import { lenientPresentationSchema, presentationSchema } from '@/lib/catalog/presentation';
+import { MAX_HTML_LENGTH } from './custom-code-config';
 
 /**
  * Secciones de página. Cada tipo = schema de contenido con defaults.
@@ -34,6 +35,8 @@ export const SECTION_TYPES = [
   'logos',
   'columns',
   'quickorder',
+  'html',
+  'embed',
 ] as const;
 export type SectionType = (typeof SECTION_TYPES)[number];
 
@@ -485,6 +488,24 @@ function build(lenient: boolean) {
         showImages: bool(true),
       }),
     ),
+    /** HTML propio (se limpia al guardar y al mostrar). Sólo se muestra con código propio habilitado. */
+    html: base(
+      'html',
+      z.object({
+        html: text(MAX_HTML_LENGTH),
+      }),
+    ),
+    /** Widget con código (scripts) en un iframe aislado. Sólo se muestra con código propio habilitado. */
+    embed: base(
+      'embed',
+      z.object({
+        /** Nombre accesible del iframe ("Reservas", "Mapa de sucursales"…). */
+        title: text(80),
+        code: text(MAX_HTML_LENGTH),
+        /** Alto en px; 0 = automático (el widget avisa su altura). */
+        height: f(z.number().int().min(0).max(2000), 0),
+      }),
+    ),
     columns: base(
       'columns',
       z.object({
@@ -528,6 +549,8 @@ function build(lenient: boolean) {
     sections.logos,
     sections.columns,
     sections.quickorder,
+    sections.html,
+    sections.embed,
   ]);
 
   return { sections, section, style, link, button };

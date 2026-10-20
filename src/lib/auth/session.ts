@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { cache } from 'react';
 import { isSupabaseConfigured } from '@/lib/env';
-import { parseEntitlements, type Entitlements } from '@/lib/plans/entitlements';
+import { customCodeEnabled, parseEntitlements, type Entitlements } from '@/lib/plans/entitlements';
 import { createClient, type ServerSupabase } from '@/lib/supabase/server';
 import type { MemberRole, Tables } from '@/types/database';
 
@@ -47,6 +47,8 @@ export type BusinessContext = {
   catalog: Tables<'catalogs'>;
   businesses: Pick<Tables<'businesses'>, 'id' | 'name' | 'slug'>[];
   entitlements: Entitlements;
+  /** Código propio habilitado por el administrador (plan o negocio). */
+  customCode: boolean;
 };
 
 /**
@@ -90,6 +92,7 @@ export const getBusinessContext = cache(async (): Promise<BusinessContext | null
     supabase.from('catalogs').select('*').eq('business_id', business.id).eq('is_default', true).is('deleted_at', null).single(),
   ]);
   if (!catalog.data) return null;
+  const entitlements = parseEntitlements(plan.data ?? { id: business.plan_id, name: business.plan_id, limits: {}, features: {} });
 
   return {
     supabase,
@@ -101,7 +104,8 @@ export const getBusinessContext = cache(async (): Promise<BusinessContext | null
     business,
     catalog: catalog.data,
     businesses: businesses.map(({ id, name, slug }) => ({ id, name, slug })),
-    entitlements: parseEntitlements(plan.data ?? { id: business.plan_id, name: business.plan_id, limits: {}, features: {} }),
+    entitlements,
+    customCode: customCodeEnabled(business, entitlements.features),
   };
 });
 

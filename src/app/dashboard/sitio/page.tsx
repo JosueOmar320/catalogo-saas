@@ -11,7 +11,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 const PANELS = ['pages', 'navigation', 'design'] as const;
-const DESIGN_TABS = ['theme', 'colors', 'type', 'style', 'background', 'cards'] as const;
+const DESIGN_TABS = ['theme', 'colors', 'type', 'style', 'background', 'cards', 'css'] as const;
 
 export default async function SiteBuilderPage({ searchParams }: PageProps<'/dashboard/sitio'>) {
   const ctx = await requireBusinessContext();

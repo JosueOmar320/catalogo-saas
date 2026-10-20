@@ -5534,3 +5534,33 @@ input.qtyValue:focus-visible {
     min-width: 0;
   }
 }
+
+/* ============================================================== Código propio */
+
+.customHtml {
+  overflow-wrap: anywhere;
+}
+
+.customHtml img,
+.customHtml video {
+  max-width: 100%;
+  height: auto;
+}
+
+.customHtml table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.customHtml :is(th, td) {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--c-border);
+  text-align: left;
+}
+
+.embedFrame {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+}

@@ -738,6 +738,21 @@ const catalog: Catalog = {
   'Relleno arriba (px)': 'Top padding (px)',
   'Se anima al aparecer mientras el visitante baja. No se anima si su dispositivo pide reducir el movimiento.': 'Animates into view as visitors scroll. It does not animate if their device asks for reduced motion.',
   'Sólo en tablets': 'Tablets only',
+  'CSS propio': 'Custom CSS',
+  'Se aplica sólo a tu sitio (también al menú y al pie de página). body y :root son la raíz del sitio. Sin @import; las imágenes y fuentes, sólo por https.': 'Applies only to your site (including the menu and footer). body and :root are the site root. No @import; images and fonts over https only.',
+  'Automático: el widget avisa su alto. Si se corta, fija un alto.': 'Automatic: the widget reports its height. If it gets cut off, set a height.',
+  'Lo anuncian los lectores de pantalla.': 'Screen readers announce it.',
+  'Los scripts, iframes, formularios, estilos <style> y eventos (onclick…) no se permiten aquí y se quitan al publicar. Para código de otro servicio usa la sección «Widget con código»; para estilos, Diseño › CSS propio.': 'Scripts, iframes, forms, <style> tags and events (onclick…) are not allowed here and are removed when publishing. For code from another service use the “Code widget” section; for styles, Design › Custom CSS.',
+  'Nombre del widget': 'Widget name',
+  'Pega el código que te da el otro servicio (reservas, formularios, mapas, chats). Corre aislado: no puede leer tu sitio ni los datos de tus visitantes.': 'Paste the code the other service gives you (bookings, forms, maps, chats). It runs isolated: it cannot read your site or your visitors’ data.',
+  'Usa etiquetas comunes (títulos, párrafos, listas, tablas, imágenes, enlaces) y clases para tu CSS. Toma los colores y las fuentes del sitio.': 'Use common tags (headings, paragraphs, lists, tables, images, links) and classes for your CSS. It takes the site’s colors and fonts.',
+  'ej. Reservas': 'e.g. Bookings',
+  'El código propio no está habilitado para tu negocio: lo que escribas aquí no se publica. Pídele al administrador de la plataforma que lo active.': 'Custom code is not enabled for your business: what you write here is not published. Ask the platform administrator to turn it on.',
+  '{count} de {max} caracteres': '{count} of {max} characters',
+  'Código de otro servicio (reservas, formularios, mapas, chats) aislado en un marco seguro.': 'Code from another service (bookings, forms, maps, chats) isolated in a safe frame.',
+  'HTML propio': 'Custom HTML',
+  'Tu propio HTML con los estilos del sitio (sin scripts). Para lo que las otras secciones no hacen.': 'Your own HTML with the site’s styles (no scripts). For what the other sections don’t do.',
+  'Widget con código': 'Code widget',
 };
 
 export default catalog;

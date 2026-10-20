@@ -15,12 +15,12 @@ import { env } from '@/lib/env';
 import { useAction } from '@/lib/hooks/use-action';
 import { slugify } from '@/lib/utils/slug';
 import type { MemberRole } from '@/types/database';
-import { createBusiness, createCatalog, openBusiness, removeMembership, setMembership, updateBusiness, updateCatalog } from '../actions';
+import { createBusiness, createCatalog, openBusiness, removeMembership, setBusinessCustomCode, setMembership, updateBusiness, updateCatalog, type CustomCodeMode } from '../actions';
 import { createBusinessSchema, MEMBER_ROLE_LABELS, MEMBER_ROLES, updateBusinessSchema, type CreateBusinessValues, type UpdateBusinessValues } from '../schema';
 import { matches, SearchField, StatusChip, useDateFormat } from './common';
 
 type UserOption = { id: string; username: string; fullName: string | null; status: string };
-type PlanOption = { id: string; name: string };
+type PlanOption = { id: string; name: string; customCode?: boolean };
 const roleOptions = MEMBER_ROLES.map((r) => ({ value: r, label: MEMBER_ROLE_LABELS[r] }));
 const publicHost = env.siteUrl.replace(/^https?:\/\//, '');
 
@@ -157,6 +157,8 @@ type Detail = {
   createdAt: string;
   members: { userId: string; username: string; fullName: string | null; status: string; role: MemberRole }[];
   catalogs: { id: string; name: string; status: string; isActive: boolean; isDefault: boolean; updatedAt: string }[];
+  /** null = según el plan. */
+  customCode: boolean | null;
 };
 
 export function EditBusinessPanel({ business, users, plans }: { business: Detail; users: UserOption[]; plans: PlanOption[] }) {
@@ -215,6 +217,8 @@ export function EditBusinessPanel({ business, users, plans }: { business: Detail
               )}
             </Stack>
           </SectionCard>
+
+          <CustomCodeCard business={business} plan={plans.find((p) => p.id === business.planId)} />
         </Stack>
       </Grid>
 
@@ -265,5 +269,31 @@ export function CatalogRow({ catalog, onChange, businessName }: { catalog: { id:
         <Typography variant="caption" color="text.secondary">{catalog.isActive ? t('Activo') : t('Inactivo')}</Typography>
       </Stack>
     </Stack>
+  );
+}
+
+/** Código propio (HTML, widgets y CSS): según el plan, o una decisión sólo para este negocio. */
+function CustomCodeCard({ business, plan }: { business: Detail; plan?: PlanOption }) {
+  const t = useT();
+  const router = useRouter();
+  const { run, pending } = useAction();
+  const mode: CustomCodeMode = business.customCode === null ? 'plan' : business.customCode ? 'on' : 'off';
+  const planLabel = plan?.customCode ? t('Según el plan ({plan}: activado)', { plan: plan.name }) : t('Según el plan ({plan}: desactivado)', { plan: plan?.name ?? business.planId });
+  return (
+    <SectionCard title={t('Código propio')} description={t('Sección HTML, widgets con código y CSS propio en el editor del sitio. El HTML se limpia y los widgets corren aislados, pero el contenido lo decide el negocio: actívalo sólo para quien lo necesite.')}>
+      <Stack sx={{ pb: 2 }}>
+        <TextField
+          select
+          label={t('Código propio')}
+          value={mode}
+          disabled={pending}
+          onChange={(e) => run(() => setBusinessCustomCode(business.id, e.target.value as CustomCodeMode), { onSuccess: () => router.refresh() })}
+        >
+          <MenuItem value="plan">{planLabel}</MenuItem>
+          <MenuItem value="on">{t('Activado para este negocio')}</MenuItem>
+          <MenuItem value="off">{t('Desactivado para este negocio')}</MenuItem>
+        </TextField>
+      </Stack>
+    </SectionCard>
   );
 }
