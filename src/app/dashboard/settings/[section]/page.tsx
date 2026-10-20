@@ -43,7 +43,7 @@ export default async function SettingsPage({ params }: PageProps<'/dashboard/set
       );
       break;
     case 'contacto':
-      content = <ContactForm contact={parseContact(ctx.business.contact)} actions={settings.contactActions} order={settings.order} businessName={ctx.business.name} />;
+      content = <ContactForm contact={parseContact(ctx.business.contact)} actions={settings.contactActions} order={settings.order} businessName={ctx.business.name} catalogUrl={catalogUrl(ctx.business.slug)} />;
       break;
     case 'redes':
       content = <SocialLinksForm links={parseSocialLinks(ctx.business.social_links)} />;

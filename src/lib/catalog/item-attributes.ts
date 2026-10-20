@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { msg } from '@/i18n/translate';
 import { hexColor } from '@/lib/design/schema-utils';
 import { saleEndsSchema } from './sale';
 
@@ -66,6 +67,21 @@ export const orderHoursSchema = z
 
 export type OrderHours = NonNullable<z.output<typeof orderHoursSchema>>;
 
+/**
+ * Precios por mayoreo: desde cierta cantidad (de la misma línea del pedido),
+ * otro precio por unidad. Sólo productos sin opciones.
+ */
+export const MAX_PRICE_TIERS = 5;
+/** Tope de unidades por línea del pedido (igual que el pedido y sus estadísticas). */
+export const MAX_TIER_QTY = 99;
+export const priceTierSchema = z.object({ minQty: z.number().int().min(2).max(MAX_TIER_QTY), price: z.number().min(0).max(99_999_999) });
+export const tiersSchema = z
+  .array(priceTierSchema)
+  .max(MAX_PRICE_TIERS)
+  .refine((list) => list.every((tier, i) => i === 0 || tier.minQty > list[i - 1].minQty), msg('Las cantidades deben ir de menor a mayor'))
+  .default([]);
+export type PriceTier = z.output<typeof priceTierSchema>;
+
 /** Etiquetas de dieta y alérgenos (se muestran en la ficha y se filtran en el catálogo). */
 export const DIET_TAGS = ['vegan', 'vegetarian', 'gluten-free', 'lactose-free', 'sugar-free', 'spicy', 'organic'] as const;
 export type DietTag = (typeof DIET_TAGS)[number];
@@ -88,6 +104,7 @@ export const itemAttributesSchema = z.object({
   /** Existencias (null = no se controlan). En 0 el producto queda agotado solo. */
   stock: z.number().int().min(0).max(1_000_000).nullable().default(null),
   diet: z.array(z.enum(DIET_TAGS)).max(DIET_TAGS.length).default([]),
+  tiers: tiersSchema,
   /** Fin de la oferta (precio anterior): después se vuelve al precio normal. */
   saleEnds: saleEndsSchema,
 });
@@ -107,6 +124,7 @@ export function parseItemAttributes(raw: unknown): ItemAttributes {
     extras: extrasSchema.catch(null).parse(partial.extras),
     stock: z.number().int().min(0).max(1_000_000).nullable().catch(null).parse(partial.stock ?? null),
     diet: z.array(z.enum(DIET_TAGS)).catch([]).parse(partial.diet ?? []),
+    tiers: tiersSchema.catch([]).parse(partial.tiers ?? []),
     orderHours: orderHoursSchema.catch(null).parse(partial.orderHours),
     saleEnds: saleEndsSchema.catch(null).parse(partial.saleEnds),
   };

@@ -55,6 +55,8 @@ export type CatalogItemView = {
   /** Existencias (null = no se controlan). */
   stock: number | null;
   diet: DietTag[];
+  /** Precios por mayoreo (de menor a mayor cantidad), con el precio formateado; vacío si no tiene. */
+  tiers: { minQty: number; price: number; priceLabel: string }[];
   /** Horario del día en que se puede pedir (desayunos); null = siempre. */
   orderHours: { from: string; to: string } | null;
   /** Último día de la oferta ("2026-10-31") mientras sigue vigente; null si no tiene fecha. */
@@ -169,6 +171,8 @@ function toItemView(item: ItemInput, businessSlug: string, { locale, attributeDe
     orderHours: attributes.orderHours,
     stock: attributes.stock,
     diet: attributes.diet,
+    // Sólo productos sin opciones y con precio: el mayoreo baja el precio por unidad.
+    tiers: item.type === 'product' && !attributes.variants && price !== null ? attributes.tiers.map((tier) => ({ ...tier, priceLabel: format(tier.price) })) : [],
     saleEndsOn: !attributes.variants && compareAt !== null && price !== null && compareAt > price ? (attributes.saleEnds?.on ?? null) : null,
   };
 }

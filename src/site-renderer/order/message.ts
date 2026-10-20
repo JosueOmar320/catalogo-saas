@@ -28,7 +28,38 @@ export type OrderItem = {
   image: string | null;
 };
 
-export type OrderLine = OrderItem & { qty: number; /** Indicación del cliente para esta línea ("sin cebolla"). */ note?: string };
+export type OrderLine = OrderItem & {
+  qty: number;
+  /** Indicación del cliente para esta línea ("sin cebolla"). */
+  note?: string;
+  /** Lleva precio de mayoreo (calculado al mostrar; no se guarda). */
+  wholesale?: boolean;
+};
+
+/** Precios por mayoreo de cada producto (por id): [desde cuántas piezas, precio c/u], de menor a mayor. */
+export type TierIndex = Record<string, [minQty: number, price: number][]>;
+
+/** El escalón de mayoreo que alcanza una cantidad, o null. */
+export function tierFor(tiers: TierIndex[string] | undefined, qty: number): [minQty: number, price: number] | null {
+  let found: [number, number] | null = null;
+  for (const tier of tiers ?? []) if (qty >= tier[0]) found = tier;
+  return found;
+}
+
+/**
+ * Las líneas con el precio de mayoreo que alcanzan. Sólo la línea del
+ * producto sin opciones ni extras (su id es el del producto).
+ */
+export function applyTiers(lines: OrderLine[], tiers: TierIndex): OrderLine[] {
+  let changed = false;
+  const next = lines.map((line) => {
+    const tier = line.price === null ? null : tierFor(tiers[line.id], line.qty);
+    if (!tier) return line;
+    changed = true;
+    return { ...line, price: tier[1], priceLabel: null, wholesale: true };
+  });
+  return changed ? next : lines;
+}
 
 /** Formato de precios del sitio (moneda, locale y formato del catálogo). */
 export type OrderPricing = { currency: string; locale: string; format: PriceFormat };
@@ -64,7 +95,7 @@ export type Fulfillment = 'pickup' | 'delivery';
 /** Lo que el negocio configuró para entregar y cobrar (subconjunto plano de OrderSettings). */
 export type OrderOptions = Pick<
   OrderSettings,
-  'pickup' | 'delivery' | 'deliveryFee' | 'freeDeliveryFrom' | 'deliveryNote' | 'zones' | 'minimumOrder' | 'payments' | 'scheduling' | 'leadMinutes' | 'scheduleDays' | 'slotMinutes'
+  'pickup' | 'delivery' | 'deliveryFee' | 'freeDeliveryFrom' | 'deliveryNote' | 'zones' | 'tables' | 'minimumOrder' | 'payments' | 'scheduling' | 'leadMinutes' | 'scheduleDays' | 'slotMinutes'
 >;
 
 /* ------------------------------------------------------ Precios al día y pausa */
@@ -145,6 +176,8 @@ export type OrderChoices = {
   address: string;
   /** Zona de entrega elegida (su nombre), si el negocio usa zonas. */
   zone?: string | null;
+  /** Mesa desde la que se pide (código QR de la mesa), si el negocio acepta pedidos en mesa. */
+  table?: string | null;
   payment: PaymentMethod | null;
   coupon?: AppliedCoupon | null;
   /** Día y hora elegidos ("¿Para cuándo?"), en la zona del negocio; null = lo antes posible. */
@@ -158,6 +191,7 @@ export const NO_OPTIONS: OrderOptions = {
   freeDeliveryFrom: null,
   deliveryNote: '',
   zones: [],
+  tables: false,
   minimumOrder: null,
   payments: [],
   scheduling: 'off',
@@ -195,6 +229,8 @@ export type OrderSummary = {
   minimum: number | null;
   /** Zona de entrega elegida (si el negocio usa zonas y la entrega es a domicilio). */
   zone: DeliveryZone | null;
+  /** Mesa del pedido (en el local): sin entrega, dirección ni "¿Para cuándo?". */
+  table: string | null;
   /** Cuánto falta para el pedido mínimo (sólo si todos los precios se conocen). */
   missingForMinimum: number | null;
   /** Cuánto falta para el envío gratis. */
@@ -220,7 +256,8 @@ export const findZone = (options: OrderOptions, name: string | null | undefined)
  */
 export function summarizeOrder(lines: OrderLine[], pricing: OrderPricing, options: OrderOptions = NO_OPTIONS, choices: OrderChoices = NO_CHOICES, now: Date = new Date()): OrderSummary {
   const subtotal = orderTotal(lines, pricing);
-  const fulfillment = effectiveFulfillment(options, choices.fulfillment);
+  const table = (options.tables && choices.table?.trim()) || null;
+  const fulfillment = table ? null : effectiveFulfillment(options, choices.fulfillment);
   const known = subtotal && !subtotal.partial ? subtotal.value : null;
 
   const zoned = fulfillment === 'delivery' && options.zones.length > 0;
@@ -254,12 +291,13 @@ export function summarizeOrder(lines: OrderLine[], pricing: OrderPricing, option
     value: cents(subtotal.value - (discount?.value ?? 0) + (delivery?.kind === 'fee' ? delivery.value : 0)),
     partial: subtotal.partial || delivery?.kind === 'confirm',
   };
-  const minimums = [options.minimumOrder, zone?.minimumOrder ?? null].filter((value): value is number => value !== null);
+  // En la mesa no hay pedido mínimo (es para la entrega o para recoger).
+  const minimums = table ? [] : [options.minimumOrder, zone?.minimumOrder ?? null].filter((value): value is number => value !== null);
   const minimum = minimums.length ? Math.max(...minimums) : null;
   const missingForMinimum = minimum !== null && known !== null && known < minimum ? cents(minimum - known) : null;
 
   const blocker =
-    fulfillmentOptions(options).length > 0 && !fulfillment
+    !table && fulfillmentOptions(options).length > 0 && !fulfillment
       ? 'fulfillment'
       : zoned && !zone
         ? 'zone'
@@ -267,10 +305,10 @@ export function summarizeOrder(lines: OrderLine[], pricing: OrderPricing, option
         ? 'address'
         : missingForMinimum !== null
           ? 'minimum'
-          : options.scheduling === 'required' && !choices.when
+          : !table && options.scheduling === 'required' && !choices.when
             ? 'when'
             : null;
-  return { subtotal, delivery, total, minimum, zone, missingForMinimum, missingForFreeDelivery, blocker, discount, couponIssue };
+  return { subtotal, delivery, total, minimum, zone, table, missingForMinimum, missingForFreeDelivery, blocker, discount, couponIssue };
 }
 
 export type OrderMessageInput = {
@@ -287,6 +325,8 @@ export type OrderMessageInput = {
   options?: OrderOptions;
   choices?: OrderChoices;
   now?: Date;
+  /** Folio del pedido ("K7Q2"), para que el negocio y el cliente lo identifiquen. */
+  reference?: string;
 };
 
 /**
@@ -306,13 +346,13 @@ export type OrderMessageInput = {
  *
  * Con envío a domicilio o cupón, el total se desglosa (subtotal, cupón, envío y total).
  */
-export function buildOrderMessage({ lines, pricing, intro, businessName, customerName, note, siteUrl, t, options = NO_OPTIONS, choices = NO_CHOICES, now }: OrderMessageInput): string {
+export function buildOrderMessage({ lines, pricing, intro, businessName, customerName, note, siteUrl, t, options = NO_OPTIONS, choices = NO_CHOICES, now, reference }: OrderMessageInput): string {
   const head = intro.replace(/\{negocio\}/g, businessName).trim();
   const items = lines.map((line) => {
     const sku = line.sku ? ` (${line.sku})` : '';
     const price =
       line.price !== null && line.currency === pricing.currency
-        ? ` — ${formatAmount(line.price * line.qty, pricing)}`
+        ? ` — ${formatAmount(line.price * line.qty, pricing)}${line.wholesale ? ` ${t('(mayoreo, {price} c/u)', { price: formatAmount(line.price, pricing) })}` : ''}`
         : line.priceLabel
           ? ` — ${line.priceLabel}`
           : ` ${t('(precio por confirmar)')}`;
@@ -320,7 +360,7 @@ export function buildOrderMessage({ lines, pricing, intro, businessName, custome
     return `• ${line.qty} × ${line.name}${sku}${price}${note ? `\n   ${t('Nota: {note}', { note })}` : ''}`;
   });
 
-  const { subtotal, delivery, discount, total, zone } = summarizeOrder(lines, pricing, options, choices, now);
+  const { subtotal, delivery, discount, total, zone, table } = summarizeOrder(lines, pricing, options, choices, now);
   const summary: string[] = [];
   const productsTotal = (amount: Amount, key: 'Total' | 'Subtotal') => {
     const value = formatAmount(amount.value, pricing);
@@ -335,8 +375,9 @@ export function buildOrderMessage({ lines, pricing, intro, businessName, custome
     if (discount || delivery?.kind === 'fee') summary.push(productsTotal({ value: total.value, partial: subtotal.partial }, 'Total'));
   } else if (subtotal) summary.push(productsTotal(subtotal, 'Total'));
 
-  const fulfillment = effectiveFulfillment(options, choices.fulfillment);
-  if (options.scheduling !== 'off' && choices.when) summary.push(t('Para: {when}', { when: formatPickup(choices.when.date, choices.when.time, pricing.locale) }));
+  const fulfillment = table ? null : effectiveFulfillment(options, choices.fulfillment);
+  if (table) summary.push(t('Mesa: {table}', { table }));
+  if (!table && options.scheduling !== 'off' && choices.when) summary.push(t('Para: {when}', { when: formatPickup(choices.when.date, choices.when.time, pricing.locale) }));
   if (fulfillment) summary.push(t('Entrega: {mode}', { mode: fulfillment === 'delivery' ? t('A domicilio') : t('Recoger en el local') }));
   if (zone) summary.push(t('Zona: {zone}', { zone: zone.name }));
   const address = choices.address.trim();
@@ -346,6 +387,7 @@ export function buildOrderMessage({ lines, pricing, intro, businessName, custome
   if (name) summary.push(t('Nombre: {name}', { name }));
   const extra = note?.trim();
   if (extra) summary.push(t('Nota: {note}', { note: extra }));
+  if (reference) summary.push(t('Folio: {reference}', { reference }));
 
   return [head, '', ...items, '', ...summary, ...(summary.length ? [''] : []), t('Pedido desde {url}', { url: siteUrl })].join('\n').trim();
 }

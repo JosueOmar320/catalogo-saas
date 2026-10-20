@@ -3,7 +3,7 @@ import { msg } from '@/i18n/translate';
 import { CURRENCIES } from '@/lib/catalog/settings';
 import { priceText, priceToNumber } from '@/lib/utils/validation';
 import { uploadedImageSchema } from '@/features/media/schema';
-import { DIET_TAGS, MANUAL_BADGES, MAX_EXTRA_OPTIONS, MAX_VARIANT_OPTIONS } from '@/lib/catalog/item-attributes';
+import { DIET_TAGS, MANUAL_BADGES, MAX_EXTRA_OPTIONS, MAX_PRICE_TIERS, MAX_VARIANT_OPTIONS } from '@/lib/catalog/item-attributes';
 import { isTimeZone } from '@/lib/business/schedule';
 import { hexColor } from '@/lib/design/schema-utils';
 
@@ -70,6 +70,8 @@ export const itemFormSchema = z
     /** Existencias ("" = no se controlan). */
     stock: z.union([z.literal(''), z.string().trim().regex(/^\d{1,7}$/, msg('Usa un número entero, ej. 12'))]),
     diet: z.array(z.enum(DIET_TAGS)).max(DIET_TAGS.length),
+    /** Precios por mayoreo: desde cuántas piezas y a qué precio cada una. */
+    tiers: z.array(z.object({ minQty: z.union([z.literal(''), z.string().trim().regex(/^\d{1,2}$/, msg('Usa un número entero, ej. 12'))]), price: priceText })).max(MAX_PRICE_TIERS),
     /** Sólo se puede pedir en este horario del día (desayunos). */
     orderHoursEnabled: z.boolean(),
     orderHoursFrom: z.string(),
@@ -89,6 +91,14 @@ export const itemFormSchema = z
   .refine((v) => !v.variantsEnabled || v.variants.some((o) => o.name.trim() !== ''), { path: ['variants'], message: msg('Agrega al menos una opción') })
   .refine((v) => !v.extrasEnabled || v.extrasLabel.trim() !== '', { path: ['extrasLabel'], message: msg('Escribe cómo se llaman (p. ej. Extras)') })
   .refine((v) => !v.extrasEnabled || v.extras.some((o) => o.name.trim() !== ''), { path: ['extras'], message: msg('Agrega al menos un extra') })
+  .refine((v) => v.tiers.every((tier) => (tier.minQty === '' && !tier.price?.trim()) || (tier.minQty !== '' && Number(tier.minQty) >= 2 && priceToNumber(tier.price) !== null)), {
+    path: ['tiers'],
+    message: msg('Cada fila necesita una cantidad (2 o más) y su precio'),
+  })
+  .refine((v) => new Set(v.tiers.filter((tier) => tier.minQty !== '').map((tier) => Number(tier.minQty))).size === v.tiers.filter((tier) => tier.minQty !== '').length, {
+    path: ['tiers'],
+    message: msg('Hay dos filas con la misma cantidad'),
+  })
   .refine((v) => !v.orderHoursEnabled || (TIME.test(v.orderHoursFrom) && TIME.test(v.orderHoursTo) && v.orderHoursFrom !== v.orderHoursTo), {
     path: ['orderHoursTo'],
     message: msg('Elige una hora de inicio y otra de fin distintas'),
@@ -127,10 +137,22 @@ export function itemFormToAttributes(values: z.output<typeof itemFormSchema>) {
     orderHours: values.type === 'product' ? formOrderHours(values) : null,
     stock: values.type === 'product' && values.stock !== '' ? Number(values.stock) : null,
     diet: values.diet,
+    tiers: values.type === 'product' && !values.variantsEnabled ? formTiers(values.tiers) : [],
     saleEnds: values.saleEndsOn && priceToNumber(values.compareAtPrice) !== null && isTimeZone(values.saleTimeZone) ? { on: values.saleEndsOn, timeZone: values.saleTimeZone } : null,
     customBadge: values.customBadgeLabel ? { label: values.customBadgeLabel, color: values.customBadgeColor } : null,
     values: values.attributeValues,
   };
+}
+
+/** Filas de mayoreo → atributos guardados: completas, de menor a mayor cantidad. */
+export function formTiers(rows: z.output<typeof itemFormSchema>['tiers']) {
+  return rows
+    .flatMap((row) => {
+      const price = priceToNumber(row.price);
+      return row.minQty !== '' && Number(row.minQty) >= 2 && price !== null ? [{ minQty: Number(row.minQty), price }] : [];
+    })
+    .sort((a, b) => a.minQty - b.minQty)
+    .slice(0, MAX_PRICE_TIERS);
 }
 
 /** Extras del formulario → atributos guardados (las filas sin nombre se descartan; sin precio = gratis). */

@@ -45,6 +45,8 @@ type SampleItem = {
   orderHours?: { from: string; to: string };
   stock?: number;
   diet?: DietTag[];
+  /** Mayoreo: [desde cuántas piezas, precio c/u]. */
+  tiers?: [minQty: number, price: number][];
 };
 
 const ITEMS: SampleItem[] = [
@@ -52,7 +54,7 @@ const ITEMS: SampleItem[] = [
   { name: 'Latte de avena', category: 0, short: 'Espresso con bebida de avena texturizada.', price: 68, photo: '1461023058943-07fcbe16d735', sku: 'CAF-002', note: 'desde', badges: ['new'], attrs: { origen: 'Veracruz', tamano: '12 oz' }, variants: { label: 'Tamaño', options: [['12 oz', null], ['16 oz', 78]] }, extras: { label: 'Extras', max: 2, options: [['Shot extra', 12], ['Leche de almendra', 8], ['Canela', 0]] }, diet: ['vegan', 'lactose-free'] },
   { name: 'Cold brew', category: 0, short: 'Extracción en frío por 18 horas. Suave y dulce.', price: 72, compareAt: 85, photo: '1517701604599-bb29b565090c', featured: true, sku: 'CAF-003', attrs: { origen: 'Chiapas', tamano: '16 oz' } },
   { name: 'Café en grano 340 g', category: 0, short: 'Chiapas, lavado. Ideal para filtrado.', price: 290, photo: '1559056199-641a0ac8b55e', sku: 'CAF-010', note: 'bolsa', featured: true, stock: 3, diet: ['organic'], attrs: { origen: 'Chiapas', tamano: '340 g', incluye: ['Molienda a elección', 'Fecha de tueste en la bolsa'] } },
-  { name: 'Croissant de mantequilla', category: 1, short: 'Hojaldre francés con 27 capas.', price: 48, photo: '1555507036-ab1f4038808a', featured: true, sku: 'PAN-001', badges: ['popular'] },
+  { name: 'Croissant de mantequilla', category: 1, short: 'Hojaldre francés con 27 capas.', price: 48, photo: '1555507036-ab1f4038808a', featured: true, sku: 'PAN-001', badges: ['popular'], tiers: [[6, 42], [12, 38]] },
   { name: 'Pan de masa madre', category: 1, short: 'Fermentación lenta de 36 horas. Sale del horno a las 8:00.', price: 120, photo: '1509440159596-0249088772ff', sku: 'PAN-002', orderHours: { from: '08:00', to: '13:00' }, diet: ['vegan'] },
   { name: 'Rol de canela', category: 1, short: 'Con glaseado de queso crema.', price: 55, photo: '1509365465985-25d11c17e812', available: false, sku: 'PAN-003' },
   { name: 'Catering para eventos', type: 'service', category: 2, short: 'Barra de café móvil con barista para tu evento.', price: 4500, note: 'desde', photo: '1511920170033-f8396924c348', attrs: { duracion: 4, incluye: ['Barista profesional', 'Máquina de espresso', '100 bebidas'] } },
@@ -97,6 +99,7 @@ function sampleItems(currency: string, url: string): CatalogItemView[] {
     orderHours: item.orderHours ?? null,
     stock: item.stock ?? null,
     diet: item.diet ?? [],
+    tiers: (item.tiers ?? []).map(([minQty, price]) => ({ minQty, price, priceLabel: formatPrice(price, currency) })),
     variants: item.variants
       ? {
           label: item.variants.label,
@@ -230,7 +233,7 @@ type SampleOptions = {
 };
 
 export function buildSampleSite(options: SampleOptions = {}): SiteViewModel {
-  const settings = catalogSettingsSchema.parse({ currency: 'MXN', contactActions: { phone: { enabled: true } }, order: { enabled: true, pickup: true, delivery: true, deliveryFee: 35, freeDeliveryFrom: 300, deliveryNote: 'Zona centro, 30–45 min', payments: ['cash', 'card', 'transfer'], scheduling: 'optional', leadMinutes: 30, coupons: [{ code: 'BIENVENIDA', type: 'percent', value: 10, minSubtotal: 100 }] }, reviews: { enabled: true } });
+  const settings = catalogSettingsSchema.parse({ currency: 'MXN', contactActions: { phone: { enabled: true } }, order: { enabled: true, pickup: true, delivery: true, deliveryFee: 35, freeDeliveryFrom: 300, deliveryNote: 'Zona centro, 30–45 min', payments: ['cash', 'card', 'transfer'], scheduling: 'optional', leadMinutes: 30, tables: true, coupons: [{ code: 'BIENVENIDA', type: 'percent', value: 10, minSubtotal: 100 }] }, reviews: { enabled: true } });
   const url = `${env.siteUrl}/demo`;
   const pages = options.pages ?? buildSamplePages();
   return {

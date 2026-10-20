@@ -110,6 +110,8 @@ export const orderSchema = z.object({
     .max(MAX_ZONES)
     .refine((list) => new Set(list.map((z) => z.name.toLowerCase())).size === list.length, msg('Hay zonas con el mismo nombre'))
     .default([]),
+  /** Pedidos en mesa: con el código QR de cada mesa (?mesa=5) el pedido va a esa mesa, sin entrega. */
+  tables: z.boolean().default(false),
   /** Pedido mínimo (sobre el subtotal). */
   minimumOrder: optionalAmount(),
   /** Formas de pago que el cliente puede elegir. */

@@ -39,6 +39,7 @@ import { ITEM_TYPE_LABELS, itemFormSchema, type ItemFormValues } from '../schema
 import { ItemAttributesFields } from './ItemAttributesFields';
 import { ItemCardPreview } from './ItemCardPreview';
 import { ExtrasField, OrderHoursField } from './ExtrasField';
+import { TiersField } from './TiersField';
 import { VariantsField } from './VariantsField';
 
 type Props = {
@@ -191,6 +192,12 @@ export function ItemForm({ itemId, defaultValues, categories, previewSite }: Pro
                 </Grid>
               </Grid>
             </SectionCard>
+
+            {values.type === 'product' && !values.variantsEnabled && (
+              <SectionCard title={t('Precio por mayoreo')}>
+                <TiersField control={control} />
+              </SectionCard>
+            )}
 
             {values.type === 'product' && (
               <SectionCard title={t('Opciones')}>

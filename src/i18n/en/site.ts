@@ -317,6 +317,18 @@ const catalog: Catalog = {
   'mínimo {amount}': 'minimum {amount}',
   'Zona: {zone}': 'Zone: {zone}',
   'Favoritos ({count})': 'Favorites ({count})',
+  'Mayoreo: desde {qty}, {price} c/u': 'Bulk: from {qty}, {price} each',
+  'Desde {qty} piezas': 'From {qty} units',
+  'Precio por mayoreo': 'Bulk pricing',
+  '{price} c/u': '{price} each',
+  'Cantidad': 'Quantity',
+  'Desde {qty}: {price} c/u': 'From {qty}: {price} each',
+  'Mayoreo: {price} c/u': 'Bulk: {price} each',
+  'No estoy en el local': "I'm not at the store",
+  'Pedido para la mesa {table}': 'Order for table {table}',
+  '(mayoreo, {price} c/u)': '(bulk, {price} each)',
+  'Folio: {reference}': 'Order #: {reference}',
+  'Mesa: {table}': 'Table: {table}',
 };
 
 export default catalog;

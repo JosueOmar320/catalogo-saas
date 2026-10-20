@@ -14,13 +14,14 @@ import { fillTemplate } from '@/lib/contact/actions';
 import { useT } from '@/i18n/client';
 import { useAction } from '@/lib/hooks/use-action';
 import { CouponsField } from './CouponsField';
+import { TablesField } from './TablesField';
 import { ZonesField } from './ZonesField';
 import { ScheduleField } from './ScheduleField';
 import { msg } from '@/i18n/translate';
 
 const PAYMENT_LABELS = { cash: msg('Efectivo'), card: msg('Tarjeta'), transfer: msg('Transferencia'), link: msg('Enlace de pago') } as const;
 
-export function ContactForm({ contact, actions, order, businessName }: { contact: BusinessContact; actions: ContactActionsConfig; order: OrderSettings; businessName: string }) {
+export function ContactForm({ contact, actions, order, businessName, catalogUrl }: { contact: BusinessContact; actions: ContactActionsConfig; order: OrderSettings; businessName: string; catalogUrl: string }) {
   const t = useT();
   const router = useRouter();
   const { run, pending } = useAction();
@@ -173,6 +174,7 @@ export function ContactForm({ contact, actions, order, businessName }: { contact
           <Divider />
           <Typography variant="subtitle2">{t('Entrega')}</Typography>
           <SwitchControl control={orderForm.control} name="pickup" label={t('Recoger en el local')} description={t('El cliente pasa por su pedido.')} />
+          <TablesField control={orderForm.control} catalogUrl={catalogUrl} businessName={businessName} />
           <SwitchControl control={orderForm.control} name="delivery" label={t('Envío a domicilio')} description={t('El cliente escribe su dirección al pedir.')} />
           {deliveryEnabled && (
             <Grid container spacing={2}>

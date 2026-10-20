@@ -207,3 +207,29 @@ describe('Extras, notas y horario del producto', () => {
     assert.equal(itemFormSchema.safeParse({ ...emptyItemValues('product', 'MXN'), name: 'X', orderHoursEnabled: true, orderHoursFrom: '09:00', orderHoursTo: '09:00' }).success, false);
   });
 });
+
+describe('Precios por mayoreo', () => {
+  const base = { ...emptyItemValues('product', 'MXN'), name: 'Galleta', price: '10' };
+
+  it('el formulario guarda las filas completas, de menor a mayor; con opciones, ninguna', () => {
+    const values = itemFormSchema.parse({ ...base, tiers: [{ minQty: '24', price: '7' }, { minQty: '', price: '' }, { minQty: '12', price: '8.50' }] });
+    assert.deepEqual(itemFormToAttributes(values).tiers, [{ minQty: 12, price: 8.5 }, { minQty: 24, price: 7 }]);
+    assert.deepEqual(itemFormToAttributes({ ...values, variantsEnabled: true }).tiers, []);
+    assert.deepEqual(itemFormToAttributes({ ...values, type: 'service' }).tiers, []);
+    assert.equal(itemFormSchema.safeParse({ ...base, tiers: [{ minQty: '1', price: '5' }] }).success, false);
+    assert.equal(itemFormSchema.safeParse({ ...base, tiers: [{ minQty: '12', price: '' }] }).success, false);
+    assert.equal(itemFormSchema.safeParse({ ...base, tiers: [{ minQty: '12', price: '8' }, { minQty: '12', price: '7' }] }).success, false);
+  });
+
+  it('se leen de los atributos (lo inválido se descarta sin perder lo demás) y llegan a la ficha y al pedido', () => {
+    assert.deepEqual(parseItemAttributes({ tiers: [{ minQty: 6, price: 42 }] }).tiers, [{ minQty: 6, price: 42 }]);
+    const broken = parseItemAttributes({ tiers: [{ minQty: 12, price: 5 }, { minQty: 6, price: 6 }], stock: 3 });
+    assert.deepEqual([broken.tiers, broken.stock], [[], 3]);
+
+    const site = buildSampleSite();
+    const croissant = site.items.find((i) => i.name === 'Croissant de mantequilla')!;
+    assert.deepEqual(croissant.tiers.map((tier) => [tier.minQty, tier.price]), [[6, 42], [12, 38]]);
+    assert.match(croissant.tiers[0].priceLabel, /42/);
+    assert.deepEqual(orderConfig(site)!.tiers[croissant.id], [[6, 42], [12, 38]]);
+  });
+});

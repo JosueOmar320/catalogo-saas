@@ -658,6 +658,47 @@ test('días especiales y zonas de entrega del panel llegan al sitio y al pedido'
   await visitor.close();
 });
 
+test('mayoreo y pedidos en mesa configurados en el panel llegan a la ficha y al pedido', async ({ page, browser }) => {
+  await page.goto('/dashboard/catalog/items/new?type=product');
+  await page.getByRole('textbox', { name: 'Nombre', exact: true }).fill('Galleta mayoreo E2E');
+  await page.getByRole('textbox', { name: 'Precio', exact: true }).fill('10');
+  await page.getByRole('button', { name: 'Agregar precio por mayoreo' }).click();
+  const tier = page.getByRole('list', { name: 'Precios por mayoreo' }).getByRole('listitem').first();
+  await tier.getByLabel('Desde (piezas)').fill('12');
+  await tier.getByLabel('Precio c/u').fill('8');
+  await page.getByRole('button', { name: 'Crear', exact: true }).click();
+  await expect(page).toHaveURL(/\/dashboard\/catalog\/items\/[0-9a-f-]{36}$/);
+
+  await page.goto('/dashboard/settings/contacto');
+  await page.getByRole('switch', { name: /Pedidos en mesa/ }).click();
+  await expect(page.getByText(new RegExp(`Cada código abre .*/catalogo/${slug}\\?mesa=1$`))).toBeVisible();
+  await page.getByRole('button', { name: 'Guardar pedidos' }).click();
+  await expect(page.getByText('Configuración guardada')).toBeVisible();
+
+  const visitor = await browser.newContext(ANONYMOUS);
+  const site = await visitor.newPage();
+  await expect(async () => {
+    await site.goto(`/catalogo/${slug}/p/galleta-mayoreo-e2e?mesa=7`);
+    await expect(site.getByRole('list', { name: 'Precio por mayoreo' })).toBeVisible({ timeout: 1000 });
+  }).toPass({ timeout: 15_000 });
+  await site.getByRole('button', { name: 'Agregar al pedido' }).click();
+  await site.getByRole('button', { name: /^Ver pedido/ }).click();
+  const dialog = site.getByRole('dialog', { name: 'Tu pedido' });
+  // La configuración de pedidos de la ficha puede venir de la copia anterior: se espera a la mesa.
+  await expect(async () => {
+    await site.reload();
+    await site.getByRole('button', { name: /^Ver pedido/ }).click();
+    await expect(dialog.getByText('Pedido para la mesa 7')).toBeVisible({ timeout: 1000 });
+  }).toPass({ timeout: 15_000 });
+  const qty = dialog.getByRole('group', { name: 'Cantidad de Galleta mayoreo E2E' }).getByRole('spinbutton', { name: 'Cantidad' });
+  await qty.fill('12');
+  await qty.press('Enter');
+  const href = await dialog.getByRole('link', { name: 'Enviar pedido por WhatsApp' }).getAttribute('href');
+  const text = new URL(href!).searchParams.get('text')!;
+  expect(text).toContain('• 12 × Galleta mayoreo E2E — $96 (mayoreo, $8 c/u)\n\nTotal: $96\nMesa: 7\n');
+  await visitor.close();
+});
+
 test('el idioma elegido se guarda en el perfil y vuelve al iniciar sesión', async ({ page, browser }) => {
   await page.goto('/dashboard');
   await page.getByRole('button', { name: 'Cambiar idioma' }).click();

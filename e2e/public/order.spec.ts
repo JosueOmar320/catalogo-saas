@@ -63,6 +63,7 @@ test.describe('Pedido por WhatsApp', () => {
           'Pago: Efectivo',
           'Nombre: Ana',
           'Nota: Sin azúcar',
+          'Folio: [A-Z2-9]{4}',
           '',
           'Pedido desde https?://.+/demo$',
         ].join('\n'),
@@ -360,5 +361,42 @@ test.describe('Pedido por WhatsApp', () => {
     const related = page.getByRole('region', { name: 'También te puede interesar' });
     await expect(related.getByRole('article')).toHaveCount(4);
     await expect(related.getByRole('heading', { name: 'Espresso doble', exact: true })).toHaveCount(0);
+  });
+
+  test('mayoreo: la tarjeta y la ficha lo anuncian; escribir la cantidad aplica el precio y el mensaje lleva el folio', async ({ page }) => {
+    await page.goto('/demo');
+    const croissant = card(page, 'Croissant de mantequilla');
+    await expect(croissant.getByText('Mayoreo: desde 6, $42 c/u')).toBeVisible();
+    await croissant.getByRole('button', { name: 'Agregar al pedido' }).click();
+    await orderButton(page).click();
+    const dialog = page.getByRole('dialog', { name: 'Tu pedido' });
+    const stepper = dialog.getByRole('group', { name: 'Cantidad de Croissant de mantequilla' });
+    await expect(dialog.getByText('Desde 6: $42 c/u')).toBeVisible();
+    await stepper.getByRole('spinbutton', { name: 'Cantidad' }).fill('12');
+    await stepper.getByRole('spinbutton', { name: 'Cantidad' }).press('Enter');
+    await expect(dialog.getByText('Mayoreo: $38 c/u')).toBeVisible();
+    await dialog.getByRole('radio', { name: 'Recoger en el local' }).check();
+    const text = await whatsappMessage(page);
+    expect(text).toContain('• 12 × Croissant de mantequilla (PAN-001) — $456 (mayoreo, $38 c/u)');
+    expect(text).toMatch(/\nFolio: [A-Z2-9]{4}\n\nPedido desde /);
+
+    await page.goto('/demo/p/ejemplo-5');
+    const tiers = page.getByRole('list', { name: 'Precio por mayoreo' });
+    await expect(tiers.getByRole('listitem')).toHaveText([/Desde 6 piezas\s*\$42 c\/u/, /Desde 12 piezas\s*\$38 c\/u/]);
+  });
+
+  test('pedido en mesa: el código QR de la mesa manda el pedido a esa mesa, sin entrega', async ({ page }) => {
+    await page.goto('/demo/menu?mesa=3');
+    await card(page, 'Espresso doble').getByRole('button', { name: 'Agregar al pedido' }).click();
+    await page.goto('/demo'); // al navegar se pierde ?mesa, pero la mesa sigue
+    await orderButton(page).click();
+    const dialog = page.getByRole('dialog', { name: 'Tu pedido' });
+    await expect(dialog.getByText('Pedido para la mesa 3')).toBeVisible();
+    await expect(dialog.getByRole('radio', { name: 'Recoger en el local' })).toHaveCount(0);
+    expect(await whatsappMessage(page)).toContain('Total: $45\nMesa: 3\n');
+
+    await dialog.getByRole('button', { name: 'No estoy en el local' }).click();
+    await expect(dialog.getByRole('radio', { name: 'Recoger en el local' })).toBeVisible();
+    await expect(dialog.getByText('Pedido para la mesa 3')).toHaveCount(0);
   });
 });

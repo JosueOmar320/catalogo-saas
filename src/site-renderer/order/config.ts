@@ -4,7 +4,7 @@ import type { SiteViewModel } from '@/lib/site/view-model';
 import { digitsOnly } from '@/lib/utils/phone';
 import { defaultText } from '../default-texts';
 import { siteTranslator } from '../site-i18n';
-import { couponHash, type CatalogIndex, type OrderItem, type OrderOptions, type OrderPause, type OrderPricing, type PublicCoupon } from './message';
+import { couponHash, type TierIndex, type CatalogIndex, type OrderItem, type OrderOptions, type OrderPause, type OrderPricing, type PublicCoupon } from './message';
 
 /** Lo que necesita el pedido en el navegador (datos planos: viaja del servidor al cliente). */
 export type OrderConfig = {
@@ -30,6 +30,8 @@ export type OrderConfig = {
   pause: OrderPause | null;
   /** Productos que sólo se piden en un horario del día (por id de producto). */
   orderHours: Record<string, { from: string; to: string }>;
+  /** Precios por mayoreo (por id de producto). */
+  tiers: TierIndex;
   /** Existencias de los productos que las controlan (por id de producto). */
   stock: Record<string, number>;
   /** Zona horaria del negocio (la de su horario por día; vacía = la del visitante). */
@@ -64,6 +66,7 @@ export function orderConfig(site: SiteViewModel, { track = false }: { track?: bo
       freeDeliveryFrom: order.freeDeliveryFrom,
       deliveryNote: order.deliveryNote,
       zones: order.zones,
+      tables: order.tables,
       minimumOrder: order.minimumOrder,
       payments: order.payments,
       scheduling: order.scheduling,
@@ -79,6 +82,7 @@ export function orderConfig(site: SiteViewModel, { track = false }: { track?: bo
     suggestions: suggestions(site),
     orderHours: Object.fromEntries(site.items.flatMap((item) => (item.orderHours && orderable(site, item) ? [[item.id, item.orderHours]] : []))),
     timeZone: site.business.contact.schedule.timezone,
+    tiers: Object.fromEntries(site.items.flatMap((item) => (item.tiers.length && !item.variants && orderable(site, item) ? [[item.id, item.tiers.map((tier): [number, number] => [tier.minQty, tier.price])]] : []))),
     stock: Object.fromEntries(site.items.flatMap((item) => (item.stock !== null && orderable(site, item) ? [[item.id, item.stock]] : []))),
     pause: order.paused ? { until: order.pausedUntil, timeZone: order.pauseTimeZone, message: order.pauseMessage } : null,
     schedule: site.business.contact.schedule.enabled ? site.business.contact.schedule : null,

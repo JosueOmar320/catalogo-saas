@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { catalogSettingsSchema } from '@/lib/catalog/settings';
-import { buildOrderMessage, clampQty, couponHash, findCoupon, isOrderingPaused, refreshLines, NO_CHOICES, NO_OPTIONS, orderTotal, orderWhatsappHref, summarizeOrder, type OrderLine, type OrderOptions, type OrderPricing, type PublicCoupon } from '@/site-renderer/order/message';
+import { applyTiers, buildOrderMessage, clampQty, couponHash, findCoupon, isOrderingPaused, refreshLines, NO_CHOICES, NO_OPTIONS, orderTotal, orderWhatsappHref, summarizeOrder, tierFor, type OrderLine, type OrderOptions, type OrderPricing, type PublicCoupon } from '@/site-renderer/order/message';
 import { siteTranslator } from '@/site-renderer/site-i18n';
 import { orderConfig } from '@/site-renderer/order/config';
 import { buildSampleSite } from '@/lib/site/sample-site';
@@ -88,9 +88,9 @@ describe('Pedido por WhatsApp', () => {
 
   it('entrega, envío y mínimo: lo nuevo viene apagado y el mensaje no cambia', () => {
     const { order } = catalogSettingsSchema.parse({});
-    assert.deepEqual({ ...NO_OPTIONS }, { pickup: order.pickup, delivery: order.delivery, deliveryFee: order.deliveryFee, freeDeliveryFrom: order.freeDeliveryFrom, deliveryNote: order.deliveryNote, zones: order.zones, minimumOrder: order.minimumOrder, payments: order.payments, scheduling: order.scheduling, leadMinutes: order.leadMinutes, scheduleDays: order.scheduleDays, slotMinutes: order.slotMinutes });
+    assert.deepEqual({ ...NO_OPTIONS }, { pickup: order.pickup, delivery: order.delivery, deliveryFee: order.deliveryFee, freeDeliveryFrom: order.freeDeliveryFrom, deliveryNote: order.deliveryNote, zones: order.zones, tables: order.tables, minimumOrder: order.minimumOrder, payments: order.payments, scheduling: order.scheduling, leadMinutes: order.leadMinutes, scheduleDays: order.scheduleDays, slotMinutes: order.slotMinutes });
     const summary = summarizeOrder([line({ qty: 2 })], pricing);
-    assert.deepEqual(summary, { subtotal: { value: 96, partial: false }, delivery: null, total: { value: 96, partial: false }, minimum: null, zone: null, missingForMinimum: null, missingForFreeDelivery: null, blocker: null, discount: null, couponIssue: null });
+    assert.deepEqual(summary, { subtotal: { value: 96, partial: false }, delivery: null, total: { value: 96, partial: false }, minimum: null, zone: null, table: null, missingForMinimum: null, missingForFreeDelivery: null, blocker: null, discount: null, couponIssue: null });
     // Montos escritos en el formulario: vacío → sin valor; "1,200.50" y "35,5" se entienden.
     const parsed = catalogSettingsSchema.parse({ order: { deliveryFee: '35,5', freeDeliveryFrom: '1,200.50', minimumOrder: '' } }).order;
     assert.deepEqual([parsed.deliveryFee, parsed.freeDeliveryFrom, parsed.minimumOrder], [35.5, 1200.5, null]);
@@ -170,6 +170,32 @@ describe('Pedido por WhatsApp', () => {
     assert.deepEqual(parsed, [{ name: 'Centro', fee: 25, minimumOrder: null }]);
     assert.equal(catalogSettingsSchema.safeParse({ order: { zones: [{ name: 'Centro' }, { name: 'centro' }] } }).success, false);
     assert.equal(catalogSettingsSchema.safeParse({ order: { zones: [{ name: '' }] } }).success, false);
+  });
+
+  it('mayoreo: la línea del producto toma el precio del escalón que alcanza y el mensaje lo dice', () => {
+    const tiers = { a: [[6, 42], [12, 38]] as [number, number][] };
+    assert.deepEqual([tierFor(tiers.a, 5), tierFor(tiers.a, 6), tierFor(tiers.a, 20)], [null, [6, 42], [12, 38]]);
+    const few = [line({ qty: 5 })];
+    assert.equal(applyTiers(few, tiers), few); // sin cambios: la misma lista
+    const [six] = applyTiers([line({ qty: 6 })], tiers);
+    assert.deepEqual([six.price, six.priceLabel, six.wholesale], [42, null, true]);
+    // Una opción o un extra del producto no entra al mayoreo.
+    assert.equal(applyTiers([line({ id: 'a:v1', itemId: 'a', qty: 12 })], tiers)[0].price, 48);
+    assert.equal(summarizeOrder(applyTiers([line({ qty: 12 })], tiers), pricing).total?.value, 456);
+    const text = buildOrderMessage({ lines: applyTiers([line({ qty: 12 })], tiers), pricing, intro: 'Hola', businessName: 'Café', siteUrl: 'https://x.test', t: siteTranslator('es') });
+    assert.match(text, /• 12 × Croissant — \$456 \(mayoreo, \$38 c\/u\)\n\nTotal: \$456/);
+  });
+
+  it('pedido en mesa: sin entrega, dirección ni "¿Para cuándo?"; el mensaje dice la mesa y el folio', () => {
+    const options: OrderOptions = { ...NO_OPTIONS, pickup: true, delivery: true, deliveryFee: 35, scheduling: 'required', minimumOrder: 150, tables: true };
+    const lines = [line({ qty: 2 })];
+    const atTable = summarizeOrder(lines, pricing, options, { ...NO_CHOICES, fulfillment: 'delivery', table: '5' });
+    // Tampoco pedido mínimo: es para la entrega o para recoger.
+    assert.deepEqual([atTable.table, atTable.delivery, atTable.total?.value, atTable.minimum, atTable.blocker], ['5', null, 96, null, null]);
+    // Sin pedidos en mesa activos, la mesa no cuenta.
+    assert.deepEqual(summarizeOrder(lines, pricing, { ...options, tables: false }, { ...NO_CHOICES, table: '5' }).blocker, 'fulfillment');
+    const text = buildOrderMessage({ lines, pricing, intro: 'Hola', businessName: 'Café', siteUrl: 'https://x.test', t: siteTranslator('es'), options, choices: { ...NO_CHOICES, fulfillment: 'delivery', address: 'Calle 5', table: 'Terraza 2' }, reference: 'K7Q2' });
+    assert.equal(text, ['Hola', '', '• 2 × Croissant — $96', '', 'Total: $96', 'Mesa: Terraza 2', 'Folio: K7Q2', '', 'Pedido desde https://x.test'].join('\n'));
   });
 
   it('cupones: el código no viaja al navegador; se encuentra sin importar mayúsculas y descuenta de los productos', () => {
