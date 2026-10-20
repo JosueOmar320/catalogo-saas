@@ -22,7 +22,7 @@ import SITE_EN from '@/i18n/en/site';
 const ROOT = join(process.cwd(), 'src');
 // Textos que ve el VISITANTE (sitio público y PDF generado): catálogo `en/site.ts`.
 // El estudio de PDF (features/pdf/components) es interfaz del panel: catálogo de la app.
-const SITE_DIRS = ['site-renderer', join('features', 'pdf')];
+const SITE_DIRS = ['site-renderer', join('features', 'pdf'), join('features', 'og')];
 // Las Server Actions del estudio (actions.ts) devuelven mensajes del panel: también son de la app.
 const APP_INSIDE_SITE_DIRS = [join('features', 'pdf', 'components'), join('features', 'pdf', 'actions.ts')];
 

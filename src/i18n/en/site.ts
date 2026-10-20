@@ -256,6 +256,12 @@ const catalog: Catalog = {
   'Agregar nota': 'Add note',
   'Ej. sin cebolla': 'E.g. no onion',
   'Nota para {name}': 'Note for {name}',
+  // Imágenes para compartir
+  'Pide por WhatsApp': 'Order on WhatsApp',
+  '1 producto': '1 product',
+  '{count} productos': '{count} products',
+  '1 servicio': '1 service',
+  '{count} servicios': '{count} services',
 };
 
 export default catalog;

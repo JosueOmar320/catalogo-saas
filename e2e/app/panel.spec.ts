@@ -249,6 +249,31 @@ test('extras y horario de un producto creados en el panel se ven en la ficha pub
   await visitor.close();
 });
 
+test('compartir y buscadores: imagen generada, datos estructurados y sitemap del catálogo publicado', async ({ browser }) => {
+  const visitor = await browser.newContext(ANONYMOUS);
+  const site = await visitor.newPage();
+  await site.goto(`/catalogo/${slug}/p/smoothie-e2e`);
+  const og = await site.locator('meta[property="og:image"]').getAttribute('content');
+  expect(og).toMatch(new RegExp(`/og/catalogo/${slug}/p/smoothie-e2e$`));
+  const image = await site.request.get(og!);
+  expect(image.status()).toBe(200);
+  expect(image.headers()['content-type']).toContain('image/png');
+
+  const ld = JSON.parse((await site.locator('script[type="application/ld+json"]').first().textContent())!);
+  expect(ld[0].offers).toMatchObject({ '@type': 'AggregateOffer', lowPrice: 50, highPrice: 70 });
+  expect(ld[1]['@type']).toBe('BreadcrumbList');
+
+  await site.goto(`/catalogo/${slug}`);
+  const catalogOg = await site.locator('meta[property="og:image"]').getAttribute('content');
+  expect(catalogOg).toMatch(new RegExp(`/og/catalogo/${slug}$`));
+  expect((await site.request.get(catalogOg!)).headers()['content-type']).toContain('image/png');
+
+  const sitemap = await (await site.request.get('/sitemap.xml')).text();
+  expect(sitemap).toContain(`/catalogo/${slug}</loc>`);
+  expect(sitemap).toContain(`/catalogo/${slug}/p/smoothie-e2e</loc>`);
+  await visitor.close();
+});
+
 test('entrega, pedido mínimo, pago y horario configurados en el panel llegan al pedido del visitante', async ({ page, browser }) => {
   await page.goto('/dashboard/settings/contacto');
   await page.getByRole('switch', { name: /Horario por día/ }).click();

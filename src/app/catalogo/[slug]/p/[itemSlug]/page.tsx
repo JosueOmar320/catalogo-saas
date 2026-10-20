@@ -2,7 +2,8 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { ItemDetail } from '@/site-renderer';
 import { getPublicSite } from '@/features/catalog/public-queries';
-import { siteMetadata } from '@/lib/catalog/metadata';
+import { itemOgImage, siteMetadata } from '@/lib/catalog/metadata';
+import { itemJsonLd } from '@/lib/catalog/structured-data';
 import { siteStatusTexts } from '@/site-renderer/status';
 
 export const revalidate = 3600;
@@ -24,13 +25,14 @@ export async function generateMetadata({ params }: PageProps<'/catalogo/[slug]/p
   const { site, item } = data;
   const base = siteMetadata(site);
   const description = item.shortDescription ?? (base.description as string);
-  const image = item.images[0]?.url;
+  // Imagen generada: foto, nombre, precio y negocio (se ve al pegar el enlace en WhatsApp o redes).
+  const image = itemOgImage(site, item.slug);
   return {
     title: item.name,
     description,
     alternates: { canonical: item.url },
-    openGraph: { ...base.openGraph, url: item.url, title: `${item.name} · ${site.business.name}`, description, images: image ? [{ url: image }] : base.openGraph?.images },
-    twitter: { card: 'summary_large_image', title: item.name, description, images: image ? [image] : undefined },
+    openGraph: { ...base.openGraph, url: item.url, title: `${item.name} · ${site.business.name}`, description, images: [{ url: image, width: 1200, height: 630, alt: item.name }] },
+    twitter: { card: 'summary_large_image', title: item.name, description, images: [image] },
   };
 }
 
@@ -40,25 +42,7 @@ export default async function ItemPage({ params }: PageProps<'/catalogo/[slug]/p
   if (!data) notFound();
   const { site, item } = data;
 
-  const jsonLd = {
-    '@context': 'https://schema.org',
-    '@type': item.type === 'service' ? 'Service' : 'Product',
-    name: item.name,
-    description: item.shortDescription ?? item.description ?? undefined,
-    image: item.images.map((i) => i.url),
-    sku: item.sku ?? undefined,
-    url: item.url,
-    ...(item.type === 'service' ? { provider: { '@type': 'Organization', name: site.business.name } } : { brand: { '@type': 'Brand', name: site.business.name } }),
-    ...(item.price !== null && {
-      offers: {
-        '@type': 'Offer',
-        price: item.price,
-        priceCurrency: item.currency,
-        availability: item.isAvailable ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
-        url: item.url,
-      },
-    }),
-  };
+  const jsonLd = itemJsonLd(site, item);
 
   return (
     <>

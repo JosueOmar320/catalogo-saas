@@ -16,7 +16,8 @@ function oldSearch(items: CatalogItemView[], query: string) {
   return items.filter((item) => {
     if (terms.length === 0) return true;
     const attrText = Object.values(item.attributes).flatMap(attrStrings);
-    const haystack = normalize([item.name, item.shortDescription, item.sku, ...item.tags, ...attrText].filter(Boolean).join(' '));
+    const optionText = [...(item.variants?.options ?? []).flatMap((o) => [o.name, o.sku]), ...(item.extras?.options ?? []).map((o) => o.name)];
+    const haystack = normalize([item.name, item.shortDescription, item.sku, ...item.tags, ...attrText, ...optionText].filter(Boolean).join(' '));
     return terms.every((t) => haystack.includes(t));
   });
 }
