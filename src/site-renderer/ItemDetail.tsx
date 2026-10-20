@@ -41,6 +41,21 @@ export function ItemDetail({ site, item, backHref, env }: { site: SiteViewModel;
           {category && <span className={styles.eyebrow}>{category.name}</span>}
           <h1 className={styles.h2}>{item.name}</h1>
           {site.theme.cards.showPrice && <PriceTag item={item} t={t} discount />}
+          {site.theme.cards.showPrice && item.tiers.length > 0 && (
+            <div>
+              <p className={styles.tiersTitle} id="tiers-title">
+                {t('Precio por mayoreo')}
+              </p>
+              <ul className={styles.tiers} aria-labelledby="tiers-title">
+                {item.tiers.map((tier) => (
+                  <li key={tier.minQty}>
+                    <span>{t('Desde {qty} piezas', { qty: tier.minQty })}</span>
+                    <strong>{t('{price} c/u', { price: tier.priceLabel })}</strong>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           {site.theme.cards.showPrice && item.saleEndsOn && (
             <span className={styles.saleEnds}>{t('Oferta hasta el {date}', { date: formatSaleDate(item.saleEndsOn, site.settings.locale) })}</span>
           )}

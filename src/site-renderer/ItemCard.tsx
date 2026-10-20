@@ -138,6 +138,7 @@ export function ItemCard({ item, site, env, options = {} }: { item: CatalogItemV
           <DietTags tags={item.diet} t={t} small />
           {f.sku && item.sku && <span className={styles.cardMeta}>{t('Código: {sku}', { sku: item.sku })}</span>}
           {f.price && <PriceTag item={item} t={t} compare={f.compareAt} discount={f.discount} />}
+          {f.price && item.tiers[0] && <span className={styles.cardMeta}>{t('Mayoreo: desde {qty}, {price} c/u', { qty: item.tiers[0].minQty, price: item.tiers[0].priceLabel })}</span>}
           {f.availability && !item.isAvailable && <span className={styles.availability}>{t('No disponible')}</span>}
         </div>
       </ItemLink>

@@ -1,7 +1,7 @@
 'use client';
 
 import { Clock, Minus, Plus, RotateCcw, ShoppingBag, Ticket, Trash2, X } from 'lucide-react';
-import { createContext, useCallback, useContext, useId, useMemo, useRef, useState, useSyncExternalStore, type ReactNode, type Ref, type SyntheticEvent } from 'react';
+import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type ReactNode, type Ref, type SyntheticEvent } from 'react';
 import { Icon } from '../Icon';
 import { pickupSlots, shortTime, weekdayName, withinHours, type PickupDay } from '@/lib/business/schedule';
 import { formatSaleDate } from '@/lib/catalog/sale';
@@ -13,6 +13,7 @@ import type { OrderConfig } from './config';
 import { PAYMENT_METHODS, type DeliveryZone, type PaymentMethod } from '@/lib/catalog/settings';
 import type { Translator } from '@/i18n/translate';
 import {
+  applyTiers,
   buildOrderMessage,
   clampQty,
   effectiveFulfillment,
@@ -21,6 +22,7 @@ import {
   fulfillmentOptions,
   isOrderingPaused,
   MAX_ORDER_LINES,
+  MAX_ORDER_QTY,
   orderTotal,
   orderWhatsappHref,
   PAYMENT_LABELS,
@@ -30,15 +32,37 @@ import {
   type Fulfillment,
   type OrderItem,
   type OrderLine,
+  type TierIndex,
 } from './message';
 
 /* ------------------------------------------------------------------ Estado */
 
 /** Pedido guardado en el navegador del visitante (localStorage), uno por negocio. */
 type When = { date: string; time: string };
-type OrderState = { lines: OrderLine[]; name: string; note: string; fulfillment: Fulfillment | null; address: string; zone: string; payment: PaymentMethod | null; coupon: string; when: When | null };
+type OrderState = {
+  lines: OrderLine[];
+  name: string;
+  note: string;
+  fulfillment: Fulfillment | null;
+  address: string;
+  zone: string;
+  payment: PaymentMethod | null;
+  coupon: string;
+  when: When | null;
+  /** Folio del pedido ("K7Q2"): nuevo al empezar un pedido y después de enviarlo. */
+  reference: string;
+};
 
-const EMPTY: OrderState = { lines: [], name: '', note: '', fulfillment: null, address: '', zone: '', payment: null, coupon: '', when: null };
+const EMPTY: OrderState = { lines: [], name: '', note: '', fulfillment: null, address: '', zone: '', payment: null, coupon: '', when: null, reference: '' };
+
+/** Sin letras ni números que se confundan (0/O, 1/I/L). */
+const REFERENCE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+const REFERENCE = /^[A-HJ-NP-Z2-9]{4}$/;
+function newReference(): string {
+  const bytes = new Uint8Array(4);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (byte) => REFERENCE_CHARS[byte % REFERENCE_CHARS.length]).join('');
+}
 const cache = new Map<string, OrderState>();
 const listeners = new Map<string, Set<() => void>>();
 
@@ -68,7 +92,7 @@ function sanitize(raw: unknown): OrderState {
     rawWhen && typeof rawWhen.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rawWhen.date) && typeof rawWhen.time === 'string' && /^\d{2}:\d{2}$/.test(rawWhen.time)
       ? { date: rawWhen.date, time: rawWhen.time }
       : null;
-  return { lines, name: str(input.name, 80), note: str(input.note, 500), fulfillment, address: str(input.address, 300), zone: str(input.zone, 60), payment, coupon: str(input.coupon, 24), when };
+  return { lines, name: str(input.name, 80), note: str(input.note, 500), fulfillment, address: str(input.address, 300), zone: str(input.zone, 60), payment, coupon: str(input.coupon, 24), when, reference: typeof input.reference === 'string' && REFERENCE.test(input.reference) ? input.reference : '' };
 }
 
 function read(key: string): OrderState {
@@ -111,6 +135,45 @@ function subscribe(key: string, listener: () => void) {
     set.delete(listener);
     window.removeEventListener('storage', onStorage);
   };
+}
+
+/* ------------------------------------------------------------- Mesa (en el local) */
+
+/**
+ * Mesa desde la que se pide (el código QR de la mesa abre el sitio con
+ * ?mesa=5). Vive en sessionStorage: dura mientras la pestaña esté abierta
+ * (al navegar por el sitio el parámetro se pierde) y no se arrastra a un
+ * pedido de otro día.
+ */
+const TABLE = /^[\p{L}\p{N}][\p{L}\p{N} -]{0,11}$/u;
+const tableCache = new Map<string, string>();
+const tableKey = (key: string) => `${key}:mesa`;
+
+function readTable(key: string): string {
+  const cached = tableCache.get(key);
+  if (cached !== undefined) return cached;
+  let table = '';
+  try {
+    const raw = sessionStorage.getItem(tableKey(key)) ?? '';
+    if (TABLE.test(raw)) table = raw;
+  } catch {}
+  tableCache.set(key, table);
+  return table;
+}
+
+function writeTable(key: string, table: string) {
+  tableCache.set(key, table);
+  try {
+    if (table) sessionStorage.setItem(tableKey(key), table);
+    else sessionStorage.removeItem(tableKey(key));
+  } catch {}
+  notify(key);
+}
+
+/** "?mesa=5" válido de la URL actual, o null. */
+function tableFromUrl(): string | null {
+  const value = new URLSearchParams(window.location.search).get('mesa')?.trim() ?? '';
+  return TABLE.test(value) ? value : null;
 }
 
 /* ---------------------------------------------------------------- Existencias */
@@ -181,6 +244,9 @@ type OrderApi = {
   state: OrderState;
   /** Productos que estaban en el pedido guardado y ya no se pueden pedir. */
   removed: string[];
+  /** Mesa del pedido (si el negocio acepta pedidos en mesa y se entró con su código QR); '' si no. */
+  table: string;
+  leaveTable: () => void;
   /** Último pedido enviado (con precios de hoy), si se puede repetir. */
   last: OrderLine[] | null;
   repeatLast: () => void;
@@ -207,9 +273,19 @@ export function OrderProvider({ config, children }: { config: OrderConfig; child
   const subscribeKey = useCallback((listener: () => void) => subscribe(key, listener), [key]);
   const saved = useSyncExternalStore(subscribeKey, () => read(key), () => EMPTY);
   const savedLast = useSyncExternalStore(subscribeKey, () => readLast(key), () => null);
+  const savedTable = useSyncExternalStore(subscribeKey, () => readTable(key), () => '');
+  const table = config.options.tables ? savedTable : '';
+  // Código QR de la mesa: ?mesa=5 (después de hidratar; el HTML en caché no conoce la URL).
+  useEffect(() => {
+    if (!config.options.tables) return;
+    const fromUrl = tableFromUrl();
+    if (fromUrl && fromUrl !== readTable(key)) writeTable(key, fromUrl);
+  }, [config.options.tables, key]);
   // Lo guardado con los precios de hoy; lo que ya no se puede pedir se quita (y se avisa).
   const fresh = useMemo(() => refreshLines(saved.lines, config.catalog), [saved.lines, config.catalog]);
-  const state = useMemo(() => (fresh.lines === saved.lines ? saved : { ...saved, lines: fresh.lines }), [fresh.lines, saved]);
+  // Y con el precio de mayoreo que alcance cada línea.
+  const priced = useMemo(() => applyTiers(fresh.lines, config.tiers), [fresh.lines, config.tiers]);
+  const state = useMemo(() => (priced === saved.lines ? saved : { ...saved, lines: priced }), [priced, saved]);
   const last = useMemo(() => (savedLast ? refreshLines(savedLast.lines, config.catalog).lines : []), [savedLast, config.catalog]);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [announcement, setAnnouncement] = useState('');
@@ -223,14 +299,20 @@ export function OrderProvider({ config, children }: { config: OrderConfig; child
       config,
       state,
       removed: fresh.removed,
+      table,
+      leaveTable: () => writeTable(key, ''),
       last: last.length ? last : null,
       repeatLast: () => {
         if (!last.length) return;
-        write(key, { ...current(), lines: last });
+        write(key, { ...current(), lines: last, reference: newReference() });
         setAnnouncement(t('Agregamos tu último pedido.'));
         dialogRef.current?.showModal();
       },
-      remember: () => writeLast(key, current().lines),
+      remember: () => {
+        writeLast(key, current().lines);
+        // El siguiente envío es otro pedido: otro folio.
+        write(key, { ...current(), reference: newReference() });
+      },
       qtyOf: (id) => state.lines.find((line) => line.id === id)?.qty ?? 0,
       canAddMore: (item) => withinStock(config.stock, state.lines, item),
       add: (item) => {
@@ -247,7 +329,7 @@ export function OrderProvider({ config, children }: { config: OrderConfig; child
         const next = existing
           ? lines.map((line) => (line.id === item.id ? { ...line, ...item, qty: clampQty(line.qty + 1) } : line))
           : [...lines, { ...item, qty: 1 }];
-        write(key, { ...rest, lines: next });
+        write(key, { ...rest, lines: next, reference: rest.reference || newReference() });
         setAnnouncement(t('Agregado al pedido: {name}', { name: item.name }));
       },
       setQty: (id, qty) => {
@@ -266,7 +348,7 @@ export function OrderProvider({ config, children }: { config: OrderConfig; child
       clear: () => write(key, EMPTY),
       open: () => dialogRef.current?.showModal(),
     };
-  }, [config, fresh.removed, key, last, state, t]);
+  }, [config, fresh.removed, key, last, state, t, table]);
 
   return (
     <OrderContext.Provider value={api}>
@@ -412,13 +494,13 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
       ? pickupSlots(config.schedule, new Date(minute * 60_000), { leadMinutes: options.leadMinutes, days: options.scheduleDays, step: Number(options.slotMinutes) })
       : [];
   const when = state.when && pickupDays.some((d) => d.date === state.when!.date && d.slots.includes(state.when!.time)) ? state.when : null;
-  const choices = { fulfillment: state.fulfillment, address: state.address, zone: state.zone, payment: state.payment, coupon, when };
+  const choices = { fulfillment: state.fulfillment, address: state.address, zone: state.zone, table: order.table, payment: state.payment, coupon, when };
   const summary = summarizeOrder(state.lines, pricing, options, choices);
   const { subtotal, delivery, total, discount } = summary;
   const modes = fulfillmentOptions(options);
-  const fulfillment = effectiveFulfillment(options, state.fulfillment);
+  const fulfillment = summary.table ? null : effectiveFulfillment(options, state.fulfillment);
   const money = (value: number) => formatAmount(value, pricing);
-  const message = buildOrderMessage({ lines: state.lines, pricing, intro: config.intro, businessName: config.businessName, customerName: state.name, note: state.note, siteUrl: config.siteUrl, t, options, choices });
+  const message = buildOrderMessage({ lines: state.lines, pricing, intro: config.intro, businessName: config.businessName, customerName: state.name, note: state.note, siteUrl: config.siteUrl, t, options, choices, reference: state.reference || undefined });
   const now = minute === null ? null : new Date(minute * 60_000);
   const outOfHours = now
     ? state.lines.flatMap((line) => {
@@ -519,12 +601,13 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
                         ? formatAmount(line.price * line.qty, config.pricing)
                         : line.priceLabel ?? t('Precio por confirmar')}
                     </span>
+                    <TierHint line={line} tiers={config.tiers[line.id]} money={(value) => formatAmount(value, config.pricing)} />
                   </div>
                   <div className={styles.qtyStepper} data-small role="group" aria-label={t('Cantidad de {name}', { name: line.name })}>
                     <button type="button" onClick={() => order.setQty(line.id, line.qty - 1)} aria-label={line.qty === 1 ? t('Quitar del pedido') : t('Uno menos')}>
                       {line.qty === 1 ? <Trash2 size={15} aria-hidden /> : <Minus size={15} aria-hidden />}
                     </button>
-                    <span className={styles.qtyValue} aria-live="polite">{line.qty}</span>
+                    <QtyInput qty={line.qty} max={Math.min(MAX_ORDER_QTY, stockLimit(config.stock, state.lines, line))} onChange={(qty) => order.setQty(line.id, qty)} />
                     <button type="button" onClick={() => order.setQty(line.id, line.qty + 1)} disabled={!order.canAddMore(line)} aria-label={t('Uno más')}>
                       <Plus size={15} aria-hidden />
                     </button>
@@ -602,7 +685,15 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
             )}
 
             <div className={styles.orderFields}>
-              {modes.length > 0 && (
+              {summary.table && (
+                <p className={styles.orderTable} role="status">
+                  <span>{t('Pedido para la mesa {table}', { table: summary.table })}</span>
+                  <button type="button" className={styles.orderClear} onClick={order.leaveTable}>
+                    {t('No estoy en el local')}
+                  </button>
+                </p>
+              )}
+              {!summary.table && modes.length > 0 && (
                 <fieldset className={styles.orderChoices}>
                   <legend>{t('¿Cómo lo recibes?')}</legend>
                   {modes.length === 1 ? (
@@ -651,7 +742,7 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
                   />
                 </label>
               )}
-              {options.scheduling !== 'off' && minute !== null && (
+              {!summary.table && options.scheduling !== 'off' && minute !== null && (
                 <WhenField
                   days={pickupDays}
                   value={when}
@@ -867,4 +958,48 @@ function WhenField({ days, value, stale, optional, locale, onChange }: { days: P
 function zoneLabel(zone: DeliveryZone, money: (value: number) => string, t: Translator): string {
   const fee = zone.fee === null ? t('envío por confirmar') : zone.fee === 0 ? t('envío gratis') : t('envío {amount}', { amount: money(zone.fee) });
   return [`${zone.name} — ${fee}`, zone.minimumOrder !== null ? t('mínimo {amount}', { amount: money(zone.minimumOrder) }) : null].filter(Boolean).join(' · ');
+}
+
+/** "Mayoreo: $42 c/u" con el precio alcanzado, o "Desde 6: $42 c/u" con el siguiente escalón. */
+function TierHint({ line, tiers, money }: { line: OrderLine; tiers: TierIndex[string] | undefined; money: (value: number) => string }) {
+  const t = useSiteT();
+  if (!tiers?.length || line.price === null) return null;
+  const next = tiers.find(([minQty]) => minQty > line.qty);
+  return (
+    <span className={styles.orderTier}>
+      {line.wholesale && t('Mayoreo: {price} c/u', { price: money(line.price) })}
+      {line.wholesale && next && ' · '}
+      {next && t('Desde {qty}: {price} c/u', { qty: next[0], price: money(next[1]) })}
+    </span>
+  );
+}
+
+/**
+ * Cantidad escrita a mano (para pedir 24 de golpe). Se aplica al salir del
+ * campo o con Enter; vacío o 0 vuelve a la cantidad anterior (para quitar
+ * está el botón).
+ */
+function QtyInput({ qty, max, onChange }: { qty: number; max: number; onChange: (qty: number) => void }) {
+  const t = useSiteT();
+  const [draft, setDraft] = useState<string | null>(null);
+  const commit = () => {
+    if (draft === null) return;
+    const value = Math.min(Math.round(Number(draft)), max);
+    if (Number.isFinite(value) && value >= 1 && value !== qty) onChange(value);
+    setDraft(null);
+  };
+  return (
+    <input
+      type="number"
+      inputMode="numeric"
+      min={1}
+      max={max}
+      className={styles.qtyValue}
+      value={draft ?? String(qty)}
+      aria-label={t('Cantidad')}
+      onChange={(event) => setDraft(event.target.value)}
+      onBlur={commit}
+      onKeyDown={(event) => event.key === 'Enter' && event.currentTarget.blur()}
+    />
+  );
 }

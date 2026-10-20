@@ -4918,3 +4918,83 @@ details[open] > .faqQuestion .faqChevron {
 .favoriteDetail:hover {
   background: color-mix(in srgb, var(--c-text) 8%, transparent);
 }
+
+/* ----------------------------------------------------------------- Mayoreo */
+
+input.qtyValue {
+  width: 40px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+input.qtyValue::-webkit-outer-spin-button,
+input.qtyValue::-webkit-inner-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+
+input.qtyValue:focus-visible {
+  outline: 2px solid var(--c-button);
+  outline-offset: 1px;
+  border-radius: 4px;
+}
+
+.orderTier {
+  font-size: var(--fs-small);
+  color: var(--c-accent);
+}
+
+.tiers {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px dashed var(--c-border);
+  border-radius: calc(var(--radius) * 0.6);
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--fs-small);
+}
+
+.tiers li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tiers strong {
+  color: var(--c-heading);
+}
+
+.tiersTitle {
+  margin: 0 0 6px;
+  font-weight: 600;
+  color: var(--c-heading);
+}
+
+/* ------------------------------------------------------------ Pedido en mesa */
+
+.orderTable {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: calc(var(--radius) * 0.6);
+  background: var(--c-primary-soft);
+  color: var(--c-heading);
+  font-weight: 600;
+}
+
+.orderTable button {
+  font-weight: 400;
+}
