@@ -10,7 +10,8 @@ import { SiteImage } from '../SiteImage';
 import { useSiteT } from '../SiteI18n';
 import styles from '../site.module.css';
 import type { OrderConfig } from './config';
-import { PAYMENT_METHODS, type PaymentMethod } from '@/lib/catalog/settings';
+import { PAYMENT_METHODS, type DeliveryZone, type PaymentMethod } from '@/lib/catalog/settings';
+import type { Translator } from '@/i18n/translate';
 import {
   buildOrderMessage,
   clampQty,
@@ -35,9 +36,9 @@ import {
 
 /** Pedido guardado en el navegador del visitante (localStorage), uno por negocio. */
 type When = { date: string; time: string };
-type OrderState = { lines: OrderLine[]; name: string; note: string; fulfillment: Fulfillment | null; address: string; payment: PaymentMethod | null; coupon: string; when: When | null };
+type OrderState = { lines: OrderLine[]; name: string; note: string; fulfillment: Fulfillment | null; address: string; zone: string; payment: PaymentMethod | null; coupon: string; when: When | null };
 
-const EMPTY: OrderState = { lines: [], name: '', note: '', fulfillment: null, address: '', payment: null, coupon: '', when: null };
+const EMPTY: OrderState = { lines: [], name: '', note: '', fulfillment: null, address: '', zone: '', payment: null, coupon: '', when: null };
 const cache = new Map<string, OrderState>();
 const listeners = new Map<string, Set<() => void>>();
 
@@ -67,7 +68,7 @@ function sanitize(raw: unknown): OrderState {
     rawWhen && typeof rawWhen.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rawWhen.date) && typeof rawWhen.time === 'string' && /^\d{2}:\d{2}$/.test(rawWhen.time)
       ? { date: rawWhen.date, time: rawWhen.time }
       : null;
-  return { lines, name: str(input.name, 80), note: str(input.note, 500), fulfillment, address: str(input.address, 300), payment, coupon: str(input.coupon, 24), when };
+  return { lines, name: str(input.name, 80), note: str(input.note, 500), fulfillment, address: str(input.address, 300), zone: str(input.zone, 60), payment, coupon: str(input.coupon, 24), when };
 }
 
 function read(key: string): OrderState {
@@ -411,7 +412,7 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
       ? pickupSlots(config.schedule, new Date(minute * 60_000), { leadMinutes: options.leadMinutes, days: options.scheduleDays, step: Number(options.slotMinutes) })
       : [];
   const when = state.when && pickupDays.some((d) => d.date === state.when!.date && d.slots.includes(state.when!.time)) ? state.when : null;
-  const choices = { fulfillment: state.fulfillment, address: state.address, payment: state.payment, coupon, when };
+  const choices = { fulfillment: state.fulfillment, address: state.address, zone: state.zone, payment: state.payment, coupon, when };
   const summary = summarizeOrder(state.lines, pricing, options, choices);
   const { subtotal, delivery, total, discount } = summary;
   const modes = fulfillmentOptions(options);
@@ -443,15 +444,19 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
       ? t('{name} se pide de {from} a {to}. Quítalo o vuelve en ese horario.', { name: outOfHours[0].name, from: shortTime(outOfHours[0].hours.from), to: shortTime(outOfHours[0].hours.to) })
     : summary.blocker === 'fulfillment'
       ? t('Elige cómo quieres recibir tu pedido.')
+      : summary.blocker === 'zone'
+        ? t('Elige tu zona de entrega.')
       : summary.blocker === 'address'
         ? t('Escribe la dirección de entrega.')
-        : summary.blocker === 'minimum' && options.minimumOrder !== null && summary.missingForMinimum !== null
-          ? t('El pedido mínimo es de {minimum}: te faltan {amount}.', { minimum: money(options.minimumOrder), amount: money(summary.missingForMinimum) })
+        : summary.blocker === 'minimum' && summary.minimum !== null && summary.missingForMinimum !== null
+          ? t('El pedido mínimo es de {minimum}: te faltan {amount}.', { minimum: money(summary.minimum), amount: money(summary.missingForMinimum) })
           : summary.blocker === 'when'
             ? t('Elige para cuándo quieres tu pedido.')
             : null;
   const deliveryHint =
-    options.deliveryFee === 0
+    options.zones.length > 0
+      ? [t('Envío según tu zona'), options.freeDeliveryFrom !== null ? t('gratis desde {amount}', { amount: money(options.freeDeliveryFrom) }) : null].filter(Boolean).join(', ')
+      : options.deliveryFee === 0
       ? t('Envío gratis')
       : [
           options.deliveryFee !== null ? t('Envío {amount}', { amount: money(options.deliveryFee) }) : t('Costo de envío por confirmar'),
@@ -616,6 +621,21 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
                     <p className={styles.orderHint}>{[deliveryHint, options.deliveryNote].filter(Boolean).join(' · ')}</p>
                   )}
                 </fieldset>
+              )}
+              {fulfillment === 'delivery' && options.zones.length > 0 && (
+                <label>
+                  <span>{t('Zona de entrega')}</span>
+                  <select value={summary.zone?.name ?? ''} required onChange={(event) => order.update({ zone: event.target.value })}>
+                    <option value="" disabled>
+                      {t('Elige tu zona')}
+                    </option>
+                    {options.zones.map((zone) => (
+                      <option key={zone.name} value={zone.name}>
+                        {zoneLabel(zone, money, t)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               )}
               {fulfillment === 'delivery' && (
                 <label>
@@ -841,4 +861,10 @@ function WhenField({ days, value, stale, optional, locale, onChange }: { days: P
       {stale && <p className={styles.orderHint} role="status">{t('El horario que elegiste ya pasó: elige otro.')}</p>}
     </fieldset>
   );
+}
+
+/** "Centro — envío $25 · mínimo $150" para la lista de zonas. */
+function zoneLabel(zone: DeliveryZone, money: (value: number) => string, t: Translator): string {
+  const fee = zone.fee === null ? t('envío por confirmar') : zone.fee === 0 ? t('envío gratis') : t('envío {amount}', { amount: money(zone.fee) });
+  return [`${zone.name} — ${fee}`, zone.minimumOrder !== null ? t('mínimo {amount}', { amount: money(zone.minimumOrder) }) : null].filter(Boolean).join(' · ');
 }

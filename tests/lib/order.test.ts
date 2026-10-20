@@ -88,9 +88,9 @@ describe('Pedido por WhatsApp', () => {
 
   it('entrega, envío y mínimo: lo nuevo viene apagado y el mensaje no cambia', () => {
     const { order } = catalogSettingsSchema.parse({});
-    assert.deepEqual({ ...NO_OPTIONS }, { pickup: order.pickup, delivery: order.delivery, deliveryFee: order.deliveryFee, freeDeliveryFrom: order.freeDeliveryFrom, deliveryNote: order.deliveryNote, minimumOrder: order.minimumOrder, payments: order.payments, scheduling: order.scheduling, leadMinutes: order.leadMinutes, scheduleDays: order.scheduleDays, slotMinutes: order.slotMinutes });
+    assert.deepEqual({ ...NO_OPTIONS }, { pickup: order.pickup, delivery: order.delivery, deliveryFee: order.deliveryFee, freeDeliveryFrom: order.freeDeliveryFrom, deliveryNote: order.deliveryNote, zones: order.zones, minimumOrder: order.minimumOrder, payments: order.payments, scheduling: order.scheduling, leadMinutes: order.leadMinutes, scheduleDays: order.scheduleDays, slotMinutes: order.slotMinutes });
     const summary = summarizeOrder([line({ qty: 2 })], pricing);
-    assert.deepEqual(summary, { subtotal: { value: 96, partial: false }, delivery: null, total: { value: 96, partial: false }, missingForMinimum: null, missingForFreeDelivery: null, blocker: null, discount: null, couponIssue: null });
+    assert.deepEqual(summary, { subtotal: { value: 96, partial: false }, delivery: null, total: { value: 96, partial: false }, minimum: null, zone: null, missingForMinimum: null, missingForFreeDelivery: null, blocker: null, discount: null, couponIssue: null });
     // Montos escritos en el formulario: vacío → sin valor; "1,200.50" y "35,5" se entienden.
     const parsed = catalogSettingsSchema.parse({ order: { deliveryFee: '35,5', freeDeliveryFrom: '1,200.50', minimumOrder: '' } }).order;
     assert.deepEqual([parsed.deliveryFee, parsed.freeDeliveryFrom, parsed.minimumOrder], [35.5, 1200.5, null]);
@@ -140,6 +140,36 @@ describe('Pedido por WhatsApp', () => {
     assert.equal(summarizeOrder([line({ qty: 2 }), line({ id: 'b', price: null })], pricing, options, { ...NO_CHOICES, address: 'Centro' }).blocker, null);
     const text = buildOrderMessage({ lines: [line({ qty: 4 })], pricing, intro: 'Hola', businessName: 'Café', siteUrl: 'https://x.test', t: siteTranslator('es'), options, choices: { ...NO_CHOICES, address: 'Centro' } });
     assert.match(text, /Subtotal: \$192\nEnvío: por confirmar\nEntrega: A domicilio\nDirección: Centro/);
+  });
+
+  it('zonas de entrega: se elige la zona; su envío y su mínimo (el mayor con el del negocio) y va en el mensaje', () => {
+    const zones = [
+      { name: 'Centro', fee: 25, minimumOrder: null },
+      { name: 'Norte', fee: null, minimumOrder: 200 },
+      { name: 'Vecinos', fee: 0, minimumOrder: null },
+    ];
+    const options: OrderOptions = { ...NO_OPTIONS, pickup: true, delivery: true, deliveryFee: 99, minimumOrder: 100, zones };
+    const lines = [line({ qty: 3 })]; // 144
+    const choose = (zone: string | null, address = 'Calle 5') => summarizeOrder(lines, pricing, options, { ...NO_CHOICES, fulfillment: 'delivery', address, zone });
+    assert.deepEqual([choose(null).blocker, choose(null).delivery, choose('Sur').blocker], ['zone', null, 'zone']);
+    const centro = choose('Centro');
+    assert.deepEqual([centro.zone?.name, centro.delivery, centro.total?.value, centro.minimum, centro.blocker], ['Centro', { kind: 'fee', value: 25 }, 169, 100, null]);
+    assert.equal(choose('Centro', '').blocker, 'address');
+    const norte = choose('Norte');
+    assert.deepEqual([norte.delivery, norte.minimum, norte.missingForMinimum, norte.blocker], [{ kind: 'confirm' }, 200, 56, 'minimum']);
+    assert.deepEqual(choose('Vecinos').delivery, { kind: 'free' });
+    // Recoger en el local: sin zona, sin envío y el mínimo del negocio.
+    const pickup = summarizeOrder(lines, pricing, options, { ...NO_CHOICES, fulfillment: 'pickup', zone: 'Norte' });
+    assert.deepEqual([pickup.zone, pickup.delivery, pickup.minimum, pickup.blocker], [null, null, 100, null]);
+
+    const text = buildOrderMessage({ lines, pricing, intro: 'Hola', businessName: 'Café', siteUrl: 'https://x.test', t: siteTranslator('es'), options, choices: { ...NO_CHOICES, fulfillment: 'delivery', address: 'Calle 5', zone: 'Centro' } });
+    assert.match(text, /Envío: \$25\nTotal: \$169\nEntrega: A domicilio\nZona: Centro\nDirección: Calle 5/);
+
+    // Formulario: montos escritos, nombres repetidos no.
+    const parsed = catalogSettingsSchema.parse({ order: { zones: [{ name: ' Centro ', fee: '25', minimumOrder: '' }] } }).order.zones;
+    assert.deepEqual(parsed, [{ name: 'Centro', fee: 25, minimumOrder: null }]);
+    assert.equal(catalogSettingsSchema.safeParse({ order: { zones: [{ name: 'Centro' }, { name: 'centro' }] } }).success, false);
+    assert.equal(catalogSettingsSchema.safeParse({ order: { zones: [{ name: '' }] } }).success, false);
   });
 
   it('cupones: el código no viaja al navegador; se encuentra sin importar mayúsculas y descuenta de los productos', () => {

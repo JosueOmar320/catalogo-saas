@@ -3,7 +3,7 @@ import { describe, it } from 'node:test';
 import { emptyItemValues } from '@/features/items/defaults';
 import { itemFormSchema, itemFormToAttributes } from '@/features/items/schema';
 import { contactSchema, hoursText } from '@/lib/business/profile';
-import { openingHoursSpecification, openStatus, scheduleRows, scheduleSchema, scheduleText, type Schedule } from '@/lib/business/schedule';
+import { openingHoursSpecification, openStatus, pickupSlots, scheduleRows, scheduleSchema, scheduleText, specialDaysText, specialOpeningHoursSpecification, type Schedule } from '@/lib/business/schedule';
 import { isSaleOver } from '@/lib/catalog/sale';
 import { mapItems, type ItemInput } from '@/lib/catalog/view-model';
 
@@ -59,6 +59,53 @@ describe('Horario por día', () => {
     const contact = contactSchema.parse({ hours: 'Festivos cerrado', schedule: week });
     assert.match(hoursText(contact, 'es-MX', 'Cerrado'), /dom\.?: Cerrado\nFestivos cerrado$/);
     assert.equal(hoursText({ ...contact, schedule: { ...week, enabled: false } }, 'es-MX', 'Cerrado'), 'Festivos cerrado');
+  });
+});
+
+describe('Días especiales del horario', () => {
+  // Miércoles 21 cerrado por inventario; el domingo 25 (normalmente cerrado) abre de 10 a 14.
+  const special = scheduleSchema.parse({
+    ...week,
+    special: [
+      { date: '2026-10-25', open: true, ranges: [{ from: '10:00', to: '14:00' }], note: 'Feria del café' },
+      { date: '2026-10-21', open: false, note: 'Inventario' },
+    ],
+  });
+
+  it('reemplazan el horario de la semana en esa fecha: abierto, cerrado y cuándo abre', () => {
+    assert.deepEqual(openStatus(special, at('2026-10-21T18:00:00Z')), { open: false, opensAt: { inDays: 1, day: 3, time: '07:30' } }); // mié 12:00
+    assert.deepEqual(openStatus(special, at('2026-10-21T03:00:00Z')), { open: false, opensAt: { inDays: 2, day: 3, time: '07:30' } }); // mar 21:00
+    assert.deepEqual(openStatus(special, at('2026-10-25T01:00:00Z')), { open: false, opensAt: { inDays: 1, day: 6, time: '10:00' } }); // sáb 19:00
+    assert.deepEqual(openStatus(special, at('2026-10-25T17:00:00Z')), { open: true, closesAt: '14:00' }); // dom 11:00
+    assert.deepEqual(openStatus(week, at('2026-10-21T18:00:00Z')), { open: true, closesAt: '20:00' }); // sin días especiales
+  });
+
+  it('los horarios para pedir respetan los días especiales', () => {
+    const days = pickupSlots(special, at('2026-10-19T15:00:00Z'), { leadMinutes: 0, days: 7, step: 60 });
+    assert.deepEqual(days.map((d) => d.date), ['2026-10-19', '2026-10-20', '2026-10-22', '2026-10-23', '2026-10-24', '2026-10-25']);
+    assert.deepEqual(days.at(-1)!.slots, ['10:00', '11:00', '12:00', '13:00']);
+  });
+
+  it('se muestran los próximos (no los pasados) y van a los datos para buscadores', () => {
+    const lines = specialDaysText(special, 'es-MX', 'Cerrado', at('2026-10-19T15:00:00Z')).split('\n');
+    assert.equal(lines.length, 2);
+    assert.match(lines[0], /^mié\.?,? 21 (de )?oct\.?: Cerrado · Inventario$/);
+    assert.match(lines[1], /^dom\.?,? 25 (de )?oct\.?: 10:00 – 14:00 · Feria del café$/);
+    assert.equal(specialDaysText(special, 'es-MX', 'Cerrado', at('2026-10-23T15:00:00Z')).split('\n').length, 1);
+    assert.equal(specialDaysText(week, 'es-MX', 'Cerrado', at('2026-10-19T15:00:00Z')), '');
+    const contact = contactSchema.parse({ schedule: special });
+    assert.match(hoursText(contact, 'es-MX', 'Cerrado', at('2026-10-19T15:00:00Z')), /dom\.?: Cerrado\nmié.*Inventario\ndom.*Feria del café$/);
+
+    assert.deepEqual(specialOpeningHoursSpecification(special, at('2026-10-19T15:00:00Z')), [
+      { '@type': 'OpeningHoursSpecification', opens: '00:00', closes: '00:00', validFrom: '2026-10-21', validThrough: '2026-10-21' },
+      { '@type': 'OpeningHoursSpecification', opens: '10:00', closes: '14:00', validFrom: '2026-10-25', validThrough: '2026-10-25' },
+    ]);
+  });
+
+  it('no acepta dos días especiales con la misma fecha ni fechas inválidas', () => {
+    assert.equal(scheduleSchema.safeParse({ special: [{ date: '2026-12-24' }, { date: '2026-12-24', open: true }] }).success, false);
+    assert.equal(scheduleSchema.safeParse({ special: [{ date: '24/12/2026' }] }).success, false);
+    assert.deepEqual(scheduleSchema.parse({ special: [{ date: '2026-12-24' }] }).special, [{ date: '2026-12-24', open: false, ranges: [], note: '' }]);
   });
 });
 

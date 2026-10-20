@@ -55,6 +55,16 @@ const optionalAmount = () =>
     .default(null);
 
 export const MAX_COUPONS = 20;
+export const MAX_ZONES = 20;
+
+/** Zona de entrega: su costo de envío (vacío = se confirma) y, si tiene, su pedido mínimo. */
+export const deliveryZoneSchema = z.object({
+  name: z.string().trim().min(1, msg('Escribe el nombre de la zona')).max(60),
+  fee: optionalAmount(),
+  minimumOrder: optionalAmount(),
+});
+
+export type DeliveryZone = z.output<typeof deliveryZoneSchema>;
 
 /** Cupón de descuento del pedido. El código se guarda en mayúsculas. */
 export const couponSchema = z.object({
@@ -94,6 +104,12 @@ export const orderSchema = z.object({
   freeDeliveryFrom: optionalAmount(),
   /** Aclaración del envío: zonas, tiempos ("Sólo zona centro, 30–45 min"). */
   deliveryNote: z.string().trim().max(120).default(''),
+  /** Zonas de entrega: con alguna, el cliente elige la suya y paga su envío (reemplaza a deliveryFee). */
+  zones: z
+    .array(deliveryZoneSchema)
+    .max(MAX_ZONES)
+    .refine((list) => new Set(list.map((z) => z.name.toLowerCase())).size === list.length, msg('Hay zonas con el mismo nombre'))
+    .default([]),
   /** Pedido mínimo (sobre el subtotal). */
   minimumOrder: optionalAmount(),
   /** Formas de pago que el cliente puede elegir. */

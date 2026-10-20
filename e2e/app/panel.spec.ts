@@ -613,6 +613,51 @@ test('reseñas: el visitante opina, el negocio la aprueba y se publica con su ca
   await visitor.close();
 });
 
+test('días especiales y zonas de entrega del panel llegan al sitio y al pedido', async ({ page, browser }) => {
+  await page.goto('/dashboard/settings/contacto');
+  // El día especial nuevo propone mañana: cerrado, con su motivo.
+  await page.getByRole('button', { name: 'Agregar día especial' }).click();
+  const special = page.getByRole('list', { name: 'Días especiales' }).getByRole('listitem').first();
+  await special.getByLabel('Motivo (opcional)').fill('Inventario E2E');
+  await page.getByRole('button', { name: 'Guardar contacto' }).click();
+  await expect(page.getByText('Contacto guardado')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Agregar zona' }).click();
+  await page.getByRole('button', { name: 'Agregar zona' }).click();
+  const zones = page.getByRole('list', { name: 'Zonas de entrega' }).getByRole('listitem');
+  await zones.nth(0).getByLabel('Zona', { exact: true }).fill('Centro');
+  await zones.nth(0).getByLabel('Envío', { exact: true }).fill('20');
+  await zones.nth(1).getByLabel('Zona', { exact: true }).fill('Norte');
+  await zones.nth(1).getByLabel('Pedido mínimo').fill('500');
+  await page.getByRole('button', { name: 'Guardar pedidos' }).click();
+  await expect(page.getByText('Configuración guardada')).toBeVisible();
+
+  const visitor = await browser.newContext(ANONYMOUS);
+  const site = await visitor.newPage();
+  await expect(async () => {
+    await site.goto(`/catalogo/${slug}`);
+    await expect(site.getByText(/Cerrado · Inventario E2E/).first()).toBeVisible({ timeout: 1000 });
+  }).toPass({ timeout: 15_000 });
+  expect(await site.content()).toContain('specialOpeningHoursSpecification');
+
+  await site.goto(`/catalogo/${slug}/p/smoothie-e2e`);
+  await site.getByRole('radio', { name: 'Grande' }).click();
+  await site.getByRole('button', { name: 'Agregar al pedido' }).click();
+  await site.getByRole('button', { name: /^Ver pedido/ }).click();
+  const dialog = site.getByRole('dialog', { name: 'Tu pedido' });
+  await dialog.getByRole('group', { name: 'Cantidad de Smoothie E2E (Grande)' }).getByRole('button', { name: 'Uno más' }).click();
+  await dialog.getByLabel('Dirección de entrega').fill('Calle 5 #10');
+  await expect(dialog.getByText('Elige tu zona de entrega.')).toBeVisible();
+  const zone = dialog.getByLabel('Zona de entrega');
+  await zone.selectOption('Norte');
+  await expect(dialog.getByText('El pedido mínimo es de $500: te faltan $360.')).toBeVisible();
+  await zone.selectOption('Centro');
+  const href = await dialog.getByRole('link', { name: 'Enviar pedido por WhatsApp' }).getAttribute('href');
+  const text = new URL(href!).searchParams.get('text')!;
+  expect(text).toContain('Subtotal: $140\nEnvío: $20\nTotal: $160\nEntrega: A domicilio\nZona: Centro\nDirección: Calle 5 #10');
+  await visitor.close();
+});
+
 test('el idioma elegido se guarda en el perfil y vuelve al iniciar sesión', async ({ page, browser }) => {
   await page.goto('/dashboard');
   await page.getByRole('button', { name: 'Cambiar idioma' }).click();

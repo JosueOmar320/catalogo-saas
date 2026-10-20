@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { SOCIAL_NETWORK_IDS } from '@/lib/social/networks';
 import { msg } from '@/i18n/translate';
-import { scheduleSchema, scheduleText } from './schedule';
+import { scheduleSchema, scheduleText, specialDaysText } from './schedule';
 
 const optionalText = (max: number) => z.string().trim().max(max).default('');
 /** Sólo http(s): estas URLs se muestran como enlaces (evita javascript:, data:…). */
@@ -57,8 +57,11 @@ export function parseSocialLinks(raw: unknown): SocialLink[] {
 
 export { digitsOnly } from '@/lib/utils/phone';
 
-/** Horario para mostrar: el horario por día (si está activo) y las notas en texto libre. */
-export function hoursText(contact: Pick<BusinessContact, 'hours' | 'schedule'>, locale: string, closedLabel: string): string {
+/**
+ * Horario para mostrar: el horario por día (si está activo), los días
+ * especiales próximos y las notas en texto libre.
+ */
+export function hoursText(contact: Pick<BusinessContact, 'hours' | 'schedule'>, locale: string, closedLabel: string, now: Date = new Date()): string {
   if (!contact.schedule.enabled) return contact.hours;
-  return [scheduleText(contact.schedule, locale, closedLabel), contact.hours].filter(Boolean).join('\n');
+  return [scheduleText(contact.schedule, locale, closedLabel), specialDaysText(contact.schedule, locale, closedLabel, now), contact.hours].filter(Boolean).join('\n');
 }

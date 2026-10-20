@@ -4306,6 +4306,7 @@ details[open] > .faqQuestion .faqChevron {
 }
 
 .orderFields input:not([type='radio']),
+.orderFields select,
 .orderFields textarea {
   width: 100%;
   padding: 9px 11px;
@@ -4318,6 +4319,7 @@ details[open] > .faqQuestion .faqChevron {
 }
 
 .orderFields input:not([type='radio']):focus,
+.orderFields select:focus,
 .orderFields textarea:focus {
   outline: 2px solid var(--c-button);
   outline-offset: -1px;
@@ -4846,4 +4848,73 @@ details[open] > .faqQuestion .faqChevron {
   width: 1px;
   height: 1px;
   overflow: hidden;
+}
+
+/* ---------------------------------------------------------------- Favoritos */
+
+.favorite {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, #fff 88%, transparent);
+  color: #3a3a3a;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.18);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.favorite[data-corner='left'] {
+  right: auto;
+  left: 8px;
+}
+
+.favorite[aria-pressed='true'] {
+  color: #e0245e;
+}
+
+.favorite:hover {
+  transform: scale(1.08);
+}
+
+.favorite:focus-visible,
+.favoriteDetail:focus-visible {
+  outline: 2px solid var(--c-button);
+  outline-offset: 2px;
+}
+
+/* Sin imagen arriba, el corazón queda junto al título: se le deja espacio. */
+.card:not([data-image='top']) .cardTitle {
+  padding-inline-end: 36px;
+}
+
+.favoriteDetail {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--c-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--c-heading);
+  font: inherit;
+  font-size: var(--fs-small);
+  cursor: pointer;
+}
+
+.favoriteDetail[aria-pressed='true'] svg {
+  color: #e0245e;
+}
+
+.favoriteDetail:hover {
+  background: color-mix(in srgb, var(--c-text) 8%, transparent);
 }

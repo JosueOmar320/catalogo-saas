@@ -14,6 +14,7 @@ import { fillTemplate } from '@/lib/contact/actions';
 import { useT } from '@/i18n/client';
 import { useAction } from '@/lib/hooks/use-action';
 import { CouponsField } from './CouponsField';
+import { ZonesField } from './ZonesField';
 import { ScheduleField } from './ScheduleField';
 import { msg } from '@/i18n/translate';
 
@@ -183,6 +184,9 @@ export function ContactForm({ contact, actions, order, businessName }: { contact
               </Grid>
               <Grid size={{ xs: 12, sm: 4 }}>
                 <TextFieldControl control={orderForm.control} name="deliveryNote" label={t('Zona o tiempo de entrega')} placeholder={t('Sólo zona centro, 30–45 min')} />
+              </Grid>
+              <Grid size={12}>
+                <ZonesField control={orderForm.control} />
               </Grid>
             </Grid>
           )}

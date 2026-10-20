@@ -15,6 +15,7 @@ import { buttonVariant } from './SiteButton';
 import { VariantPicker } from './VariantPicker';
 import { DietTags } from './diet';
 import { ItemReviews } from './Reviews';
+import { FavoriteButton } from './Favorites';
 import { relatedItems } from './related';
 import { ShareItem } from './ShareItem';
 import { siteTranslator, siteYesNo } from './site-i18n';
@@ -80,6 +81,7 @@ export function ItemDetail({ site, item, backHref, env }: { site: SiteViewModel;
             <ContactActions site={site} item={item} skipOrder={Boolean(item.variants || item.extras)} />
           </div>
           <ShareItem name={item.name} url={item.url} />
+          {env.mode === 'public' && <FavoriteButton slug={site.business.slug} itemId={item.id} name={item.name} variant="detail" />}
         </div>
       </div>
       {env.mode !== 'preview' && <ItemReviews site={site} item={item} />}

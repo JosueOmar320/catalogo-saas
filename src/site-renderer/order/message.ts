@@ -1,7 +1,7 @@
 import { msg, type Translator } from '@/i18n/translate';
 import { formatPickup } from '@/lib/business/schedule';
 import { isSaleOver, type SaleEnds } from '@/lib/catalog/sale';
-import type { OrderSettings, PaymentMethod, PriceFormat } from '@/lib/catalog/settings';
+import type { DeliveryZone, OrderSettings, PaymentMethod, PriceFormat } from '@/lib/catalog/settings';
 import { formatPrice } from '@/lib/utils/format';
 import { digitsOnly } from '@/lib/utils/phone';
 
@@ -64,7 +64,7 @@ export type Fulfillment = 'pickup' | 'delivery';
 /** Lo que el negocio configuró para entregar y cobrar (subconjunto plano de OrderSettings). */
 export type OrderOptions = Pick<
   OrderSettings,
-  'pickup' | 'delivery' | 'deliveryFee' | 'freeDeliveryFrom' | 'deliveryNote' | 'minimumOrder' | 'payments' | 'scheduling' | 'leadMinutes' | 'scheduleDays' | 'slotMinutes'
+  'pickup' | 'delivery' | 'deliveryFee' | 'freeDeliveryFrom' | 'deliveryNote' | 'zones' | 'minimumOrder' | 'payments' | 'scheduling' | 'leadMinutes' | 'scheduleDays' | 'slotMinutes'
 >;
 
 /* ------------------------------------------------------ Precios al día y pausa */
@@ -143,6 +143,8 @@ export function findCoupon(coupons: PublicCoupon[], scope: string, code: string)
 export type OrderChoices = {
   fulfillment: Fulfillment | null;
   address: string;
+  /** Zona de entrega elegida (su nombre), si el negocio usa zonas. */
+  zone?: string | null;
   payment: PaymentMethod | null;
   coupon?: AppliedCoupon | null;
   /** Día y hora elegidos ("¿Para cuándo?"), en la zona del negocio; null = lo antes posible. */
@@ -155,6 +157,7 @@ export const NO_OPTIONS: OrderOptions = {
   deliveryFee: null,
   freeDeliveryFrom: null,
   deliveryNote: '',
+  zones: [],
   minimumOrder: null,
   payments: [],
   scheduling: 'off',
@@ -188,12 +191,16 @@ export type OrderSummary = {
   delivery: { kind: 'fee'; value: number } | { kind: 'free' } | { kind: 'confirm' } | null;
   /** Subtotal + envío (si se conoce). */
   total: Amount | null;
+  /** Pedido mínimo que aplica: el del negocio o el de la zona, el mayor. */
+  minimum: number | null;
+  /** Zona de entrega elegida (si el negocio usa zonas y la entrega es a domicilio). */
+  zone: DeliveryZone | null;
   /** Cuánto falta para el pedido mínimo (sólo si todos los precios se conocen). */
   missingForMinimum: number | null;
   /** Cuánto falta para el envío gratis. */
   missingForFreeDelivery: number | null;
-  /** Lo que impide enviar: elegir la entrega, escribir la dirección, llegar al mínimo o elegir para cuándo. */
-  blocker: 'fulfillment' | 'address' | 'minimum' | 'when' | null;
+  /** Lo que impide enviar: elegir la entrega o la zona, escribir la dirección, llegar al mínimo o elegir para cuándo. */
+  blocker: 'fulfillment' | 'zone' | 'address' | 'minimum' | 'when' | null;
   /** Descuento del cupón (sobre los productos, no el envío). */
   discount: { code: string; value: number } | null;
   /** Por qué el cupón aplicado no descuenta: venció o falta llegar a su mínimo. */
@@ -202,24 +209,33 @@ export type OrderSummary = {
 
 const cents = (value: number) => Math.round(value * 100) / 100;
 
+/** La zona elegida, si existe (por nombre). */
+export const findZone = (options: OrderOptions, name: string | null | undefined) => (name ? (options.zones.find((zone) => zone.name === name) ?? null) : null);
+
 /**
  * Totales del pedido. El pedido mínimo y el envío gratis se miden sobre los
  * productos antes del cupón; el cupón descuenta de los productos y el envío se
- * suma aparte.
+ * suma aparte. Con zonas de entrega, el envío y el mínimo son los de la zona
+ * elegida (el mínimo del negocio sigue valiendo si es mayor).
  */
 export function summarizeOrder(lines: OrderLine[], pricing: OrderPricing, options: OrderOptions = NO_OPTIONS, choices: OrderChoices = NO_CHOICES, now: Date = new Date()): OrderSummary {
   const subtotal = orderTotal(lines, pricing);
   const fulfillment = effectiveFulfillment(options, choices.fulfillment);
   const known = subtotal && !subtotal.partial ? subtotal.value : null;
 
+  const zoned = fulfillment === 'delivery' && options.zones.length > 0;
+  const zone = zoned ? findZone(options, choices.zone) : null;
+
   let delivery: OrderSummary['delivery'] = null;
   let missingForFreeDelivery: number | null = null;
-  if (fulfillment === 'delivery') {
+  // Con zonas, el envío se conoce al elegir la zona.
+  if (fulfillment === 'delivery' && (!zoned || zone)) {
+    const fee = zone ? zone.fee : options.deliveryFee;
     const free = options.freeDeliveryFrom !== null && known !== null && known >= options.freeDeliveryFrom;
     if (free) delivery = { kind: 'free' };
-    else if (options.deliveryFee === null) delivery = { kind: 'confirm' };
-    else delivery = options.deliveryFee === 0 ? { kind: 'free' } : { kind: 'fee', value: options.deliveryFee };
-    if (!free && options.freeDeliveryFrom !== null && known !== null && options.deliveryFee !== 0) missingForFreeDelivery = cents(options.freeDeliveryFrom - known);
+    else if (fee === null) delivery = { kind: 'confirm' };
+    else delivery = fee === 0 ? { kind: 'free' } : { kind: 'fee', value: fee };
+    if (!free && options.freeDeliveryFrom !== null && known !== null && fee !== 0) missingForFreeDelivery = cents(options.freeDeliveryFrom - known);
   }
 
   const coupon = choices.coupon ?? null;
@@ -238,11 +254,15 @@ export function summarizeOrder(lines: OrderLine[], pricing: OrderPricing, option
     value: cents(subtotal.value - (discount?.value ?? 0) + (delivery?.kind === 'fee' ? delivery.value : 0)),
     partial: subtotal.partial || delivery?.kind === 'confirm',
   };
-  const missingForMinimum = options.minimumOrder !== null && known !== null && known < options.minimumOrder ? cents(options.minimumOrder - known) : null;
+  const minimums = [options.minimumOrder, zone?.minimumOrder ?? null].filter((value): value is number => value !== null);
+  const minimum = minimums.length ? Math.max(...minimums) : null;
+  const missingForMinimum = minimum !== null && known !== null && known < minimum ? cents(minimum - known) : null;
 
   const blocker =
     fulfillmentOptions(options).length > 0 && !fulfillment
       ? 'fulfillment'
+      : zoned && !zone
+        ? 'zone'
       : fulfillment === 'delivery' && !choices.address.trim()
         ? 'address'
         : missingForMinimum !== null
@@ -250,7 +270,7 @@ export function summarizeOrder(lines: OrderLine[], pricing: OrderPricing, option
           : options.scheduling === 'required' && !choices.when
             ? 'when'
             : null;
-  return { subtotal, delivery, total, missingForMinimum, missingForFreeDelivery, blocker, discount, couponIssue };
+  return { subtotal, delivery, total, minimum, zone, missingForMinimum, missingForFreeDelivery, blocker, discount, couponIssue };
 }
 
 export type OrderMessageInput = {
@@ -300,7 +320,7 @@ export function buildOrderMessage({ lines, pricing, intro, businessName, custome
     return `• ${line.qty} × ${line.name}${sku}${price}${note ? `\n   ${t('Nota: {note}', { note })}` : ''}`;
   });
 
-  const { subtotal, delivery, discount, total } = summarizeOrder(lines, pricing, options, choices, now);
+  const { subtotal, delivery, discount, total, zone } = summarizeOrder(lines, pricing, options, choices, now);
   const summary: string[] = [];
   const productsTotal = (amount: Amount, key: 'Total' | 'Subtotal') => {
     const value = formatAmount(amount.value, pricing);
@@ -318,6 +338,7 @@ export function buildOrderMessage({ lines, pricing, intro, businessName, custome
   const fulfillment = effectiveFulfillment(options, choices.fulfillment);
   if (options.scheduling !== 'off' && choices.when) summary.push(t('Para: {when}', { when: formatPickup(choices.when.date, choices.when.time, pricing.locale) }));
   if (fulfillment) summary.push(t('Entrega: {mode}', { mode: fulfillment === 'delivery' ? t('A domicilio') : t('Recoger en el local') }));
+  if (zone) summary.push(t('Zona: {zone}', { zone: zone.name }));
   const address = choices.address.trim();
   if (fulfillment === 'delivery' && address) summary.push(t('Dirección: {address}', { address }));
   if (choices.payment && options.payments.includes(choices.payment)) summary.push(t('Pago: {method}', { method: t(PAYMENT_LABELS[choices.payment]) }));
