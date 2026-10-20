@@ -5,11 +5,12 @@ import { LinkButton } from '@/components/ui/LinkButton';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { getLocale, getT } from '@/i18n/server';
-import { itemThumbnail, listCategories, listItemsWithImages } from '@/features/catalog/queries';
+import { itemThumbnail, listCategories, listItemCosts, listItemsWithImages } from '@/features/catalog/queries';
 import { requireBusinessContext } from '@/lib/auth/session';
 import { parseItemAttributes } from '@/lib/catalog/item-attributes';
 import { formatSaleDate, isSaleOver } from '@/lib/catalog/sale';
 import { itemUrl } from '@/lib/catalog/view-model';
+import { marginOf } from '@/lib/catalog/margin';
 import { seasonStatus } from '@/lib/catalog/season';
 import { parseCatalogSettings } from '@/lib/catalog/settings';
 import { formatPrice } from '@/lib/utils/format';
@@ -26,7 +27,7 @@ import { ItemsTable, type ItemRowData } from './ItemsTable';
 export async function ItemsPage({ type, review }: { type: ItemType; review?: ReviewFilter | null }) {
   const ctx = await requireBusinessContext();
   const t = await getT();
-  const [categories, items, performance] = await Promise.all([listCategories(ctx), listItemsWithImages(ctx), getItemPerformance(ctx)]);
+  const [categories, items, performance, costs] = await Promise.all([listCategories(ctx), listItemsWithImages(ctx), getItemPerformance(ctx), listItemCosts(ctx)]);
   const { locale } = parseCatalogSettings(ctx.catalog.settings);
   const labels = ITEM_TYPE_LABELS[type];
   const categoryNames = new Map(categories.map((c) => [c.id, c.name]));
@@ -64,6 +65,8 @@ export async function ItemsPage({ type, review }: { type: ItemType; review?: Rev
       stock: parseItemAttributes(i.attributes).stock,
       season: seasonOf(i),
       url: itemUrl(ctx.business.slug, i.slug),
+      cost: costs.get(i.id) ?? null,
+      margin: marginOf(i.price === null ? null : Number(i.price), costs.get(i.id) ?? null)?.percent ?? null,
       views: performance.views ? (performance.views[i.id] ?? 0) : null,
       units: performance.units ? (performance.units[i.id] ?? 0) : null,
     }));

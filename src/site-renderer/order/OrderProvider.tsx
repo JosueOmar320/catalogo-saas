@@ -10,6 +10,7 @@ import { SiteImage } from '../SiteImage';
 import { useSiteT } from '../SiteI18n';
 import styles from '../site.module.css';
 import type { OrderConfig } from './config';
+import { decodeList, encodeList, LIST_PARAM, mergeLines } from './share-list';
 import { PAYMENT_METHODS, type DeliveryZone, type PaymentMethod } from '@/lib/catalog/settings';
 import type { Translator } from '@/i18n/translate';
 import {
@@ -249,6 +250,10 @@ type OrderApi = {
   /** Mesa del pedido (si el negocio acepta pedidos en mesa y se entró con su código QR); '' si no. */
   table: string;
   leaveTable: () => void;
+  /** Lista que alguien compartió por enlace (?lista=…), pendiente de agregar. */
+  incoming: OrderLine[] | null;
+  acceptIncoming: () => void;
+  dismissIncoming: () => void;
   /** Último pedido enviado (con precios de hoy), si se puede repetir. */
   last: OrderLine[] | null;
   repeatLast: () => void;
@@ -277,6 +282,24 @@ export function OrderProvider({ config, children }: { config: OrderConfig; child
   const savedLast = useSyncExternalStore(subscribeKey, () => readLast(key), () => null);
   const savedTable = useSyncExternalStore(subscribeKey, () => readTable(key), () => '');
   const table = config.options.tables ? savedTable : '';
+  // Lista compartida por enlace (?lista=…): se ofrece agregarla y se abre el pedido.
+  const [incoming, setIncoming] = useState<OrderLine[] | null>(null);
+  useEffect(() => {
+    const lines = decodeList(new URLSearchParams(window.location.search).get(LIST_PARAM), config.pricing, config.siteUrl);
+    if (!lines) return;
+    const fresh = refreshLines(lines, config.catalog);
+    const timer = window.setTimeout(() => {
+      setIncoming(fresh.lines.length ? fresh.lines : null);
+      if (fresh.lines.length) dialogRef.current?.showModal();
+    });
+    return () => window.clearTimeout(timer);
+  }, [config.pricing, config.siteUrl, config.catalog]);
+  const clearListParam = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.delete(LIST_PARAM);
+    window.history.replaceState(window.history.state, '', url);
+  };
+
   // Código QR de la mesa: ?mesa=5 (después de hidratar; el HTML en caché no conoce la URL).
   useEffect(() => {
     if (!config.options.tables) return;
@@ -303,6 +326,19 @@ export function OrderProvider({ config, children }: { config: OrderConfig; child
       removed: fresh.removed,
       table,
       leaveTable: () => writeTable(key, ''),
+      incoming,
+      acceptIncoming: () => {
+        if (!incoming) return;
+        const raw = current();
+        write(key, { ...raw, lines: mergeLines(raw.lines, incoming), reference: raw.reference || newReference() });
+        setIncoming(null);
+        clearListParam();
+        setAnnouncement(t('Agregamos la lista a tu pedido.'));
+      },
+      dismissIncoming: () => {
+        setIncoming(null);
+        clearListParam();
+      },
       last: last.length ? last : null,
       repeatLast: () => {
         if (!last.length) return;
@@ -350,7 +386,7 @@ export function OrderProvider({ config, children }: { config: OrderConfig; child
       clear: () => write(key, EMPTY),
       open: () => dialogRef.current?.showModal(),
     };
-  }, [config, fresh.removed, key, last, state, t, table]);
+  }, [config, fresh.removed, key, last, state, t, table, incoming]);
 
   return (
     <OrderContext.Provider value={api}>
@@ -579,6 +615,23 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
         </header>
 
         {paused && <p className={styles.orderPaused} role="status">{pauseText}</p>}
+        {order.incoming && (
+          <div className={styles.orderShared} role="status">
+            <p>
+              {order.incoming.length === 1
+                ? t('Te compartieron una lista con 1 producto: {names}.', { names: order.incoming[0].name })
+                : t('Te compartieron una lista con {count} productos: {names}.', { count: order.incoming.length, names: order.incoming.map((line) => `${line.qty} × ${line.name}`).join(', ') })}
+            </p>
+            <div>
+              <button type="button" className={styles.btn} data-variant="solid" onClick={order.acceptIncoming}>
+                {t('Agregar a mi pedido')}
+              </button>
+              <button type="button" className={styles.orderClear} onClick={order.dismissIncoming}>
+                {t('No, gracias')}
+              </button>
+            </div>
+          </div>
+        )}
         {order.removed.length > 0 && (
           <p className={styles.orderClosed} role="status">
             {t('Ya no están disponibles y se quitaron del pedido: {names}.', { names: order.removed.join(', ') })}
@@ -824,9 +877,12 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
             </a>
           )}
           {state.lines.length > 0 && (
-            <button type="button" className={styles.orderClear} onClick={order.clear}>
-              {t('Vaciar pedido')}
-            </button>
+            <div className={styles.orderFooterLinks}>
+              <ShareListButton lines={state.lines} siteUrl={config.siteUrl} businessName={config.businessName} />
+              <button type="button" className={styles.orderClear} onClick={order.clear}>
+                {t('Vaciar pedido')}
+              </button>
+            </div>
           )}
         </footer>
       </div>
@@ -1021,5 +1077,36 @@ function QtyInput({ qty, max, onChange }: { qty: number; max: number; onChange: 
       onBlur={commit}
       onKeyDown={(event) => event.key === 'Enter' && event.currentTarget.blur()}
     />
+  );
+}
+
+/**
+ * "Compartir mi lista": enlace con el pedido (para que otra persona lo agregue
+ * al suyo: pedidos en grupo, "mándame lo que quieres"). Con el menú de
+ * compartir del teléfono, o se copia.
+ */
+function ShareListButton({ lines, siteUrl, businessName }: { lines: OrderLine[]; siteUrl: string; businessName: string }) {
+  const t = useSiteT();
+  const [copied, setCopied] = useState(false);
+  const share = async () => {
+    const url = `${siteUrl}?${LIST_PARAM}=${encodeList(lines)}`;
+    const text = t('Esta es mi lista de {business}:', { business: businessName });
+    if (typeof navigator.share === 'function') {
+      try {
+        await navigator.share({ title: businessName, text, url });
+        return;
+      } catch (error) {
+        if ((error as Error).name === 'AbortError') return;
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+    } catch {}
+  };
+  return (
+    <button type="button" className={styles.orderClear} onClick={() => void share()}>
+      {copied ? t('Enlace copiado') : t('Compartir mi lista')}
+    </button>
   );
 }

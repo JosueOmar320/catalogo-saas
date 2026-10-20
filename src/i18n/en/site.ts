@@ -339,6 +339,18 @@ const catalog: Catalog = {
   '*{business}* — Lista de precios': '*{business}* — Price list',
   'Pide aquí: {url}': 'Order here: {url}',
   'desde {price}': 'from {price}',
+  'Fotos de {name}': 'Photos of {name}',
+  'Imagen anterior': 'Previous image',
+  'Imagen siguiente': 'Next image',
+  'Ver la imagen de {name} en grande': 'View the image of {name} larger',
+  '{n} de {total}': '{n} of {total}',
+  'Agregamos la lista a tu pedido.': 'We added the list to your order.',
+  'Agregar a mi pedido': 'Add to my order',
+  'Compartir mi lista': 'Share my list',
+  'Esta es mi lista de {business}:': 'Here is my {business} list:',
+  'No, gracias': 'No, thanks',
+  'Te compartieron una lista con 1 producto: {names}.': 'Someone shared a list with 1 product: {names}.',
+  'Te compartieron una lista con {count} productos: {names}.': 'Someone shared a list with {count} products: {names}.',
 };
 
 export default catalog;

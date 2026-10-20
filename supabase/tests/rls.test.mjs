@@ -522,5 +522,24 @@ await expectEq('owner reads own search misses', () => q(`select searches from pu
 await as(B);
 await expectEq('other business cannot read A search misses', () => q(`select count(*)::int n from public.search_miss_stats_daily where business_id=$1`, [bizA]).then((r) => r[0].n), 0);
 
+// --- Costos de los productos (20261028) ---
+await db.exec('reset role');
+await q(`update public.catalogs set status='published' where id=$1`, [catA.id]);
+await as(null);
+await expectErr('anon cannot read item costs', () => q(`select * from public.item_costs`), 'permission denied');
+await as(A);
+await expectOk('owner saves the cost of own item', () => q(`insert into public.item_costs(item_id, business_id, cost) values ($1,$2,12.5)`, [itemA, bizA]));
+await expectEq('owner reads and updates it', async () => {
+  await q(`update public.item_costs set cost=13 where item_id=$1`, [itemA]);
+  return (await q(`select cost::float c from public.item_costs where item_id=$1`, [itemA]))[0].c;
+}, 13);
+await expectErr('cost cannot be negative', () => q(`update public.item_costs set cost=-1 where item_id=$1`, [itemA]), 'check constraint');
+await as(B);
+await expectEq('other business cannot read A costs', () => q(`select count(*)::int n from public.item_costs where business_id=$1`, [bizA]).then((r) => r[0].n), 0);
+await expectErr('other business cannot write a cost for A item', () => q(`insert into public.item_costs(item_id, business_id, cost) values ($1,$2,1)`, [itemA, bizA]), 'row-level security');
+await expectErr('nor point another business at A item (RLS or FK)', () => q(`insert into public.item_costs(item_id, business_id, cost) values ($1,$2,1)`, [itemA, bizB]), 'violates');
+await as(null);
+await expectEq('the public catalog does not include costs', () => q(`select public.get_public_catalog('tienda-a')::text t`).then((r) => /"cost"|item_costs/.test(r[0].t)), false);
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);

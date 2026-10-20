@@ -399,4 +399,40 @@ test.describe('Pedido por WhatsApp', () => {
     await expect(dialog.getByRole('radio', { name: 'Recoger en el local' })).toBeVisible();
     await expect(dialog.getByText('Pedido para la mesa 3')).toHaveCount(0);
   });
+
+  test('compartir mi lista: otra persona abre el enlace y la agrega a su pedido', async ({ page, browser, context }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    // Sin el menú de compartir del sistema: el enlace se copia.
+    await page.addInitScript(() => Object.defineProperty(navigator, 'share', { value: undefined }));
+    await page.goto('/demo');
+    await card(page, 'Espresso doble').getByRole('button', { name: 'Agregar al pedido' }).click();
+    await card(page, 'Espresso doble').getByRole('button', { name: 'Uno más' }).click();
+    await orderButton(page).click();
+    await page.getByRole('dialog', { name: 'Tu pedido' }).getByRole('button', { name: 'Compartir mi lista' }).click();
+    await expect(page.getByRole('button', { name: 'Enlace copiado' })).toBeVisible();
+    const link = await page.evaluate(() => navigator.clipboard.readText());
+    expect(link).toMatch(/\/demo\?lista=[\w-]+$/);
+
+    const friend = await browser.newContext({ locale: 'es-MX' });
+    const other = await friend.newPage();
+    // El enlace usa la URL configurada del sitio; aquí se abre en el servidor de pruebas.
+    const shared = new URL(link);
+    await other.goto(new URL(`${shared.pathname}${shared.search}`, page.url()).toString());
+    const dialog = other.getByRole('dialog', { name: 'Tu pedido' });
+    await expect(dialog.getByText('Te compartieron una lista con 1 producto: Espresso doble.')).toBeVisible();
+    await dialog.getByRole('button', { name: 'Agregar a mi pedido' }).click();
+    await expect(dialog.getByRole('group', { name: 'Cantidad de Espresso doble' }).getByRole('spinbutton', { name: 'Cantidad' })).toHaveValue('2');
+    await expect(other).toHaveURL(/\/demo$/);
+    await friend.close();
+  });
+
+  test('la foto de la ficha se abre a pantalla completa y se cierra con Escape', async ({ page }) => {
+    await page.goto('/demo/p/ejemplo-2');
+    await page.getByRole('button', { name: 'Ver la imagen de Latte de avena en grande' }).click();
+    const viewer = page.getByRole('dialog', { name: 'Fotos de Latte de avena' });
+    await expect(viewer).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(viewer).toBeHidden();
+  });
 });
+

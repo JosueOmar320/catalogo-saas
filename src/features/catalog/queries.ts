@@ -69,6 +69,18 @@ export async function getItem(ctx: BusinessContext, itemId: string) {
   return { ...item, images: images ?? [] };
 }
 
+/** Costo privado de un producto (null si no tiene o si aún no se puede leer). */
+export async function getItemCost(ctx: BusinessContext, itemId: string): Promise<number | null> {
+  const { data, error } = await ctx.supabase.from('item_costs').select('cost').eq('item_id', itemId).eq('business_id', ctx.business.id).maybeSingle();
+  return error || !data ? null : Number(data.cost);
+}
+
+/** Costos privados de los productos del negocio (por id); vacío si aún no se pueden leer. */
+export async function listItemCosts(ctx: BusinessContext): Promise<Map<string, number>> {
+  const { data, error } = await ctx.supabase.from('item_costs').select('item_id, cost').eq('business_id', ctx.business.id).limit(10000);
+  return new Map(error ? [] : data.map((row) => [row.item_id, Number(row.cost)]));
+}
+
 /**
  * Sitio con los datos actuales (lo que se publicaría al guardar): todas las
  * páginas (también ocultas, para la preview) e ítems visibles.

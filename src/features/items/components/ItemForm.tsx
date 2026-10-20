@@ -28,7 +28,10 @@ import { SaveBar } from '@/components/ui/SaveBar';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { useT } from '@/i18n/client';
 import { DIET_TAGS, type DietTag } from '@/lib/catalog/item-attributes';
+import { marginOf } from '@/lib/catalog/margin';
 import { CURRENCIES } from '@/lib/catalog/settings';
+import { formatPrice } from '@/lib/utils/format';
+import { priceToNumber } from '@/lib/utils/validation';
 import { msg } from '@/i18n/translate';
 import type { SiteViewModel } from '@/lib/site/view-model';
 import type { CatalogItemView } from '@/lib/catalog/view-model';
@@ -86,6 +89,13 @@ export function ItemForm({ itemId, defaultValues, categories, previewSite }: Pro
     setValue('extras', source.extras.options.map((o) => ({ id: newId(), name: o.name, price: o.price ? String(o.price) : '', available: o.available })), dirty);
   };
   const values = useWatch({ control }) as ItemFormValues;
+  // Margen con el costo privado (no se publica).
+  const margin = marginOf(priceToNumber(values.price ?? ''), priceToNumber(values.cost ?? ''));
+  const marginText = margin
+    ? margin.amount < 0
+      ? t('Vendes por debajo del costo: pierdes {amount} por pieza.', { amount: formatPrice(-margin.amount, values.currency, previewSite.settings.locale) })
+      : t('Margen: {percent} % ({amount} por pieza). No se publica.', { percent: margin.percent, amount: formatPrice(margin.amount, values.currency, previewSite.settings.locale) })
+    : t('Opcional, para ver tu margen. No se publica.');
   const labels = ITEM_TYPE_LABELS[values.type];
   const isNew = itemId === null;
   useUnsavedChangesWarning(formState.isDirty);
@@ -197,6 +207,18 @@ export function ItemForm({ itemId, defaultValues, categories, previewSite }: Pro
                       label={t('Oferta hasta (opcional)')}
                       helperText={t('Después de ese día se quita el precio anterior y vuelve el precio normal.')}
                       slotProps={{ inputLabel: { shrink: true } }}
+                    />
+                  </Grid>
+                )}
+                {values.type === 'product' && (
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <TextFieldControl
+                      control={control}
+                      name="cost"
+                      label={t('Costo (sólo tú lo ves)')}
+                      inputMode="decimal"
+                      helperText={marginText}
+                      slotProps={{ input: { startAdornment: <InputAdornment position="start">$</InputAdornment> } }}
                     />
                   </Grid>
                 )}

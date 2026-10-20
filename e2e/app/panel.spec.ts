@@ -822,6 +822,29 @@ test('búsquedas sin resultados, lista de precios y etiquetas con QR', async ({ 
   await labels.close();
 });
 
+test('costo privado: margen en el formulario y la lista, y aviso al bajar precios por debajo del costo', async ({ page }) => {
+  await page.goto('/dashboard/catalog/products');
+  await page.getByRole('link', { name: 'Galleta mayoreo E2E' }).first().click();
+  await expect(page).toHaveURL(/\/dashboard\/catalog\/items\/[0-9a-f-]{36}$/);
+  await page.getByRole('textbox', { name: 'Costo (sólo tú lo ves)' }).fill('6');
+  await expect(page.getByText('Margen: 40 % ($4 por pieza). No se publica.')).toBeVisible();
+  await page.getByRole('button', { name: 'Guardar', exact: true }).first().click();
+  await expect(page.getByText('Cambios guardados')).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('textbox', { name: 'Costo (sólo tú lo ves)' })).toHaveValue('6');
+
+  await page.goto('/dashboard/catalog/products');
+  const row = page.getByRole('listitem').filter({ hasText: 'Galleta mayoreo E2E' });
+  await expect(row.getByText('Margen 40 %')).toBeVisible();
+  await page.getByRole('checkbox', { name: 'Seleccionar Galleta mayoreo E2E' }).check();
+  await page.getByRole('toolbar', { name: 'Acciones para los ítems seleccionados' }).getByRole('button', { name: 'Precios' }).click();
+  const prices = page.getByRole('dialog', { name: 'Ajustar precios' });
+  await prices.getByRole('button', { name: 'Disminuir' }).click();
+  await prices.getByLabel('Porcentaje').fill('50');
+  await expect(prices.getByText('1 quedaría por debajo de su costo.')).toBeVisible();
+  await prices.getByRole('button', { name: 'Cancelar' }).click();
+});
+
 test('el idioma elegido se guarda en el perfil y vuelve al iniciar sesión', async ({ page, browser }) => {
   await page.goto('/dashboard');
   await page.getByRole('button', { name: 'Cambiar idioma' }).click();

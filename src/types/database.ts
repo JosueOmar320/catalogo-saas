@@ -186,6 +186,8 @@ type ReviewRow = { id: string; business_id: string; item_id: string | null; name
 type SiteViewStatsDailyRow = { business_id: string; day: string; views: number };
 /** Fichas de producto o servicio vistas (por día UTC). */
 type ItemViewStatsDailyRow = { business_id: string; day: string; item_id: string; views: number };
+/** Costo de un producto (privado: sólo los miembros del negocio; no va al catálogo público). */
+type ItemCostRow = { item_id: string; business_id: string; cost: number; updated_at: string };
 /** Búsquedas sin resultados del sitio publicado (término en minúsculas, por día UTC; las escribe record_search_miss). */
 type SearchMissStatsDailyRow = { business_id: string; day: string; term: string; searches: number };
 
@@ -257,6 +259,7 @@ export type Database = {
       reviews: Table<ReviewRow, 'business_id' | 'name' | 'rating'>;
       item_view_stats_daily: Table<ItemViewStatsDailyRow, 'business_id' | 'day' | 'item_id'>;
       search_miss_stats_daily: Table<SearchMissStatsDailyRow, 'business_id' | 'day' | 'term'>;
+      item_costs: Table<ItemCostRow, 'item_id' | 'business_id' | 'cost'>;
       notification_log: Table<NotificationLogRow, 'user_id' | 'business_id' | 'kind'>;
     };
     Views: { [_ in never]: never };

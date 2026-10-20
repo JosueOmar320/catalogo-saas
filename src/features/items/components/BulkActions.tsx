@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  Alert,
   Box,
   Button,
   Dialog,
@@ -29,7 +30,7 @@ import { formatPrice } from '@/lib/utils/format';
 import type { BulkItemsInput } from '../actions';
 import { labelsHtml } from '../labels';
 
-type Row = { id: string; name: string; price: number | null; priceLabel: string | null; currency: string; url: string };
+type Row = { id: string; name: string; price: number | null; priceLabel: string | null; currency: string; url: string; /** Costo privado (para avisar si un ajuste queda por debajo). */ cost: number | null };
 
 type Props = {
   selected: Row[];
@@ -196,6 +197,8 @@ function PriceDialog({ rows, locale, onClose, onApply }: { rows: Row[]; locale: 
   const priced = rows.filter((r) => r.price !== null);
   const preview = priced.slice(0, 5);
   const unpriced = rows.length - priced.length;
+  // Con el costo guardado: cuántos quedarían por debajo de lo que te cuestan.
+  const belowCost = valid ? priced.filter((r) => r.cost !== null && (adjustPrice(r.price, adjustment) ?? Infinity) < r.cost).length : 0;
   const money = (row: Row, value: number) => formatPrice(value, row.currency, locale);
 
   return (
@@ -248,6 +251,11 @@ function PriceDialog({ rows, locale, onClose, onApply }: { rows: Row[]; locale: 
                   <Typography variant="caption" color="text.secondary">{t('y {count} más', { count: priced.length - preview.length })}</Typography>
                 )}
               </Stack>
+            )}
+            {belowCost > 0 && (
+              <Alert severity="warning" sx={{ mt: 1 }}>
+                {belowCost === 1 ? t('1 quedaría por debajo de su costo.') : t('{count} quedarían por debajo de su costo.', { count: belowCost })}
+              </Alert>
             )}
             {unpriced > 0 && (
               <Typography variant="caption" color="text.secondary" component="p" sx={{ mt: 1 }}>
