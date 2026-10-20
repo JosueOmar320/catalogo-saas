@@ -13,6 +13,7 @@ import { orderable } from './order/config';
 import { PriceTag } from './PriceTag';
 import { buttonVariant } from './SiteButton';
 import { VariantPicker } from './VariantPicker';
+import { DietTags } from './diet';
 import { relatedItems } from './related';
 import { ShareItem } from './ShareItem';
 import { siteTranslator, siteYesNo } from './site-i18n';
@@ -42,6 +43,7 @@ export function ItemDetail({ site, item, backHref, env }: { site: SiteViewModel;
             <span className={styles.saleEnds}>{t('Oferta hasta el {date}', { date: formatSaleDate(item.saleEndsOn, site.settings.locale) })}</span>
           )}
           {!item.isAvailable && <span className={styles.availability}>{t('No disponible por ahora')}</span>}
+          <DietTags tags={item.diet} t={t} />
           {item.orderHours && (
             <span className={styles.cardMeta}>{t('Se pide de {from} a {to}', { from: shortTime(item.orderHours.from), to: shortTime(item.orderHours.to) })}</span>
           )}

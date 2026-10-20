@@ -30,6 +30,8 @@ export type OrderConfig = {
   pause: OrderPause | null;
   /** Productos que sólo se piden en un horario del día (por id de producto). */
   orderHours: Record<string, { from: string; to: string }>;
+  /** Existencias de los productos que las controlan (por id de producto). */
+  stock: Record<string, number>;
   /** Zona horaria del negocio (la de su horario por día; vacía = la del visitante). */
   timeZone: string;
   /** Horario por día (si el negocio lo usa): el panel avisa cuando está cerrado. */
@@ -63,6 +65,10 @@ export function orderConfig(site: SiteViewModel, { track = false }: { track?: bo
       deliveryNote: order.deliveryNote,
       minimumOrder: order.minimumOrder,
       payments: order.payments,
+      scheduling: order.scheduling,
+      leadMinutes: order.leadMinutes,
+      scheduleDays: order.scheduleDays,
+      slotMinutes: order.slotMinutes,
     },
     coupons: order.coupons
       .filter((coupon) => coupon.active)
@@ -72,6 +78,7 @@ export function orderConfig(site: SiteViewModel, { track = false }: { track?: bo
     suggestions: suggestions(site),
     orderHours: Object.fromEntries(site.items.flatMap((item) => (item.orderHours && orderable(site, item) ? [[item.id, item.orderHours]] : []))),
     timeZone: site.business.contact.schedule.timezone,
+    stock: Object.fromEntries(site.items.flatMap((item) => (item.stock !== null && orderable(site, item) ? [[item.id, item.stock]] : []))),
     pause: order.paused ? { until: order.pausedUntil, timeZone: order.pauseTimeZone, message: order.pauseMessage } : null,
     schedule: site.business.contact.schedule.enabled ? site.business.contact.schedule : null,
     trackSlug: track ? site.business.slug : null,

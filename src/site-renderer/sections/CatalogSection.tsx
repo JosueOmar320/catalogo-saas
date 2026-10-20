@@ -5,6 +5,8 @@ import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import type { Translator } from '@/i18n/translate';
 import { SORT_OPTIONS, sortItems, type SortOption } from '@/lib/catalog/collections-core';
 import { attributeFilterOptions, EMPTY_FILTERS, filterItems, groupByCategory, type BadgeFilter, type CatalogFilters } from '../filter';
+import type { DietTag } from '@/lib/catalog/item-attributes';
+import { DIET_LABELS, usedDietTags } from '../diet';
 import { ItemCard } from '../ItemCard';
 import { ProductCollection } from '../ProductCollection';
 import { gridVars, SectionFrame, SectionHead } from '../SectionFrame';
@@ -89,10 +91,10 @@ export function CatalogSection({ section, site, env }: SectionProps<'catalog'>) 
 
   // Dependencias campo por campo SIN el texto escrito: la búsqueda usa el valor diferido (`query`),
   // así cada tecla filtra una sola vez (antes: una con el texto viejo y otra con el nuevo).
-  const { categoryId, type, onlyAvailable, priceMin, priceMax, badge, attrs } = filters;
+  const { categoryId, type, onlyAvailable, priceMin, priceMax, badge, attrs, diet } = filters;
   const filtered = useMemo(
-    () => sortItems(filterItems(items, { query, categoryId, type, onlyAvailable, priceMin, priceMax, badge, attrs }), sort),
-    [items, query, categoryId, type, onlyAvailable, priceMin, priceMax, badge, attrs, sort],
+    () => sortItems(filterItems(items, { query, categoryId, type, onlyAvailable, priceMin, priceMax, badge, attrs, diet }), sort),
+    [items, query, categoryId, type, onlyAvailable, priceMin, priceMax, badge, attrs, diet, sort],
   );
   const isSearching = filtered.length !== items.length || query.trim() !== '';
   const featured = content.showFeatured && !isSearching ? items.filter((i) => i.isFeatured).slice(0, 6) : [];
@@ -104,7 +106,8 @@ export function CatalogSection({ section, site, env }: SectionProps<'catalog'>) 
   const visible = !paged ? filtered : pagination.mode === 'pages' ? filtered.slice((current - 1) * perPage, current * perPage) : filtered.slice(0, current * perPage);
   const remaining = filtered.length - visible.length;
   const groups = content.groupByCategory && !query.trim() && sort === 'custom' ? groupByCategory(visible, site.categories, t('Otros')) : [{ id: 'all', title: null, description: null, items: visible }];
-  const activeCount = [filters.priceMin !== null || filters.priceMax !== null, filters.badge !== 'all', filters.onlyAvailable, ...Object.values(filters.attrs).map(Boolean)].filter(Boolean).length;
+  const activeCount = [filters.priceMin !== null || filters.priceMax !== null, filters.badge !== 'all', filters.onlyAvailable, (filters.diet ?? 'all') !== 'all', ...Object.values(filters.attrs).map(Boolean)].filter(Boolean).length;
+  const dietTags = useMemo(() => usedDietTags(items), [items]);
 
   const update = (patch: Partial<CatalogFilters>) => {
     setFilters((f) => ({ ...f, ...patch }));
@@ -206,6 +209,17 @@ export function CatalogSection({ section, site, env }: SectionProps<'catalog'>) 
                   </select>
                 </label>
               )}
+              {dietTags.length > 0 && (
+                <label className={styles.filterField}>
+                  <span>{t('Dieta')}</span>
+                  <select className={styles.select} value={filters.diet ?? 'all'} onChange={(e) => update({ diet: e.target.value as DietTag | 'all' })}>
+                    <option value="all">{t('Todas')}</option>
+                    {dietTags.map((tag) => (
+                      <option key={tag} value={tag}>{t(DIET_LABELS[tag])}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
               {attributeFilters.map(({ def, options }) => (
                 <label key={def.id} className={styles.filterField}>
                   <span>{def.name}</span>
@@ -224,7 +238,7 @@ export function CatalogSection({ section, site, env }: SectionProps<'catalog'>) 
                 </label>
               )}
               {activeCount > 0 && (
-                <button type="button" className={styles.linkButton} onClick={() => update({ priceMin: null, priceMax: null, badge: 'all', onlyAvailable: false, attrs: {} })}>
+                <button type="button" className={styles.linkButton} onClick={() => update({ priceMin: null, priceMax: null, badge: 'all', onlyAvailable: false, attrs: {}, diet: 'all' })}>
                   {t('Limpiar filtros')}
                 </button>
               )}

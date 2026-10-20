@@ -382,6 +382,30 @@ test('pausar pedidos: el visitante ve el aviso y no puede enviar; al quitarla, v
   await visitor.close();
 });
 
+test('existencias y dieta creadas en el panel: «¡Quedan 2!», tope en el pedido y etiqueta en la ficha', async ({ page, browser }) => {
+  await page.goto('/dashboard/catalog/items/new?type=product');
+  await page.getByRole('textbox', { name: 'Nombre', exact: true }).fill('Pay E2E');
+  await page.getByRole('textbox', { name: 'Precio', exact: true }).fill('30');
+  await page.getByRole('textbox', { name: 'Existencias (opcional)' }).fill('2');
+  await page.getByRole('button', { name: 'Vegano' }).click();
+  await page.getByRole('button', { name: 'Crear', exact: true }).click();
+  await expect(page).toHaveURL(/\/dashboard\/catalog\/items\/[0-9a-f-]{36}$/);
+
+  const visitor = await browser.newContext(ANONYMOUS);
+  const site = await visitor.newPage();
+  await site.goto(`/catalogo/${slug}/p/pay-e2e`);
+  await expect(site.getByText('¡Quedan 2!')).toBeVisible();
+  await expect(site.getByRole('list', { name: 'Dieta' }).getByText('Vegano')).toBeVisible();
+  await site.getByRole('button', { name: 'Agregar al pedido' }).click();
+  const stepper = site.getByRole('group', { name: 'Cantidad de Pay E2E' });
+  await stepper.getByRole('button', { name: 'Uno más' }).click();
+  await expect(stepper.getByRole('button', { name: 'Uno más' })).toBeDisabled();
+  await visitor.close();
+
+  await page.goto('/dashboard/catalog/products');
+  await expect(page.getByRole('listitem').filter({ hasText: 'Pay E2E' }).getByText('Quedan 2')).toBeVisible();
+});
+
 test('importar con enlaces de fotos: avisa cuáles no se pudieron descargar', async ({ page }) => {
   await page.goto('/dashboard/catalog/products');
   await page.getByRole('button', { name: 'Importar', exact: true }).click();

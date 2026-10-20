@@ -3,7 +3,7 @@
 import { Clock, Minus, Plus, RotateCcw, ShoppingBag, Ticket, Trash2, X } from 'lucide-react';
 import { createContext, useCallback, useContext, useId, useMemo, useRef, useState, useSyncExternalStore, type ReactNode, type Ref, type SyntheticEvent } from 'react';
 import { Icon } from '../Icon';
-import { shortTime, withinHours } from '@/lib/business/schedule';
+import { pickupSlots, shortTime, weekdayName, withinHours, type PickupDay } from '@/lib/business/schedule';
 import { formatSaleDate } from '@/lib/catalog/sale';
 import { opensText, useMinute, useOpenStatus } from '../OpenNow';
 import { SiteImage } from '../SiteImage';
@@ -34,9 +34,10 @@ import {
 /* ------------------------------------------------------------------ Estado */
 
 /** Pedido guardado en el navegador del visitante (localStorage), uno por negocio. */
-type OrderState = { lines: OrderLine[]; name: string; note: string; fulfillment: Fulfillment | null; address: string; payment: PaymentMethod | null; coupon: string };
+type When = { date: string; time: string };
+type OrderState = { lines: OrderLine[]; name: string; note: string; fulfillment: Fulfillment | null; address: string; payment: PaymentMethod | null; coupon: string; when: When | null };
 
-const EMPTY: OrderState = { lines: [], name: '', note: '', fulfillment: null, address: '', payment: null, coupon: '' };
+const EMPTY: OrderState = { lines: [], name: '', note: '', fulfillment: null, address: '', payment: null, coupon: '', when: null };
 const cache = new Map<string, OrderState>();
 const listeners = new Map<string, Set<() => void>>();
 
@@ -61,7 +62,12 @@ function sanitize(raw: unknown): OrderState {
     .slice(0, MAX_ORDER_LINES);
   const fulfillment = input.fulfillment === 'pickup' || input.fulfillment === 'delivery' ? input.fulfillment : null;
   const payment = PAYMENT_METHODS.find((method) => method === input.payment) ?? null;
-  return { lines, name: str(input.name, 80), note: str(input.note, 500), fulfillment, address: str(input.address, 300), payment, coupon: str(input.coupon, 24) };
+  const rawWhen = input.when as { date?: unknown; time?: unknown } | null | undefined;
+  const when =
+    rawWhen && typeof rawWhen.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rawWhen.date) && typeof rawWhen.time === 'string' && /^\d{2}:\d{2}$/.test(rawWhen.time)
+      ? { date: rawWhen.date, time: rawWhen.time }
+      : null;
+  return { lines, name: str(input.name, 80), note: str(input.note, 500), fulfillment, address: str(input.address, 300), payment, coupon: str(input.coupon, 24), when };
 }
 
 function read(key: string): OrderState {
@@ -104,6 +110,25 @@ function subscribe(key: string, listener: () => void) {
     set.delete(listener);
     window.removeEventListener('storage', onStorage);
   };
+}
+
+/* ---------------------------------------------------------------- Existencias */
+
+type LineRef = Pick<OrderItem, 'id' | 'itemId'>;
+/** Producto de una línea ("producto:opción+extra" → "producto"). */
+const productOf = (item: LineRef) => item.itemId ?? item.id.split(/[:+]/)[0];
+const unitsOf = (lines: OrderLine[], productId: string) => lines.filter((l) => productOf(l) === productId).reduce((sum, l) => sum + l.qty, 0);
+
+/** ¿Cabe una unidad más de este producto? Cuenta todas sus líneas (opciones, extras). */
+function withinStock(stock: Record<string, number>, lines: OrderLine[], item: LineRef) {
+  const available = stock[productOf(item)];
+  return available === undefined || unitsOf(lines, productOf(item)) < available;
+}
+
+/** Máximo para una línea: lo que queda descontando las otras líneas del mismo producto. */
+function stockLimit(stock: Record<string, number>, lines: OrderLine[], line: OrderLine) {
+  const available = stock[productOf(line)];
+  return available === undefined ? Infinity : available - (unitsOf(lines, productOf(line)) - line.qty);
 }
 
 /* ------------------------------------------------------ Último pedido enviado */
@@ -161,6 +186,8 @@ type OrderApi = {
   /** Guarda el pedido actual como "último pedido" (al enviarlo). */
   remember: () => void;
   qtyOf: (id: string) => number;
+  /** ¿Se puede sumar una unidad más de este producto? (existencias, contando todas sus líneas). */
+  canAddMore: (item: Pick<OrderItem, 'id' | 'itemId'>) => boolean;
   add: (item: OrderItem) => void;
   setQty: (id: string, qty: number) => void;
   /** Nota del cliente para una línea ("sin cebolla"). */
@@ -204,8 +231,13 @@ export function OrderProvider({ config, children }: { config: OrderConfig; child
       },
       remember: () => writeLast(key, current().lines),
       qtyOf: (id) => state.lines.find((line) => line.id === id)?.qty ?? 0,
+      canAddMore: (item) => withinStock(config.stock, state.lines, item),
       add: (item) => {
         const { lines, ...rest } = current();
+        if (!withinStock(config.stock, lines, item)) {
+          setAnnouncement(t('No hay más existencias de {name}.', { name: item.name }));
+          return;
+        }
         const existing = lines.find((line) => line.id === item.id);
         if (!existing && lines.length >= MAX_ORDER_LINES) {
           setAnnouncement(t('El pedido llegó al máximo de {count} productos.', { count: MAX_ORDER_LINES }));
@@ -219,7 +251,10 @@ export function OrderProvider({ config, children }: { config: OrderConfig; child
       },
       setQty: (id, qty) => {
         const { lines, ...rest } = current();
-        const value = clampQty(qty);
+        const line = lines.find((l) => l.id === id);
+        // Con existencias: como máximo lo que queda (contando las otras líneas del mismo producto).
+        const limit = line ? stockLimit(config.stock, lines, line) : Infinity;
+        const value = Math.min(clampQty(qty), limit);
         write(key, { ...rest, lines: value ? lines.map((line) => (line.id === id ? { ...line, qty: value } : line)) : lines.filter((line) => line.id !== id) });
       },
       setNote: (id, note) => {
@@ -296,7 +331,7 @@ export function AddToOrder({ item, className, variant, hover, label, shortLabel,
         <button type="button" className={styles.qtyValue} onClick={order.open} aria-label={t('{count} en el pedido. Ver pedido', { count: qty })}>
           {qty}
         </button>
-        <button type="button" onClick={() => order.add(item)} aria-label={t('Uno más')}>
+        <button type="button" onClick={() => order.add(item)} disabled={!order.canAddMore(item)} aria-label={t('Uno más')}>
           <Plus size={iconSize} aria-hidden />
         </button>
       </div>
@@ -370,7 +405,13 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
   const { config, state } = order;
   const { options, pricing } = config;
   const coupon = findCoupon(config.coupons, config.couponScope, state.coupon);
-  const choices = { fulfillment: state.fulfillment, address: state.address, payment: state.payment, coupon };
+  // "¿Para cuándo?": horarios disponibles ahora (en el navegador: la página está en caché).
+  const pickupDays =
+    options.scheduling !== 'off' && minute !== null
+      ? pickupSlots(config.schedule, new Date(minute * 60_000), { leadMinutes: options.leadMinutes, days: options.scheduleDays, step: Number(options.slotMinutes) })
+      : [];
+  const when = state.when && pickupDays.some((d) => d.date === state.when!.date && d.slots.includes(state.when!.time)) ? state.when : null;
+  const choices = { fulfillment: state.fulfillment, address: state.address, payment: state.payment, coupon, when };
   const summary = summarizeOrder(state.lines, pricing, options, choices);
   const { subtotal, delivery, total, discount } = summary;
   const modes = fulfillmentOptions(options);
@@ -406,7 +447,9 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
         ? t('Escribe la dirección de entrega.')
         : summary.blocker === 'minimum' && options.minimumOrder !== null && summary.missingForMinimum !== null
           ? t('El pedido mínimo es de {minimum}: te faltan {amount}.', { minimum: money(options.minimumOrder), amount: money(summary.missingForMinimum) })
-          : null;
+          : summary.blocker === 'when'
+            ? t('Elige para cuándo quieres tu pedido.')
+            : null;
   const deliveryHint =
     options.deliveryFee === 0
       ? t('Envío gratis')
@@ -477,7 +520,7 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
                       {line.qty === 1 ? <Trash2 size={15} aria-hidden /> : <Minus size={15} aria-hidden />}
                     </button>
                     <span className={styles.qtyValue} aria-live="polite">{line.qty}</span>
-                    <button type="button" onClick={() => order.setQty(line.id, line.qty + 1)} aria-label={t('Uno más')}>
+                    <button type="button" onClick={() => order.setQty(line.id, line.qty + 1)} disabled={!order.canAddMore(line)} aria-label={t('Uno más')}>
                       <Plus size={15} aria-hidden />
                     </button>
                   </div>
@@ -587,6 +630,16 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
                     onChange={(event) => order.update({ address: event.target.value })}
                   />
                 </label>
+              )}
+              {options.scheduling !== 'off' && minute !== null && (
+                <WhenField
+                  days={pickupDays}
+                  value={when}
+                  stale={Boolean(state.when && !when)}
+                  optional={options.scheduling === 'optional'}
+                  locale={pricing.locale}
+                  onChange={(next) => order.update({ when: next })}
+                />
               )}
               {options.payments.length > 0 && (
                 <fieldset className={styles.orderChoices}>
@@ -732,5 +785,60 @@ function LineNote({ note, name, onChange }: { note: string; name: string; onChan
       aria-label={t('Nota para {name}', { name })}
       onChange={(event) => onChange(event.target.value)}
     />
+  );
+}
+
+/** "¿Para cuándo?": día (Hoy, Mañana, jue 23 oct…) y hora disponibles. */
+function WhenField({ days, value, stale, optional, locale, onChange }: { days: PickupDay[]; value: When | null; stale: boolean; optional: boolean; locale: string; onChange: (when: When | null) => void }) {
+  const t = useSiteT();
+  const dayId = useId();
+  const timeId = useId();
+  const selectedDay = days.find((d) => d.date === value?.date) ?? null;
+  const dayLabel = ({ date, day, offset }: PickupDay) => {
+    if (offset === 0) return t('Hoy');
+    if (offset === 1) return t('Mañana');
+    const short = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(`${date}T12:00:00Z`));
+    return `${weekdayName(day, locale)} ${short}`;
+  };
+  return (
+    <fieldset className={styles.orderChoices}>
+      <legend>{optional ? t('¿Para cuándo? (opcional)') : t('¿Para cuándo?')}</legend>
+      {days.length === 0 ? (
+        <p className={styles.orderHint}>{t('No hay horarios disponibles en los próximos días.')}</p>
+      ) : (
+        <div className={styles.orderWhen}>
+          <label htmlFor={dayId}>
+            <span>{t('Día')}</span>
+            <select
+              id={dayId}
+              value={value?.date ?? ''}
+              onChange={(event) => {
+                const day = days.find((d) => d.date === event.target.value);
+                onChange(day ? { date: day.date, time: day.slots[0] } : null);
+              }}
+            >
+              <option value="">{optional ? t('Lo antes posible') : t('Elige un día')}</option>
+              {days.map((d) => (
+                <option key={d.date} value={d.date}>
+                  {dayLabel(d)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label htmlFor={timeId}>
+            <span>{t('Hora')}</span>
+            <select id={timeId} value={value?.time ?? ''} disabled={!selectedDay} onChange={(event) => selectedDay && onChange({ date: selectedDay.date, time: event.target.value })}>
+              {!selectedDay && <option value="">—</option>}
+              {selectedDay?.slots.map((slot) => (
+                <option key={slot} value={slot}>
+                  {shortTime(slot)}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      )}
+      {stale && <p className={styles.orderHint} role="status">{t('El horario que elegiste ya pasó: elige otro.')}</p>}
+    </fieldset>
   );
 }

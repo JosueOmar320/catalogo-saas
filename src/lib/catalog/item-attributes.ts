@@ -66,6 +66,13 @@ export const orderHoursSchema = z
 
 export type OrderHours = NonNullable<z.output<typeof orderHoursSchema>>;
 
+/** Etiquetas de dieta y alérgenos (se muestran en la ficha y se filtran en el catálogo). */
+export const DIET_TAGS = ['vegan', 'vegetarian', 'gluten-free', 'lactose-free', 'sugar-free', 'spicy', 'organic'] as const;
+export type DietTag = (typeof DIET_TAGS)[number];
+
+/** Avisa "¡Quedan N!" desde estas existencias o menos. */
+export const LOW_STOCK = 5;
+
 export type VariantOption = z.output<typeof variantOptionSchema>;
 export type ItemVariants = NonNullable<z.output<typeof variantsSchema>>;
 
@@ -78,6 +85,9 @@ export const itemAttributesSchema = z.object({
   variants: variantsSchema,
   extras: extrasSchema,
   orderHours: orderHoursSchema,
+  /** Existencias (null = no se controlan). En 0 el producto queda agotado solo. */
+  stock: z.number().int().min(0).max(1_000_000).nullable().default(null),
+  diet: z.array(z.enum(DIET_TAGS)).max(DIET_TAGS.length).default([]),
   /** Fin de la oferta (precio anterior): después se vuelve al precio normal. */
   saleEnds: saleEndsSchema,
 });
@@ -95,6 +105,8 @@ export function parseItemAttributes(raw: unknown): ItemAttributes {
     customBadge: itemAttributesSchema.shape.customBadge.catch(null).parse(partial.customBadge),
     variants: variantsSchema.catch(null).parse(partial.variants),
     extras: extrasSchema.catch(null).parse(partial.extras),
+    stock: z.number().int().min(0).max(1_000_000).nullable().catch(null).parse(partial.stock ?? null),
+    diet: z.array(z.enum(DIET_TAGS)).catch([]).parse(partial.diet ?? []),
     orderHours: orderHoursSchema.catch(null).parse(partial.orderHours),
     saleEnds: saleEndsSchema.catch(null).parse(partial.saleEnds),
   };

@@ -292,6 +292,38 @@ test.describe('Pedido por WhatsApp', () => {
     await expect(orderButton(page)).toContainText('$120');
   });
 
+  test('¿Para cuándo?, existencias y filtro por dieta', async ({ page }) => {
+    // Lunes 19 de octubre, 9:00 en Ciudad de México.
+    await page.clock.setFixedTime(new Date('2026-10-19T15:00:00Z'));
+    await page.goto('/demo/menu');
+
+    // Dieta: sólo lo vegano.
+    await page.getByRole('button', { name: /Filtros/ }).click();
+    await page.getByRole('combobox', { name: 'Dieta' }).selectOption('vegan');
+    await expect(card(page, 'Latte de avena')).toBeVisible();
+    await expect(card(page, 'Espresso doble')).toHaveCount(0);
+    await page.getByRole('combobox', { name: 'Dieta' }).selectOption('all');
+
+    // Existencias: quedan 3 bolsas de café; no se pueden pedir más.
+    const beans = card(page, 'Café en grano 340 g');
+    await expect(beans.getByText('¡Quedan 3!')).toBeVisible();
+    await beans.getByRole('button', { name: 'Agregar al pedido' }).click();
+    const stepper = beans.getByRole('group', { name: 'Cantidad de Café en grano 340 g' });
+    await stepper.getByRole('button', { name: 'Uno más' }).click();
+    await stepper.getByRole('button', { name: 'Uno más' }).click();
+    await expect(stepper.getByRole('button', { name: 'Uno más' })).toBeDisabled();
+    await expect(orderButton(page)).toContainText('3');
+
+    // Para mañana a las 10:00.
+    await orderButton(page).click();
+    const dialog = page.getByRole('dialog', { name: 'Tu pedido' });
+    await dialog.getByRole('radio', { name: 'Recoger en el local' }).check();
+    await dialog.getByRole('combobox', { name: 'Día' }).selectOption({ label: 'Mañana' });
+    await dialog.getByRole('combobox', { name: 'Hora' }).selectOption('10:00');
+    const text = await whatsappMessage(page);
+    expect(text).toContain('Para: martes, 20 de octubre, 10:00\nEntrega: Recoger en el local');
+  });
+
   test('los servicios y los productos agotados no se agregan al pedido', async ({ page }) => {
     await page.goto('/demo/menu');
     await expect(card(page, 'Rol de canela')).toBeVisible();

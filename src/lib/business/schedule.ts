@@ -146,3 +146,54 @@ export function openingHoursSpecification(schedule: Schedule) {
       : [],
   );
 }
+
+/* ------------------------------------------------------- Horarios para pedidos */
+
+/** `offset`: 0 = hoy, 1 = mañana… (en la zona del negocio); `day`: lunes = 0. */
+export type PickupDay = { date: string; day: number; offset: number; slots: string[] };
+
+/** "2026-10-19" de hoy en la zona horaria (vacía = la del sistema). */
+const todayIn = (timeZone: string, now: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: timeZone || undefined, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+const addDays = (date: string, days: number) => new Date(Date.UTC(Number(date.slice(0, 4)), Number(date.slice(5, 7)) - 1, Number(date.slice(8, 10)) + days)).toISOString().slice(0, 10);
+
+/** Horario de respaldo cuando el negocio no configuró el suyo: todos los días de 9:00 a 20:00. */
+export const FALLBACK_HOURS: Schedule = {
+  enabled: true,
+  timezone: '',
+  days: Array.from({ length: 7 }, () => ({ open: true, ranges: [{ from: '09:00', to: '20:00' }] })),
+};
+
+/**
+ * Días y horas en que se puede pedir para recoger o recibir: dentro del
+ * horario del negocio, cada `step` minutos y al menos `leadMinutes` después de
+ * ahora (tiempo de preparación). Todo en la zona horaria del negocio. Los
+ * turnos que cruzan la medianoche se cortan a las 24:00 de ese día.
+ */
+export function pickupSlots(schedule: Schedule | null, now: Date, { leadMinutes = 60, days = 7, step = 30 }: { leadMinutes?: number; days?: number; step?: number } = {}): PickupDay[] {
+  const source = schedule?.enabled ? schedule : FALLBACK_HOURS;
+  const { day: weekday, minutes } = zonedNow(now, source.timezone);
+  const today = todayIn(source.timezone, now);
+  const earliest = minutes + leadMinutes; // minutos desde hoy 0:00
+  const result: PickupDay[] = [];
+  for (let offset = 0; offset < days; offset++) {
+    const index = (weekday + offset) % 7;
+    const config = source.days[index];
+    if (!config.open) continue;
+    const slots = new Set<string>();
+    for (const { from, to } of config.ranges) {
+      const start = toMinutes(from);
+      const end = toMinutes(to) > start ? toMinutes(to) : DAY;
+      for (let slot = Math.ceil(start / step) * step; slot < end; slot += step) {
+        if (offset * DAY + slot >= earliest) slots.add(toTime(slot));
+      }
+    }
+    if (slots.size) result.push({ date: addDays(today, offset), day: index, offset, slots: [...slots].sort() });
+  }
+  return result;
+}
+
+/** "jueves 23 de octubre, 10:30" en el idioma del sitio. */
+export function formatPickup(date: string, time: string, locale: string): string {
+  const day = new Intl.DateTimeFormat(locale, { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' }).format(new Date(`${date}T12:00:00Z`));
+  return `${day}, ${shortTime(time)}`;
+}

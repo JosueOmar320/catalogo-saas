@@ -1,5 +1,6 @@
 import type { CatalogCategoryView, CatalogItemView } from '@/lib/catalog/view-model';
 import type { AttributeDef, AttributeValue } from '@/lib/catalog/attributes';
+import type { DietTag } from '@/lib/catalog/item-attributes';
 import type { ItemType } from '@/types/database';
 import { foldText } from '@/lib/utils/text';
 
@@ -15,9 +16,11 @@ export type CatalogFilters = {
   badge: BadgeFilter;
   /** attributeId → valor elegido. */
   attrs: Record<string, string>;
+  /** Dieta o alérgeno (Vegano, Sin gluten…). */
+  diet?: DietTag | 'all';
 };
 
-export const EMPTY_FILTERS: CatalogFilters = { query: '', categoryId: 'all', type: 'all', onlyAvailable: false, priceMin: null, priceMax: null, badge: 'all', attrs: {} };
+export const EMPTY_FILTERS: CatalogFilters = { query: '', categoryId: 'all', type: 'all', onlyAvailable: false, priceMin: null, priceMax: null, badge: 'all', attrs: {}, diet: 'all' };
 
 const normalize = foldText;
 
@@ -66,6 +69,7 @@ export function filterItems(items: CatalogItemView[], filters: CatalogFilters): 
     if (filters.categoryId !== 'all' && item.categoryId !== filters.categoryId) return false;
     if (filters.type !== 'all' && item.type !== filters.type) return false;
     if (filters.onlyAvailable && !item.isAvailable) return false;
+    if (filters.diet && filters.diet !== 'all' && !item.diet.includes(filters.diet)) return false;
     if (filters.priceMin !== null && (item.price === null || item.price < filters.priceMin)) return false;
     if (filters.priceMax !== null && (item.price === null || item.price > filters.priceMax)) return false;
     if (!matchesBadge(item, filters.badge)) return false;

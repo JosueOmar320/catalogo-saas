@@ -5,7 +5,7 @@ import type { ItemType, Tables } from '@/types/database';
 import { parseAttributeValues, type AttributeDef, type AttributeValues } from './attributes';
 import { hasAvailableOption, optionPrice, variantPriceSummary } from './variants';
 import { isSaleOver } from './sale';
-import { parseItemAttributes, type ItemAttributes } from './item-attributes';
+import { parseItemAttributes, type DietTag, type ItemAttributes } from './item-attributes';
 import type { PriceFormat } from './settings';
 
 /**
@@ -52,6 +52,9 @@ export type CatalogItemView = {
   variants: CatalogVariantsView | null;
   /** Extras opcionales con su precio ("+$12" ya formateado); null si no tiene. */
   extras: CatalogExtrasView | null;
+  /** Existencias (null = no se controlan). */
+  stock: number | null;
+  diet: DietTag[];
   /** Horario del día en que se puede pedir (desayunos); null = siempre. */
   orderHours: { from: string; to: string } | null;
   /** Último día de la oferta ("2026-10-31") mientras sigue vigente; null si no tiene fecha. */
@@ -140,7 +143,8 @@ function toItemView(item: ItemInput, businessSlug: string, { locale, attributeDe
     compareAtLabel: !attributes.variants && compareAt !== null && price !== null && compareAt > price ? formatPrice(compareAt, item.currency, locale, { ...priceFormat, prefix: '' }) : null,
     priceNote: item.price_note || (summary.from ? 'desde' : null),
     sku: item.sku,
-    isAvailable: item.is_available && hasAvailableOption(attributes.variants),
+    // Agotado si así lo marcó el dueño, si se agotaron todas las opciones o si las existencias llegaron a 0.
+    isAvailable: item.is_available && hasAvailableOption(attributes.variants) && attributes.stock !== 0,
     isFeatured: item.is_featured,
     tags: item.tags ?? [],
     categoryId: item.category_id,
@@ -163,6 +167,8 @@ function toItemView(item: ItemInput, businessSlug: string, { locale, attributeDe
       options: attributes.extras.options.map((o) => ({ id: o.id, name: o.name, price: o.price, priceLabel: o.price > 0 ? format(o.price) : null, available: o.available })),
     },
     orderHours: attributes.orderHours,
+    stock: attributes.stock,
+    diet: attributes.diet,
     saleEndsOn: !attributes.variants && compareAt !== null && price !== null && compareAt > price ? (attributes.saleEnds?.on ?? null) : null,
   };
 }

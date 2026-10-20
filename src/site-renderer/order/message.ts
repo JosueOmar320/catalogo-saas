@@ -1,4 +1,5 @@
 import { msg, type Translator } from '@/i18n/translate';
+import { formatPickup } from '@/lib/business/schedule';
 import { isSaleOver, type SaleEnds } from '@/lib/catalog/sale';
 import type { OrderSettings, PaymentMethod, PriceFormat } from '@/lib/catalog/settings';
 import { formatPrice } from '@/lib/utils/format';
@@ -61,7 +62,10 @@ export const formatAmount = (value: number, pricing: OrderPricing) => formatPric
 export type Fulfillment = 'pickup' | 'delivery';
 
 /** Lo que el negocio configuró para entregar y cobrar (subconjunto plano de OrderSettings). */
-export type OrderOptions = Pick<OrderSettings, 'pickup' | 'delivery' | 'deliveryFee' | 'freeDeliveryFrom' | 'deliveryNote' | 'minimumOrder' | 'payments'>;
+export type OrderOptions = Pick<
+  OrderSettings,
+  'pickup' | 'delivery' | 'deliveryFee' | 'freeDeliveryFrom' | 'deliveryNote' | 'minimumOrder' | 'payments' | 'scheduling' | 'leadMinutes' | 'scheduleDays' | 'slotMinutes'
+>;
 
 /* ------------------------------------------------------ Precios al día y pausa */
 
@@ -136,9 +140,28 @@ export function findCoupon(coupons: PublicCoupon[], scope: string, code: string)
 }
 
 /** Lo que elige el cliente en el panel del pedido. */
-export type OrderChoices = { fulfillment: Fulfillment | null; address: string; payment: PaymentMethod | null; coupon?: AppliedCoupon | null };
+export type OrderChoices = {
+  fulfillment: Fulfillment | null;
+  address: string;
+  payment: PaymentMethod | null;
+  coupon?: AppliedCoupon | null;
+  /** Día y hora elegidos ("¿Para cuándo?"), en la zona del negocio; null = lo antes posible. */
+  when?: { date: string; time: string } | null;
+};
 
-export const NO_OPTIONS: OrderOptions = { pickup: false, delivery: false, deliveryFee: null, freeDeliveryFrom: null, deliveryNote: '', minimumOrder: null, payments: [] };
+export const NO_OPTIONS: OrderOptions = {
+  pickup: false,
+  delivery: false,
+  deliveryFee: null,
+  freeDeliveryFrom: null,
+  deliveryNote: '',
+  minimumOrder: null,
+  payments: [],
+  scheduling: 'off',
+  leadMinutes: 60,
+  scheduleDays: 7,
+  slotMinutes: '30',
+};
 export const NO_CHOICES: OrderChoices = { fulfillment: null, address: '', payment: null };
 
 export const PAYMENT_LABELS: Record<PaymentMethod, string> = {
@@ -169,8 +192,8 @@ export type OrderSummary = {
   missingForMinimum: number | null;
   /** Cuánto falta para el envío gratis. */
   missingForFreeDelivery: number | null;
-  /** Lo que impide enviar: elegir la entrega, escribir la dirección o llegar al mínimo. */
-  blocker: 'fulfillment' | 'address' | 'minimum' | null;
+  /** Lo que impide enviar: elegir la entrega, escribir la dirección, llegar al mínimo o elegir para cuándo. */
+  blocker: 'fulfillment' | 'address' | 'minimum' | 'when' | null;
   /** Descuento del cupón (sobre los productos, no el envío). */
   discount: { code: string; value: number } | null;
   /** Por qué el cupón aplicado no descuenta: venció o falta llegar a su mínimo. */
@@ -224,7 +247,9 @@ export function summarizeOrder(lines: OrderLine[], pricing: OrderPricing, option
         ? 'address'
         : missingForMinimum !== null
           ? 'minimum'
-          : null;
+          : options.scheduling === 'required' && !choices.when
+            ? 'when'
+            : null;
   return { subtotal, delivery, total, missingForMinimum, missingForFreeDelivery, blocker, discount, couponIssue };
 }
 
@@ -291,6 +316,7 @@ export function buildOrderMessage({ lines, pricing, intro, businessName, custome
   } else if (subtotal) summary.push(productsTotal(subtotal, 'Total'));
 
   const fulfillment = effectiveFulfillment(options, choices.fulfillment);
+  if (options.scheduling !== 'off' && choices.when) summary.push(t('Para: {when}', { when: formatPickup(choices.when.date, choices.when.time, pricing.locale) }));
   if (fulfillment) summary.push(t('Entrega: {mode}', { mode: fulfillment === 'delivery' ? t('A domicilio') : t('Recoger en el local') }));
   const address = choices.address.trim();
   if (fulfillment === 'delivery' && address) summary.push(t('Dirección: {address}', { address }));

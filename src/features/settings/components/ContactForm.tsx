@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Alert, Box, Button, Checkbox, Divider, FormControlLabel, FormGroup, FormLabel, Grid, InputAdornment, Stack, TextField, Typography } from '@mui/material';
 import { useRouter } from 'next/navigation';
 import { Controller, useForm, useWatch, type Resolver } from 'react-hook-form';
-import { SwitchControl, TextFieldControl } from '@/components/form/fields';
+import { SelectControl, SwitchControl, TextFieldControl } from '@/components/form/fields';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { updateContact } from '@/features/business/actions';
 import { updateCatalogSettings } from '@/features/catalog/actions';
@@ -30,6 +30,7 @@ export function ContactForm({ contact, actions, order, businessName }: { contact
   const scheduleEnabled = useWatch({ control: contactForm.control, name: 'schedule.enabled' });
   const deliveryEnabled = useWatch({ control: orderForm.control, name: 'delivery' });
   const pausedOrders = useWatch({ control: orderForm.control, name: 'paused' });
+  const scheduling = useWatch({ control: orderForm.control, name: 'scheduling' });
   const money = { input: { startAdornment: <InputAdornment position="start">$</InputAdornment> } };
   const message = useWatch({ control: actionsForm.control, name: 'whatsapp.message' });
   const whatsappEnabled = useWatch({ control: actionsForm.control, name: 'whatsapp.enabled' });
@@ -194,6 +195,42 @@ export function ContactForm({ contact, actions, order, businessName }: { contact
             helperText={t('Opcional: no se puede enviar un pedido menor.')}
             sx={{ maxWidth: { sm: 260 } }}
           />
+
+          <Divider />
+          <Typography variant="subtitle2">{t('¿Para cuándo?')}</Typography>
+          <SelectControl
+            control={orderForm.control}
+            name="scheduling"
+            label={t('Pedir día y hora')}
+            helperText={t('El cliente elige entre los horarios de tu negocio (Horario por día, arriba).')}
+            options={[
+              { value: 'off', label: t('No preguntar') },
+              { value: 'optional', label: t('Opcional («lo antes posible» o un horario)') },
+              { value: 'required', label: t('Obligatorio') },
+            ]}
+            sx={{ maxWidth: { sm: 420 } }}
+          />
+          {scheduling !== 'off' && (
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <SelectControl
+                  control={orderForm.control}
+                  name="leadMinutes"
+                  label={t('Tiempo de preparación')}
+                  options={[0, 15, 30, 60, 120, 240, 1440, 2880].map((minutes) => ({
+                    value: String(minutes),
+                    label: minutes === 0 ? t('Sin espera') : minutes < 60 ? t('{count} min', { count: minutes }) : minutes < 1440 ? t('{count} h', { count: minutes / 60 }) : minutes === 1440 ? t('1 día') : t('{count} días', { count: minutes / 1440 }),
+                  }))}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <SelectControl control={orderForm.control} name="scheduleDays" label={t('Hasta cuántos días antes')} options={[1, 2, 3, 7, 14, 30].map((days) => ({ value: String(days), label: days === 1 ? t('Sólo hoy') : t('{count} días', { count: days }) }))} />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <SelectControl control={orderForm.control} name="slotMinutes" label={t('Cada')} options={['15', '30', '60'].map((m) => ({ value: m, label: t('{count} min', { count: m }) }))} />
+              </Grid>
+            </Grid>
+          )}
 
           <Divider />
           <Controller
