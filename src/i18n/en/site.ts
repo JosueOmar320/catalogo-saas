@@ -301,6 +301,22 @@ const catalog: Catalog = {
   '{rating} de 5 estrellas, {count} opiniones': '{rating} out of 5 stars, {count} reviews',
   'Activa las reseñas en el panel (Reseñas) para mostrarlas aquí.': 'Turn on reviews in the dashboard (Reviews) to show them here.',
   'Aquí aparecerán las reseñas que apruebes en el panel.': 'Reviews you approve in the dashboard will appear here.',
+  'En tus favoritos': 'In your favorites',
+  'Guardar en favoritos': 'Save to favorites',
+  'Guardar {name} en favoritos': 'Save {name} to favorites',
+  'Guardar': 'Save',
+  'Quitar de favoritos': 'Remove from favorites',
+  'Quitar {name} de favoritos': 'Remove {name} from favorites',
+  'Elige tu zona de entrega.': 'Choose your delivery zone.',
+  'Elige tu zona': 'Choose your zone',
+  'Envío según tu zona': 'Delivery fee depends on your zone',
+  'Zona de entrega': 'Delivery zone',
+  'envío gratis': 'free delivery',
+  'envío por confirmar': 'delivery fee to be confirmed',
+  'envío {amount}': 'delivery {amount}',
+  'mínimo {amount}': 'minimum {amount}',
+  'Zona: {zone}': 'Zone: {zone}',
+  'Favoritos ({count})': 'Favorites ({count})',
 };
 
 export default catalog;

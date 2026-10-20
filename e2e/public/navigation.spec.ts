@@ -107,6 +107,30 @@ test.describe('reseñas de clientes', () => {
   });
 });
 
+test('favoritos: se guardan con el corazón, filtran el catálogo y se recuerdan', async ({ page }) => {
+  await page.goto('/demo/menu');
+  const main = page.getByRole('main');
+  await expect(main.getByRole('button', { name: /^Favoritos/ })).toHaveCount(0);
+  await main.getByRole('button', { name: 'Guardar Latte de avena en favoritos' }).first().click();
+  await expect(main.getByRole('button', { name: 'Quitar Latte de avena de favoritos' }).first()).toHaveAttribute('aria-pressed', 'true');
+  const chip = main.getByRole('button', { name: 'Favoritos (1)' });
+  await chip.click();
+  await expect(chip).toHaveAttribute('aria-pressed', 'true');
+  await expect(main.getByRole('article')).toHaveCount(1);
+  await expect(main.getByRole('article').getByRole('heading', { name: 'Latte de avena' })).toBeVisible();
+
+  await page.reload();
+  await expect(main.getByRole('button', { name: 'Favoritos (1)' })).toBeVisible();
+  await page.goto('/demo/p/ejemplo-2');
+  const detail = page.getByRole('button', { name: 'Quitar Latte de avena de favoritos' });
+  await expect(detail).toHaveText('En tus favoritos');
+  await detail.click();
+  await expect(page.getByRole('button', { name: 'Guardar Latte de avena en favoritos' })).toHaveText('Guardar');
+  await page.goto('/demo/menu');
+  await expect(main.getByRole('article').first()).toBeVisible();
+  await expect(main.getByRole('button', { name: /^Favoritos/ })).toHaveCount(0);
+});
+
 test.describe('aviso semanal por correo (sin sesión)', () => {
   test('el cron no responde sin el secreto', async ({ request }) => {
     expect((await request.get('/api/cron/catalog-review')).status()).toBe(401);

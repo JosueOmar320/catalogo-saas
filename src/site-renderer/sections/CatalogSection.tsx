@@ -1,12 +1,13 @@
 'use client';
 
-import { ChevronLeft, ChevronRight, PackageSearch, Search, SlidersHorizontal } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Heart, PackageSearch, Search, SlidersHorizontal } from 'lucide-react';
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import type { Translator } from '@/i18n/translate';
 import { SORT_OPTIONS, sortItems, type SortOption } from '@/lib/catalog/collections-core';
 import { attributeFilterOptions, EMPTY_FILTERS, filterItems, groupByCategory, type BadgeFilter, type CatalogFilters } from '../filter';
 import type { DietTag } from '@/lib/catalog/item-attributes';
 import { DIET_LABELS, usedDietTags } from '../diet';
+import { useFavorites } from '../Favorites';
 import { ItemCard } from '../ItemCard';
 import { ProductCollection } from '../ProductCollection';
 import { gridVars, SectionFrame, SectionHead } from '../SectionFrame';
@@ -55,6 +56,9 @@ export function CatalogSection({ section, site, env }: SectionProps<'catalog'>) 
   // Páginas (modo "pages") o bloques cargados (modos "loadMore" / "infinite").
   const [page, setPage] = useState(1);
   const [panelOpen, setPanelOpen] = useState(false);
+  // Favoritos del visitante (en su navegador): un filtro más.
+  const favorites = useFavorites(site.business.slug);
+  const [onlyFavorites, setOnlyFavorites] = useState(false);
   const query = useDeferredValue(filters.query);
   const items = useMemo(() => (content.itemType === 'any' ? site.items : site.items.filter((i) => i.type === content.itemType)), [site.items, content.itemType]);
 
@@ -87,14 +91,18 @@ export function CatalogSection({ section, site, env }: SectionProps<'catalog'>) 
   const showCategoryChips = cfg.categories && usedCategories.length > 1;
   const panelFilters = showPrice || cfg.badges || attributeFilters.length > 0 || showAvailability;
   const showSort = content.sort.allowUserSort;
-  const showToolbar = items.length > 0 && (cfg.search || showCategoryChips || showTypes || panelFilters || showSort);
+  const favoriteIds = useMemo(() => new Set(env.mode === 'public' ? favorites : []), [favorites, env.mode]);
+  const favoriteCount = items.filter((i) => favoriteIds.has(i.id)).length;
+  // Sin favoritos (p. ej. quitó el último), el filtro deja de aplicar.
+  const favoritesFilter = onlyFavorites && favoriteCount > 0;
+  const showToolbar = items.length > 0 && (cfg.search || showCategoryChips || showTypes || panelFilters || showSort || favoriteCount > 0);
 
   // Dependencias campo por campo SIN el texto escrito: la búsqueda usa el valor diferido (`query`),
   // así cada tecla filtra una sola vez (antes: una con el texto viejo y otra con el nuevo).
   const { categoryId, type, onlyAvailable, priceMin, priceMax, badge, attrs, diet } = filters;
   const filtered = useMemo(
-    () => sortItems(filterItems(items, { query, categoryId, type, onlyAvailable, priceMin, priceMax, badge, attrs, diet }), sort),
-    [items, query, categoryId, type, onlyAvailable, priceMin, priceMax, badge, attrs, diet, sort],
+    () => sortItems(filterItems(favoritesFilter ? items.filter((i) => favoriteIds.has(i.id)) : items, { query, categoryId, type, onlyAvailable, priceMin, priceMax, badge, attrs, diet }), sort),
+    [items, favoritesFilter, favoriteIds, query, categoryId, type, onlyAvailable, priceMin, priceMax, badge, attrs, diet, sort],
   );
   const isSearching = filtered.length !== items.length || query.trim() !== '';
   const featured = content.showFeatured && !isSearching ? items.filter((i) => i.isFeatured).slice(0, 6) : [];
@@ -162,6 +170,19 @@ export function CatalogSection({ section, site, env }: SectionProps<'catalog'>) 
               )}
             </nav>
             <div className={styles.toolbarEnd}>
+              {favoriteCount > 0 && (
+                <button
+                  type="button"
+                  className={`${styles.chip} ${favoritesFilter ? styles.chipActive : ''}`}
+                  aria-pressed={favoritesFilter}
+                  onClick={() => {
+                    setOnlyFavorites(!favoritesFilter);
+                    setPage(1);
+                  }}
+                >
+                  <Heart size={14} fill={favoritesFilter ? 'currentColor' : 'none'} aria-hidden /> {t('Favoritos ({count})', { count: favoriteCount })}
+                </button>
+              )}
               {panelFilters && (
                 <button type="button" className={`${styles.chip} ${activeCount > 0 ? styles.chipActive : ''}`} aria-expanded={panelOpen} onClick={() => setPanelOpen((o) => !o)}>
                   <SlidersHorizontal size={14} aria-hidden /> {activeCount > 0 ? t('Filtros ({count})', { count: activeCount }) : t('Filtros')}

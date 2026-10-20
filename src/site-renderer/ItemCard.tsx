@@ -7,6 +7,7 @@ import type { SiteViewModel } from '@/lib/site/view-model';
 import { Badges } from './Badges';
 import { ContactActions } from './ContactActions';
 import { DietTags } from './diet';
+import { FavoriteButton } from './Favorites';
 import { itemPath, type RenderEnv } from './env';
 import { PriceTag } from './PriceTag';
 import { RatingBadge } from './Reviews';
@@ -140,6 +141,10 @@ export function ItemCard({ item, site, env, options = {} }: { item: CatalogItemV
           {f.availability && !item.isAvailable && <span className={styles.availability}>{t('No disponible')}</span>}
         </div>
       </ItemLink>
+      {env.mode === 'public' && (
+        // Fuera del enlace (un botón no va dentro de <a>); en la esquina libre de etiquetas.
+        <FavoriteButton slug={site.business.slug} itemId={item.id} name={item.name} corner={f.badges && site.theme.badges.position === 'top-right' ? 'left' : 'right'} />
+      )}
       {f.button && item.isAvailable && (
         <div className={styles.cardActions}>
           <ContactActions site={site} item={item} env={env} show="primary" small block appearance={cards.button === 'none' ? 'solid' : cards.button} shortLabel={t('Consultar')} />
