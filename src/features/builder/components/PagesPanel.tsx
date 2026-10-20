@@ -20,7 +20,7 @@ import { TemplateList } from './SectionTemplates';
 import { useT } from '@/i18n/client';
 
 /** Lista de páginas + secciones de la página seleccionada. */
-export function PagesPanel() {
+export function PagesPanel({ customCode = false }: { customCode?: boolean }) {
   const t = useT();
   const { state, dispatch } = useBuilder();
   const page = useSelectedPage();
@@ -165,6 +165,7 @@ export function PagesPanel() {
 
       {adding === 'section' && (
         <SectionPicker
+          customCode={customCode}
           onPick={(section) => {
             dispatch({ type: 'addSection', section });
             setAdding(null);
@@ -216,7 +217,7 @@ export function PagesPanel() {
   );
 }
 
-function SectionPicker({ onPick, onClose }: { onPick: (section: Section) => void; onClose: () => void }) {
+function SectionPicker({ onPick, onClose, customCode }: { onPick: (section: Section) => void; onClose: () => void; customCode: boolean }) {
   const t = useT();
   return (
     <Box sx={{ mb: 1.5, p: 1, border: 1, borderColor: 'divider', borderRadius: 1.5 }}>
@@ -225,7 +226,8 @@ function SectionPicker({ onPick, onClose }: { onPick: (section: Section) => void
         <IconButton size="small" onClick={onClose} aria-label={t('Cerrar')}><X size={14} /></IconButton>
       </Stack>
       <TemplateList onPick={onPick} />
-      {SECTION_GROUPS.map((group) => (
+      {/* Las secciones de código propio sólo si el administrador lo habilitó. */}
+      {SECTION_GROUPS.filter((group) => customCode || group !== 'Código').map((group) => (
         <Box key={group} sx={{ mt: 1 }}>
           <Typography variant="overline" color="text.secondary" sx={{ px: 1 }}>{t(group)}</Typography>
           {SECTION_TYPES.filter((st) => SECTION_META[st].group === group).map((type) => (

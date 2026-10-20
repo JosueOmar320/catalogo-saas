@@ -8,6 +8,7 @@ import { getBusinessDetail, listAudit, listPlans } from '@/features/admin/querie
 import { getT } from '@/i18n/server';
 import { requirePlatformAdmin } from '@/lib/auth/session';
 import { uuidSchema } from '@/lib/utils/validation';
+import { parseEntitlements } from '@/lib/plans/entitlements';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
@@ -34,9 +35,10 @@ export default async function BusinessDetailPage({ params }: PageProps<'/admin/n
           createdAt: business.created_at,
           members: detail.members,
           catalogs: detail.catalogs.map((c) => ({ id: c.id, name: c.name, status: c.status, isActive: c.is_active, isDefault: c.is_default, updatedAt: c.updated_at })),
+          customCode: business.custom_code ?? null,
         }}
         users={detail.users}
-        plans={plans.map((p) => ({ id: p.id, name: p.name }))}
+        plans={plans.map((p) => ({ id: p.id, name: p.name, customCode: parseEntitlements(p).features.custom_code }))}
       />
       <SectionCard title={t('Actividad del negocio')} sx={{ mt: 2.5 }} flush>
         <AuditTable rows={audit.rows.filter((r) => r.business_id === business.id).slice(0, 20)} compact />

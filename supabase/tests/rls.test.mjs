@@ -559,6 +559,29 @@ await as(A);
 await expectErr('at most 50 templates per business', async () => { for (let i = 0; i < 50; i++) await tpl(bizA, `Plantilla ${i}`); }, 'section_template_limit_reached');
 await expectEq('the limit kept 50', () => q(`select count(*)::int n from public.section_templates where business_id=$1`, [bizA]).then((r) => r[0].n), 50);
 await expectOk('owner deletes own templates', () => q(`delete from public.section_templates where business_id=$1`, [bizA]));
+/* ------------------------------------------------------------ Código propio (lo habilita el administrador) */
+// Aquí A es administrador de la plataforma y B un dueño sin permisos de administración.
+const customCode = () => q(`select (public.get_public_catalog('tienda-a') -> 'business' ->> 'custom_code')::boolean v`).then((r) => r[0].v);
+await as(null);
+await expectEq('custom code is off by default (public catalog)', customCode, false);
+await as(B);
+await expectErr('owner cannot enable custom code for own business', () => q(`update public.businesses set custom_code=true where id=$1`, [bizB]), 'permission denied');
+await expectErr('owner cannot use the admin RPC', () => q(`select public.admin_set_custom_code($1, true)`, [bizB]), 'forbidden');
+await expectErr('owner cannot enable it for a plan', () => q(`select public.admin_set_plan_custom_code('free', true)`), 'forbidden');
+await as(A);
+await expectOk('admin enables custom code for the free plan', () => q(`select public.admin_set_plan_custom_code('free', true)`));
+await as(null);
+await expectEq('the plan enables it', customCode, true);
+await as(A);
+await expectOk('admin turns it off for this business', () => q(`select public.admin_set_custom_code($1, false)`, [bizA]));
+await as(null);
+await expectEq('the business decision wins over the plan', customCode, false);
+await as(A);
+await expectOk('admin goes back to the plan (null)', () => q(`select public.admin_set_custom_code($1, null)`, [bizA]));
+await expectErr('unknown plan', () => q(`select public.admin_set_plan_custom_code('nope', true)`), 'plan_not_found');
+await expectOk('admin turns the plan feature off again', () => q(`select public.admin_set_plan_custom_code('free', false)`));
+await as(null);
+await expectEq('off again', customCode, false);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);

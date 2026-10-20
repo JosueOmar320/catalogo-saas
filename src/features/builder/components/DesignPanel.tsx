@@ -18,16 +18,20 @@ import { useBuilder } from '../state';
 import { BackgroundEditor, ColorInput, Group, Segmented, SelectInput, SliderInput, SwitchRow, TextInput } from './controls';
 import { useT } from '@/i18n/client';
 import { msg } from '@/i18n/translate';
+import { MAX_CSS_LENGTH } from '@/lib/site/custom-code-config';
+import { CodeField, CustomCodeDisabled } from './editors/code-field';
 
-type DesignTab = 'theme' | 'colors' | 'type' | 'style' | 'background' | 'cards';
+export type DesignTab = 'theme' | 'colors' | 'type' | 'style' | 'background' | 'cards' | 'css';
 
 export type IdentityImages = { logoUrl: string | null; coverUrl: string | null; faviconUrl: string | null };
 
-export function DesignPanel({ identity, initialTab = 'theme' }: { identity: IdentityImages; initialTab?: DesignTab }) {
+export function DesignPanel({ identity, initialTab = 'theme', customCode = false }: { identity: IdentityImages; initialTab?: DesignTab; customCode?: boolean }) {
   const t = useT();
   const { state, dispatch } = useBuilder();
-  const [tab, setTab] = useState<DesignTab>(initialTab);
   const theme = state.theme;
+  // El CSS propio se ve si está habilitado (o si quedó escrito y hay que poder borrarlo).
+  const showCss = customCode || theme.customCss !== '';
+  const [tab, setTab] = useState<DesignTab>(initialTab === 'css' && !showCss ? 'theme' : initialTab);
   const setTheme = (next: ThemeConfig) => dispatch({ type: 'setTheme', theme: next });
   const patch = <K extends keyof ThemeConfig>(key: K, value: Partial<ThemeConfig[K]>) =>
     setTheme({ ...theme, [key]: typeof value === 'object' && !Array.isArray(value) ? { ...(theme[key] as object), ...value } : value });
@@ -41,6 +45,7 @@ export function DesignPanel({ identity, initialTab = 'theme' }: { identity: Iden
         <Tab value="style" label={t('Estilo')} />
         <Tab value="background" label={t('Fondo')} />
         <Tab value="cards" label={t('Tarjetas')} />
+        {showCss && <Tab value="css" label={t('CSS propio')} />}
       </Tabs>
       {tab === 'theme' && <ThemeTab theme={theme} setTheme={setTheme} identity={identity} />}
       {tab === 'colors' && <ColorsTab theme={theme} patch={patch} />}
@@ -52,6 +57,12 @@ export function DesignPanel({ identity, initialTab = 'theme' }: { identity: Iden
         </Group>
       )}
       {tab === 'cards' && <CardsTab theme={theme} patch={patch} />}
+      {tab === 'css' && (
+        <Group title={t('CSS propio')} description={t('Se aplica sólo a tu sitio (también al menú y al pie de página). body y :root son la raíz del sitio. Sin @import; las imágenes y fuentes, sólo por https.')}>
+          {!customCode && <CustomCodeDisabled />}
+          <CodeField label="CSS" value={theme.customCss} onChange={(customCss) => setTheme({ ...theme, customCss })} maxLength={MAX_CSS_LENGTH} placeholder={'.promo {\n  border: 2px dashed var(--c-accent);\n  padding: 24px;\n}'} />
+        </Group>
+      )}
     </Box>
   );
 }

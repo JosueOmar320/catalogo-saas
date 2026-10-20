@@ -207,7 +207,7 @@ const catalog: Catalog = {
   'API compatible con OpenAI': 'OpenAI-compatible API',
   'Modo básico (sin IA)': 'Basic mode (no AI)',
   'Planes': 'Plans',
-  'Límites por negocio. Preparado para suscripciones y facturación.': 'Limits per business. Ready for subscriptions and billing.',
+  'Límites por negocio. Preparado para suscripciones y facturación. «Código propio» habilita HTML, widgets y CSS en el editor del sitio (cada negocio puede tener su propia decisión).': 'Limits per business. Ready for subscriptions and billing. “Custom code” enables HTML, widgets and CSS in the site editor (each business can have its own setting).',
   'Límites': 'Limits',
   'Funciones': 'Features',
 
@@ -248,6 +248,14 @@ const catalog: Catalog = {
   'Catálogo desactivado': 'Catalog deactivated',
   'La imagen no existe.': "The image doesn't exist.",
   'Imagen quitada de la biblioteca': 'Image removed from the library',
+  'Código propio actualizado': 'Custom code updated',
+  'Activado para este negocio': 'On for this business',
+  'Código propio': 'Custom code',
+  'Desactivado para este negocio': 'Off for this business',
+  'Sección HTML, widgets con código y CSS propio en el editor del sitio. El HTML se limpia y los widgets corren aislados, pero el contenido lo decide el negocio: actívalo sólo para quien lo necesite.': 'HTML section, code widgets and custom CSS in the site editor. HTML is cleaned and widgets run isolated, but the business decides the content: turn it on only for those who need it.',
+  'Según el plan ({plan}: activado)': 'Per plan ({plan}: on)',
+  'Según el plan ({plan}: desactivado)': 'Per plan ({plan}: off)',
+  'Código propio en el plan {plan}': 'Custom code in the {plan} plan',
 };
 
 export default catalog;

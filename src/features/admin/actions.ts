@@ -229,6 +229,33 @@ export async function updateBusiness(id: string, input: UpdateBusinessValues): P
   return ok(undefined, parsed.data.status === 'suspended' ? msg('Negocio guardado (suspendido)') : msg('Negocio guardado'));
 }
 
+export type CustomCodeMode = 'plan' | 'on' | 'off';
+
+/** Código propio del negocio: según su plan, o activado/desactivado sólo para él. */
+export async function setBusinessCustomCode(id: string, mode: CustomCodeMode): Promise<ActionResult> {
+  const { supabase } = await requirePlatformAdmin();
+  if (!isUuid(id) || !['plan', 'on', 'off'].includes(mode)) return fail(msg('Datos inválidos.'));
+  const { error } = await supabase.rpc('admin_set_custom_code', { p_business: id, p_value: mode === 'plan' ? null : mode === 'on' });
+  if (error) return fail(dbErrorMessage(error));
+  const { data } = await supabase.from('businesses').select('slug').eq('id', id).single();
+  if (data) invalidatePublicCatalog(data.slug);
+  refresh('/admin/negocios');
+  return ok(undefined, msg('Código propio actualizado'));
+}
+
+/** Código propio para todos los negocios de un plan (los que no tienen una decisión propia). */
+export async function setPlanCustomCode(planId: string, enabled: boolean): Promise<ActionResult> {
+  const { supabase } = await requirePlatformAdmin();
+  if (!/^[a-z0-9_-]{1,40}$/.test(planId)) return fail(msg('Datos inválidos.'));
+  const { error } = await supabase.rpc('admin_set_plan_custom_code', { p_plan: planId, p_value: enabled });
+  if (error) return fail(dbErrorMessage(error));
+  // Cambia el sitio público de todos los negocios del plan.
+  const { data } = await supabase.from('businesses').select('slug').eq('plan_id', planId).is('custom_code', null);
+  for (const business of data ?? []) invalidatePublicCatalog(business.slug);
+  refresh('/admin/configuracion', '/admin/negocios');
+  return ok(undefined, msg('Código propio actualizado'));
+}
+
 /** Abre el negocio en el editor (el admin opera con permisos de dueño; queda auditado). */
 export async function openBusiness(id: string): Promise<void> {
   const { supabase } = await requirePlatformAdmin();

@@ -3,7 +3,7 @@ import { msg } from '@/i18n/translate';
 import type { SectionType } from './section-schemas';
 
 /** Metadatos de cada tipo de sección para el builder (catálogo de secciones). */
-export const SECTION_META: Record<SectionType, { label: string; description: string; icon: IconId; group: 'Principal' | 'Catálogo' | 'Contenido' | 'Contacto' | 'Diseño' }> = {
+export const SECTION_META: Record<SectionType, { label: string; description: string; icon: IconId; group: 'Principal' | 'Catálogo' | 'Contenido' | 'Contacto' | 'Diseño' | 'Código' }> = {
   hero: { label: msg('Hero'), description: msg('Portada grande con título, imagen y botones.'), icon: 'sparkles', group: 'Principal' },
   banner: { label: msg('Banner'), description: msg('Franja promocional con texto y botón.'), icon: 'percent', group: 'Principal' },
   products: { label: msg('Productos'), description: msg('Selección de productos: destacados, recientes, de una categoría o elegidos.'), icon: 'shopping-bag', group: 'Catálogo' },
@@ -26,6 +26,8 @@ export const SECTION_META: Record<SectionType, { label: string; description: str
   logos: { label: msg('Logos'), description: msg('Marcas, clientes o certificaciones.'), icon: 'badge-check', group: 'Contenido' },
   quickorder: { label: msg('Pedido rápido'), description: msg('Todos tus productos en una lista compacta con su cantidad: para pedir muchos de una vez (mayoreo, clientes frecuentes).'), icon: 'clipboard-list', group: 'Catálogo' },
   columns: { label: msg('Columnas (libre)'), description: msg('Arma tu composición: imagen + texto, tarjetas, listas con íconos, varios botones, cifras…'), icon: 'columns', group: 'Principal' },
+  html: { label: msg('HTML propio'), description: msg('Tu propio HTML con los estilos del sitio (sin scripts). Para lo que las otras secciones no hacen.'), icon: 'laptop', group: 'Código' },
+  embed: { label: msg('Widget con código'), description: msg('Código de otro servicio (reservas, formularios, mapas, chats) aislado en un marco seguro.'), icon: 'zap', group: 'Código' },
 };
 
-export const SECTION_GROUPS = [msg('Principal'), msg('Catálogo'), msg('Contenido'), msg('Contacto'), msg('Diseño')] as const;
+export const SECTION_GROUPS = [msg('Principal'), msg('Catálogo'), msg('Contenido'), msg('Contacto'), msg('Diseño'), msg('Código')] as const;

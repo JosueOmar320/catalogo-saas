@@ -19,6 +19,8 @@ import { ImageSection } from './ImageSection';
 import { LogosSection } from './LogosSection';
 import { PricingSection } from './PricingSection';
 import { QuickOrderSection } from './QuickOrderSection';
+import { HtmlSection } from './HtmlSection';
+import { EmbedSection } from './EmbedSection';
 import { StatsSection } from './StatsSection';
 import { TeamSection } from './TeamSection';
 import type { SectionProps } from './types';
@@ -51,6 +53,8 @@ export const SECTION_COMPONENTS: { [T in SectionType]: ComponentType<SectionProp
   logos: LogosSection,
   columns: ColumnsSection,
   quickorder: QuickOrderSection,
+  html: HtmlSection,
+  embed: EmbedSection,
 };
 
 export type { SectionProps } from './types';

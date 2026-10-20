@@ -2,6 +2,7 @@
 import { Image, Link, Text, View } from '@react-pdf/renderer';
 import { resolveBackground } from '@/lib/design/background';
 import type { PdfBlockOf } from '@/lib/pdf/settings';
+import { htmlToText } from '@/lib/site/custom-code';
 import { resolveLink } from '@/lib/site/links';
 import { parseVideoUrl } from '@/lib/site/video';
 import { heroText, resolveSectionItems, resolveTextMode } from '@/lib/site/resolve';
@@ -368,6 +369,14 @@ function PdfSection({ section, doc }: { section: Section; doc: PdfDoc }) {
         </View>
       );
     }
+    case 'html': {
+      // En el PDF, sólo el texto (sin código propio habilitado, nada).
+      const text = ctx.site.customCode ? htmlToText(section.content.html) : '';
+      return text ? <Text style={{ fontSize: t.size.base, lineHeight: 1.5 }}>{text}</Text> : null;
+    }
+    case 'embed':
+      // Un widget necesita el navegador: no tiene versión impresa.
+      return null;
     default: {
       // Todos los tipos de sección deben tener su versión PDF.
       const missing: never = section;

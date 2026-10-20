@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { msg } from '@/i18n/translate';
+import { MAX_CSS_LENGTH } from '@/lib/site/custom-code-config';
 import { buildBackgroundSchema } from './background';
 import { mix } from './color';
 import { FONT_IDS, type FontId } from './fonts';
@@ -140,6 +141,8 @@ function buildThemeSchema(lenient: boolean) {
         dismissible: bool(true),
       })
       .prefault({}),
+    /** CSS propio del sitio (limitado al sitio al mostrarlo; sólo con código propio habilitado). */
+    customCss: f(z.string().max(MAX_CSS_LENGTH), ''),
     /** Ventana de bienvenida: una promoción que el visitante ve una vez (al rato de entrar). */
     popup: z
       .object({
