@@ -73,15 +73,13 @@ export function sanitizeCustomHtml(html: string): string {
   return sanitize(html.slice(0, MAX_HTML_LENGTH), HTML_OPTIONS).trim();
 }
 
+const ENTITIES: Record<string, string> = { nbsp: ' ', amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'" };
+
 /** Sólo el texto (para el PDF y para Garfield). */
 export function htmlToText(html: string): string {
   return sanitize(html.slice(0, MAX_HTML_LENGTH).replace(/<\/(p|div|h[1-6]|li|tr|section|article|br)\s*>|<br\s*\/?>/gi, '$&\n'), { allowedTags: [], allowedAttributes: {} })
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
+    // Una sola pasada: "&amp;lt;" queda como el texto "&lt;" (no se decodifica dos veces).
+    .replace(/&(nbsp|amp|lt|gt|quot|#39);/g, (_, entity: string) => ENTITIES[entity])
     .replace(/[ \t]+/g, ' ')
     .replace(/\n\s*\n+/g, '\n\n')
     .trim();

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { clampEmbedHeight, EMBED_SANDBOX, embedDocument, htmlToText, sanitizeCustomHtml, scopeCustomCss } from '@/lib/site/custom-code';
+import { clampEmbedHeight, EMBED_MESSAGE, EMBED_SANDBOX, embedDocument, htmlToText, sanitizeCustomHtml, scopeCustomCss } from '@/lib/site/custom-code';
 
 describe('Código propio: HTML', () => {
   it('quita scripts, eventos, iframes, formularios y URLs javascript:', () => {
@@ -26,6 +26,8 @@ describe('Código propio: HTML', () => {
 
   it('texto plano para el PDF', () => {
     assert.equal(htmlToText('<h2>Horario</h2><p>Lunes &amp; martes</p><ul><li>9:00</li><li>18:00</li></ul><script>x()</script>'), 'Horario\nLunes & martes\n9:00\n18:00');
+    // Sin decodificar dos veces: el texto "&lt;b&gt;" escrito como entidades sigue siendo ese texto.
+    assert.equal(htmlToText('<p>Usa &amp;lt;b&amp;gt; para negritas</p>'), 'Usa &lt;b&gt; para negritas');
   });
 });
 
@@ -63,7 +65,7 @@ describe('Código propio: widget', () => {
     assert.doesNotMatch(EMBED_SANDBOX, /allow-same-origin|allow-top-navigation/);
     assert.match(EMBED_SANDBOX, /allow-scripts/);
     const doc = embedDocument('<div id="w"></div><script src="https://widget.test/a.js"></script>');
-    assert.ok(doc.indexOf('vitrina:embed-height') < doc.indexOf('<body>'));
+    assert.ok(doc.indexOf(`type:'${EMBED_MESSAGE}'`) > 0 && doc.indexOf(EMBED_MESSAGE) < doc.indexOf('<body>'));
     assert.match(doc, /<body><div id="w"><\/div><script src="https:\/\/widget\.test\/a\.js"><\/script><\/body>/);
   });
 
