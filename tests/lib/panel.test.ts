@@ -37,7 +37,8 @@ describe('Kit para compartir', () => {
   it('mensajes listos con el enlace y el nombre, en el idioma del panel', () => {
     const es = shareMessages(createTranslator('es', null), 'Café Aurora', 'https://x.test/catalogo/cafe');
     assert.deepEqual(es.map((m) => m.id), ['whatsapp', 'status', 'bio']);
-    assert.ok(es.every((m) => m.text.includes('https://x.test/catalogo/cafe')));
+    // Expresión regular (no includes con la URL: CodeQL lo toma por una validación de URL incompleta).
+    for (const m of es) assert.match(m.text, /(^|\s)https:\/\/x\.test\/catalogo\/cafe(\s|$)/);
     assert.match(es[1].text, /Café Aurora/);
     assert.equal(shareMessages(createTranslator('en', APP_EN), 'Café', 'https://x.test')[2].text, 'Order here: https://x.test');
     assert.equal(displayUrl('https://x.test/catalogo/cafe/'), 'x.test/catalogo/cafe');
