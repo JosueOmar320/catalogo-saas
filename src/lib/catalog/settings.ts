@@ -56,6 +56,24 @@ const optionalAmount = () =>
 
 export const MAX_COUPONS = 20;
 export const MAX_ZONES = 20;
+export const MAX_PROMOTIONS = 5;
+
+/** Promoción automática (sin código): desde cierto subtotal, un porcentaje o un monto menos. */
+export const promotionSchema = z.object({
+  type: z.enum(['percent', 'amount']).default('percent'),
+  value: z.preprocess(
+    (value) => (typeof value === 'string' ? Number(value.trim().replace(',', '.')) : value),
+    z.number({ error: msg('Usa un número, ej. 10') }).positive(msg('Debe ser mayor que 0')).max(9_999_999),
+  ),
+  /** Subtotal desde el que aplica. */
+  minSubtotal: z.preprocess(
+    (value) => (typeof value === 'string' ? Number(value.trim().replace(/,/g, '')) : value),
+    z.number({ error: msg('Usa un número, ej. 300') }).positive(msg('Debe ser mayor que 0')).max(9_999_999),
+  ),
+  active: z.boolean().default(true),
+});
+
+export type Promotion = z.output<typeof promotionSchema>;
 
 /** Zona de entrega: su costo de envío (vacío = se confirma) y, si tiene, su pedido mínimo. */
 export const deliveryZoneSchema = z.object({
@@ -126,6 +144,12 @@ export const orderSchema = z.object({
     .array(branchSchema)
     .max(MAX_BRANCHES)
     .refine((list) => new Set(list.map((b) => b.name.toLowerCase())).size === list.length, msg('Hay sucursales con el mismo nombre'))
+    .default([]),
+  /** Promociones automáticas: aplica la que más descuenta (y no se suman a un cupón: vale el mayor). */
+  promotions: z
+    .array(promotionSchema)
+    .max(MAX_PROMOTIONS)
+    .refine((list) => list.every((p) => p.type !== 'percent' || p.value <= 100), msg('Un porcentaje no puede pasar de 100'))
     .default([]),
   /** Propina opcional (10, 15 o 20 % de los productos): el cliente elige y el mensaje la desglosa. */
   tips: z.boolean().default(false),

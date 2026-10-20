@@ -352,6 +352,22 @@ function PdfSection({ section, doc }: { section: Section; doc: PdfDoc }) {
     }
     case 'columns':
       return <PdfColumns doc={doc} section={section} ink={ink} />;
+    case 'quickorder': {
+      // En papel, el pedido rápido es una lista de precios compacta.
+      const items = doc.items.filter((i) => i.type === 'product' && (!section.content.categoryId || i.categoryId === section.content.categoryId));
+      if (!items.length) return null;
+      return (
+        <View>
+          <SectionTitle ctx={ctx} title={section.content.title} subtitle={section.content.subtitle} />
+          {items.map((item) => (
+            <View key={item.id} wrap={false} style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12, paddingVertical: 4, borderBottomWidth: 0.4, borderColor: t.colors.border }}>
+              <Text style={{ fontSize: t.size.base, flex: 1 }}>{item.name}</Text>
+              <Text style={{ fontSize: t.size.base, color: t.colors.heading }}>{item.priceLabel ?? ''}</Text>
+            </View>
+          ))}
+        </View>
+      );
+    }
     default: {
       // Todos los tipos de sección deben tener su versión PDF.
       const missing: never = section;

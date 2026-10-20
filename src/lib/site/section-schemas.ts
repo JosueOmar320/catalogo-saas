@@ -33,6 +33,7 @@ export const SECTION_TYPES = [
   'stats',
   'logos',
   'columns',
+  'quickorder',
 ] as const;
 export type SectionType = (typeof SECTION_TYPES)[number];
 
@@ -459,6 +460,17 @@ function build(lenient: boolean) {
         columns: columns(5, 4, 2),
       }),
     ),
+    /** Pedido rápido: todos los productos en lista compacta con su cantidad (para pedir muchos de una vez). */
+    quickorder: base(
+      'quickorder',
+      z.object({
+        ...heading,
+        /** Todos los productos o los de una categoría. */
+        categoryId: f(z.union([z.literal(''), z.uuid()]), ''),
+        groupByCategory: bool(true),
+        showImages: bool(true),
+      }),
+    ),
     columns: base(
       'columns',
       z.object({
@@ -501,6 +513,7 @@ function build(lenient: boolean) {
     sections.stats,
     sections.logos,
     sections.columns,
+    sections.quickorder,
   ]);
 
   return { sections, section, style, link, button };

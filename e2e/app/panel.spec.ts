@@ -906,6 +906,37 @@ test('propina en el pedido, precio programado y reporte descargable', async ({ p
   await visitor.close();
 });
 
+test('promoción automática configurada en el panel: se aplica sola en el pedido', async ({ page, browser }) => {
+  await page.goto('/dashboard/settings/contacto');
+  await page.getByRole('button', { name: 'Agregar promoción' }).click();
+  const promo = page.getByRole('list', { name: 'Promociones automáticas' }).getByRole('listitem').first();
+  await promo.getByLabel('Valor').fill('10');
+  await promo.getByLabel('Desde (compra)').fill('100');
+  await page.getByRole('button', { name: 'Guardar pedidos' }).click();
+  await expect(page.getByText('Configuración guardada')).toBeVisible();
+
+  const visitor = await browser.newContext(ANONYMOUS);
+  const site = await visitor.newPage();
+  await site.goto(`/catalogo/${slug}/p/smoothie-e2e`);
+  await site.getByRole('dialog', { name: '¡Bienvenido E2E!' }).getByRole('button', { name: 'Cerrar' }).click();
+  await site.getByRole('radio', { name: 'Grande' }).click();
+  await site.getByRole('button', { name: 'Agregar al pedido' }).click();
+  await site.getByRole('button', { name: /^Ver pedido/ }).click();
+  const dialog = site.getByRole('dialog', { name: 'Tu pedido' });
+  await expect(async () => {
+    await site.reload();
+    await site.getByRole('button', { name: /^Ver pedido/ }).click();
+    await expect(dialog.getByText('Te faltan $30 para tu promoción: 10 % desde $100.')).toBeVisible({ timeout: 1000 });
+  }).toPass({ timeout: 15_000 });
+  await dialog.getByRole('group', { name: 'Cantidad de Smoothie E2E (Grande)' }).getByRole('button', { name: 'Uno más' }).click();
+  await dialog.getByRole('radio', { name: 'Norte', exact: true }).check();
+  await dialog.getByLabel('Zona de entrega').selectOption('Centro');
+  await dialog.getByLabel('Dirección de entrega').fill('Calle 5 #10');
+  const href = await dialog.getByRole('link', { name: 'Enviar pedido por WhatsApp' }).getAttribute('href');
+  expect(new URL(href!).searchParams.get('text')).toContain('Subtotal: $140\nPromoción (10 % desde $100): −$14\nEnvío: $20\nTotal: $146');
+  await visitor.close();
+});
+
 test('el idioma elegido se guarda en el perfil y vuelve al iniciar sesión', async ({ page, browser }) => {
   await page.goto('/dashboard');
   await page.getByRole('button', { name: 'Cambiar idioma' }).click();

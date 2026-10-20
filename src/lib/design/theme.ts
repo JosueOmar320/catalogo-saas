@@ -199,6 +199,8 @@ function buildThemeSchema(lenient: boolean) {
         autoFeatured: bool(false),
         autoSale: bool(true),
         autoSoldOut: bool(true),
+        /** "Nuevo" automático los primeros N días desde que se creó el ítem (0 = apagado). */
+        autoNewDays: f(z.union([z.literal(0), z.literal(7), z.literal(14), z.literal(30)]), 0),
         new: badge('Nuevo', '#2F54D6'),
         featured: badge('Destacado', '#B45309'),
         sale: badge('Oferta', '#DC2626'),
