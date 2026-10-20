@@ -25,7 +25,7 @@ export function RatingBadge({ site, item }: { site: SiteViewModel; item: Catalog
   if (!rating) return null;
   const t = siteTranslator(site.settings.language);
   return (
-    <span className={styles.ratingBadge} aria-label={t('{rating} de 5 estrellas, {count} opiniones', { rating: rating.average, count: rating.count })}>
+    <span className={styles.ratingBadge} role="img" aria-label={t('{rating} de 5 estrellas, {count} opiniones', { rating: rating.average, count: rating.count })}>
       <Star size={13} fill="currentColor" aria-hidden />
       <span aria-hidden>
         {rating.average.toFixed(1)} ({rating.count})

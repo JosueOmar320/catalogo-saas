@@ -441,6 +441,8 @@ const catalog: Catalog = {
   'Haz tu pedido aquí: {url}': 'Order here: {url}',
   '1 reseña de un cliente por aprobar': '1 customer review to approve',
   '{count} reseñas de clientes por aprobar': '{count} customer reviews to approve',
+  'Menú de administración': 'Admin menu',
+  'Menú principal': 'Main menu',
 };
 
 export default catalog;

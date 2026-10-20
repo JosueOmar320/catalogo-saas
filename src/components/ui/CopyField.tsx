@@ -13,7 +13,8 @@ export function CopyField({ value, label, openable = true }: { value: string; la
       label={label}
       value={value}
       slotProps={{
-        htmlInput: { readOnly: true, style: { fontSize: 13 } },
+        // Sin etiqueta visible, el campo se nombra igual para los lectores de pantalla.
+        htmlInput: { readOnly: true, style: { fontSize: 13 }, 'aria-label': label ?? t('Enlace') },
         input: {
           endAdornment: (
             <InputAdornment position="end">

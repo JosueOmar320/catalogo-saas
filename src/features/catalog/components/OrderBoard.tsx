@@ -87,7 +87,7 @@ export function OrderBoard({ categories: initialCategories, items: initialItems 
               }}
               renderItem={(item) => (
                 <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
-                  <Avatar variant="rounded" src={item.thumbUrl ?? undefined} sx={{ width: 32, height: 32, bgcolor: 'action.hover', color: 'text.disabled' }}>
+                  <Avatar variant="rounded" src={item.thumbUrl ?? undefined} alt="" sx={{ width: 32, height: 32, bgcolor: 'action.hover', color: 'text.disabled' }}>
                     <ImageIcon size={14} />
                   </Avatar>
                   <Typography variant="body2" noWrap sx={{ fontWeight: 500, color: item.isVisible ? 'text.primary' : 'text.disabled' }}>

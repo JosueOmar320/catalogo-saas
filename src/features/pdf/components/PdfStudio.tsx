@@ -371,7 +371,7 @@ export function PdfStudio({ catalogId, initial, site, enabled, canManage = true 
         {proposal && <Chip size="small" color="warning" label={t('Propuesta de Garfield')} />}
         {site.items.length > PREVIEW_MAX_ITEMS && <Chip size="small" label={t('Muestra los primeros {count} ítems', { count: PREVIEW_MAX_ITEMS })} />}
         <Box sx={{ flex: 1 }} />
-        <Button color="inherit" startIcon={loading ? <CircularProgress size={14} /> : <RefreshCw size={14} />} onClick={() => void refresh()} disabled={loading || !enabled}>
+        <Button color="inherit" startIcon={loading ? <CircularProgress aria-label={t('Cargando')} size={14} /> : <RefreshCw size={14} />} onClick={() => void refresh()} disabled={loading || !enabled}>
           {t('Actualizar')}
         </Button>
       </Stack>
@@ -419,7 +419,7 @@ export function PdfStudio({ catalogId, initial, site, enabled, canManage = true 
         <Button color="inherit" onClick={() => run(() => savePdfSettings(settings), { onSuccess: () => setSaved(JSON.stringify(settings)) })} disabled={!dirty || pending}>
           {t('Guardar configuración')}
         </Button>
-        <Button variant="contained" startIcon={downloading ? <CircularProgress size={14} color="inherit" /> : <Download size={15} />} onClick={download} disabled={downloading || !enabled}>
+        <Button variant="contained" startIcon={downloading ? <CircularProgress aria-label={t('Cargando')} size={14} color="inherit" /> : <Download size={15} />} onClick={download} disabled={downloading || !enabled}>
           {t('Descargar PDF')}
         </Button>
       </Stack>

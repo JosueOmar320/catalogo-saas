@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import sharp from 'sharp';
 import { unsubscribeToken } from '../../src/lib/email/links';
 import { admin, login } from './session';
+import { expectAccessible } from '../support/a11y';
 
 /**
  * Recorrido completo con sesión, en orden: el administrador crea un negocio,
@@ -461,7 +462,7 @@ test('edición rápida: crear desde fotos, precio en la lista y deshacer al elim
   await expect(page.getByText('Se crearon 2 ítems')).toBeVisible({ timeout: 20_000 });
   const tarta = page.getByRole('listitem').filter({ hasText: 'Tarta de queso' });
   await expect(tarta.getByRole('switch', { name: 'Visible en el catálogo' })).not.toBeChecked(); // ocultos hasta completarlos
-  await expect(tarta.getByRole('img')).toBeVisible();
+  await expect(tarta.locator('img')).toBeVisible(); // miniatura decorativa (alt vacío): el nombre está al lado
 
   // Precio en la lista: clic, escribir y Enter.
   await tarta.getByRole('button', { name: /^Cambiar el precio de Tarta de queso/ }).click();
@@ -935,6 +936,15 @@ test('promoción automática configurada en el panel: se aplica sola en el pedid
   const href = await dialog.getByRole('link', { name: 'Enviar pedido por WhatsApp' }).getAttribute('href');
   expect(new URL(href!).searchParams.get('text')).toContain('Subtotal: $140\nPromoción (10 % desde $100): −$14\nEnvío: $20\nTotal: $146');
   await visitor.close();
+});
+
+test('accesibilidad del panel y la administración (axe)', async ({ page }) => {
+  test.setTimeout(120_000); // 13 páginas, cada una con su análisis
+  for (const path of ['/dashboard', '/dashboard/catalog/products', '/dashboard/catalog/items/new?type=product', '/dashboard/catalog/categories', '/dashboard/settings/contacto', '/dashboard/settings/negocio', '/dashboard/resenas', '/dashboard/media', '/dashboard/sitio', '/dashboard/export/pdf', '/admin', '/admin/usuarios', '/cuenta']) {
+    await page.goto(path);
+    await expect(page.getByRole('main').first()).toBeVisible();
+    await expectAccessible(page, path);
+  }
 });
 
 test('el idioma elegido se guarda en el perfil y vuelve al iniciar sesión', async ({ page, browser }) => {

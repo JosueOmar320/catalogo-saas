@@ -214,7 +214,7 @@ export function ItemsTable({ items: initialItems, categories, initialReview = nu
             sx={{ maxWidth: { sm: 320 } }}
             slotProps={{ input: { startAdornment: <InputAdornment position="start"><Search size={15} /></InputAdornment> } }}
           />
-          <TextField select value={category} onChange={(e) => setCategory(e.target.value)} sx={{ maxWidth: { sm: 220 } }} slotProps={{ select: { native: true } }}>
+          <TextField select value={category} onChange={(e) => setCategory(e.target.value)} sx={{ maxWidth: { sm: 220 } }} slotProps={{ select: { native: true }, htmlInput: { 'aria-label': t('Categoría') } }}>
             <option value="all">{t('Todas las categorías')}</option>
             {categories.map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>
@@ -286,7 +286,7 @@ export function ItemsTable({ items: initialItems, categories, initialReview = nu
                   slotProps={{ input: { 'aria-label': t('Seleccionar {name}', { name: item.name }) } }}
                   sx={{ ml: -0.5, mr: -1 }}
                 />
-                <Avatar variant="rounded" src={item.thumbUrl ?? undefined} sx={{ width: 44, height: 44, bgcolor: 'action.hover', color: 'text.disabled' }}>
+                <Avatar variant="rounded" src={item.thumbUrl ?? undefined} alt="" sx={{ width: 44, height: 44, bgcolor: 'action.hover', color: 'text.disabled' }}>
                   <ImageIcon size={18} />
                 </Avatar>
                 <Box component={Link} href={`/dashboard/catalog/items/${item.id}`} sx={{ flex: 1, minWidth: 0, color: 'inherit', textDecoration: 'none', '&:hover .name': { textDecoration: 'underline' } }}>

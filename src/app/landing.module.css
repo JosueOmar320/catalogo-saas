@@ -287,7 +287,7 @@
 .browserBar p {
   margin: 0 0 0 12px;
   font-size: 12px;
-  color: var(--muted);
+  color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

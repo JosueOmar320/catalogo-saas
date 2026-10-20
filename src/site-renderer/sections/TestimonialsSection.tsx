@@ -37,7 +37,7 @@ export function TestimonialsSection({ section, site, env }: SectionProps<'testim
           return (
             <figure key={item.id} className={`${styles.testimonial} ${single ? styles.testimonialSingle : ''}`}>
               {item.rating > 0 && (
-                <div className={styles.stars} aria-label={t('{rating} de 5 estrellas', { rating: item.rating })}>
+                <div className={styles.stars} role="img" aria-label={t('{rating} de 5 estrellas', { rating: item.rating })}>
                   {Array.from({ length: item.rating }).map((_, i) => (
                     <Star key={i} size={16} fill="currentColor" aria-hidden />
                   ))}

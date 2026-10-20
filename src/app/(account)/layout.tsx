@@ -20,7 +20,9 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
           <Link href="/" style={{ textDecoration: 'none', marginBottom: 24 }}>
             <Typography component="span" sx={{ fontWeight: 750, fontSize: 20, letterSpacing: '-0.02em', color: 'text.primary' }}>{env.appName}</Typography>
           </Link>
-          <Box sx={{ width: '100%', maxWidth: 560 }}>{children}</Box>
+          <Box component="main" sx={{ width: '100%', maxWidth: 560 }}>
+            {children}
+          </Box>
         </Box>
       </AppProviders>
       </AppI18n>

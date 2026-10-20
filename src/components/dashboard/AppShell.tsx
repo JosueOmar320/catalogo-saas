@@ -44,12 +44,21 @@ function SideNav({ onNavigate, admin }: { onNavigate?: () => void; admin?: boole
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   return (
-    <List dense sx={{ px: 1.25, py: 1 }}>
+    // <nav> y no <ul>: los enlaces van directos (una lista exige <li> como hijos).
+    <List component="nav" aria-label={admin ? t('Menú de administración') : t('Menú principal')} dense sx={{ px: 1.25, py: 1 }}>
       {(admin ? ADMIN_NAVIGATION : NAVIGATION).map((entry) => {
         const Icon = entry.icon;
         if (entry.href) {
           return (
-            <ListItemButton key={entry.label} component={Link} href={entry.href} selected={isActive(pathname, search, entry.href)} onClick={onNavigate} sx={{ mb: 0.25 }}>
+            <ListItemButton
+              key={entry.label}
+              component={Link}
+              href={entry.href}
+              selected={isActive(pathname, search, entry.href)}
+              aria-current={isActive(pathname, search, entry.href) ? 'page' : undefined}
+              onClick={onNavigate}
+              sx={{ mb: 0.25 }}
+            >
               <ListItemIcon sx={{ minWidth: 30 }}><Icon size={17} /></ListItemIcon>
               <ListItemText primary={t(entry.label)} slotProps={{ primary: { sx: { fontWeight: 600, fontSize: 14 } } }} />
             </ListItemButton>
@@ -58,19 +67,20 @@ function SideNav({ onNavigate, admin }: { onNavigate?: () => void; admin?: boole
         const open = !collapsed[entry.label];
         return (
           <Box key={entry.label} sx={{ mb: 0.5 }}>
-            <ListItemButton onClick={() => setCollapsed((c) => ({ ...c, [entry.label]: open }))}>
+            <ListItemButton aria-expanded={open} onClick={() => setCollapsed((c) => ({ ...c, [entry.label]: open }))}>
               <ListItemIcon sx={{ minWidth: 30 }}><Icon size={17} /></ListItemIcon>
               <ListItemText primary={t(entry.label)} slotProps={{ primary: { sx: { fontWeight: 600, fontSize: 14 } } }} />
               <Box component={ChevronDown} size={14} sx={{ transform: open ? 'none' : 'rotate(-90deg)', transition: 'transform .15s', color: 'text.secondary' }} />
             </ListItemButton>
             <Collapse in={open}>
-              <List dense disablePadding>
+              <List component="div" dense disablePadding>
                 {entry.children?.map((child) => (
                   <ListItemButton
                     key={child.href}
                     component={Link}
                     href={child.href}
                     selected={isActive(pathname, search, child.href)}
+                    aria-current={isActive(pathname, search, child.href) ? 'page' : undefined}
                     onClick={onNavigate}
                     sx={{ pl: 5.25, py: 0.4, '&.Mui-selected': { bgcolor: 'primary.light', color: 'primary.dark' } }}
                   >

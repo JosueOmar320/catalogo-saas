@@ -81,6 +81,8 @@ export const dashboardTheme = createTheme({
     MuiTabs: { styleOverrides: { root: { minHeight: 40 } } },
     MuiInputLabel: { styleOverrides: { root: { fontSize: '0.875rem' } } },
     MuiSwitch: { defaultProps: { size: 'small' } },
+    // Sin seleccionar, el gris de MUI queda justo bajo el contraste mínimo (4.5:1): se usa el texto secundario.
+    MuiToggleButton: { styleOverrides: { root: ({ theme }) => ({ color: theme.palette.text.secondary }) } },
     MuiAlert: { styleOverrides: { root: { alignItems: 'center' } } },
   },
 });

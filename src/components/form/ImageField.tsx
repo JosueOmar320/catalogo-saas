@@ -93,7 +93,7 @@ export function ImageField({ label, description, kind, value, onChange, aspectRa
         {!preview && <ImagePlus size={22} />}
         {busy && (
           <Box sx={(theme) => ({ position: 'absolute', inset: 0, bgcolor: `rgba(${theme.vars.palette.background.paperChannel} / 0.7)`, display: 'flex', alignItems: 'center', justifyContent: 'center' })}>
-            <CircularProgress size={20} />
+            <CircularProgress aria-label={t('Cargando')} size={20} />
           </Box>
         )}
       </Box>

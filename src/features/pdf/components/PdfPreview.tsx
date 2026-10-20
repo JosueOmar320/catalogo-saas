@@ -158,7 +158,7 @@ export function PdfPreview({ blob, page, onPage, pageLabel, onPageClick, busy }:
           {pdf && pages > 0 && <PageCanvas key={`${current}-${pageWidth}`} pdf={pdf} number={current} width={pageWidth} />}
           {(busy || !pdf) && (
             <Stack spacing={1} sx={(theme) => ({ position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center', bgcolor: pdf ? 'rgba(233,233,238,.55)' : 'transparent', ...(pdf ? theme.applyStyles('dark', { bgcolor: 'rgba(10,11,14,.6)' }) : {}) })}>
-              <CircularProgress size={26} />
+              <CircularProgress aria-label={t('Cargando')} size={26} />
               <Typography variant="body2" color="text.secondary">{t('Generando vista previa…')}</Typography>
             </Stack>
           )}

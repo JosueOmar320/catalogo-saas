@@ -22,7 +22,9 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
               {env.appName}
             </Typography>
           </Link>
-          <Box sx={{ width: '100%', maxWidth: 400 }}>{children}</Box>
+          <Box component="main" sx={{ width: '100%', maxWidth: 400 }}>
+            {children}
+          </Box>
         </Box>
       </AppProviders>
       </AppI18n>
