@@ -15,7 +15,7 @@ import { saveSite } from '../actions';
 import { canRedo, canUndo, historyReducer, initHistory } from '../history';
 import { BuilderContext, type BuilderAction, type BuilderPanel, type BuilderState } from '../state';
 import { BuilderPreview, type Device } from './BuilderPreview';
-import { DesignPanel, type IdentityImages } from './DesignPanel';
+import { DesignPanel, type DesignTab, type IdentityImages } from './DesignPanel';
 import { NavigationPanel } from './NavigationPanel';
 import { PageSettings } from './PageSettings';
 import { PagesPanel } from './PagesPanel';
@@ -29,7 +29,7 @@ type Props = {
   usesSampleItems: boolean;
   identity: IdentityImages;
   initialPanel: BuilderPanel;
-  initialDesignTab?: 'theme' | 'colors' | 'type' | 'style' | 'background' | 'cards';
+  initialDesignTab?: DesignTab;
   canManage: boolean;
   /** Endpoint de Garfield AI (por defecto /api/assistant). */
   assistantEndpoint?: string;
@@ -139,9 +139,9 @@ export function Builder(props: Props) {
         <Tab value="design" label={t('Diseño')} />
       </Tabs>
       {state.panel === 'pages' &&
-        (state.selectedSectionId ? <SectionEditor site={draftSite} /> : state.editingPageSettings ? <PageSettings baseUrl={props.site.url} /> : <PagesPanel />)}
+        (state.selectedSectionId ? <SectionEditor site={draftSite} /> : state.editingPageSettings ? <PageSettings baseUrl={props.site.url} /> : <PagesPanel customCode={props.site.customCode} />)}
       {state.panel === 'navigation' && <NavigationPanel />}
-      {state.panel === 'design' && <DesignPanel identity={props.identity} initialTab={props.initialDesignTab} />}
+      {state.panel === 'design' && <DesignPanel identity={props.identity} initialTab={props.initialDesignTab} customCode={props.site.customCode} />}
     </Paper>
   );
 

@@ -541,5 +541,29 @@ await expectErr('nor point another business at A item (RLS or FK)', () => q(`ins
 await as(null);
 await expectEq('the public catalog does not include costs', () => q(`select public.get_public_catalog('tienda-a')::text t`).then((r) => /"cost"|item_costs/.test(r[0].t)), false);
 
+/* ------------------------------------------------------------ Código propio (lo habilita el administrador) */
+// Aquí A es administrador de la plataforma y B un dueño sin permisos de administración.
+const customCode = () => q(`select (public.get_public_catalog('tienda-a') -> 'business' ->> 'custom_code')::boolean v`).then((r) => r[0].v);
+await as(null);
+await expectEq('custom code is off by default (public catalog)', customCode, false);
+await as(B);
+await expectErr('owner cannot enable custom code for own business', () => q(`update public.businesses set custom_code=true where id=$1`, [bizB]), 'permission denied');
+await expectErr('owner cannot use the admin RPC', () => q(`select public.admin_set_custom_code($1, true)`, [bizB]), 'forbidden');
+await expectErr('owner cannot enable it for a plan', () => q(`select public.admin_set_plan_custom_code('free', true)`), 'forbidden');
+await as(A);
+await expectOk('admin enables custom code for the free plan', () => q(`select public.admin_set_plan_custom_code('free', true)`));
+await as(null);
+await expectEq('the plan enables it', customCode, true);
+await as(A);
+await expectOk('admin turns it off for this business', () => q(`select public.admin_set_custom_code($1, false)`, [bizA]));
+await as(null);
+await expectEq('the business decision wins over the plan', customCode, false);
+await as(A);
+await expectOk('admin goes back to the plan (null)', () => q(`select public.admin_set_custom_code($1, null)`, [bizA]));
+await expectErr('unknown plan', () => q(`select public.admin_set_plan_custom_code('nope', true)`), 'plan_not_found');
+await expectOk('admin turns the plan feature off again', () => q(`select public.admin_set_plan_custom_code('free', false)`));
+await as(null);
+await expectEq('off again', customCode, false);
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);

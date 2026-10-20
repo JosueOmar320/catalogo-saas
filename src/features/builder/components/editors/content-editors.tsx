@@ -24,6 +24,7 @@ import {
   SwitchRow,
   TextInput,
 } from '../controls';
+import { CODE_EDITORS } from './code-editors';
 import { EXTRA_EDITORS } from './extra-editors';
 import { CollectionEditor, PresentationEditor } from './presentation-editors';
 import { useT } from '@/i18n/client';
@@ -513,4 +514,5 @@ export const CONTENT_EDITORS: { [T in SectionType]: ComponentType<EditorProps<T>
   ...EXTRA_EDITORS,
   quickorder: QuickOrderEditor,
   columns: ColumnsSectionEditor,
+  ...CODE_EDITORS,
 };

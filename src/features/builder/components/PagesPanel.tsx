@@ -19,7 +19,7 @@ import { SiteTemplatesDialog } from './SiteTemplatesDialog';
 import { useT } from '@/i18n/client';
 
 /** Lista de páginas + secciones de la página seleccionada. */
-export function PagesPanel() {
+export function PagesPanel({ customCode = false }: { customCode?: boolean }) {
   const t = useT();
   const { state, dispatch } = useBuilder();
   const page = useSelectedPage();
@@ -162,7 +162,7 @@ export function PagesPanel() {
         </Stack>
       </Stack>
 
-      {adding === 'section' && <SectionPicker onPick={(type) => { dispatch({ type: 'addSection', section: createSection(type) }); setAdding(null); }} onClose={() => setAdding(null)} />}
+      {adding === 'section' && <SectionPicker customCode={customCode} onPick={(type) => { dispatch({ type: 'addSection', section: createSection(type) }); setAdding(null); }} onClose={() => setAdding(null)} />}
 
       {page.sections.length === 0 ? (
         <Stack spacing={1}>
@@ -207,7 +207,7 @@ export function PagesPanel() {
   );
 }
 
-function SectionPicker({ onPick, onClose }: { onPick: (type: SectionType) => void; onClose: () => void }) {
+function SectionPicker({ onPick, onClose, customCode }: { onPick: (type: SectionType) => void; onClose: () => void; customCode: boolean }) {
   const t = useT();
   return (
     <Box sx={{ mb: 1.5, p: 1, border: 1, borderColor: 'divider', borderRadius: 1.5 }}>
@@ -215,7 +215,8 @@ function SectionPicker({ onPick, onClose }: { onPick: (type: SectionType) => voi
         <Typography variant="caption" sx={{ fontWeight: 600, flex: 1 }}>{t('Agregar sección')}</Typography>
         <IconButton size="small" onClick={onClose} aria-label={t('Cerrar')}><X size={14} /></IconButton>
       </Stack>
-      {SECTION_GROUPS.map((group) => (
+      {/* Las secciones de código propio sólo si el administrador lo habilitó. */}
+      {SECTION_GROUPS.filter((group) => customCode || group !== 'Código').map((group) => (
         <Box key={group} sx={{ mt: 1 }}>
           <Typography variant="overline" color="text.secondary" sx={{ px: 1 }}>{t(group)}</Typography>
           {SECTION_TYPES.filter((st) => SECTION_META[st].group === group).map((type) => (

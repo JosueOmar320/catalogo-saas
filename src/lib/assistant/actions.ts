@@ -29,7 +29,8 @@ const position = z
   .describe('Dónde colocar la sección. Por defecto: debajo de la sección seleccionada o al final.');
 
 export const sectionSpecSchema = z.object({
-  type: z.enum(SECTION_TYPES),
+  // El código propio (HTML y widgets) no lo agrega Garfield.
+  type: z.enum(SECTION_TYPES).exclude(['html', 'embed']),
   content: obj.optional().describe('Campos de contenido del tipo (ver guía de secciones). Lo que falte toma su valor por defecto.'),
   style: obj.optional().describe('Estilo de la sección: background, textColor, paddingTop, paddingBottom, width, hideOnMobile, hideOnDesktop.'),
   name: z.string().max(60).optional().describe('Nombre interno opcional.'),

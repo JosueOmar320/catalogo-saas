@@ -7,6 +7,7 @@ import type { RenderEnv } from './env';
 import { PageView } from './PageView';
 import { SiteFooter } from './SiteFooter';
 import { SiteHeader } from './SiteHeader';
+import { SiteCustomCss } from './SiteCustomCss';
 import { SiteShell } from './SiteShell';
 import styles from './site.module.css';
 
@@ -21,6 +22,7 @@ export function SiteView({ site, page, env, children }: { site: SiteViewModel; p
   const header = buildHeaderProps(site, env, children ? `${env.basePath}/p` : current ? pagePath(env.basePath, current) : env.basePath);
   return (
     <SiteShell theme={site.theme} language={site.settings.language} order={orderConfig(site)}>
+      <SiteCustomCss site={site} />
       <SiteHeader {...header} />
       <main className={styles.main}>{children ?? (current && <PageView page={current} site={site} env={{ ...env, currentPageId: current.id }} />)}</main>
       <SiteFooter site={site} navItems={header.items} />

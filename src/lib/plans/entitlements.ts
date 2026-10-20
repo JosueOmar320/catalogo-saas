@@ -17,6 +17,8 @@ const featuresSchema = z.object({
   remove_branding: z.boolean().default(false),
   custom_domain: z.boolean().default(false),
   analytics: z.boolean().default(false),
+  /** Sección HTML, widgets con código y CSS del sitio (también se puede habilitar por negocio). */
+  custom_code: z.boolean().default(false),
 });
 
 export type PlanLimits = z.output<typeof limitsSchema>;
@@ -32,6 +34,11 @@ export function parseEntitlements(plan: { id: string; name: string; limits: unkn
     limits: limits.success ? limits.data : limitsSchema.parse({}),
     features: features.success ? features.data : featuresSchema.parse({}),
   };
+}
+
+/** Código propio: la decisión del administrador para el negocio gana sobre el plan. */
+export function customCodeEnabled(business: { custom_code: boolean | null }, features: PlanFeatures): boolean {
+  return business.custom_code ?? features.custom_code;
 }
 
 export function isWithinLimit(limit: number | null, currentCount: number): boolean {

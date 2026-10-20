@@ -22,6 +22,8 @@ type BusinessRow = Timestamps & {
   social_links: Json;
   created_by: string | null;
   status: BusinessStatus;
+  /** Código propio: null = según el plan; true/false = decisión del administrador. */
+  custom_code: boolean | null;
   deleted_at: string | null;
 };
 
@@ -280,6 +282,8 @@ export type Database = {
         Args: { p_name: string; p_slug: string; p_owner?: string | null; p_plan_id?: string; p_contact?: Json; p_catalog_theme?: Json; p_catalog_settings?: Json };
         Returns: string;
       };
+      admin_set_custom_code: { Args: { p_business: string; p_value: boolean | null }; Returns: undefined };
+      admin_set_plan_custom_code: { Args: { p_plan: string; p_value: boolean }; Returns: undefined };
       admin_update_business: { Args: { p_business: string; p_name: string; p_slug: string; p_plan_id: string; p_status: BusinessStatus }; Returns: undefined };
       admin_set_business_member: { Args: { p_business: string; p_user: string; p_role: MemberRole }; Returns: undefined };
       admin_remove_business_member: { Args: { p_business: string; p_user: string }; Returns: undefined };

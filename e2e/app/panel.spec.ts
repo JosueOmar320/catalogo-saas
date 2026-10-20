@@ -14,6 +14,7 @@ test.describe.configure({ mode: 'serial' });
 const businessName = `Café E2E ${Date.now().toString(36)}`;
 const productName = 'Croissant E2E';
 let slug = '';
+let businessPath = '';
 // Los contextos nuevos heredan la sesión del proyecto: ésta es la de alguien sin cuenta.
 const ANONYMOUS = { locale: 'es-MX', storageState: { cookies: [], origins: [] } };
 
@@ -26,6 +27,7 @@ test('el administrador crea un negocio y se asigna como propietario', async ({ p
   await page.getByRole('button', { name: 'Crear negocio' }).click();
 
   await expect(page).toHaveURL(/\/admin\/negocios\/[0-9a-f-]{36}$/);
+  businessPath = new URL(page.url()).pathname;
   await expect(page.getByRole('heading', { name: businessName })).toBeVisible();
   slug = (await page.getByText(/^\/[a-z0-9-]+$/).first().textContent())!.slice(1);
   expect(slug).toMatch(/^cafe-e2e-/);
@@ -935,6 +937,64 @@ test('promoción automática configurada en el panel: se aplica sola en el pedid
   await dialog.getByLabel('Dirección de entrega').fill('Calle 5 #10');
   const href = await dialog.getByRole('link', { name: 'Enviar pedido por WhatsApp' }).getAttribute('href');
   expect(new URL(href!).searchParams.get('text')).toContain('Subtotal: $140\nPromoción (10 % desde $100): −$14\nEnvío: $20\nTotal: $146');
+  await visitor.close();
+});
+
+test('código propio: el administrador lo habilita; HTML limpio, widget aislado y CSS sólo en el sitio', async ({ page, browser }) => {
+  // Sin habilitar, el editor no ofrece las secciones de código.
+  await page.goto('/dashboard/sitio');
+  await page.getByRole('button', { name: 'Sección', exact: true }).click();
+  await expect(page.getByRole('button', { name: /^HTML propio/ })).toHaveCount(0);
+
+  await page.goto(businessPath);
+  await page.getByRole('combobox', { name: 'Código propio' }).click();
+  await page.getByRole('option', { name: 'Activado para este negocio', exact: true }).click();
+  await expect(page.getByText('Código propio actualizado')).toBeVisible();
+
+  await page.goto('/dashboard/sitio');
+  await page.getByRole('button', { name: 'Sección', exact: true }).click();
+  await page.getByRole('button', { name: /^HTML propio/ }).click();
+  await page.getByLabel('HTML', { exact: true }).fill('<div class="promo-e2e"><h2>Promo E2E</h2><p onclick="alert(1)">2×1 los martes</p><script>window.__pwned = true</script></div>');
+  await expect(page.getByText(/Los scripts, iframes, formularios/)).toBeVisible();
+  await page.getByRole('button', { name: 'Volver a las secciones' }).click();
+  await page.getByRole('button', { name: 'Sección', exact: true }).click();
+  await page.getByRole('button', { name: /^Widget con código/ }).click();
+  await page.getByLabel('Nombre del widget').fill('Reservas E2E');
+  // Dentro del iframe aislado, leer la página que lo contiene falla.
+  await page
+    .getByLabel('Código', { exact: true })
+    .fill('<p id="w">cargando</p><script>var r; try { r = parent.document.title ? "sin aislar" : "sin aislar"; } catch (e) { r = "aislado"; } document.getElementById("w").textContent = "Widget listo: " + r;</script>');
+  await page.getByRole('button', { name: 'Volver a las secciones' }).click();
+
+  await page.getByRole('tab', { name: 'Diseño' }).click();
+  await page.getByRole('tab', { name: 'CSS propio' }).click();
+  await page.getByLabel('CSS', { exact: true }).fill('.promo-e2e h2 { color: rgb(200, 0, 0) } body { outline: 3px solid rgb(0, 128, 0) }');
+  const save = page.getByRole('button', { name: 'Guardar cambios' });
+  await save.click();
+  await expect(save).toBeDisabled();
+  // El CSS del sitio no alcanza al panel.
+  await expect(page.locator('body')).not.toHaveCSS('outline-style', 'solid');
+
+  const visitor = await browser.newContext(ANONYMOUS);
+  const site = await visitor.newPage();
+  const promo = site.getByRole('heading', { name: 'Promo E2E' });
+  await expect(async () => {
+    await site.goto(`/catalogo/${slug}`);
+    await expect(promo).toBeVisible({ timeout: 2000 });
+  }).toPass({ timeout: 20_000 });
+  const welcome = site.getByRole('dialog', { name: '¡Bienvenido E2E!' });
+  await expect(welcome).toBeVisible();
+  await welcome.getByRole('button', { name: 'Cerrar' }).click();
+
+  await expect(promo).toHaveCSS('color', 'rgb(200, 0, 0)');
+  await expect(site.locator('[data-site]')).toHaveCSS('outline-color', 'rgb(0, 128, 0)');
+  await expect(site.locator('.promo-e2e [onclick], .promo-e2e script')).toHaveCount(0);
+  expect(await site.evaluate(() => (window as unknown as { __pwned?: boolean }).__pwned)).toBeUndefined();
+
+  const frame = site.locator('iframe[title="Reservas E2E"]');
+  await frame.scrollIntoViewIfNeeded();
+  expect(await frame.getAttribute('sandbox')).not.toContain('allow-same-origin');
+  await expect(site.frameLocator('iframe[title="Reservas E2E"]').getByText('Widget listo: aislado')).toBeVisible();
   await visitor.close();
 });
 

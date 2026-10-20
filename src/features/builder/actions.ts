@@ -5,12 +5,18 @@ import { getT } from '@/i18n/server';
 import { msg } from '@/i18n/translate';
 import { canManageCatalog, requireBusinessContext } from '@/lib/auth/session';
 import { invalidatePublicCatalog } from '@/lib/catalog/cache';
-import { pageToRow } from '@/lib/site/pages';
+import { sanitizeCustomHtml } from '@/lib/site/custom-code';
+import { pageToRow, type SitePage } from '@/lib/site/pages';
 import { dbErrorMessage, fail, ok, type ActionResult } from '@/lib/utils/result';
 import { collectMediaPaths } from '@/lib/utils/storage';
 import { invalidMediaRefs } from '@/features/media/server';
 import type { Json } from '@/types/database';
 import { saveSiteSchema, type SaveSiteInput } from './schema';
+
+/** El HTML propio se guarda ya limpio (y se vuelve a limpiar al mostrarlo). */
+function cleanCustomHtml(page: SitePage): SitePage {
+  return { ...page, sections: page.sections.map((section) => (section.type === 'html' ? { ...section, content: { ...section.content, html: sanitizeCustomHtml(section.content.html) } } : section)) };
+}
 
 /**
  * Guarda el sitio (tema, navegación y páginas) en una sola transacción.
@@ -28,7 +34,8 @@ export async function saveSite(input: SaveSiteInput): Promise<ActionResult> {
     const t = await getT();
     return fail(issue?.message && !issue.message.startsWith('Invalid') ? t(issue.message, issue.code === 'custom' ? issue.params : undefined) : msg('Revisa los datos del sitio: hay un valor inválido.'));
   }
-  const { theme, navigation, pages, deletedPageIds } = parsed.data;
+  const { theme, navigation, deletedPageIds } = parsed.data;
+  const pages = parsed.data.pages?.map(cleanCustomHtml);
 
   // Imágenes: archivos del negocio o URLs externas registradas en su biblioteca.
   if ((await invalidMediaRefs(ctx, collectMediaPaths({ theme, pages }))).length > 0) return fail(msg('Una de las imágenes no es válida. Elígela de nuevo desde la biblioteca.'));

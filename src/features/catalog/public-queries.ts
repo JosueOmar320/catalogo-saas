@@ -14,6 +14,8 @@ import type { Tables } from '@/types/database';
 type PublicCatalogPayload = {
   business: Pick<Tables<'businesses'>, 'id' | 'name' | 'slug' | 'description' | 'slogan' | 'logo_path' | 'contact' | 'social_links'> & {
     remove_branding: boolean;
+    /** Ausente antes de la migración custom_code: apagado. */
+    custom_code?: boolean;
   };
   catalog: Tables<'catalogs'>;
   categories: Tables<'categories'>[];
@@ -56,6 +58,7 @@ export const getPublicSite = cache(async (slug: string): Promise<SiteViewModel |
     items: payload.items as ItemInput[],
     pages: payload.pages ?? [],
     removeBranding: payload.business.remove_branding,
+    customCode: payload.business.custom_code === true,
   }, { public: true });
   site.reviews = site.settings.reviews.enabled ? reviews : [];
   if (site.pages.length > 0) return site;

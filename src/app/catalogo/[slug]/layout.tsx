@@ -7,6 +7,7 @@ import { siteMetadata } from '@/lib/catalog/metadata';
 import { siteStatusTexts } from '@/site-renderer/status';
 import { orderConfig } from '@/site-renderer/order/config';
 import { ViewTracker } from '@/site-renderer/ViewTracker';
+import { SiteCustomCss } from '@/site-renderer/SiteCustomCss';
 
 // ISR: se sirve desde caché y se invalida por tag cuando el dueño guarda cambios.
 export const revalidate = 3600;
@@ -26,6 +27,7 @@ export default async function PublicSiteLayout({ children, params }: LayoutProps
 
   return (
     <SiteShell theme={site.theme} language={site.settings.language} order={orderConfig(site, { track: true })}>
+      <SiteCustomCss site={site} />
       <SiteHeader {...header} />
       <main className={siteStyles.main}>{children}</main>
       <SiteFooter site={site} navItems={header.items} />

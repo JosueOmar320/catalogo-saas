@@ -4,6 +4,8 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { resolveProvider } from '@/features/assistant/server/model';
 import { listPlans } from '@/features/admin/queries';
+import { PlanCustomCodeSwitch } from '@/features/admin/components/PlanCustomCodeSwitch';
+import { parseEntitlements } from '@/lib/plans/entitlements';
 import { EmailSettings } from '@/features/notifications/components/EmailSettings';
 import { sampleCatalogReviewEmail } from '@/features/notifications/sample';
 import { getLocale, getT } from '@/i18n/server';
@@ -59,18 +61,19 @@ export default async function AdminSettingsPage() {
             {!profile.email && <Typography variant="caption" color="text.secondary">{t('Para enviarte una prueba, agrega un email de contacto a tu usuario.')}</Typography>}
           </Stack>
         </SectionCard>
-        <SectionCard title={t('Planes')} description={t('Límites por negocio. Preparado para suscripciones y facturación.')} flush>
+        <SectionCard title={t('Planes')} description={t('Límites por negocio. Preparado para suscripciones y facturación. «Código propio» habilita HTML, widgets y CSS en el editor del sitio (cada negocio puede tener su propia decisión).')} flush>
           <Box sx={{ overflowX: 'auto' }}>
             <Table size="small" sx={{ minWidth: 560 }}>
             <TableHead>
-              <TableRow><TableCell>{t('Plan')}</TableCell><TableCell>{t('Límites')}</TableCell><TableCell>{t('Funciones')}</TableCell></TableRow>
+              <TableRow><TableCell>{t('Plan')}</TableCell><TableCell>{t('Límites')}</TableCell><TableCell>{t('Funciones')}</TableCell><TableCell>{t('Código propio')}</TableCell></TableRow>
             </TableHead>
             <TableBody>
               {plans.map((p) => (
                 <TableRow key={p.id}>
                   <TableCell><Typography variant="body2" sx={{ fontWeight: 600 }}>{p.name}</Typography><Typography variant="caption" color="text.secondary">{p.id}</Typography></TableCell>
                   <TableCell><Typography variant="caption">{Object.entries(p.limits as Record<string, number>).map(([k, v]) => `${k}: ${v}`).join(' · ')}</Typography></TableCell>
-                  <TableCell><Typography variant="caption">{Object.entries(p.features as Record<string, boolean>).filter(([, v]) => v).map(([k]) => k).join(', ')}</Typography></TableCell>
+                  <TableCell><Typography variant="caption">{Object.entries(p.features as Record<string, boolean>).filter(([k, v]) => v && k !== 'custom_code').map(([k]) => k).join(', ')}</Typography></TableCell>
+                  <TableCell><PlanCustomCodeSwitch planId={p.id} planName={p.name} enabled={parseEntitlements(p).features.custom_code} /></TableCell>
                 </TableRow>
               ))}
             </TableBody>

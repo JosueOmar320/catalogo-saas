@@ -287,6 +287,7 @@ export function buildSampleSite(options: SampleOptions = {}): SiteViewModel {
     pages,
     navigation: navigationFromPages(pages.filter((page) => page.slug !== 'pedido-rapido')),
     showBranding: true,
+    customCode: false,
     url,
     publishedAt: null,
     // Reseñas de ejemplo (aprobadas): se ven en la ficha, las tarjetas y la sección de testimonios.
