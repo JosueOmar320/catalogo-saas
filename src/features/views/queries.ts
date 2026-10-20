@@ -20,3 +20,25 @@ export async function getViewStats(ctx: BusinessContext, today = new Date()): Pr
   }
   return summarizeViews(days.data, items.data, today);
 }
+
+export type ItemPerformance = {
+  /** Fichas vistas por producto (null si las visitas aún no se pueden leer). */
+  views: Record<string, number> | null;
+  /** Unidades pedidas por producto. */
+  units: Record<string, number> | null;
+};
+
+/** Visitas y pedidos de cada producto en los últimos 30 días (para la lista de productos y servicios). */
+export async function getItemPerformance(ctx: BusinessContext, today = new Date()): Promise<ItemPerformance> {
+  const since = windowStart(today);
+  const [views, units] = await Promise.all([
+    ctx.supabase.from('item_view_stats_daily').select('item_id, views').eq('business_id', ctx.business.id).gte('day', since).limit(10000),
+    ctx.supabase.from('order_item_stats_daily').select('item_id, units').eq('business_id', ctx.business.id).gte('day', since).limit(10000),
+  ]);
+  const sum = <K extends 'views' | 'units'>(rows: ({ item_id: string } & Record<K, number>)[], key: K) => {
+    const totals: Record<string, number> = {};
+    for (const row of rows) totals[row.item_id] = (totals[row.item_id] ?? 0) + row[key];
+    return totals;
+  };
+  return { views: views.error ? null : sum(views.data, 'views'), units: units.error ? null : sum(units.data, 'units') };
+}

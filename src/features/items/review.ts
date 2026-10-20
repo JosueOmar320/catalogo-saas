@@ -11,17 +11,30 @@ export const REVIEW_FILTERS = {
   'sin-categoria': { label: msg('Sin categoría'), test: (i: ReviewableItem) => !i.categoryId },
   agotados: { label: msg('Agotados'), test: (i: ReviewableItem) => !i.isAvailable },
   ocultos: { label: msg('Ocultos'), test: (i: ReviewableItem) => !i.isVisible },
+  // Sólo cuentan si quien llama manda el dato (el aviso por correo no los usa).
+  'oferta-vencida': { label: msg('Oferta vencida'), test: (i: ReviewableItem) => i.saleOver === true },
+  'sin-descripcion': { label: msg('Sin descripción'), test: (i: ReviewableItem) => i.hasDescription === false },
 } as const;
 
 export type ReviewFilter = keyof typeof REVIEW_FILTERS;
-export type ReviewableItem = { hasImage: boolean; hasPrice: boolean; categoryId: string | null; isAvailable: boolean; isVisible: boolean };
+export type ReviewableItem = {
+  hasImage: boolean;
+  hasPrice: boolean;
+  categoryId: string | null;
+  isAvailable: boolean;
+  isVisible: boolean;
+  /** Tiene descripción corta o larga (opcional: si no se manda, no cuenta). */
+  hasDescription?: boolean;
+  /** Tiene precio anterior con una fecha de fin que ya pasó. */
+  saleOver?: boolean;
+};
 
 export const isReviewFilter = (value: unknown): value is ReviewFilter => typeof value === 'string' && Object.hasOwn(REVIEW_FILTERS, value);
 
 export type ReviewInput = ReviewableItem & { type: 'product' | 'service' };
 
 /** Orden en que se muestran; los tres primeros son pendientes "accionables" (el aviso por correo sólo resume ésos). */
-export const REVIEW_ORDER: ReviewFilter[] = ['sin-foto', 'sin-precio', 'sin-categoria', 'agotados', 'ocultos'];
+export const REVIEW_ORDER: ReviewFilter[] = ['sin-foto', 'sin-precio', 'sin-categoria', 'oferta-vencida', 'sin-descripcion', 'agotados', 'ocultos'];
 export const ACTIONABLE_REVIEW: ReviewFilter[] = ['sin-foto', 'sin-precio', 'sin-categoria'];
 
 /**

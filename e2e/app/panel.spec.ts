@@ -372,6 +372,27 @@ test('importar con enlaces de fotos: avisa cuáles no se pudieron descargar', as
   await expect(page.getByText('Pan de muerto E2E')).toBeVisible();
 });
 
+test('kit para compartir, rendimiento por producto y nuevas revisiones', async ({ page }) => {
+  await page.goto('/dashboard');
+  await page.getByRole('button', { name: 'Kit para compartir' }).click();
+  const kit = page.getByRole('dialog', { name: 'Kit para compartir tu catálogo' });
+  await expect(kit.getByRole('img', { name: /Imagen para historias/ })).toBeVisible();
+  await expect(kit.getByRole('textbox', { name: 'Para la bio de Instagram o TikTok' })).toHaveValue(new RegExp(`^Haz tu pedido aquí: https?://.+/catalogo/${slug}$`));
+  const download = page.waitForEvent('download');
+  await kit.getByRole('button', { name: 'Descargar imagen' }).click();
+  expect((await download).suggestedFilename()).toBe(`historia-${slug}.png`);
+  await kit.getByRole('button', { name: 'Cerrar' }).click();
+
+  // Nueva revisión del inicio: productos sin descripción.
+  await expect(page.getByRole('main').getByText(/\d+ sin descripción: unas líneas ayudan a decidir\./)).toBeVisible();
+
+  // Lista con visitas y pedidos de 30 días; "Más vistos" pone primero el croissant (lo vieron los visitantes de las pruebas).
+  await page.goto('/dashboard/catalog/products');
+  await page.getByRole('combobox', { name: 'Ordenar' }).selectOption('views');
+  await expect(page.getByRole('main').getByRole('listitem').first()).toContainText(productName);
+  await expect(page.getByRole('group', { name: new RegExp(`\\d+ visitas y \\d+ unidades pedidas en 30 días`) }).first()).toBeVisible();
+});
+
 test('aviso semanal: a quién le llega y la baja con el enlace del correo', async ({ page, browser, request }) => {
   const cron = async () => {
     const response = await request.get('/api/cron/catalog-review?dry=1', { headers: { authorization: `Bearer ${process.env.CRON_SECRET}` } });
