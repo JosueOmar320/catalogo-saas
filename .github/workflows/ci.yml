@@ -70,7 +70,8 @@ jobs:
           cache: npm
       - run: npm ci
       # Sin secretos: la app compila sin Supabase (las rutas que lo necesitan son dinámicas).
-      - run: npm run build
+      # build:retry reintenta sólo si falla la descarga de Google Fonts (next/font).
+      - run: npm run build:retry
 
   e2e:
     name: E2E (Playwright)

@@ -43,7 +43,8 @@ export default defineConfig({
   webServer: process.env.E2E_BASE_URL
     ? undefined
     : {
-        command: `npm run build && npx next start -p ${PORT}`,
+        // build:retry: reintenta si falla la descarga de Google Fonts (pasa en CI con muchos builds a la vez).
+        command: `npm run build:retry && npx next start -p ${PORT}`,
         url: baseURL,
         timeout: 300_000,
         reuseExistingServer: !process.env.CI,
