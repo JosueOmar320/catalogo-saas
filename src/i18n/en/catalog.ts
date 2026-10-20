@@ -751,6 +751,14 @@ const catalog: Catalog = {
   'Por categoría, con lo visible y disponible. Los asteriscos se ven en negritas en WhatsApp.': 'By category, with what is visible and available. Asterisks show as bold in WhatsApp.',
   'Escanea para ver y pedir': 'Scan to view and order',
   'Etiquetas con QR': 'QR labels',
+  '1 quedaría por debajo de su costo.': '1 would end up below its cost.',
+  '{count} quedarían por debajo de su costo.': '{count} would end up below their cost.',
+  'Costo (sólo tú lo ves)': 'Cost (only you see it)',
+  'Margen: {percent} % ({amount} por pieza). No se publica.': 'Margin: {percent}% ({amount} per unit). Not published.',
+  'Opcional, para ver tu margen. No se publica.': 'Optional, to see your margin. Not published.',
+  'Vendes por debajo del costo: pierdes {amount} por pieza.': 'You sell below cost: you lose {amount} per unit.',
+  'Bajo el costo': 'Below cost',
+  'Margen {percent} %': 'Margin {percent}%',
 };
 
 export default catalog;

@@ -14,7 +14,7 @@ import { MAX_PHOTO_BATCH } from '@/lib/catalog/photo-names';
 import { fetchAllRows } from '@/lib/supabase/paginate';
 import { parseCatalogSettings } from '@/lib/catalog/settings';
 import { uploadedImageSchema } from '@/features/media/schema';
-import { parseInput, uuidSchema } from '@/lib/utils/validation';
+import { parseInput, priceToNumber, uuidSchema } from '@/lib/utils/validation';
 import type { Json, TablesUpdate } from '@/types/database';
 import { releaseStorageObjects } from '@/features/media/server';
 import { parseAttributeDefs, parseAttributeValues } from '@/lib/catalog/attributes';
@@ -120,9 +120,22 @@ export async function saveItem(itemId: string | null, input: ItemFormValues): Pr
 
   const imageError = await syncImages(ctx, id, values.images);
   if (imageError) return fail(imageError);
+  await syncCost(ctx, id, values.type === 'product' ? priceToNumber(values.cost) : null);
 
   afterChange(ctx);
   return ok({ id }, itemId ? msg('Cambios guardados') : msg('Ítem creado'));
+}
+
+/**
+ * Costo privado del producto (tabla item_costs: no va al catálogo público).
+ * Si la tabla aún no existe (migración sin aplicar) no impide guardar el producto.
+ */
+async function syncCost(ctx: BusinessContext, itemId: string, cost: number | null) {
+  const { error } =
+    cost === null
+      ? await ctx.supabase.from('item_costs').delete().eq('item_id', itemId).eq('business_id', ctx.business.id)
+      : await ctx.supabase.from('item_costs').upsert({ item_id: itemId, business_id: ctx.business.id, cost, updated_at: new Date().toISOString() });
+  if (error) console.error('[items] no se pudo guardar el costo', { code: error.code });
 }
 
 type ParsedImage = z.output<typeof itemFormSchema>['images'][number];

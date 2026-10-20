@@ -52,6 +52,9 @@ export type ItemRowData = {
   stock: number | null;
   /** Ficha pública (para las etiquetas con QR). */
   url: string;
+  /** Costo privado y margen (%) con el precio actual; null sin costo. */
+  cost: number | null;
+  margin: number | null;
   /** Fuera de temporada hoy: aún no empieza o ya terminó (y desde/hasta cuándo). */
   season: { status: 'upcoming' | 'ended'; date: string } | null;
   /** Fichas vistas y unidades pedidas en 30 días (null si no se pueden leer). */
@@ -293,6 +296,15 @@ export function ItemsTable({ items: initialItems, categories, initialReview = nu
                     {[item.categoryName ?? t('Sin categoría'), item.sku].filter(Boolean).join(' · ')}
                   </Typography>
                 </Box>
+                {item.margin !== null && (
+                  <Chip
+                    size="small"
+                    variant="outlined"
+                    color={item.margin < 0 ? 'error' : 'default'}
+                    label={item.margin < 0 ? t('Bajo el costo') : t('Margen {percent} %', { percent: item.margin })}
+                    sx={{ display: { xs: 'none', md: 'inline-flex' } }}
+                  />
+                )}
                 {item.season && (
                   <Chip
                     size="small"

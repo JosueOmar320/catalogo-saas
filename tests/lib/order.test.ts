@@ -3,6 +3,8 @@ import { describe, it } from 'node:test';
 import { catalogSettingsSchema } from '@/lib/catalog/settings';
 import { applyTiers, buildOrderMessage, clampQty, couponHash, findCoupon, isOrderingPaused, refreshLines, NO_CHOICES, NO_OPTIONS, orderTotal, orderWhatsappHref, summarizeOrder, tierFor, type OrderLine, type OrderOptions, type OrderPricing, type PublicCoupon } from '@/site-renderer/order/message';
 import { siteTranslator } from '@/site-renderer/site-i18n';
+import { decodeList, encodeList, mergeLines } from '@/site-renderer/order/share-list';
+import { marginOf } from '@/lib/catalog/margin';
 import { orderConfig } from '@/site-renderer/order/config';
 import { buildSampleSite } from '@/lib/site/sample-site';
 import { summarizeOrders, windowStart } from '@/lib/orders/stats';
@@ -336,5 +338,37 @@ describe('Pedido por WhatsApp', () => {
     assert.deepEqual(summary.days.at(-1), { day: '2026-10-19', orders: 2 });
     assert.deepEqual([summary.orders, summary.units, summary.value], [3, 6, 288.5]);
     assert.deepEqual(summary.top, [{ itemId: 'b', units: 4 }, { itemId: 'a', units: 3 }, { itemId: 'c', units: 1 }]);
+  });
+});
+
+describe('Compartir mi lista y margen', () => {
+  const pricingMXN = { currency: 'MXN' };
+
+  it('la lista viaja en el enlace y vuelve igual (acentos incluidos); lo inválido se descarta', () => {
+    const lines = [line({ id: 'p1:v1+x1', qty: 2, name: 'Latte (16 oz) + Canela' }), line({ id: 'p2', qty: 1, name: 'Pan de muerto' })];
+    const encoded = encodeList(lines);
+    assert.match(encoded, /^[\w-]+$/); // base64url: va tal cual en la URL
+    const decoded = decodeList(encoded, pricingMXN, 'https://x.test/c')!;
+    assert.deepEqual(decoded.map((l) => [l.id, l.itemId, l.qty, l.name, l.price, l.url]), [
+      ['p1:v1+x1', 'p1', 2, 'Latte (16 oz) + Canela', null, 'https://x.test/c'],
+      ['p2', 'p2', 1, 'Pan de muerto', null, 'https://x.test/c'],
+    ]);
+    assert.equal(decodeList('no-es-una-lista', pricingMXN, ''), null);
+    assert.equal(decodeList(null, pricingMXN, ''), null);
+    const tampered = Buffer.from(JSON.stringify([['<script>', 1, 'x'], ['ok', 0, 'cero'], ['ok', 3, 'Bien']])).toString('base64url');
+    assert.deepEqual(decodeList(tampered, pricingMXN, '')!.map((l) => [l.id, l.qty]), [['ok', 3]]);
+  });
+
+  it('al agregarla se suman las cantidades de la misma línea', () => {
+    const merged = mergeLines([line({ id: 'a', qty: 1 }), line({ id: 'b', qty: 2 })], [line({ id: 'b', qty: 3 }), line({ id: 'c', qty: 1 })]);
+    assert.deepEqual(merged.map((l) => [l.id, l.qty]), [['a', 1], ['b', 5], ['c', 1]]);
+  });
+
+  it('margen con el costo: monto y porcentaje sobre el precio; sin costo o sin precio, nada', () => {
+    assert.deepEqual(marginOf(50, 32), { amount: 18, percent: 36 });
+    assert.deepEqual(marginOf(40, 45), { amount: -5, percent: -13 });
+    assert.equal(marginOf(null, 10), null);
+    assert.equal(marginOf(50, null), null);
+    assert.equal(marginOf(0, 10), null);
   });
 });

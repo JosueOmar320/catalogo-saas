@@ -24,6 +24,8 @@ export const itemFormSchema = z
     description: z.string().trim().max(5000),
     price: priceText,
     compareAtPrice: priceText,
+    /** Costo (privado: no se publica; para el margen). */
+    cost: priceText,
     currency: z.enum(CURRENCIES),
     priceNote: z.string().trim().max(40),
     sku: z.string().trim().max(64),

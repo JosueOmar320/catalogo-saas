@@ -12,6 +12,7 @@ export function emptyItemValues(type: ItemType, currency: ItemFormValues['curren
     description: '',
     price: '',
     compareAtPrice: '',
+    cost: '',
     saleEndsOn: '',
     saleTimeZone: '',
     currency,
@@ -47,7 +48,8 @@ export function emptyItemValues(type: ItemType, currency: ItemFormValues['curren
 
 const priceString = (value: number | null) => (value === null ? '' : String(Number(value)));
 
-export function itemToFormValues(item: Omit<AdminItem, 'images'> & { images: Tables<'catalog_item_images'>[] }): ItemFormValues {
+/** `cost`: el costo privado del producto (tabla item_costs), si tiene. */
+export function itemToFormValues(item: Omit<AdminItem, 'images'> & { images: Tables<'catalog_item_images'>[] }, cost: number | null = null): ItemFormValues {
   const attributes = parseItemAttributes(item.attributes);
   return {
     badges: attributes.badges,
@@ -77,6 +79,7 @@ export function itemToFormValues(item: Omit<AdminItem, 'images'> & { images: Tab
     description: item.description ?? '',
     price: priceString(item.price),
     compareAtPrice: priceString(item.compare_at_price),
+    cost: priceString(cost),
     saleEndsOn: attributes.saleEnds?.on ?? '',
     saleTimeZone: attributes.saleEnds?.timeZone ?? '',
     currency: item.currency as ItemFormValues['currency'],

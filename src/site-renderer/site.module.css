@@ -5095,3 +5095,131 @@ input.qtyValue:focus-visible {
   gap: 6px;
   padding: 4px 0;
 }
+
+/* ------------------------------------------------------ Lista compartida */
+
+.orderShared {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border-radius: calc(var(--radius) * 0.6);
+  background: var(--c-primary-soft);
+  color: var(--c-heading);
+}
+
+.orderShared p {
+  margin: 0;
+}
+
+.orderShared div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.orderFooterLinks {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+/* ----------------------------------------------- Fotos a pantalla completa */
+
+.galleryZoom {
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+}
+
+.galleryZoom:focus-visible {
+  outline: 2px solid var(--c-button);
+  outline-offset: -4px;
+}
+
+.galleryZoom img {
+  object-fit: cover;
+}
+
+.lightbox {
+  width: 100vw;
+  max-width: 100vw;
+  height: 100dvh;
+  max-height: 100dvh;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: rgb(0 0 0 / 0.92);
+  color: #fff;
+}
+
+.lightbox::backdrop {
+  background: rgb(0 0 0 / 0.6);
+}
+
+.lightboxImage {
+  position: absolute;
+  inset: 56px 16px;
+  pointer-events: none;
+}
+
+.lightboxImage img {
+  object-fit: contain;
+}
+
+.lightboxButton {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.14);
+  color: #fff;
+  cursor: pointer;
+}
+
+.lightboxButton:hover {
+  background: rgb(255 255 255 / 0.24);
+}
+
+.lightboxButton:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+.lightboxClose {
+  top: 8px;
+  right: 8px;
+}
+
+.lightboxPrev {
+  top: 50%;
+  left: 8px;
+  transform: translateY(-50%);
+}
+
+.lightboxNext {
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+}
+
+.lightboxCount {
+  position: absolute;
+  bottom: 16px;
+  left: 0;
+  right: 0;
+  margin: 0;
+  text-align: center;
+  font-size: var(--fs-small);
+  color: rgb(255 255 255 / 0.8);
+}
