@@ -939,6 +939,7 @@ test('promoción automática configurada en el panel: se aplica sola en el pedid
 });
 
 test('accesibilidad del panel y la administración (axe)', async ({ page }) => {
+  test.setTimeout(120_000); // 13 páginas, cada una con su análisis
   for (const path of ['/dashboard', '/dashboard/catalog/products', '/dashboard/catalog/items/new?type=product', '/dashboard/catalog/categories', '/dashboard/settings/contacto', '/dashboard/settings/negocio', '/dashboard/resenas', '/dashboard/media', '/dashboard/sitio', '/dashboard/export/pdf', '/admin', '/admin/usuarios', '/cuenta']) {
     await page.goto(path);
     await expect(page.getByRole('main').first()).toBeVisible();
