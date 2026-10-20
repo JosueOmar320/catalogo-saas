@@ -106,7 +106,7 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
     { label: t('Páginas'), value: pages.length, icon: LayoutTemplate, href: '/dashboard/sitio' },
   ];
 
-  const ordersOn = settings.order.enabled && Boolean(contact.whatsapp);
+  const ordersOn = settings.order.enabled && (Boolean(contact.whatsapp) || settings.order.branches.length > 0);
   const itemNames = new Map(items.map((i) => [i.id, i.name]));
   const money = (value: number) => formatPrice(value, settings.currency, settings.locale, settings.priceFormat);
 

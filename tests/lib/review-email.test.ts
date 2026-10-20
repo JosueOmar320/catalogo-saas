@@ -40,6 +40,14 @@ describe('Aviso semanal por correo', () => {
     assert.match(email.html, /<html lang="en">/);
   });
 
+  it('las reseñas por aprobar cuentan y van en su línea (también solas)', () => {
+    const email = buildCatalogReviewEmail({ ...base, counts: { noPhoto: 0, noPrice: 1, noCategory: 0, pendingReviews: 2 } });
+    assert.equal(email.subject, 'Café <Aurora> & "Pan": 3 detalles para mejorar tu catálogo');
+    assert.match(email.text, /• 1 producto sin precio\n• 2 reseñas de clientes por aprobar\n/);
+    const only = buildCatalogReviewEmail({ ...base, locale: 'en', counts: { noPhoto: 0, noPrice: 0, noCategory: 0, pendingReviews: 1 } });
+    assert.match(only.text, /• 1 customer review to approve/);
+  });
+
   it('el enlace de baja es válido sólo para ese usuario y ese secreto', () => {
     // Claves generadas al vuelo: ningún valor fijo que un escáner de secretos confunda con uno real.
     const key = randomBytes(24).toString('hex');

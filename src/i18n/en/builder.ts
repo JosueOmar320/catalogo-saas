@@ -676,6 +676,17 @@ const catalog: Catalog = {
   'Escritos por ti': 'Written by you',
   'Reseñas de clientes': 'Customer reviews',
   'Se muestran las reseñas que apruebes en Reseñas (panel), las más recientes primero, con un botón para dejar una opinión.': 'Shows the reviews you approve in Reviews (dashboard), newest first, with a button to leave a review.',
+  '10 % de descuento en tu primer pedido.': '10% off your first order.',
+  'Al entrar': 'On arrival',
+  'Aparece': 'Shows',
+  'Código de cupón (opcional)': 'Coupon code (optional)',
+  'Después de ese día ya no aparece.': 'After that day it no longer shows.',
+  'Mostrar a quien entra': 'Show to visitors',
+  'Se muestra con un botón para copiarlo. Créalo en Configuración → Pedidos.': 'Shown with a copy button. Create it in Settings → Orders.',
+  'Una promoción que cada visitante ve una sola vez, unos segundos después de entrar. No aparece en esta vista previa.': 'A promotion each visitor sees only once, a few seconds after arriving. It does not show in this preview.',
+  'Ventana de bienvenida': 'Welcome pop-up',
+  'Ver más': 'Learn more',
+  '¡Bienvenido!': 'Welcome!',
 };
 
 export default catalog;

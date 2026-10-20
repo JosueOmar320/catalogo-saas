@@ -66,6 +66,17 @@ export const deliveryZoneSchema = z.object({
 
 export type DeliveryZone = z.output<typeof deliveryZoneSchema>;
 
+export const MAX_BRANCHES = 10;
+
+/** Sucursal: el pedido llega a su WhatsApp; su dirección se muestra al recoger. */
+export const branchSchema = z.object({
+  name: z.string().trim().min(1, msg('Escribe el nombre de la sucursal')).max(60),
+  whatsapp: z.string().trim().regex(/^\+?[0-9 ()-]{7,20}$/, msg('Usa el formato internacional, ej. +52 55 1234 5678')),
+  address: z.string().trim().max(200).default(''),
+});
+
+export type Branch = z.output<typeof branchSchema>;
+
 /** Cupón de descuento del pedido. El código se guarda en mayúsculas. */
 export const couponSchema = z.object({
   code: z
@@ -109,6 +120,12 @@ export const orderSchema = z.object({
     .array(deliveryZoneSchema)
     .max(MAX_ZONES)
     .refine((list) => new Set(list.map((z) => z.name.toLowerCase())).size === list.length, msg('Hay zonas con el mismo nombre'))
+    .default([]),
+  /** Sucursales: con alguna, el cliente elige a cuál pide y el mensaje va a su WhatsApp. */
+  branches: z
+    .array(branchSchema)
+    .max(MAX_BRANCHES)
+    .refine((list) => new Set(list.map((b) => b.name.toLowerCase())).size === list.length, msg('Hay sucursales con el mismo nombre'))
     .default([]),
   /** Pedidos en mesa: con el código QR de cada mesa (?mesa=5) el pedido va a esa mesa, sin entrega. */
   tables: z.boolean().default(false),

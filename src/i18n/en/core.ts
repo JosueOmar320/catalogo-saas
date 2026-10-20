@@ -439,6 +439,8 @@ const catalog: Catalog = {
   'Conoce el catálogo de {negocio}: fotos, precios y pedidos por WhatsApp en {url}': "Check out {negocio}'s catalog: photos, prices and orders on WhatsApp at {url}",
   'Para la bio de Instagram o TikTok': 'For your Instagram or TikTok bio',
   'Haz tu pedido aquí: {url}': 'Order here: {url}',
+  '1 reseña de un cliente por aprobar': '1 customer review to approve',
+  '{count} reseñas de clientes por aprobar': '{count} customer reviews to approve',
 };
 
 export default catalog;

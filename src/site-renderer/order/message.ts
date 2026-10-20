@@ -1,7 +1,7 @@
 import { msg, type Translator } from '@/i18n/translate';
 import { formatPickup } from '@/lib/business/schedule';
 import { isSaleOver, type SaleEnds } from '@/lib/catalog/sale';
-import type { DeliveryZone, OrderSettings, PaymentMethod, PriceFormat } from '@/lib/catalog/settings';
+import type { Branch, DeliveryZone, OrderSettings, PaymentMethod, PriceFormat } from '@/lib/catalog/settings';
 import { formatPrice } from '@/lib/utils/format';
 import { digitsOnly } from '@/lib/utils/phone';
 
@@ -95,7 +95,7 @@ export type Fulfillment = 'pickup' | 'delivery';
 /** Lo que el negocio configuró para entregar y cobrar (subconjunto plano de OrderSettings). */
 export type OrderOptions = Pick<
   OrderSettings,
-  'pickup' | 'delivery' | 'deliveryFee' | 'freeDeliveryFrom' | 'deliveryNote' | 'zones' | 'tables' | 'minimumOrder' | 'payments' | 'scheduling' | 'leadMinutes' | 'scheduleDays' | 'slotMinutes'
+  'pickup' | 'delivery' | 'deliveryFee' | 'freeDeliveryFrom' | 'deliveryNote' | 'zones' | 'tables' | 'branches' | 'minimumOrder' | 'payments' | 'scheduling' | 'leadMinutes' | 'scheduleDays' | 'slotMinutes'
 >;
 
 /* ------------------------------------------------------ Precios al día y pausa */
@@ -178,6 +178,8 @@ export type OrderChoices = {
   zone?: string | null;
   /** Mesa desde la que se pide (código QR de la mesa), si el negocio acepta pedidos en mesa. */
   table?: string | null;
+  /** Sucursal elegida (su nombre), si el negocio tiene sucursales. */
+  branch?: string | null;
   payment: PaymentMethod | null;
   coupon?: AppliedCoupon | null;
   /** Día y hora elegidos ("¿Para cuándo?"), en la zona del negocio; null = lo antes posible. */
@@ -192,6 +194,7 @@ export const NO_OPTIONS: OrderOptions = {
   deliveryNote: '',
   zones: [],
   tables: false,
+  branches: [],
   minimumOrder: null,
   payments: [],
   scheduling: 'off',
@@ -231,12 +234,14 @@ export type OrderSummary = {
   zone: DeliveryZone | null;
   /** Mesa del pedido (en el local): sin entrega, dirección ni "¿Para cuándo?". */
   table: string | null;
+  /** Sucursal a la que va el pedido (con una sola, ésa). */
+  branch: Branch | null;
   /** Cuánto falta para el pedido mínimo (sólo si todos los precios se conocen). */
   missingForMinimum: number | null;
   /** Cuánto falta para el envío gratis. */
   missingForFreeDelivery: number | null;
-  /** Lo que impide enviar: elegir la entrega o la zona, escribir la dirección, llegar al mínimo o elegir para cuándo. */
-  blocker: 'fulfillment' | 'zone' | 'address' | 'minimum' | 'when' | null;
+  /** Lo que impide enviar: elegir la sucursal, la entrega o la zona, escribir la dirección, llegar al mínimo o elegir para cuándo. */
+  blocker: 'branch' | 'fulfillment' | 'zone' | 'address' | 'minimum' | 'when' | null;
   /** Descuento del cupón (sobre los productos, no el envío). */
   discount: { code: string; value: number } | null;
   /** Por qué el cupón aplicado no descuenta: venció o falta llegar a su mínimo. */
@@ -244,6 +249,12 @@ export type OrderSummary = {
 };
 
 const cents = (value: number) => Math.round(value * 100) / 100;
+
+/** La sucursal del pedido: con una sola, ésa; con varias, la elegida (por nombre) o null. */
+export function findBranch(options: OrderOptions, name: string | null | undefined): Branch | null {
+  if (options.branches.length === 1) return options.branches[0];
+  return name ? (options.branches.find((branch) => branch.name === name) ?? null) : null;
+}
 
 /** La zona elegida, si existe (por nombre). */
 export const findZone = (options: OrderOptions, name: string | null | undefined) => (name ? (options.zones.find((zone) => zone.name === name) ?? null) : null);
@@ -256,6 +267,7 @@ export const findZone = (options: OrderOptions, name: string | null | undefined)
  */
 export function summarizeOrder(lines: OrderLine[], pricing: OrderPricing, options: OrderOptions = NO_OPTIONS, choices: OrderChoices = NO_CHOICES, now: Date = new Date()): OrderSummary {
   const subtotal = orderTotal(lines, pricing);
+  const branch = findBranch(options, choices.branch);
   const table = (options.tables && choices.table?.trim()) || null;
   const fulfillment = table ? null : effectiveFulfillment(options, choices.fulfillment);
   const known = subtotal && !subtotal.partial ? subtotal.value : null;
@@ -297,7 +309,9 @@ export function summarizeOrder(lines: OrderLine[], pricing: OrderPricing, option
   const missingForMinimum = minimum !== null && known !== null && known < minimum ? cents(minimum - known) : null;
 
   const blocker =
-    !table && fulfillmentOptions(options).length > 0 && !fulfillment
+    options.branches.length > 0 && !branch
+      ? 'branch'
+      : !table && fulfillmentOptions(options).length > 0 && !fulfillment
       ? 'fulfillment'
       : zoned && !zone
         ? 'zone'
@@ -308,7 +322,7 @@ export function summarizeOrder(lines: OrderLine[], pricing: OrderPricing, option
           : !table && options.scheduling === 'required' && !choices.when
             ? 'when'
             : null;
-  return { subtotal, delivery, total, minimum, zone, table, missingForMinimum, missingForFreeDelivery, blocker, discount, couponIssue };
+  return { subtotal, delivery, total, minimum, zone, table, branch, missingForMinimum, missingForFreeDelivery, blocker, discount, couponIssue };
 }
 
 export type OrderMessageInput = {
@@ -360,7 +374,7 @@ export function buildOrderMessage({ lines, pricing, intro, businessName, custome
     return `• ${line.qty} × ${line.name}${sku}${price}${note ? `\n   ${t('Nota: {note}', { note })}` : ''}`;
   });
 
-  const { subtotal, delivery, discount, total, zone, table } = summarizeOrder(lines, pricing, options, choices, now);
+  const { subtotal, delivery, discount, total, zone, table, branch } = summarizeOrder(lines, pricing, options, choices, now);
   const summary: string[] = [];
   const productsTotal = (amount: Amount, key: 'Total' | 'Subtotal') => {
     const value = formatAmount(amount.value, pricing);
@@ -376,6 +390,7 @@ export function buildOrderMessage({ lines, pricing, intro, businessName, custome
   } else if (subtotal) summary.push(productsTotal(subtotal, 'Total'));
 
   const fulfillment = table ? null : effectiveFulfillment(options, choices.fulfillment);
+  if (branch && options.branches.length > 1) summary.push(t('Sucursal: {branch}', { branch: branch.name }));
   if (table) summary.push(t('Mesa: {table}', { table }));
   if (!table && options.scheduling !== 'off' && choices.when) summary.push(t('Para: {when}', { when: formatPickup(choices.when.date, choices.when.time, pricing.locale) }));
   if (fulfillment) summary.push(t('Entrega: {mode}', { mode: fulfillment === 'delivery' ? t('A domicilio') : t('Recoger en el local') }));

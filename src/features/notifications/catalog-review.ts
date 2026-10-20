@@ -13,7 +13,8 @@ import { fetchAllRows } from '@/lib/supabase/paginate';
  *
  * Destinatarios: propietarios y administradores de negocios activos, con
  * cuenta activa, correo de contacto y el aviso activado. Sólo se envía si el
- * negocio tiene pendientes accionables (sin foto, sin precio, sin categoría) y
+ * negocio tiene pendientes accionables (sin foto, sin precio, sin categoría,
+ * reseñas por aprobar) y
  * no se avisó a esa persona sobre ese negocio en los últimos 6 días.
  *
  * Sin RESEND_API_KEY/EMAIL_FROM (o con dryRun) no envía nada: devuelve a
@@ -85,7 +86,7 @@ export async function findCatalogReviewRecipients(now = new Date()): Promise<{ c
   const catalogIds = catalogs.map((c) => c.id);
   const businessOfCatalog = new Map(catalogs.map((c) => [c.id, c.business_id]));
 
-  const [categories, items, images, recent] = await Promise.all([
+  const [categories, items, images, recent, reviews] = await Promise.all([
     Promise.all(chunks(catalogIds).map(async (ids) => (await db.from('categories').select('catalog_id').in('catalog_id', ids).is('deleted_at', null)).data ?? [])).then((r) => r.flat()),
     Promise.all(
       chunks(catalogIds).map((ids) =>
@@ -104,7 +105,11 @@ export async function findCatalogReviewRecipients(now = new Date()): Promise<{ c
         .order('id')
         .range(from, to),
     ),
+    // Reseñas por aprobar (sin la migración de reseñas, la consulta falla y no cuentan).
+    Promise.all(chunks(activeIds).map(async (ids) => (await db.from('reviews').select('business_id').in('business_id', ids).eq('status', 'pending').limit(5000)).data ?? [])).then((r) => r.flat()),
   ]);
+  const pendingReviews = new Map<string, number>();
+  for (const review of reviews) pendingReviews.set(review.business_id, (pendingReviews.get(review.business_id) ?? 0) + 1);
 
   const withImage = new Set(images.map((i) => i.item_id));
   const catalogsWithCategories = new Set(categories.map((c) => c.catalog_id));
@@ -122,7 +127,12 @@ export async function findCatalogReviewRecipients(now = new Date()): Promise<{ c
       (itemsByBusiness.get(catalog.business_id) ?? []).map((i) => ({ type: i.type, hasImage: withImage.has(i.id), hasPrice: i.price !== null, categoryId: i.category_id, isAvailable: i.is_available, isVisible: i.is_visible })),
       catalogsWithCategories.has(catalog.id),
     );
-    countsByBusiness.set(catalog.business_id, { noPhoto: review['sin-foto'].count, noPrice: review['sin-precio'].count, noCategory: review['sin-categoria'].count });
+    countsByBusiness.set(catalog.business_id, {
+      noPhoto: review['sin-foto'].count,
+      noPrice: review['sin-precio'].count,
+      noCategory: review['sin-categoria'].count,
+      pendingReviews: pendingReviews.get(catalog.business_id) ?? 0,
+    });
   }
 
   const recentlySent = new Set(recent.map((r) => `${r.user_id}:${r.business_id}`));

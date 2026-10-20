@@ -20,7 +20,44 @@ export type HeaderProps = {
   currentPath?: string;
   /** Barra de anuncios (null si está apagada o sin texto). */
   announcement: AnnouncementProps | null;
+  /** Ventana de bienvenida (null si está apagada, sin título o en la vista previa). */
+  popup: PopupProps | null;
 };
+
+export type PopupProps = {
+  title: string;
+  text: string;
+  code: string;
+  button: { label: string; href: string; external: boolean } | null;
+  delay: number;
+  endsOn: string;
+  timeZone: string;
+  /** Clave para recordar que el visitante ya la vio (cambia si cambia el contenido). */
+  storageKey: string;
+};
+
+/** Huella corta (djb2) del contenido: si el negocio cambia la promoción, se vuelve a mostrar. */
+const fingerprint = (text: string) => {
+  let hash = 5381;
+  for (let i = 0; i < text.length; i++) hash = ((hash << 5) + hash + text.charCodeAt(i)) | 0;
+  return (hash >>> 0).toString(36);
+};
+
+function popupProps(site: SiteViewModel, links: LinkContext, env: RenderEnv): PopupProps | null {
+  const popup = site.theme.popup;
+  if (!popup.enabled || !popup.title || env.mode === 'preview') return null;
+  const target = popup.link.kind === 'none' ? null : resolveLink(popup.link, links);
+  return {
+    title: popup.title,
+    text: popup.text,
+    code: popup.code,
+    button: target ? { label: popup.buttonLabel || siteTranslator(site.settings.language)('Ver más'), href: target.href, external: target.external } : null,
+    delay: popup.delay,
+    endsOn: popup.endsOn,
+    timeZone: popup.timeZone,
+    storageKey: `popup:${site.business.slug}:${fingerprint([popup.title, popup.text, popup.code].join('|'))}`,
+  };
+}
 
 export type AnnouncementProps = {
   text: string;
@@ -80,5 +117,6 @@ export function buildHeaderProps(site: SiteViewModel, env: RenderEnv, currentPat
     homePath: env.basePath || '/',
     currentPath,
     announcement: announcementProps(site, links),
+    popup: popupProps(site, links, env),
   };
 }

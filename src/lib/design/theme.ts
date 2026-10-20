@@ -140,6 +140,30 @@ function buildThemeSchema(lenient: boolean) {
         dismissible: bool(true),
       })
       .prefault({}),
+    /** Ventana de bienvenida: una promoción que el visitante ve una vez (al rato de entrar). */
+    popup: z
+      .object({
+        enabled: bool(false),
+        title: f(z.string().trim().max(80), ''),
+        text: f(z.string().trim().max(300), ''),
+        /** Código de cupón para copiar (opcional). */
+        code: f(z.string().trim().max(24), ''),
+        buttonLabel: f(z.string().trim().max(30), ''),
+        link: z
+          .object({
+            kind: f(z.enum(['none', 'page', 'url', 'whatsapp', 'phone', 'email']), 'none'),
+            pageId: f(z.union([z.literal(''), z.uuid()]), ''),
+            url: f(z.string().trim().max(500), ''),
+            message: f(z.string().trim().max(300), ''),
+            newTab: bool(false),
+          })
+          .prefault({}),
+        /** Segundos después de entrar. */
+        delay: f(z.number().int().min(0).max(30), 3),
+        endsOn: f(z.union([z.literal(''), z.string().regex(/^\d{4}-\d{2}-\d{2}$/)]), ''),
+        timeZone: f(z.string().max(64), ''),
+      })
+      .prefault({}),
     footer: z
       .object({
         style: f(z.enum(FOOTER_STYLES), 'columns'),

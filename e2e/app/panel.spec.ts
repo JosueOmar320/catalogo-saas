@@ -735,6 +735,59 @@ test('temporada, copiar extras de otro producto y «Combínalo con» elegidos en
   await visitor.close();
 });
 
+test('ventana de bienvenida y sucursales configuradas en el panel llegan al sitio y al pedido', async ({ page, browser }) => {
+  await page.goto('/dashboard/sitio?panel=navigation');
+  await page.getByRole('switch', { name: 'Mostrar a quien entra' }).click();
+  await page.getByLabel('Título', { exact: true }).fill('¡Bienvenido E2E!');
+  await page.getByLabel('Código de cupón (opcional)').fill('e2e10');
+  await page.getByRole('group', { name: 'Aparece' }).getByRole('button', { name: 'Al entrar' }).click();
+  const save = page.getByRole('button', { name: 'Guardar cambios' });
+  await save.click();
+  await expect(save).toBeDisabled();
+
+  await page.goto('/dashboard/settings/contacto');
+  await page.getByRole('button', { name: 'Agregar sucursal' }).click();
+  await page.getByRole('button', { name: 'Agregar sucursal' }).click();
+  const branches = page.getByRole('list', { name: 'Sucursales' }).getByRole('listitem');
+  await branches.nth(0).getByLabel('Sucursal', { exact: true }).fill('Centro');
+  await branches.nth(0).getByLabel('WhatsApp').fill('+52 55 1111 1111');
+  await branches.nth(0).getByLabel('Dirección').fill('Av. Juárez 12');
+  await branches.nth(1).getByLabel('Sucursal', { exact: true }).fill('Norte');
+  await branches.nth(1).getByLabel('WhatsApp').fill('+52 55 2222 2222');
+  await page.getByRole('button', { name: 'Guardar pedidos' }).click();
+  await expect(page.getByText('Configuración guardada')).toBeVisible();
+
+  const visitor = await browser.newContext(ANONYMOUS);
+  const site = await visitor.newPage();
+  const popup = site.getByRole('dialog', { name: '¡Bienvenido E2E!' });
+  await expect(async () => {
+    await site.goto(`/catalogo/${slug}`);
+    await expect(popup).toBeVisible({ timeout: 2000 });
+  }).toPass({ timeout: 20_000 });
+  await expect(popup.getByText('E2E10')).toBeVisible();
+  await popup.getByRole('button', { name: 'Cerrar' }).click();
+  // Una sola vez por visitante.
+  await site.reload();
+  await site.waitForTimeout(800);
+  await expect(popup).toHaveCount(0);
+
+  await site.goto(`/catalogo/${slug}/p/smoothie-e2e`);
+  await site.getByRole('radio', { name: 'Grande' }).click();
+  await site.getByRole('button', { name: 'Agregar al pedido' }).click();
+  await site.getByRole('button', { name: /^Ver pedido/ }).click();
+  const dialog = site.getByRole('dialog', { name: 'Tu pedido' });
+  await dialog.getByRole('group', { name: 'Cantidad de Smoothie E2E (Grande)' }).getByRole('button', { name: 'Uno más' }).click();
+  await expect(dialog.getByText('Elige la sucursal.')).toBeVisible();
+  await expect(dialog.getByText('Av. Juárez 12')).toBeVisible();
+  await dialog.getByRole('radio', { name: 'Norte', exact: true }).check();
+  await dialog.getByLabel('Zona de entrega').selectOption('Centro');
+  await dialog.getByLabel('Dirección de entrega').fill('Calle 5 #10');
+  const href = await dialog.getByRole('link', { name: 'Enviar pedido por WhatsApp' }).getAttribute('href');
+  expect(href).toMatch(/^https:\/\/wa\.me\/525522222222\?text=/);
+  expect(new URL(href!).searchParams.get('text')).toContain('Sucursal: Norte\nEntrega: A domicilio\nZona: Centro');
+  await visitor.close();
+});
+
 test('el idioma elegido se guarda en el perfil y vuelve al iniciar sesión', async ({ page, browser }) => {
   await page.goto('/dashboard');
   await page.getByRole('button', { name: 'Cambiar idioma' }).click();

@@ -474,7 +474,6 @@ const catalog: Catalog = {
   'No se pudo subir la imagen. Revisa tu conexión.': "Couldn't upload the image. Check your connection.",
   // Pedidos por WhatsApp (Contacto)
   'Tus clientes arman una lista de productos con cantidades y te la envían por WhatsApp con el total.': 'Your customers build a list of products with quantities and send it to you on WhatsApp with the total.',
-  'Agrega tu número de WhatsApp arriba para recibir pedidos.': 'Add your WhatsApp number above to receive orders.',
   'Recibir pedidos': 'Receive orders',
   'Los productos disponibles muestran "Agregar al pedido" en lugar del botón de contacto. Los servicios se siguen consultando.': 'Available products show "Add to order" instead of the contact button. Services still use the contact button.',
   'Saludo del mensaje': 'Message greeting',
@@ -731,6 +730,14 @@ const catalog: Catalog = {
   'Temporada terminada el {date}': 'Season ended on {date}',
   'Debe ser igual o posterior a la fecha de inicio': 'Must be on or after the start date',
   'Elige hasta 4': 'Choose up to 4',
+  'Agrega tu número de WhatsApp arriba (o el de tus sucursales) para recibir pedidos.': 'Add your WhatsApp number above (or your branches’ numbers) to receive orders.',
+  'Agregar sucursal': 'Add branch',
+  'Opcional: si tienes varias, tu cliente elige a cuál pide y el pedido llega al WhatsApp de esa sucursal. Sin sucursales, llega al WhatsApp del negocio.': 'Optional: if you have several, customers choose which one to order from and the order goes to that branch’s WhatsApp. Without branches, it goes to the business WhatsApp.',
+  'Quitar la sucursal {index}': 'Remove branch {index}',
+  'Sucursal': 'Branch',
+  'Sucursales': 'Branches',
+  'Escribe el nombre de la sucursal': 'Enter the branch name',
+  'Hay sucursales con el mismo nombre': 'Some branches have the same name',
 };
 
 export default catalog;

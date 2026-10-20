@@ -331,6 +331,11 @@ const catalog: Catalog = {
   'Mesa: {table}': 'Table: {table}',
   'Combínalo con': 'Pair it with',
   'De temporada: hasta el {date}': 'Seasonal: until {date}',
+  'Copiado': 'Copied',
+  'Copiar código': 'Copy code',
+  'Elige la sucursal.': 'Choose the branch.',
+  '¿A qué sucursal?': 'Which branch?',
+  'Sucursal: {branch}': 'Branch: {branch}',
 };
 
 export default catalog;
