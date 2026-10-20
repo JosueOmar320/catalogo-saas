@@ -4161,7 +4161,6 @@ details[open] > .faqQuestion .faqChevron {
 
 .orderFabTotal {
   font-variant-numeric: tabular-nums;
-  opacity: 0.9;
 }
 
 @container site (max-width: 599px) {
