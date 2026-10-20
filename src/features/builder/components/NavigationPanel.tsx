@@ -26,6 +26,8 @@ export function NavigationPanel() {
   const setFooter = (patch: Partial<ThemeConfig['footer']>) => dispatch({ type: 'setTheme', theme: { ...theme, footer: { ...theme.footer, ...patch } } });
   const bar = theme.announcement;
   const setBar = (patch: Partial<ThemeConfig['announcement']>) => dispatch({ type: 'setTheme', theme: { ...theme, announcement: { ...bar, ...patch } } });
+  const popup = theme.popup;
+  const setPopup = (patch: Partial<ThemeConfig['popup']>) => dispatch({ type: 'setTheme', theme: { ...theme, popup: { ...popup, ...patch } } });
   const pagesNotInMenu = state.pages.filter((p) => !items.some((i) => i.kind === 'page' && i.pageId === p.id));
   const addItem = (kind: NavigationItem['kind'], pageId = '') =>
     setItems([...items, { id: crypto.randomUUID(), kind, pageId, label: '', url: kind === 'url' ? 'https://' : '', visible: true, style: kind === 'whatsapp' ? 'button' : 'link', newTab: kind === 'url' }]);
@@ -137,6 +139,38 @@ export function NavigationPanel() {
               slotProps={{ inputLabel: { shrink: true } }}
             />
             <SwitchRow label={t('El visitante puede cerrarla')} checked={bar.dismissible} onChange={(dismissible) => setBar({ dismissible })} />
+          </>
+        )}
+      </Group>
+
+      <Group title={t('Ventana de bienvenida')} description={t('Una promoción que cada visitante ve una sola vez, unos segundos después de entrar. No aparece en esta vista previa.')}>
+        <SwitchRow label={t('Mostrar a quien entra')} checked={popup.enabled} onChange={(enabled) => setPopup({ enabled })} />
+        {popup.enabled && (
+          <>
+            <TextInput label={t('Título')} value={popup.title} placeholder={t('¡Bienvenido!')} onChange={(title) => setPopup({ title })} maxLength={80} />
+            <TextInput label={t('Texto')} value={popup.text} placeholder={t('10 % de descuento en tu primer pedido.')} onChange={(text) => setPopup({ text })} multiline rows={2} maxLength={300} />
+            <TextInput label={t('Código de cupón (opcional)')} value={popup.code} placeholder="BIENVENIDA" helper={t('Se muestra con un botón para copiarlo. Créalo en Configuración → Pedidos.')} onChange={(code) => setPopup({ code: code.toUpperCase() })} maxLength={24} />
+            <LinkEditor value={popup.link} onChange={(link) => setPopup({ link })} pages={state.pages} />
+            {popup.link.kind !== 'none' && <TextInput label={t('Texto del botón')} value={popup.buttonLabel} placeholder={t('Ver más')} onChange={(buttonLabel) => setPopup({ buttonLabel })} maxLength={30} />}
+            <Segmented
+              label={t('Aparece')}
+              value={String(popup.delay)}
+              onChange={(delay) => setPopup({ delay: Number(delay) })}
+              options={[
+                { value: '0', label: t('Al entrar') },
+                { value: '3', label: '3 s' },
+                { value: '8', label: '8 s' },
+                { value: '15', label: '15 s' },
+              ]}
+            />
+            <TextField
+              type="date"
+              label={t('Mostrar hasta (opcional)')}
+              value={popup.endsOn}
+              onChange={(event) => setPopup({ endsOn: event.target.value, timeZone: event.target.value ? Intl.DateTimeFormat().resolvedOptions().timeZone : '' })}
+              helperText={t('Después de ese día ya no aparece.')}
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
           </>
         )}
       </Group>

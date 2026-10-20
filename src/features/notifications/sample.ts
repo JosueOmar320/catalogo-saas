@@ -10,7 +10,7 @@ export function sampleCatalogReviewEmail(locale: Locale, name: string | null, us
     locale,
     recipientName: name,
     businessName: 'Café Aurora',
-    counts: { noPhoto: 3, noPrice: 1, noCategory: 2 },
+    counts: { noPhoto: 3, noPrice: 1, noCategory: 2, pendingReviews: 2 },
     appName: env.appName,
     dashboardUrl: `${env.siteUrl}/dashboard`,
     unsubscribeUrl: unsubscribeUrl(userId),

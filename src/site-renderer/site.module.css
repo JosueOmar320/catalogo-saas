@@ -4998,3 +4998,100 @@ input.qtyValue:focus-visible {
 .orderTable button {
   font-weight: 400;
 }
+
+/* -------------------------------------------------------------- Sucursales */
+
+.orderBranches {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.orderBranches .orderOption > span {
+  display: flex;
+  flex-direction: column;
+}
+
+.orderBranchAddress {
+  font-size: var(--fs-small);
+  color: var(--c-muted);
+}
+
+/* ------------------------------------------------------ Ventana de bienvenida */
+
+.popup {
+  width: min(420px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--c-surface, var(--c-bg));
+  color: var(--c-text);
+  box-shadow: 0 20px 60px rgb(0 0 0 / 0.3);
+}
+
+.popup::backdrop {
+  background: rgb(0 0 0 / 0.45);
+}
+
+.popupPanel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 32px 24px 24px;
+  text-align: center;
+}
+
+.popupClose {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: inline-flex;
+  padding: 8px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--c-muted);
+  cursor: pointer;
+}
+
+.popupClose:focus-visible {
+  outline: 2px solid var(--c-button);
+}
+
+.popupTitle {
+  margin: 0;
+  font-family: var(--ty-h3-font, var(--f-heading)), sans-serif;
+  font-size: 1.5em;
+  color: var(--c-heading);
+}
+
+.popupText {
+  margin: 0;
+  white-space: pre-line;
+}
+
+.popupCode {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 16px;
+  border: 1px dashed var(--c-border);
+  border-radius: calc(var(--radius) * 0.6);
+}
+
+.popupCode strong {
+  letter-spacing: 0.08em;
+  color: var(--c-heading);
+}
+
+.popupCode .linkButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+}

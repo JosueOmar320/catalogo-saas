@@ -88,9 +88,9 @@ describe('Pedido por WhatsApp', () => {
 
   it('entrega, envío y mínimo: lo nuevo viene apagado y el mensaje no cambia', () => {
     const { order } = catalogSettingsSchema.parse({});
-    assert.deepEqual({ ...NO_OPTIONS }, { pickup: order.pickup, delivery: order.delivery, deliveryFee: order.deliveryFee, freeDeliveryFrom: order.freeDeliveryFrom, deliveryNote: order.deliveryNote, zones: order.zones, tables: order.tables, minimumOrder: order.minimumOrder, payments: order.payments, scheduling: order.scheduling, leadMinutes: order.leadMinutes, scheduleDays: order.scheduleDays, slotMinutes: order.slotMinutes });
+    assert.deepEqual({ ...NO_OPTIONS }, { pickup: order.pickup, delivery: order.delivery, deliveryFee: order.deliveryFee, freeDeliveryFrom: order.freeDeliveryFrom, deliveryNote: order.deliveryNote, zones: order.zones, tables: order.tables, branches: order.branches, minimumOrder: order.minimumOrder, payments: order.payments, scheduling: order.scheduling, leadMinutes: order.leadMinutes, scheduleDays: order.scheduleDays, slotMinutes: order.slotMinutes });
     const summary = summarizeOrder([line({ qty: 2 })], pricing);
-    assert.deepEqual(summary, { subtotal: { value: 96, partial: false }, delivery: null, total: { value: 96, partial: false }, minimum: null, zone: null, table: null, missingForMinimum: null, missingForFreeDelivery: null, blocker: null, discount: null, couponIssue: null });
+    assert.deepEqual(summary, { subtotal: { value: 96, partial: false }, delivery: null, total: { value: 96, partial: false }, minimum: null, zone: null, table: null, branch: null, missingForMinimum: null, missingForFreeDelivery: null, blocker: null, discount: null, couponIssue: null });
     // Montos escritos en el formulario: vacío → sin valor; "1,200.50" y "35,5" se entienden.
     const parsed = catalogSettingsSchema.parse({ order: { deliveryFee: '35,5', freeDeliveryFrom: '1,200.50', minimumOrder: '' } }).order;
     assert.deepEqual([parsed.deliveryFee, parsed.freeDeliveryFrom, parsed.minimumOrder], [35.5, 1200.5, null]);
@@ -196,6 +196,34 @@ describe('Pedido por WhatsApp', () => {
     assert.deepEqual(summarizeOrder(lines, pricing, { ...options, tables: false }, { ...NO_CHOICES, table: '5' }).blocker, 'fulfillment');
     const text = buildOrderMessage({ lines, pricing, intro: 'Hola', businessName: 'Café', siteUrl: 'https://x.test', t: siteTranslator('es'), options, choices: { ...NO_CHOICES, fulfillment: 'delivery', address: 'Calle 5', table: 'Terraza 2' }, reference: 'K7Q2' });
     assert.equal(text, ['Hola', '', '• 2 × Croissant — $96', '', 'Total: $96', 'Mesa: Terraza 2', 'Folio: K7Q2', '', 'Pedido desde https://x.test'].join('\n'));
+  });
+
+  it('sucursales: con varias hay que elegir; el pedido dice la sucursal (con una sola, ésa y sin preguntar)', () => {
+    const branches = [
+      { name: 'Centro', whatsapp: '+52 55 1111 1111', address: 'Av. Juárez 12' },
+      { name: 'Norte', whatsapp: '+52 55 2222 2222', address: '' },
+    ];
+    const options: OrderOptions = { ...NO_OPTIONS, pickup: true, branches };
+    const lines = [line({ qty: 1 })];
+    assert.equal(summarizeOrder(lines, pricing, options, { ...NO_CHOICES, fulfillment: 'pickup' }).blocker, 'branch');
+    const norte = summarizeOrder(lines, pricing, options, { ...NO_CHOICES, fulfillment: 'pickup', branch: 'Norte' });
+    assert.deepEqual([norte.branch?.whatsapp, norte.blocker], ['+52 55 2222 2222', null]);
+    const text = buildOrderMessage({ lines, pricing, intro: 'Hola', businessName: 'Café', siteUrl: 'https://x.test', t: siteTranslator('es'), options, choices: { ...NO_CHOICES, fulfillment: 'pickup', branch: 'Norte' } });
+    assert.match(text, /Total: \$48\nSucursal: Norte\nEntrega: Recoger en el local/);
+    const single = summarizeOrder(lines, pricing, { ...options, branches: [branches[0]] }, { ...NO_CHOICES, fulfillment: 'pickup' });
+    assert.deepEqual([single.branch?.name, single.blocker], ['Centro', null]);
+    assert.doesNotMatch(buildOrderMessage({ lines, pricing, intro: 'Hola', businessName: 'Café', siteUrl: 'https://x.test', t: siteTranslator('es'), options: { ...options, branches: [branches[0]] }, choices: { ...NO_CHOICES, fulfillment: 'pickup' } }), /Sucursal/);
+    // Formulario: WhatsApp con formato y sin nombres repetidos.
+    assert.equal(catalogSettingsSchema.safeParse({ order: { branches: [{ name: 'Centro', whatsapp: 'abc' }] } }).success, false);
+    assert.equal(catalogSettingsSchema.safeParse({ order: { branches: [{ name: 'Centro', whatsapp: '+52 55 1111 1111' }, { name: 'centro', whatsapp: '+52 55 2222 2222' }] } }).success, false);
+  });
+
+  it('con sucursales se reciben pedidos aunque el negocio no tenga WhatsApp propio', () => {
+    const site = buildSampleSite();
+    const noNumber = { ...site, business: { ...site.business, contact: { ...site.business.contact, whatsapp: '' } } };
+    assert.equal(orderConfig(noNumber), null);
+    const withBranches = { ...noNumber, settings: { ...noNumber.settings, order: { ...noNumber.settings.order, branches: [{ name: 'Centro', whatsapp: '+52 55 1111 1111', address: '' }] } } };
+    assert.notEqual(orderConfig(withBranches), null);
   });
 
   it('cupones: el código no viaja al navegador; se encuentra sin importar mayúsculas y descuenta de los productos', () => {

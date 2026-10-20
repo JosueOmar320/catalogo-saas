@@ -14,6 +14,7 @@ import { fillTemplate } from '@/lib/contact/actions';
 import { useT } from '@/i18n/client';
 import { useAction } from '@/lib/hooks/use-action';
 import { CouponsField } from './CouponsField';
+import { BranchesField } from './BranchesField';
 import { TablesField } from './TablesField';
 import { ZonesField } from './ZonesField';
 import { ScheduleField } from './ScheduleField';
@@ -29,6 +30,7 @@ export function ContactForm({ contact, actions, order, businessName, catalogUrl 
   const actionsForm = useForm<ContactActionsConfig>({ resolver: zodResolver(contactActionsSchema) as Resolver<ContactActionsConfig>, defaultValues: actions });
   const orderForm = useForm<OrderSettings>({ resolver: zodResolver(orderSchema) as Resolver<OrderSettings>, defaultValues: order });
   const orderEnabled = useWatch({ control: orderForm.control, name: 'enabled' });
+  const branchCount = useWatch({ control: orderForm.control, name: 'branches' })?.length ?? 0;
   const scheduleEnabled = useWatch({ control: contactForm.control, name: 'schedule.enabled' });
   const deliveryEnabled = useWatch({ control: orderForm.control, name: 'delivery' });
   const pausedOrders = useWatch({ control: orderForm.control, name: 'paused' });
@@ -125,8 +127,8 @@ export function ContactForm({ contact, actions, order, businessName, catalogUrl 
             run(() => updateCatalogSettings({ order: values }), { onSuccess: () => { orderForm.reset(values); router.refresh(); } }),
           )}
         >
-          {!contact.whatsapp && orderEnabled && (
-            <Alert severity="info">{t('Agrega tu número de WhatsApp arriba para recibir pedidos.')}</Alert>
+          {!contact.whatsapp && orderEnabled && branchCount === 0 && (
+            <Alert severity="info">{t('Agrega tu número de WhatsApp arriba (o el de tus sucursales) para recibir pedidos.')}</Alert>
           )}
           <SwitchControl
             control={orderForm.control}
@@ -175,6 +177,7 @@ export function ContactForm({ contact, actions, order, businessName, catalogUrl 
           <Typography variant="subtitle2">{t('Entrega')}</Typography>
           <SwitchControl control={orderForm.control} name="pickup" label={t('Recoger en el local')} description={t('El cliente pasa por su pedido.')} />
           <TablesField control={orderForm.control} catalogUrl={catalogUrl} businessName={businessName} />
+          <BranchesField control={orderForm.control} />
           <SwitchControl control={orderForm.control} name="delivery" label={t('Envío a domicilio')} description={t('El cliente escribe su dirección al pedir.')} />
           {deliveryEnabled && (
             <Grid container spacing={2}>

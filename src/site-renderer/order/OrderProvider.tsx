@@ -46,6 +46,8 @@ type OrderState = {
   fulfillment: Fulfillment | null;
   address: string;
   zone: string;
+  /** Sucursal elegida (si el negocio tiene varias): se recuerda para el siguiente pedido. */
+  branch: string;
   payment: PaymentMethod | null;
   coupon: string;
   when: When | null;
@@ -53,7 +55,7 @@ type OrderState = {
   reference: string;
 };
 
-const EMPTY: OrderState = { lines: [], name: '', note: '', fulfillment: null, address: '', zone: '', payment: null, coupon: '', when: null, reference: '' };
+const EMPTY: OrderState = { lines: [], name: '', note: '', fulfillment: null, address: '', zone: '', branch: '', payment: null, coupon: '', when: null, reference: '' };
 
 /** Sin letras ni números que se confundan (0/O, 1/I/L). */
 const REFERENCE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -92,7 +94,7 @@ function sanitize(raw: unknown): OrderState {
     rawWhen && typeof rawWhen.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rawWhen.date) && typeof rawWhen.time === 'string' && /^\d{2}:\d{2}$/.test(rawWhen.time)
       ? { date: rawWhen.date, time: rawWhen.time }
       : null;
-  return { lines, name: str(input.name, 80), note: str(input.note, 500), fulfillment, address: str(input.address, 300), zone: str(input.zone, 60), payment, coupon: str(input.coupon, 24), when, reference: typeof input.reference === 'string' && REFERENCE.test(input.reference) ? input.reference : '' };
+  return { lines, name: str(input.name, 80), note: str(input.note, 500), fulfillment, address: str(input.address, 300), zone: str(input.zone, 60), branch: str(input.branch, 60), payment, coupon: str(input.coupon, 24), when, reference: typeof input.reference === 'string' && REFERENCE.test(input.reference) ? input.reference : '' };
 }
 
 function read(key: string): OrderState {
@@ -494,7 +496,7 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
       ? pickupSlots(config.schedule, new Date(minute * 60_000), { leadMinutes: options.leadMinutes, days: options.scheduleDays, step: Number(options.slotMinutes) })
       : [];
   const when = state.when && pickupDays.some((d) => d.date === state.when!.date && d.slots.includes(state.when!.time)) ? state.when : null;
-  const choices = { fulfillment: state.fulfillment, address: state.address, zone: state.zone, table: order.table, payment: state.payment, coupon, when };
+  const choices = { fulfillment: state.fulfillment, address: state.address, zone: state.zone, branch: state.branch, table: order.table, payment: state.payment, coupon, when };
   const summary = summarizeOrder(state.lines, pricing, options, choices);
   const { subtotal, delivery, total, discount } = summary;
   const modes = fulfillmentOptions(options);
@@ -510,7 +512,7 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
     : [];
   // Antes de hidratar (minute null) se toma la pausa como vigente: el reloj se revisa en el navegador.
   const paused = Boolean(config.pause && (minute === null || isOrderingPaused(config.pause, new Date(minute * 60_000))));
-  const href = state.lines.length && !summary.blocker && !paused && outOfHours.length === 0 ? orderWhatsappHref(config.whatsapp, message) : null;
+  const href = state.lines.length && !summary.blocker && !paused && outOfHours.length === 0 ? orderWhatsappHref(summary.branch?.whatsapp || config.whatsapp, message) : null;
   const pauseText = config.pause
     ? [
         config.pause.until ? t('Pausamos los pedidos hasta el {date}.', { date: formatSaleDate(config.pause.until, pricing.locale) }) : t('Por ahora no estamos recibiendo pedidos.'),
@@ -524,6 +526,8 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
     ? t('Los pedidos están en pausa.')
     : outOfHours.length
       ? t('{name} se pide de {from} a {to}. Quítalo o vuelve en ese horario.', { name: outOfHours[0].name, from: shortTime(outOfHours[0].hours.from), to: shortTime(outOfHours[0].hours.to) })
+    : summary.blocker === 'branch'
+      ? t('Elige la sucursal.')
     : summary.blocker === 'fulfillment'
       ? t('Elige cómo quieres recibir tu pedido.')
       : summary.blocker === 'zone'
@@ -685,6 +689,22 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
             )}
 
             <div className={styles.orderFields}>
+              {options.branches.length > 1 && (
+                <fieldset className={styles.orderChoices}>
+                  <legend>{t('¿A qué sucursal?')}</legend>
+                  <div className={styles.orderBranches}>
+                    {options.branches.map((branch) => (
+                      <label key={branch.name} className={styles.orderOption}>
+                        <input type="radio" name="branch" value={branch.name} checked={summary.branch?.name === branch.name} onChange={() => order.update({ branch: branch.name })} />
+                        <span>
+                          {branch.name}
+                          {branch.address && <small className={styles.orderBranchAddress}>{branch.address}</small>}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+              )}
               {summary.table && (
                 <p className={styles.orderTable} role="status">
                   <span>{t('Pedido para la mesa {table}', { table: summary.table })}</span>

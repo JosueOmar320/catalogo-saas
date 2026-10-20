@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import { catalogSitemapEntries } from '@/lib/catalog/sitemap';
 import { itemJsonLd } from '@/lib/catalog/structured-data';
 import { buildSampleSite } from '@/lib/site/sample-site';
+import { buildHeaderProps } from '@/site-renderer/chrome';
 import { EMPTY_FILTERS, filterItems } from '@/site-renderer/filter';
 
 describe('Sitemap de los catálogos publicados', () => {
@@ -82,5 +83,23 @@ describe('Búsqueda del catálogo', () => {
     const names = (query: string) => filterItems(site.items, { ...EMPTY_FILTERS, query }).map((i) => i.name);
     assert.deepEqual(names('almendra'), ['Latte de avena']);
     assert.deepEqual(names('SHOT extra'), ['Latte de avena']);
+  });
+});
+
+describe('Ventana de bienvenida', () => {
+  const site = buildSampleSite();
+  const withPopup = { ...site, theme: { ...site.theme, popup: { ...site.theme.popup, enabled: true, title: '¡Bienvenido!', text: '10 % en tu primer pedido', code: 'BIENVENIDA', delay: 0 } } };
+  const env = { mode: 'public' as const, basePath: '/demo', currentPageId: null };
+
+  it('sólo con título, en el sitio publicado (no en la vista previa); cambia de clave si cambia el contenido', () => {
+    assert.equal(buildHeaderProps(site, env).popup, null);
+    const props = buildHeaderProps(withPopup, env).popup!;
+    assert.deepEqual([props.title, props.code, props.button], ['¡Bienvenido!', 'BIENVENIDA', null]);
+    assert.equal(buildHeaderProps(withPopup, { ...env, mode: 'preview' }).popup, null);
+    const changed = buildHeaderProps({ ...withPopup, theme: { ...withPopup.theme, popup: { ...withPopup.theme.popup, code: 'OTRO' } } }, env).popup!;
+    assert.notEqual(changed.storageKey, props.storageKey);
+    const linked = buildHeaderProps({ ...withPopup, theme: { ...withPopup.theme, popup: { ...withPopup.theme.popup, link: { ...withPopup.theme.popup.link, kind: 'whatsapp' } } } }, env).popup!;
+    assert.match(linked.button!.href, /^https:\/\/wa\.me\//);
+    assert.equal(linked.button!.label, 'Ver más');
   });
 });

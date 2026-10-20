@@ -43,14 +43,14 @@ export type OrderConfig = {
 };
 
 /**
- * Configuración del pedido, o null si está apagado o el negocio no tiene WhatsApp.
+ * Configuración del pedido, o null si está apagado o no hay WhatsApp (del negocio o de una sucursal).
  * `track`: contar los pedidos enviados (sólo el sitio publicado; la demo y las
  * vistas previas del panel no cuentan).
  */
 export function orderConfig(site: SiteViewModel, { track = false }: { track?: boolean } = {}): OrderConfig | null {
   const { order, currency, locale, priceFormat, language } = site.settings;
   const whatsapp = digitsOnly(site.business.contact.whatsapp);
-  if (!order.enabled || !whatsapp) return null;
+  if (!order.enabled || !receivesOrders(site)) return null;
   return {
     storageKey: `order:${site.business.slug}`,
     whatsapp,
@@ -67,6 +67,7 @@ export function orderConfig(site: SiteViewModel, { track = false }: { track?: bo
       deliveryNote: order.deliveryNote,
       zones: order.zones,
       tables: order.tables,
+      branches: order.branches,
       minimumOrder: order.minimumOrder,
       payments: order.payments,
       scheduling: order.scheduling,
@@ -92,7 +93,10 @@ export function orderConfig(site: SiteViewModel, { track = false }: { track?: bo
 
 /** Sólo los productos disponibles se piden; los servicios se siguen consultando. */
 export const orderable = (site: SiteViewModel, item: CatalogItemView) =>
-  site.settings.order.enabled && item.type === 'product' && item.isAvailable && Boolean(digitsOnly(site.business.contact.whatsapp));
+  site.settings.order.enabled && item.type === 'product' && item.isAvailable && receivesOrders(site);
+
+/** ¿Hay a dónde mandar los pedidos? El WhatsApp del negocio o el de alguna sucursal. */
+export const receivesOrders = (site: SiteViewModel) => Boolean(digitsOnly(site.business.contact.whatsapp)) || site.settings.order.branches.length > 0;
 
 export function toOrderItem(item: CatalogItemView): OrderItem {
   return {

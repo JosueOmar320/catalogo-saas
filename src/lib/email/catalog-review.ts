@@ -8,7 +8,13 @@ import { createTranslator } from '@/i18n/translate';
  * El HTML es simple y con estilos en línea para que se vea igual en Gmail,
  * Outlook y Apple Mail; los datos del negocio se escapan.
  */
-export type CatalogReviewCounts = { noPhoto: number; noPrice: number; noCategory: number };
+export type CatalogReviewCounts = {
+  noPhoto: number;
+  noPrice: number;
+  noCategory: number;
+  /** Reseñas de clientes esperando aprobación. */
+  pendingReviews?: number;
+};
 
 export type CatalogReviewEmailInput = {
   locale: Locale;
@@ -22,7 +28,7 @@ export type CatalogReviewEmailInput = {
 
 const escape = (value: string) => value.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
-export const reviewTotal = (counts: CatalogReviewCounts) => counts.noPhoto + counts.noPrice + counts.noCategory;
+export const reviewTotal = (counts: CatalogReviewCounts) => counts.noPhoto + counts.noPrice + counts.noCategory + (counts.pendingReviews ?? 0);
 
 export function buildCatalogReviewEmail(input: CatalogReviewEmailInput): { subject: string; html: string; text: string } {
   const t = createTranslator(input.locale, APP_EN);
@@ -36,6 +42,7 @@ export function buildCatalogReviewEmail(input: CatalogReviewEmailInput): { subje
     counts.noPhoto && (counts.noPhoto === 1 ? t('1 producto o servicio sin foto') : t('{count} productos o servicios sin foto', { count: counts.noPhoto })),
     counts.noPrice && (counts.noPrice === 1 ? t('1 producto sin precio') : t('{count} productos sin precio', { count: counts.noPrice })),
     counts.noCategory && (counts.noCategory === 1 ? t('1 producto o servicio sin categoría') : t('{count} productos o servicios sin categoría', { count: counts.noCategory })),
+    counts.pendingReviews && (counts.pendingReviews === 1 ? t('1 reseña de un cliente por aprobar') : t('{count} reseñas de clientes por aprobar', { count: counts.pendingReviews })),
   ].filter((line): line is string => Boolean(line));
   const tip = t('Las fotos y los precios son lo primero que miran tus clientes: completarlos ayuda a que te escriban.');
   const cta = t('Revisar mi catálogo');
