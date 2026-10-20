@@ -16,7 +16,7 @@ export type LinkContext = {
   texts?: LinkTexts;
 };
 
-export type LinkTexts = { whatsappMessage: string; url: string; phone: string; email: string };
+export type LinkTexts = { whatsappMessage: string; url: string; phone: string; email: string; group: string };
 
 export function pagePath(basePath: string, page: Pick<SitePage, 'slug' | 'isHome'>): string {
   return page.isHome ? basePath || '/' : `${basePath}/${page.slug}`;

@@ -7,12 +7,13 @@ import { BackgroundEditor, ColorInput, Group, Segmented, SelectInput, SliderInpu
 import { useT } from '@/i18n/client';
 import { msg } from '@/i18n/translate';
 
-type Category = 'background' | 'layout' | 'spacing' | 'appearance' | 'mobile' | 'advanced';
+type Category = 'background' | 'layout' | 'spacing' | 'appearance' | 'tablet' | 'mobile' | 'advanced';
 const CATEGORIES: { id: Category; label: string }[] = [
   { id: 'background', label: msg('Fondo') },
   { id: 'layout', label: msg('Diseño') },
   { id: 'spacing', label: msg('Espaciado') },
   { id: 'appearance', label: msg('Apariencia') },
+  { id: 'tablet', label: msg('Tablet') },
   { id: 'mobile', label: msg('Celular') },
   { id: 'advanced', label: msg('Avanzado') },
 ];
@@ -32,6 +33,15 @@ const padding = [
   { value: 'md' as const, label: 'M' },
   { value: 'lg' as const, label: 'L' },
   { value: 'xl' as const, label: 'XL' },
+  { value: 'custom' as const, label: 'px', title: msg('Medida exacta en píxeles') },
+];
+const animations = [
+  { value: 'none' as const, label: msg('Ninguna') },
+  { value: 'fade' as const, label: msg('Aparecer') },
+  { value: 'up' as const, label: msg('Subir') },
+  { value: 'zoom' as const, label: msg('Acercar') },
+  { value: 'left' as const, label: msg('Desde la izquierda') },
+  { value: 'right' as const, label: msg('Desde la derecha') },
 ];
 const dividerShapes = [
   { value: 'none' as const, label: msg('Ninguno') },
@@ -49,7 +59,7 @@ const dividerShapes = [
 export function StyleEditor({ section, onChange }: { section: Section; onChange: (section: Section) => void }) {
   const t = useT();
   // Las opciones constantes se traducen al mostrarlas.
-  const tr = <V,>(options: { value: V; label: string }[]) => options.map((o) => ({ ...o, label: t(o.label) }));
+  const tr = <V,>(options: { value: V; label: string; title?: string }[]) => options.map((o) => ({ ...o, label: t(o.label), title: o.title && t(o.title) }));
   const [category, setCategory] = useState<Category>('background');
   const style = section.style;
   const set = (patch: Partial<SectionStyle>) => onChange({ ...section, style: { ...style, ...patch } } as Section);
@@ -104,7 +114,9 @@ export function StyleEditor({ section, onChange }: { section: Section; onChange:
       {category === 'spacing' && (
         <Group title={t('Espaciado')}>
           <Segmented label={t('Relleno arriba')} value={style.paddingTop} onChange={(paddingTop) => set({ paddingTop })} options={tr(padding)} />
+          {style.paddingTop === 'custom' && <SliderInput label={t('Relleno arriba (px)')} value={style.paddingTopPx} min={0} max={400} step={4} format={(v) => `${v}px`} onChange={(paddingTopPx) => set({ paddingTopPx })} />}
           <Segmented label={t('Relleno abajo')} value={style.paddingBottom} onChange={(paddingBottom) => set({ paddingBottom })} options={tr(padding)} />
+          {style.paddingBottom === 'custom' && <SliderInput label={t('Relleno abajo (px)')} value={style.paddingBottomPx} min={0} max={400} step={4} format={(v) => `${v}px`} onChange={(paddingBottomPx) => set({ paddingBottomPx })} />}
           <Segmented label={t('Separación superior')} value={style.marginTop} onChange={(marginTop) => set({ marginTop, overlap: 'none' })} options={[{ value: 'none', label: '0' }, { value: 'sm', label: 'S' }, { value: 'md', label: 'M' }, { value: 'lg', label: 'L' }]} />
           <Box>
             <Segmented label={t('Superponer a la anterior')} value={style.overlap} onChange={(overlap) => set({ overlap, marginTop: 'none' })} options={[{ value: 'none', label: t('No') }, { value: 'sm', label: 'S' }, { value: 'md', label: 'M' }, { value: 'lg', label: 'L' }]} />
@@ -121,6 +133,9 @@ export function StyleEditor({ section, onChange }: { section: Section; onChange:
             <SliderInput label={t('Grosor del borde')} value={style.border.width} min={0} max={8} format={(v) => (v ? `${v}px` : t('Sin borde'))} onChange={(width) => set({ border: { ...style.border, width } })} />
             {style.border.width > 0 && <ColorInput label={t('Color del borde')} value={style.border.color || '#E5E5E5'} onChange={(color) => set({ border: { ...style.border, color } })} />}
             <Segmented label={t('Sombra')} value={style.shadow} onChange={(shadow) => set({ shadow })} options={[{ value: 'none', label: t('No') }, { value: 'soft', label: t('Suave') }, { value: 'medium', label: t('Media') }, { value: 'strong', label: t('Fuerte') }]} />
+          </Group>
+          <Group title={t('Animación de entrada')} description={t('Se anima al aparecer mientras el visitante baja. No se anima si su dispositivo pide reducir el movimiento.')}>
+            <SelectInput label={t('Efecto')} value={style.animation} onChange={(animation) => set({ animation })} options={tr(animations)} />
           </Group>
           <Group title={t('Divisores decorativos')} description={t('Formas en el borde superior o inferior (el color por defecto es el fondo de la página).')}>
             {(['dividerTop', 'dividerBottom'] as const).map((key) => (
@@ -139,8 +154,17 @@ export function StyleEditor({ section, onChange }: { section: Section; onChange:
         </>
       )}
 
+      {category === 'tablet' && (
+        <Group title={t('Sólo en tablets')} description={t('Ajustes para pantallas medianas. Igual = como en escritorio. Los celulares usan estos valores salvo que los cambies en Celular.')}>
+          <Segmented label={t('Espacio arriba')} value={style.tablet.paddingTop} onChange={(paddingTop) => set({ tablet: { ...style.tablet, paddingTop } })} options={tr(mobilePadding)} />
+          <Segmented label={t('Espacio abajo')} value={style.tablet.paddingBottom} onChange={(paddingBottom) => set({ tablet: { ...style.tablet, paddingBottom } })} options={tr(mobilePadding)} />
+          <Segmented label={t('Alineación del texto')} value={style.tablet.textAlign} onChange={(textAlign) => set({ tablet: { ...style.tablet, textAlign } })} options={[{ value: 'inherit', label: t('Igual') }, { value: 'left', label: t('Izquierda') }, { value: 'center', label: t('Centro') }]} />
+          <SwitchRow label={t('Ocultar en tablets')} checked={style.hideOnTablet} onChange={(hideOnTablet) => set({ hideOnTablet })} />
+        </Group>
+      )}
+
       {category === 'mobile' && (
-        <Group title={t('Sólo en celulares')} description={t('Ajustes que se aplican en pantallas chicas. Igual = como en escritorio.')}>
+        <Group title={t('Sólo en celulares')} description={t('Ajustes que se aplican en pantallas chicas. Igual = como en tablet (o en escritorio).')}>
           <Segmented label={t('Espacio arriba')} value={style.mobile.paddingTop} onChange={(paddingTop) => set({ mobile: { ...style.mobile, paddingTop } })} options={tr(mobilePadding)} />
           <Segmented label={t('Espacio abajo')} value={style.mobile.paddingBottom} onChange={(paddingBottom) => set({ mobile: { ...style.mobile, paddingBottom } })} options={tr(mobilePadding)} />
           <Segmented label={t('Alineación del texto')} value={style.mobile.textAlign} onChange={(textAlign) => set({ mobile: { ...style.mobile, textAlign } })} options={[{ value: 'inherit', label: t('Igual') }, { value: 'left', label: t('Izquierda') }, { value: 'center', label: t('Centro') }]} />
@@ -152,6 +176,7 @@ export function StyleEditor({ section, onChange }: { section: Section; onChange:
       {category === 'advanced' && (
         <Group title={t('Visibilidad y anclas')}>
           <SwitchRow label={t('Ocultar en celulares')} checked={style.hideOnMobile} onChange={(hideOnMobile) => set({ hideOnMobile })} />
+          <SwitchRow label={t('Ocultar en tablets')} checked={style.hideOnTablet} onChange={(hideOnTablet) => set({ hideOnTablet })} />
           <SwitchRow label={t('Ocultar en escritorio')} checked={style.hideOnDesktop} onChange={(hideOnDesktop) => set({ hideOnDesktop })} />
           <TextInput
             label={t('Ancla (id)')}

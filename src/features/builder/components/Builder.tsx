@@ -20,6 +20,8 @@ import { NavigationPanel } from './NavigationPanel';
 import { PageSettings } from './PageSettings';
 import { PagesPanel } from './PagesPanel';
 import { SectionEditor } from './SectionEditor';
+import { SectionTemplatesProvider } from './SectionTemplates';
+import type { SectionTemplate } from '../queries';
 import { useT } from '@/i18n/client';
 
 type Props = {
@@ -27,6 +29,7 @@ type Props = {
   persistedPageIds: string[];
   isStarter: boolean;
   usesSampleItems: boolean;
+  sectionTemplates: SectionTemplate[];
   identity: IdentityImages;
   initialPanel: BuilderPanel;
   initialDesignTab?: 'theme' | 'colors' | 'type' | 'style' | 'background' | 'cards';
@@ -167,58 +170,60 @@ export function Builder(props: Props) {
 
   return (
     <BuilderContext.Provider value={{ state, dispatch }}>
-      <GarfieldProvider state={state} dispatch={dispatch} site={props.site} onPreview={setAssistantPreview} endpoint={props.assistantEndpoint}>
-        <Box sx={{ display: 'flex', flexDirection: 'column', height: { lg: 'calc(100vh - 56px - 32px)' } }}>
-          <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', mb: 2 }}>
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Typography variant="h1">{t('Editor del sitio')}</Typography>
-              <Typography variant="body2" color="text.secondary" noWrap>{t('Páginas, secciones, navegación y diseño. Los cambios se ven al instante.')}</Typography>
-            </Box>
-            {dirty && <Chip label={t('Cambios sin guardar')} color="warning" variant="outlined" sx={{ display: { xs: 'none', sm: 'inline-flex' } }} />}
-            <Stack direction="row" spacing={0.5} role="group" aria-label={t('Historial de cambios')}>
-              <Tooltip title={t('Deshacer ({shortcut})', { shortcut: 'Ctrl/⌘ Z' })}>
-                <span>
-                  <IconButton onClick={undo} disabled={!canUndo(history) || pending} aria-label={t('Deshacer')} aria-keyshortcuts="Control+Z Meta+Z">
-                    <Undo2 size={18} />
-                  </IconButton>
-                </span>
-              </Tooltip>
-              <Tooltip title={t('Rehacer ({shortcut})', { shortcut: 'Ctrl/⌘ Shift Z' })}>
-                <span>
-                  <IconButton onClick={redo} disabled={!canRedo(history) || pending} aria-label={t('Rehacer')} aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z Control+Y">
-                    <Redo2 size={18} />
-                  </IconButton>
-                </span>
-              </Tooltip>
+      <SectionTemplatesProvider initial={props.sectionTemplates} canManage={props.canManage}>
+        <GarfieldProvider state={state} dispatch={dispatch} site={props.site} onPreview={setAssistantPreview} endpoint={props.assistantEndpoint}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', height: { lg: 'calc(100vh - 56px - 32px)' } }}>
+            <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', mb: 2 }}>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography variant="h1">{t('Editor del sitio')}</Typography>
+                <Typography variant="body2" color="text.secondary" noWrap>{t('Páginas, secciones, navegación y diseño. Los cambios se ven al instante.')}</Typography>
+              </Box>
+              {dirty && <Chip label={t('Cambios sin guardar')} color="warning" variant="outlined" sx={{ display: { xs: 'none', sm: 'inline-flex' } }} />}
+              <Stack direction="row" spacing={0.5} role="group" aria-label={t('Historial de cambios')}>
+                <Tooltip title={t('Deshacer ({shortcut})', { shortcut: 'Ctrl/⌘ Z' })}>
+                  <span>
+                    <IconButton onClick={undo} disabled={!canUndo(history) || pending} aria-label={t('Deshacer')} aria-keyshortcuts="Control+Z Meta+Z">
+                      <Undo2 size={18} />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+                <Tooltip title={t('Rehacer ({shortcut})', { shortcut: 'Ctrl/⌘ Shift Z' })}>
+                  <span>
+                    <IconButton onClick={redo} disabled={!canRedo(history) || pending} aria-label={t('Rehacer')} aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z Control+Y">
+                      <Redo2 size={18} />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+              </Stack>
+              <Button color="inherit" onClick={discard} disabled={!dirty || pending}>{t('Descartar')}</Button>
+              <Button variant="contained" onClick={save} disabled={!dirty || pending || !props.canManage}>
+                {pending ? t('Guardando…') : t('Guardar cambios')}
+              </Button>
             </Stack>
-            <Button color="inherit" onClick={discard} disabled={!dirty || pending}>{t('Descartar')}</Button>
-            <Button variant="contained" onClick={save} disabled={!dirty || pending || !props.canManage}>
-              {pending ? t('Guardando…') : t('Guardar cambios')}
-            </Button>
-          </Stack>
 
-          {wide ? (
-            <Box sx={{ display: 'grid', gridTemplateColumns: '380px minmax(0, 1fr)', gap: 2, flex: 1, minHeight: 0 }}>
-              {left}
-              {preview}
-            </Box>
-          ) : (
+            {wide ? (
+              <Box sx={{ display: 'grid', gridTemplateColumns: '380px minmax(0, 1fr)', gap: 2, flex: 1, minHeight: 0 }}>
+                {left}
+                {preview}
+              </Box>
+            ) : (
+              <>
+                <Tabs value={mobileView} onChange={(_, v) => setMobileView(v)} sx={{ mb: 1.5 }}>
+                  <Tab value="edit" label={t('Editar')} />
+                  <Tab value="preview" label={t('Vista previa')} />
+                </Tabs>
+                {mobileView === 'edit' ? left : <Box sx={{ height: '78vh' }}>{preview}</Box>}
+              </>
+            )}
+          </Box>
+          {props.canManage && (
             <>
-              <Tabs value={mobileView} onChange={(_, v) => setMobileView(v)} sx={{ mb: 1.5 }}>
-                <Tab value="edit" label={t('Editar')} />
-                <Tab value="preview" label={t('Vista previa')} />
-              </Tabs>
-              {mobileView === 'edit' ? left : <Box sx={{ height: '78vh' }}>{preview}</Box>}
+              <GarfieldLauncher />
+              <GarfieldPanel />
             </>
           )}
-        </Box>
-        {props.canManage && (
-          <>
-            <GarfieldLauncher />
-            <GarfieldPanel />
-          </>
-        )}
-      </GarfieldProvider>
+        </GarfieldProvider>
+      </SectionTemplatesProvider>
     </BuilderContext.Provider>
   );
 }

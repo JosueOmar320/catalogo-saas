@@ -1,7 +1,7 @@
 import { findHome, type SitePage } from '@/lib/site/pages';
 import { pagePath } from '@/lib/site/links';
 import type { SiteViewModel } from '@/lib/site/view-model';
-import { buildHeaderProps } from './chrome';
+import { buildHeaderProps, footerColumns } from './chrome';
 import { orderConfig } from './order/config';
 import type { RenderEnv } from './env';
 import { PageView } from './PageView';
@@ -23,7 +23,7 @@ export function SiteView({ site, page, env, children }: { site: SiteViewModel; p
     <SiteShell theme={site.theme} language={site.settings.language} order={orderConfig(site)}>
       <SiteHeader {...header} />
       <main className={styles.main}>{children ?? (current && <PageView page={current} site={site} env={{ ...env, currentPageId: current.id }} />)}</main>
-      <SiteFooter site={site} navItems={header.items} />
+      {!(current && !children && current.style.hideFooter) && <SiteFooter site={site} navItems={header.items} columns={footerColumns(site, env)} />}
     </SiteShell>
   );
 }

@@ -43,7 +43,7 @@ export const RenderSection = memo(function RenderSection({ section, site, env, i
 /** Una página: su fondo propio (sobrescribe el global) + sus secciones visibles. */
 export function PageView({ page, site, env }: { page: SitePage; site: SiteViewModel; env: RenderEnv }) {
   const visible = page.sections.filter((s) => s.visible);
-  const overlay = headerOverlaysPage(site.theme, page.sections);
+  const overlay = headerOverlaysPage(site.theme, page.sections, page.style.header);
   return (
     <div className={`${styles.page} ${overlay ? styles.pageOverlay : ''}`} data-page-id={page.id}>
       <BackgroundLayers background={page.style.background} />

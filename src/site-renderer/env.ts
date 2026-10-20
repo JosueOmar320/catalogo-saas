@@ -27,7 +27,7 @@ export function linkContext(site: SiteViewModel, env: RenderEnv): LinkContext {
 /** Textos por defecto de enlaces y menú en el idioma del negocio. */
 function linkTexts(site: SiteViewModel): LinkTexts {
   const t = siteTranslator(site.settings.language);
-  return { whatsappMessage: t('Hola {name}, quisiera más información.', { name: site.business.name }), url: t('Enlace'), phone: t('Llamar'), email: t('Email') };
+  return { whatsappMessage: t('Hola {name}, quisiera más información.', { name: site.business.name }), url: t('Enlace'), phone: t('Llamar'), email: t('Email'), group: t('Más') };
 }
 
 export function itemPath(env: RenderEnv, slug: string) {

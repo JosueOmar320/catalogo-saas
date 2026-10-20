@@ -12,6 +12,7 @@ import { useOptionalGarfield } from '@/features/assistant/components/GarfieldPro
 import { useBuilder, useSelectedPage } from '../state';
 import { CONTENT_EDITORS, type EditorProps } from './editors/content-editors';
 import { StyleEditor } from './editors/StyleEditor';
+import { SaveAsTemplateButton } from './SectionTemplates';
 import { useT } from '@/i18n/client';
 
 /** Panel de edición de una sección: Contenido | Estilo. */
@@ -49,6 +50,7 @@ export function SectionEditor({ site }: { site: SiteViewModel }) {
             </IconButton>
           </Tooltip>
         )}
+        <SaveAsTemplateButton section={section} />
         <Tooltip title={t('Duplicar')}>
           <IconButton onClick={() => dispatch({ type: 'duplicateSection', sectionId: section.id })} aria-label={t('Duplicar')}><Copy size={16} /></IconButton>
         </Tooltip>

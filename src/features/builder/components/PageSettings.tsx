@@ -4,7 +4,7 @@ import { Box, IconButton, InputAdornment, Stack, TextField, Typography } from '@
 import { ArrowLeft } from 'lucide-react';
 import { slugify, slugifyLive } from '@/lib/utils/slug';
 import { useBuilder, useSelectedPage } from '../state';
-import { BackgroundEditor, Group, MediaInput, SwitchRow, TextInput } from './controls';
+import { BackgroundEditor, Group, MediaInput, SelectInput, SwitchRow, TextInput } from './controls';
 import { useT } from '@/i18n/client';
 
 /** Configuración de la página: nombre, URL, menú, fondo propio y SEO. */
@@ -19,7 +19,7 @@ export function PageSettings({ baseUrl }: { baseUrl: string }) {
   const setInNav = (visible: boolean) => {
     const items = navItem
       ? state.navigation.items.map((i) => (i.id === navItem.id ? { ...i, visible } : i))
-      : [...state.navigation.items, { id: crypto.randomUUID(), kind: 'page' as const, pageId: page.id, label: '', url: '', visible, style: 'link' as const, newTab: false }];
+      : [...state.navigation.items, { id: crypto.randomUUID(), kind: 'page' as const, pageId: page.id, label: '', url: '', visible, style: 'link' as const, newTab: false, parentId: '' }];
     dispatch({ type: 'setNavigation', navigation: { items } });
   };
   const setNavLabel = (label: string) => {
@@ -49,6 +49,21 @@ export function PageSettings({ baseUrl }: { baseUrl: string }) {
         <SwitchRow label={t('Página activa')} description={t('Si la desactivas deja de ser visible en el sitio publicado.')} checked={page.isPublished || page.isHome} onChange={(isPublished) => update({ isPublished })} />
         <SwitchRow label={t('Mostrar en el menú')} checked={Boolean(navItem?.visible)} onChange={setInNav} />
         {navItem?.visible && <TextInput label={t('Texto en el menú')} value={navItem.label} placeholder={page.title} onChange={setNavLabel} maxLength={40} />}
+      </Group>
+      <Group title={t('Header y pie de página')} description={t('El menú y el pie de página son los mismos en todo el sitio; aquí decides cómo se ven en esta página.')}>
+        <SelectInput
+          label={t('Header')}
+          value={page.style.header}
+          onChange={(header) => update({ style: { ...page.style, header } })}
+          options={[
+            { value: 'auto', label: t('Según el estilo del sitio') },
+            { value: 'overlay', label: t('Transparente sobre la primera sección') },
+            { value: 'solid', label: t('Normal (nunca transparente)') },
+            { value: 'hidden', label: t('Sin header (página de aterrizaje)') },
+          ]}
+          helper={page.style.header === 'overlay' ? t('El texto del header se ve blanco: ideal sobre una portada con imagen o color oscuro.') : page.style.header === 'hidden' ? t('Sin menú: el visitante sólo ve el contenido de esta página.') : undefined}
+        />
+        <SwitchRow label={t('Ocultar el pie de página')} checked={page.style.hideFooter} onChange={(hideFooter) => update({ style: { ...page.style, hideFooter } })} />
       </Group>
       <Group title={t('Fondo de la página')} description={t('Sobrescribe el fondo global sólo en esta página.')}>
         <BackgroundEditor value={page.style.background} onChange={(background) => update({ style: { ...page.style, background } })} inheritLabel={t('Global')} />

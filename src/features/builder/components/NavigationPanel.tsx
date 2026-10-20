@@ -1,18 +1,18 @@
 'use client';
 
 import { Box, Button, ButtonBase, IconButton, Stack, Switch, TextField, Tooltip, Typography } from '@mui/material';
-import { ExternalLink, FileText, Mail, MessageCircle, Phone, Plus, Trash2 } from 'lucide-react';
+import { ChevronDown, ExternalLink, FileText, Mail, MessageCircle, Phone, Plus, Trash2 } from 'lucide-react';
 import { SortableList } from '@/components/ui/SortableList';
 import { FOOTER_STYLE_META, FOOTER_STYLES, HEADER_STYLE_META, HEADER_STYLES } from '@/lib/design/styles-registry';
 import type { ThemeConfig } from '@/lib/design/theme';
-import type { NavigationItem } from '@/lib/site/navigation';
+import { navParent, type NavigationItem } from '@/lib/site/navigation';
 import { useBuilder } from '../state';
-import { Advanced, BackgroundEditor, Group, LinkEditor, Segmented, SelectInput, SwitchRow, TextInput } from './controls';
+import { Advanced, BackgroundEditor, Group, LinkEditor, ListEditor, Segmented, SelectInput, SwitchRow, TextInput } from './controls';
 import { useT } from '@/i18n/client';
 import { msg } from '@/i18n/translate';
 
-const KIND_ICON = { page: FileText, url: ExternalLink, whatsapp: MessageCircle, phone: Phone, email: Mail } as const;
-const KIND_LABEL = { page: msg('Página'), url: msg('Enlace'), whatsapp: 'WhatsApp', phone: msg('Llamar'), email: msg('Email') } as const;
+const KIND_ICON = { page: FileText, url: ExternalLink, whatsapp: MessageCircle, phone: Phone, email: Mail, group: ChevronDown } as const;
+const KIND_LABEL = { page: msg('Página'), url: msg('Enlace'), whatsapp: 'WhatsApp', phone: msg('Llamar'), email: msg('Email'), group: msg('Submenú') } as const;
 
 /** Menú (ítems ordenables), header (7 estilos) y footer. */
 export function NavigationPanel() {
@@ -30,11 +30,24 @@ export function NavigationPanel() {
   const setPopup = (patch: Partial<ThemeConfig['popup']>) => dispatch({ type: 'setTheme', theme: { ...theme, popup: { ...popup, ...patch } } });
   const pagesNotInMenu = state.pages.filter((p) => !items.some((i) => i.kind === 'page' && i.pageId === p.id));
   const addItem = (kind: NavigationItem['kind'], pageId = '') =>
-    setItems([...items, { id: crypto.randomUUID(), kind, pageId, label: '', url: kind === 'url' ? 'https://' : '', visible: true, style: kind === 'whatsapp' ? 'button' : 'link', newTab: kind === 'url' }]);
+    setItems([...items, { id: crypto.randomUUID(), kind, pageId, label: kind === 'group' ? t('Más') : '', url: kind === 'url' ? 'https://' : '', visible: true, style: kind === 'whatsapp' ? 'button' : 'link', newTab: kind === 'url', parentId: '' }]);
+  // Quitar un ítem con submenú deja a sus hijos en el primer nivel.
+  const removeItem = (id: string) => setItems(items.filter((i) => i.id !== id).map((i) => (i.parentId === id ? { ...i, parentId: '' } : i)));
+  const hasChildren = (id: string) => items.some((i) => navParent(i, items)?.id === id);
+  // Posibles padres: ítems de primer nivel que no son botones.
+  const parentOptions = (item: NavigationItem) => items.filter((i) => i.id !== item.id && !navParent(i, items) && i.style === 'link');
+  /** Mueve el ítem al final del submenú elegido (o lo deja donde está si vuelve al primer nivel). */
+  const setParent = (item: NavigationItem, parentId: string) => {
+    const moved = { ...item, parentId, style: parentId ? ('link' as const) : item.style };
+    if (!parentId) return setItems(items.map((i) => (i.id === item.id ? moved : i)));
+    const rest = items.filter((i) => i.id !== item.id);
+    const lastIndex = rest.reduce((last, i, index) => (i.id === parentId || i.parentId === parentId ? index : last), -1);
+    setItems([...rest.slice(0, lastIndex + 1), moved, ...rest.slice(lastIndex + 1)]);
+  };
 
   return (
     <Box>
-      <Group title={t('Menú')} description={t('Arrastra para ordenar. Puedes ocultar páginas, renombrarlas y agregar enlaces o botones.')}>
+      <Group title={t('Menú')} description={t('Arrastra para ordenar. Puedes ocultar páginas, renombrarlas, agregar enlaces o botones y agruparlos en submenús.')}>
         <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 1.5, overflow: 'hidden' }}>
           {items.length === 0 ? (
             <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>{t('El menú está vacío.')}</Typography>
@@ -47,8 +60,10 @@ export function NavigationPanel() {
                 const Icon = KIND_ICON[item.kind];
                 const page = state.pages.find((p) => p.id === item.pageId);
                 const missing = item.kind === 'page' && !page;
+                const parent = navParent(item, items);
+                const parents = parentOptions(item);
                 return (
-                  <Stack spacing={0.75}>
+                  <Stack spacing={0.75} sx={parent ? { pl: 2, borderLeft: 2, borderColor: 'divider' } : undefined} role="group" aria-label={item.label || page?.title || t(KIND_LABEL[item.kind])}>
                     <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                       <Box sx={{ color: 'text.secondary', display: 'flex' }}><Icon size={15} /></Box>
                       <Typography variant="body2" sx={{ fontWeight: 600, flex: 1, color: item.visible ? 'text.primary' : 'text.disabled' }} noWrap>
@@ -58,11 +73,25 @@ export function NavigationPanel() {
                       <Tooltip title={item.visible ? t('Visible') : t('Oculto')}>
                         <Switch size="small" checked={item.visible} onChange={(e) => updateItem(item.id, { visible: e.target.checked })} slotProps={{ input: { 'aria-label': 'Visible' } }} />
                       </Tooltip>
-                      <IconButton size="small" onClick={() => setItems(items.filter((i) => i.id !== item.id))} aria-label={t('Quitar del menú')}><Trash2 size={14} /></IconButton>
+                      <IconButton size="small" onClick={() => removeItem(item.id)} aria-label={t('Quitar del menú')}><Trash2 size={14} /></IconButton>
                     </Stack>
                     <TextInput label={t('Texto')} value={item.label} placeholder={page?.title ?? t(KIND_LABEL[item.kind])} onChange={(label) => updateItem(item.id, { label })} maxLength={40} />
                     {item.kind === 'url' && <TextInput label="URL" value={item.url} onChange={(url) => updateItem(item.id, { url })} />}
-                    <Segmented label={t('Estilo')} value={item.style} onChange={(style) => updateItem(item.id, { style })} options={[{ value: 'link', label: t('Enlace') }, { value: 'button', label: t('Botón') }]} />
+                    {item.kind === 'group' ? (
+                      !hasChildren(item.id) && <Typography variant="caption" color="text.secondary">{t('Elige «Dentro de: {label}» en otros ítems para llenarlo. Vacío no se muestra.', { label: item.label || t('Más') })}</Typography>
+                    ) : (
+                      <>
+                        {!parent && <Segmented label={t('Estilo')} value={item.style} onChange={(style) => updateItem(item.id, { style })} options={[{ value: 'link', label: t('Enlace') }, { value: 'button', label: t('Botón') }]} />}
+                        {!hasChildren(item.id) && (parent || parents.length > 0) && (
+                          <SelectInput
+                            label={t('Dentro de')}
+                            value={parent?.id ?? ''}
+                            onChange={(parentId) => setParent(item, parentId)}
+                            options={[{ value: '', label: t('Menú principal') }, ...parents.map((p) => ({ value: p.id, label: p.label || state.pages.find((x) => x.id === p.pageId)?.title || t(KIND_LABEL[p.kind]) }))]}
+                          />
+                        )}
+                      </>
+                    )}
                   </Stack>
                 );
               }}
@@ -76,6 +105,7 @@ export function NavigationPanel() {
           <Button size="small" variant="outlined" color="inherit" startIcon={<ExternalLink size={13} />} onClick={() => addItem('url')}>{t('Enlace externo')}</Button>
           <Button size="small" variant="outlined" color="inherit" startIcon={<MessageCircle size={13} />} onClick={() => addItem('whatsapp')}>WhatsApp</Button>
           <Button size="small" variant="outlined" color="inherit" startIcon={<Phone size={13} />} onClick={() => addItem('phone')}>{t('Llamar')}</Button>
+          <Button size="small" variant="outlined" color="inherit" startIcon={<ChevronDown size={13} />} onClick={() => addItem('group')}>{t('Submenú')}</Button>
         </Stack>
       </Group>
 
@@ -182,6 +212,36 @@ export function NavigationPanel() {
         <SwitchRow label={t('Horarios')} checked={theme.footer.showHours} onChange={(showHours) => setFooter({ showHours })} />
         <SwitchRow label={t('Redes sociales')} checked={theme.footer.showSocial} onChange={(showSocial) => setFooter({ showSocial })} />
         <TextInput label={t('Texto personalizado')} value={theme.footer.customText} placeholder={t('Vacío = slogan del negocio')} onChange={(customText) => setFooter({ customText })} multiline rows={2} maxLength={500} />
+        <Advanced title={t('Columnas de enlaces propias')} defaultOpen={theme.footer.columns.length > 0}>
+          <Typography variant="caption" color="text.secondary">{t('Por ejemplo «Ayuda» con envíos, devoluciones y preguntas frecuentes.')}</Typography>
+          <ListEditor
+            items={theme.footer.columns}
+            onChange={(columns) => setFooter({ columns })}
+            max={4}
+            addLabel={t('Agregar columna')}
+            itemTitle={(column, index) => column.title || t('Columna {n}', { n: index + 1 })}
+            create={() => ({ id: crypto.randomUUID(), title: '', links: [] })}
+            renderItem={(column, update) => (
+              <>
+                <TextInput label={t('Título')} value={column.title} placeholder={t('Ayuda')} onChange={(title) => update({ ...column, title })} maxLength={40} />
+                <ListEditor
+                  items={column.links}
+                  onChange={(links) => update({ ...column, links })}
+                  max={8}
+                  addLabel={t('Agregar enlace')}
+                  itemTitle={(link, index) => link.label || state.pages.find((p) => p.id === link.link.pageId)?.title || t('Enlace {n}', { n: index + 1 })}
+                  create={() => ({ id: crypto.randomUUID(), label: '', link: { kind: 'page' as const, pageId: '', url: '', message: '', newTab: false } })}
+                  renderItem={(link, updateLink) => (
+                    <>
+                      <TextInput label={t('Texto')} value={link.label} placeholder={state.pages.find((p) => p.id === link.link.pageId)?.title} onChange={(label) => updateLink({ ...link, label })} maxLength={40} />
+                      <LinkEditor value={link.link} onChange={(target) => updateLink({ ...link, link: target })} pages={state.pages} />
+                    </>
+                  )}
+                />
+              </>
+            )}
+          />
+        </Advanced>
         <Advanced title={t('Fondo del pie de página')}>
           <BackgroundEditor value={theme.footer.background} onChange={(background) => setFooter({ background })} inheritLabel={t('Según estilo')} />
         </Advanced>
