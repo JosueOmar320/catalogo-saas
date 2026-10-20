@@ -4,13 +4,13 @@ import { HybridModel, type Routing } from './router';
 import { ClaudeModel } from './claude';
 import { CLAUDE_DEFAULT_MODEL, GEMINI_BASE_URL, GEMINI_DEFAULT_MODELS, list, resolveProvider, type Env } from './config';
 import { OpenAICompatibleModel } from './openai-compatible';
-import { ProviderError, QuotaExceededError, type AssistantModel } from './types';
+import { ProviderError, QuotaExceededError, type AssistantModel, type TaskModel } from './types';
 
 export type { ChatMessage, ModelInput, ModelResult } from './types';
 export { resolveProvider } from './config';
 
 /** Modelo de lenguaje configurado (o null: sólo intérprete local). */
-function languageModel(env: Env): AssistantModel | null {
+function languageModel(env: Env): (AssistantModel & TaskModel) | null {
   const provider = resolveProvider(env);
   const models = list(env.ASSISTANT_MODEL);
   const reasoningEffort = env.ASSISTANT_REASONING_EFFORT?.trim() || undefined;
@@ -37,6 +37,16 @@ const ROUTINGS: Routing[] = ['local-first', 'llm-first', 'local-only'];
 export function getAssistantModel(env: Env = process.env): AssistantModel {
   const routing = ROUTINGS.find((r) => r === env.ASSISTANT_ROUTING?.trim()) ?? 'local-first';
   return new HybridModel(languageModel(env), routing);
+}
+
+/**
+ * Modelo para tareas fuera de los editores (redactar, ayuda del panel), o
+ * null si no hay IA configurada (o ASSISTANT_ROUTING=local-only): entonces
+ * cada tarea usa su versión sin IA.
+ */
+export function getTaskModel(env: Env = process.env): TaskModel | null {
+  if (env.ASSISTANT_ROUTING?.trim() === 'local-only') return null;
+  return languageModel(env);
 }
 
 /** Mensaje en español (clave del catálogo) + datos: la ruta lo traduce con t(message, params). */

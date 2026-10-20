@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Box, Button, Stack, Typography } from '@mui/material';
 import { useRouter } from 'next/navigation';
 import { Controller, useForm, useWatch, type Resolver } from 'react-hook-form';
+import { WriteWithGarfield } from '@/features/assistant/components/WriteWithGarfield';
 import { ImageField } from '@/components/form/ImageField';
 import { SwitchControl, TextFieldControl } from '@/components/form/fields';
 import { SectionCard } from '@/components/ui/SectionCard';
@@ -19,7 +20,7 @@ export function SeoForm({ seo, fallbackTitle, fallbackDescription, url }: Props)
   const t = useT();
   const router = useRouter();
   const { run, pending } = useAction();
-  const { control, handleSubmit, reset, formState } = useForm<CatalogSeo>({ resolver: zodResolver(seoSchema) as Resolver<CatalogSeo>, defaultValues: seo });
+  const { control, handleSubmit, reset, formState, getValues, setValue } = useForm<CatalogSeo>({ resolver: zodResolver(seoSchema) as Resolver<CatalogSeo>, defaultValues: seo });
   const title = useWatch({ control, name: 'title' }) || fallbackTitle;
   const description = useWatch({ control, name: 'description' }) || fallbackDescription;
 
@@ -32,7 +33,9 @@ export function SeoForm({ seo, fallbackTitle, fallbackDescription, url }: Props)
           <Typography variant="body2" color="text.secondary" sx={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{description}</Typography>
         </Box>
         <TextFieldControl control={control} name="title" label={t('Título')} placeholder={fallbackTitle} helperText={t('Recomendado: hasta 60 caracteres.')} />
+        <WriteWithGarfield kind="seo_title" getInput={() => ({ current: getValues('title') })} onPick={(text) => setValue('title', text, { shouldDirty: true, shouldValidate: true })} />
         <TextFieldControl control={control} name="description" label={t('Descripción')} placeholder={fallbackDescription} multiline minRows={2} helperText={t('Recomendado: 120 a 160 caracteres.')} />
+        <WriteWithGarfield kind="seo_description" getInput={() => ({ current: getValues('description') })} onPick={(text) => setValue('description', text, { shouldDirty: true, shouldValidate: true })} />
         <Controller
           control={control}
           name="ogImagePath"

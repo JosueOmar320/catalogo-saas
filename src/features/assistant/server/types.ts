@@ -1,3 +1,4 @@
+import type { z } from 'zod';
 import type { AnyAction } from '@/lib/assistant/modes';
 import type { AssistantContext } from '@/lib/assistant/context';
 import type { Locale } from '@/i18n/config';
@@ -38,6 +39,16 @@ export type ModelResult = {
 export interface AssistantModel {
   readonly mode: ModelResult['mode'];
   respond(input: ModelInput): Promise<ModelResult>;
+}
+
+/**
+ * Tareas fuera de los editores (redactar un texto, contestar una duda del
+ * panel): una sola respuesta JSON validada con un schema Zod, sin acciones.
+ */
+export type TaskInput<T> = { system: string; prompt: string; schema: z.ZodType<T>; maxTokens?: number };
+export interface TaskModel {
+  readonly provider: string;
+  generate<T>(task: TaskInput<T>): Promise<T>;
 }
 
 /** Cuota o límite de uso agotado en el proveedor (plan gratuito): se puede seguir en modo básico. */

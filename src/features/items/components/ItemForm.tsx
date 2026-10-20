@@ -26,6 +26,7 @@ import { SelectControl, SwitchControl, TextFieldControl } from '@/components/for
 import { PageHeader } from '@/components/ui/PageHeader';
 import { SaveBar } from '@/components/ui/SaveBar';
 import { SectionCard } from '@/components/ui/SectionCard';
+import { WriteWithGarfield } from '@/features/assistant/components/WriteWithGarfield';
 import { useT } from '@/i18n/client';
 import { DIET_TAGS, type DietTag } from '@/lib/catalog/item-attributes';
 import { marginOf } from '@/lib/catalog/margin';
@@ -89,6 +90,17 @@ export function ItemForm({ itemId, defaultValues, categories, previewSite }: Pro
     setValue('extras', source.extras.options.map((o) => ({ id: newId(), name: o.name, price: o.price ? String(o.price) : '', available: o.available })), dirty);
   };
   const values = useWatch({ control }) as ItemFormValues;
+  /** Lo que Garfield necesita para redactar (el formulario aún sin guardar). */
+  const garfieldInput = (current: string) => ({
+    current,
+    item: {
+      name: values.name ?? '',
+      type: values.type === 'service' ? ('service' as const) : ('product' as const),
+      category: categories.find((c) => c.id === values.categoryId)?.name ?? '',
+      price: values.price ? `${values.price} ${values.currency ?? ''}`.trim() : '',
+      details: [values.shortDescription, values.description, values.tags?.length ? values.tags.join(', ') : ''].filter(Boolean).join('\n').slice(0, 1000),
+    },
+  });
   // Margen con el costo privado (no se publica).
   const margin = marginOf(priceToNumber(values.price ?? ''), priceToNumber(values.cost ?? ''));
   const marginText = margin
@@ -167,6 +179,7 @@ export function ItemForm({ itemId, defaultValues, categories, previewSite }: Pro
                   minRows={2}
                   helperText={t('Se muestra en la tarjeta. {count}/300', { count: values.shortDescription?.length ?? 0 })}
                 />
+                <WriteWithGarfield kind="item_short" getInput={() => garfieldInput(values.shortDescription ?? '')} onPick={(text) => setValue('shortDescription', text, { shouldDirty: true, shouldValidate: true })} />
               </Stack>
             </SectionCard>
 
@@ -316,6 +329,7 @@ export function ItemForm({ itemId, defaultValues, categories, previewSite }: Pro
               <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
                 <Stack spacing={2}>
                   <TextFieldControl control={control} name="description" label={t('Descripción completa')} multiline minRows={4} helperText={t('Se muestra en la página del ítem.')} />
+                  <WriteWithGarfield kind="item_description" getInput={() => garfieldInput(values.description ?? '')} onPick={(text) => setValue('description', text, { shouldDirty: true, shouldValidate: true })} />
                   <TextFieldControl control={control} name="sku" label={t('Código / SKU')} sx={{ maxWidth: 280 }} />
                   <Controller
                     control={control}

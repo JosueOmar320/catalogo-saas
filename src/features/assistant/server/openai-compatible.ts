@@ -1,7 +1,7 @@
 import type { AssistantMode } from '@/lib/assistant/context';
 import { parseModeActions, type AnyAction } from '@/lib/assistant/modes';
 import { jsonSystemPrompt } from './prompt';
-import { MAX_TOOL_ROUNDS, ProviderError, QuotaExceededError, userTurn, type AssistantModel, type ModelInput, type ModelResult } from './types';
+import { MAX_TOOL_ROUNDS, ProviderError, QuotaExceededError, userTurn, type AssistantModel, type ModelInput, type ModelResult, type TaskInput, type TaskModel } from './types';
 
 /**
  * Proveedor para cualquier API compatible con OpenAI (chat/completions):
@@ -32,7 +32,7 @@ export type OpenAICompatibleOptions = {
 
 const RETRYABLE_MODEL_ERRORS = new Set([404, 500, 502, 503, 504]);
 
-export class OpenAICompatibleModel implements AssistantModel {
+export class OpenAICompatibleModel implements AssistantModel, TaskModel {
   readonly mode = 'ai' as const;
   private fetch: typeof fetch;
 
@@ -40,12 +40,43 @@ export class OpenAICompatibleModel implements AssistantModel {
     this.fetch = options.fetch ?? fetch;
   }
 
-  async respond(input: ModelInput): Promise<ModelResult> {
+  get provider() {
+    return this.options.provider;
+  }
+
+  respond(input: ModelInput): Promise<ModelResult> {
+    return this.withModels((model) => this.respondWith(model, input));
+  }
+
+  /** Tarea con respuesta JSON validada (una corrección si no cumple el schema). */
+  generate<T>(task: TaskInput<T>): Promise<T> {
+    return this.withModels(async (model) => {
+      const conversation: Message[] = [
+        { role: 'system', content: `${task.system}\n\nResponde SOLO con un objeto JSON válido.` },
+        { role: 'user', content: task.prompt },
+      ];
+      const first = await this.complete(model, conversation, true, task.maxTokens);
+      const parsed = task.schema.safeParse(extractJson(first.text));
+      if (parsed.success) return parsed.data;
+      const retry = await this.complete(
+        model,
+        [...conversation, { role: 'assistant', content: first.text.slice(0, 8000) }, { role: 'user', content: `La respuesta no cumple el formato: ${parsed.error.issues.slice(0, 3).map((i) => `${i.path.join('.')}: ${i.message}`).join('; ')}. Responde de nuevo SOLO con el objeto JSON corregido.` }],
+        true,
+        task.maxTokens,
+      );
+      const second = task.schema.safeParse(extractJson(retry.text));
+      if (second.success) return second.data;
+      throw new ProviderError(`${this.options.provider} no respondió en el formato esperado.`, 502);
+    });
+  }
+
+  /** Cadena de respaldo: si un modelo agota su cuota o no está disponible, se usa el siguiente. */
+  private async withModels<R>(run: (model: string) => Promise<R>): Promise<R> {
     let quotaHit = false;
     let lastError: unknown = null;
     for (const model of this.options.models) {
       try {
-        return await this.respondWith(model, input);
+        return await run(model);
       } catch (error) {
         lastError = error;
         if (error instanceof QuotaExceededError) quotaHit = true;
@@ -100,8 +131,8 @@ export class OpenAICompatibleModel implements AssistantModel {
     return { ...parsed.result, mode: this.mode, provider: this.options.provider, model, warnings: parsed.errors };
   }
 
-  private async complete(model: string, messages: Message[], jsonMode = true): Promise<{ text: string; truncated: boolean }> {
-    const body: Record<string, unknown> = { model, messages, temperature: 0.4, max_tokens: 8192 };
+  private async complete(model: string, messages: Message[], jsonMode = true, maxTokens = 8192): Promise<{ text: string; truncated: boolean }> {
+    const body: Record<string, unknown> = { model, messages, temperature: 0.4, max_tokens: maxTokens };
     if (jsonMode) body.response_format = { type: 'json_object' };
     if (this.options.reasoningEffort) body.reasoning_effort = this.options.reasoningEffort;
 
@@ -120,7 +151,7 @@ export class OpenAICompatibleModel implements AssistantModel {
     if (!response.ok) {
       const detail = (await response.text().catch(() => '')).slice(0, 300);
       // Algunos proveedores no admiten response_format: reintentar sin modo JSON (el prompt ya exige JSON).
-      if (response.status === 400 && jsonMode && /response_format|json/i.test(detail)) return this.complete(model, messages, false);
+      if (response.status === 400 && jsonMode && /response_format|json/i.test(detail)) return this.complete(model, messages, false, maxTokens);
       if (response.status === 429) throw new QuotaExceededError(`${this.options.provider}: límite de uso alcanzado (${model}).`);
       if (response.status === 401 || response.status === 403) throw new ProviderError(`La clave de ${this.options.provider} no es válida o no tiene acceso a ${model}.`, 401);
       throw new ProviderError(`${this.options.provider} respondió ${response.status} con ${model}: ${detail}`, response.status);

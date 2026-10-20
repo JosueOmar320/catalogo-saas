@@ -1025,6 +1025,34 @@ test('editor: submenú, columna propia en el pie, página sin header ni pie y pl
   await visitor.close();
 });
 
+test('Garfield en el panel (sin IA): dice dónde está cada cosa, lleva ahí y propone textos', async ({ page }) => {
+  await page.goto('/dashboard');
+  await page.getByRole('button', { name: 'Preguntar a Garfield' }).click();
+  const help = page.getByRole('dialog', { name: 'Ayuda de Garfield' });
+  await help.getByLabel('Pregunta para Garfield').fill('¿Cómo creo un cupón de descuento?');
+  await help.getByRole('button', { name: 'Enviar' }).click();
+  await help.getByRole('link', { name: 'Ir a Contacto y pedidos' }).click();
+  await expect(page).toHaveURL(/\/dashboard\/settings\/contacto$/);
+  // La conversación sigue al navegar.
+  await expect(help.getByText('¿Cómo creo un cupón de descuento?')).toBeVisible();
+  await help.getByRole('button', { name: 'Cerrar' }).click();
+
+  // Desde la búsqueda rápida también se le puede preguntar.
+  await page.keyboard.press('Control+k');
+  await page.getByRole('combobox', { name: 'Buscar' }).fill('cambiar colores del sitio');
+  await page.getByRole('option', { name: /Preguntar a Garfield/ }).click();
+  await expect(help.getByRole('link', { name: 'Ir a Diseño del sitio' })).toBeVisible();
+  await help.getByRole('button', { name: 'Cerrar' }).click();
+
+  // Escribir con Garfield: propone y el texto queda en el campo para guardarlo.
+  await page.goto('/dashboard/settings/seo');
+  await page.getByRole('button', { name: 'Escribir con Garfield' }).first().click();
+  const proposals = page.getByRole('dialog', { name: 'Garfield te propone' });
+  await expect(proposals.getByText(/Sin IA/)).toBeVisible();
+  await proposals.getByRole('button', { name: 'Usar la opción 1' }).click();
+  await expect(page.getByLabel('Título', { exact: true })).toHaveValue(new RegExp(businessName));
+});
+
 test('accesibilidad del panel y la administración (axe)', async ({ page }) => {
   test.setTimeout(120_000); // 13 páginas, cada una con su análisis
   for (const path of ['/dashboard', '/dashboard/catalog/products', '/dashboard/catalog/items/new?type=product', '/dashboard/catalog/categories', '/dashboard/settings/contacto', '/dashboard/settings/negocio', '/dashboard/resenas', '/dashboard/media', '/dashboard/sitio', '/dashboard/export/pdf', '/admin', '/admin/usuarios', '/cuenta']) {

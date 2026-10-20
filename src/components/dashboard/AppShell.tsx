@@ -12,6 +12,7 @@ import { env } from '@/lib/env';
 import { BusinessMenu } from './BusinessMenu';
 import { AccountMenu } from './AccountMenu';
 import { CommandPalette, OPEN_PALETTE_EVENT } from './CommandPalette';
+import { PanelGarfield } from '@/features/assistant/components/PanelGarfield';
 import { ADMIN_NAVIGATION, NAVIGATION } from './navigation';
 import { PublishControl } from './PublishControl';
 
@@ -171,6 +172,7 @@ export function AppShell(props: Props) {
               <MenuIcon size={18} />
             </IconButton>
             <SearchTrigger />
+            {!admin && <PanelGarfield />}
             <LanguageSwitcher />
             <ColorModeToggle />
             {!admin && <PublishControl />}
