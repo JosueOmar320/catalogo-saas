@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:retry": "node scripts/build-retry.mjs",
     "start": "next start",
     "typecheck": "next typegen && tsc --noEmit",
     "lint": "eslint",
