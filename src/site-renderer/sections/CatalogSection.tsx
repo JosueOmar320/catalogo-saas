@@ -105,6 +105,23 @@ export function CatalogSection({ section, site, env }: SectionProps<'catalog'>) 
     [items, favoritesFilter, favoriteIds, query, categoryId, type, onlyAvailable, priceMin, priceMax, badge, attrs, diet, sort],
   );
   const isSearching = filtered.length !== items.length || query.trim() !== '';
+
+  // Búsquedas sin resultados (sólo el sitio publicado): el negocio ve qué le piden y no tiene.
+  const trackMisses = env.mode === 'public' && env.basePath === `/catalogo/${site.business.slug}`;
+  const reported = useRef(new Set<string>());
+  useEffect(() => {
+    const term = query.trim().toLowerCase();
+    if (!trackMisses || term.length < 3 || reported.current.has(term)) return;
+    // Sin resultados en todo el catálogo (no por los demás filtros), y cuando deja de escribir.
+    if (filterItems(items, { ...EMPTY_FILTERS, query: term }).length > 0) return;
+    const timer = window.setTimeout(() => {
+      reported.current.add(term);
+      try {
+        navigator.sendBeacon?.('/api/search-misses', new Blob([JSON.stringify({ slug: site.business.slug, term })], { type: 'application/json' }));
+      } catch {}
+    }, 1500);
+    return () => window.clearTimeout(timer);
+  }, [query, items, trackMisses, site.business.slug]);
   const featured = content.showFeatured && !isSearching ? items.filter((i) => i.isFeatured).slice(0, 6) : [];
 
   const perPage = pagination.perPage;

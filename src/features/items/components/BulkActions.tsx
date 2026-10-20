@@ -20,30 +20,49 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import { ArrowRight, ChevronDown, Eye, FolderInput, PackageCheck, Percent, Star, Trash2, X } from 'lucide-react';
+import { ArrowRight, ChevronDown, Eye, FolderInput, PackageCheck, Percent, Star, Tags, Trash2, X } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { useT } from '@/i18n/client';
 import { msg } from '@/i18n/translate';
 import { adjustPrice, isValidAdjustment, MAX_PERCENT, MIN_PERCENT, type PriceAdjustment, type PriceRounding } from '@/lib/catalog/price-adjust';
 import { formatPrice } from '@/lib/utils/format';
 import type { BulkItemsInput } from '../actions';
+import { labelsHtml } from '../labels';
 
-type Row = { id: string; name: string; price: number | null; currency: string };
+type Row = { id: string; name: string; price: number | null; priceLabel: string | null; currency: string; url: string };
 
 type Props = {
   selected: Row[];
   categories: { id: string; name: string }[];
   locale: string;
+  businessName: string;
   pending: boolean;
   onAction: (action: BulkItemsInput['action']) => void;
   onClear: () => void;
 };
 
 /** Barra que aparece al seleccionar ítems: visibilidad, disponibilidad, destacados, categoría, precios y eliminar. */
-export function BulkActions({ selected, categories, locale, pending, onAction, onClear }: Props) {
+export function BulkActions({ selected, categories, locale, businessName, pending, onAction, onClear }: Props) {
   const t = useT();
   const [priceOpen, setPriceOpen] = useState(false);
   const count = selected.length;
+  /** Hoja para imprimir: nombre, precio y QR a la ficha de cada seleccionado. */
+  const printLabels = () => {
+    const win = window.open('', '_blank');
+    if (!win) return;
+    win.document.write(
+      labelsHtml({
+        items: selected.map((row) => ({ name: row.name, priceLabel: row.priceLabel, url: row.url })),
+        businessName,
+        title: t('Etiquetas con QR'),
+        scanText: t('Escanea para ver y pedir'),
+        lang: document.documentElement.lang,
+      }),
+    );
+    win.document.close();
+    win.focus();
+    win.print();
+  };
 
   return (
     <Paper
@@ -93,6 +112,9 @@ export function BulkActions({ selected, categories, locale, pending, onAction, o
       />
       <Button size="small" color="inherit" variant="outlined" startIcon={<Percent size={14} />} disabled={pending} onClick={() => setPriceOpen(true)} sx={{ borderColor: 'currentColor' }}>
         {t('Precios')}
+      </Button>
+      <Button size="small" color="inherit" variant="outlined" startIcon={<Tags size={14} />} onClick={() => printLabels()} sx={{ borderColor: 'currentColor' }}>
+        {t('Etiquetas con QR')}
       </Button>
       <Button size="small" color="inherit" variant="outlined" startIcon={<Trash2 size={14} />} disabled={pending} onClick={() => onAction({ type: 'delete' })} sx={{ borderColor: 'currentColor' }}>
         {t('Eliminar')}

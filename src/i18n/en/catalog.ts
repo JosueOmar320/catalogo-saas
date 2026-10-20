@@ -738,6 +738,19 @@ const catalog: Catalog = {
   'Sucursales': 'Branches',
   'Escribe el nombre de la sucursal': 'Enter the branch name',
   'Hay sucursales con el mismo nombre': 'Some branches have the same name',
+  '1 vez': '1 time',
+  '{count} veces': '{count} times',
+  'Búsquedas sin resultados': 'Searches with no results',
+  'Lo que buscaron y no encontraron': 'What they searched for and didn’t find',
+  'Si lo vendes, agrégalo; si ya lo tienes con otro nombre, pon esas palabras en sus etiquetas para que lo encuentren.': 'If you sell it, add it; if you already have it under another name, add those words to its tags so people find it.',
+  'Todavía nadie buscó algo que no tengas. Aquí verás lo que tus clientes buscan sin encontrar.': 'Nobody has searched for something you don’t have yet. Here you’ll see what customers search for and can’t find.',
+  'Últimos 30 días, en el buscador de tu sitio': 'Last 30 days, in your site’s search',
+  'Copiar lista de precios': 'Copy price list',
+  'Lista copiada': 'List copied',
+  'Lista de precios (para WhatsApp)': 'Price list (for WhatsApp)',
+  'Por categoría, con lo visible y disponible. Los asteriscos se ven en negritas en WhatsApp.': 'By category, with what is visible and available. Asterisks show as bold in WhatsApp.',
+  'Escanea para ver y pedir': 'Scan to view and order',
+  'Etiquetas con QR': 'QR labels',
 };
 
 export default catalog;

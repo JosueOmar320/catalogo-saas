@@ -50,6 +50,8 @@ export type ItemRowData = {
   hasDescription: boolean;
   /** Existencias (null = no se controlan). */
   stock: number | null;
+  /** Ficha pública (para las etiquetas con QR). */
+  url: string;
   /** Fuera de temporada hoy: aún no empieza o ya terminó (y desde/hasta cuándo). */
   season: { status: 'upcoming' | 'ended'; date: string } | null;
   /** Fichas vistas y unidades pedidas en 30 días (null si no se pueden leer). */
@@ -66,6 +68,8 @@ type Props = {
   initialReview?: ReviewFilter | null;
   /** Locale de precios del catálogo (vista previa del ajuste de precios). */
   locale: string;
+  /** Para las etiquetas con QR. */
+  businessName: string;
 };
 
 type ToggleField = 'is_visible' | 'is_available' | 'is_featured';
@@ -75,7 +79,7 @@ const FIELD_KEY: Record<ToggleField, 'isVisible' | 'isAvailable' | 'isFeatured'>
   is_featured: 'isFeatured',
 };
 
-export function ItemsTable({ items: initialItems, categories, initialReview = null, locale }: Props) {
+export function ItemsTable({ items: initialItems, categories, initialReview = null, locale, businessName }: Props) {
   const t = useT();
   const router = useRouter();
   const confirm = useConfirm();
@@ -194,7 +198,7 @@ export function ItemsTable({ items: initialItems, categories, initialReview = nu
   return (
     <>
       {selected.size > 0 && (
-        <BulkActions selected={selectedRows} categories={categories} locale={locale} pending={pending} onAction={(action) => void applyBulk(action)} onClear={() => setSelected(new Set())} />
+        <BulkActions selected={selectedRows} categories={categories} locale={locale} businessName={businessName} pending={pending} onAction={(action) => void applyBulk(action)} onClear={() => setSelected(new Set())} />
       )}
       <Paper variant="outlined">
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ p: 1.5, borderBottom: 1, borderColor: 'divider' }}>

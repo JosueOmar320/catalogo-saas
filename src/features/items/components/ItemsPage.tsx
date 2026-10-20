@@ -9,6 +9,7 @@ import { itemThumbnail, listCategories, listItemsWithImages } from '@/features/c
 import { requireBusinessContext } from '@/lib/auth/session';
 import { parseItemAttributes } from '@/lib/catalog/item-attributes';
 import { formatSaleDate, isSaleOver } from '@/lib/catalog/sale';
+import { itemUrl } from '@/lib/catalog/view-model';
 import { seasonStatus } from '@/lib/catalog/season';
 import { parseCatalogSettings } from '@/lib/catalog/settings';
 import { formatPrice } from '@/lib/utils/format';
@@ -62,6 +63,7 @@ export async function ItemsPage({ type, review }: { type: ItemType; review?: Rev
       hasDescription: Boolean(i.short_description || i.description),
       stock: parseItemAttributes(i.attributes).stock,
       season: seasonOf(i),
+      url: itemUrl(ctx.business.slug, i.slug),
       views: performance.views ? (performance.views[i.id] ?? 0) : null,
       units: performance.units ? (performance.units[i.id] ?? 0) : null,
     }));
@@ -103,7 +105,7 @@ export async function ItemsPage({ type, review }: { type: ItemType; review?: Rev
           />
         </SectionCard>
       ) : (
-        <ItemsTable key={review ?? 'all'} items={rows} categories={categories.map(({ id, name }) => ({ id, name }))} initialReview={review} locale={locale} />
+        <ItemsTable key={review ?? 'all'} items={rows} categories={categories.map(({ id, name }) => ({ id, name }))} initialReview={review} locale={locale} businessName={ctx.business.name} />
       )}
     </>
   );

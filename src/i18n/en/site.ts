@@ -336,6 +336,9 @@ const catalog: Catalog = {
   'Elige la sucursal.': 'Choose the branch.',
   '¿A qué sucursal?': 'Which branch?',
   'Sucursal: {branch}': 'Branch: {branch}',
+  '*{business}* — Lista de precios': '*{business}* — Price list',
+  'Pide aquí: {url}': 'Order here: {url}',
+  'desde {price}': 'from {price}',
 };
 
 export default catalog;

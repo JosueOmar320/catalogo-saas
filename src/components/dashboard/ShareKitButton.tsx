@@ -1,14 +1,14 @@
 'use client';
 
 import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField, Typography } from '@mui/material';
-import { Download, Megaphone, MessageCircle } from 'lucide-react';
+import { Copy, Download, Megaphone, MessageCircle } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CopyField } from '@/components/ui/CopyField';
 import { useT } from '@/i18n/client';
 import { qrMatrix } from '@/lib/qr';
 import { displayUrl, readableOn, shareMessages, wrapText } from '@/lib/share/kit';
 
-type Props = { url: string; businessName: string; slogan: string | null; color: string; slug: string; published: boolean };
+type Props = { url: string; businessName: string; slogan: string | null; color: string; slug: string; published: boolean; /** Lista de precios en texto (en el idioma del sitio). */ priceList: string };
 
 const W = 1080;
 const H = 1920;
@@ -17,13 +17,20 @@ const H = 1920;
  * "Kit para compartir": imagen para historias (1080×1920, con el nombre, el
  * enlace y el código QR, en el color del sitio) y mensajes listos para copiar.
  */
-export function ShareKitButton({ url, businessName, slogan, color, slug, published }: Props) {
+export function ShareKitButton({ url, businessName, slogan, color, slug, published, priceList }: Props) {
   const t = useT();
   const [open, setOpen] = useState(false);
   const [headline, setHeadline] = useState('');
   const canvas = useRef<HTMLCanvasElement>(null);
   const messages = useMemo(() => shareMessages(t, businessName, url), [t, businessName, url]);
   const title = headline.trim() || t('Haz tu pedido por WhatsApp');
+  const [copied, setCopied] = useState(false);
+  const copyList = async () => {
+    try {
+      await navigator.clipboard.writeText(priceList);
+      setCopied(true);
+    } catch {}
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -94,6 +101,20 @@ export function ShareKitButton({ url, businessName, slogan, color, slug, publish
                   {t('Enviar por WhatsApp')}
                 </Button>
               </Box>
+              <TextField
+                label={t('Lista de precios (para WhatsApp)')}
+                value={priceList}
+                multiline
+                minRows={4}
+                maxRows={10}
+                slotProps={{ htmlInput: { readOnly: true } }}
+                helperText={t('Por categoría, con lo visible y disponible. Los asteriscos se ven en negritas en WhatsApp.')}
+              />
+              <Stack direction="row" spacing={1}>
+                <Button variant="outlined" color="inherit" startIcon={<Copy size={15} />} onClick={() => void copyList()}>
+                  {copied ? t('Lista copiada') : t('Copiar lista de precios')}
+                </Button>
+              </Stack>
             </Stack>
           </Stack>
         </DialogContent>

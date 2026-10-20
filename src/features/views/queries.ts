@@ -1,6 +1,7 @@
 import 'server-only';
 import type { BusinessContext } from '@/lib/auth/session';
 import { windowStart } from '@/lib/orders/stats';
+import { topSearchMisses, type SearchMiss } from '@/lib/catalog/search-misses';
 import { summarizeViews, type ViewStatsSummary } from '@/lib/views/stats';
 
 /**
@@ -41,4 +42,17 @@ export async function getItemPerformance(ctx: BusinessContext, today = new Date(
     return totals;
   };
   return { views: views.error ? null : sum(views.data, 'views'), units: units.error ? null : sum(units.data, 'units') };
+}
+
+/**
+ * Lo que buscaron en el sitio publicado y no encontraron (30 días), los más
+ * buscados primero. null si no se puede leer (p. ej. sin la migración).
+ */
+export async function getSearchMisses(ctx: BusinessContext, today = new Date()): Promise<SearchMiss[] | null> {
+  const { data, error } = await ctx.supabase.from('search_miss_stats_daily').select('term, searches').eq('business_id', ctx.business.id).gte('day', windowStart(today)).limit(5000);
+  if (error) {
+    console.error('[search-misses] no se pudieron leer las búsquedas', { code: error.code });
+    return null;
+  }
+  return topSearchMisses(data);
 }

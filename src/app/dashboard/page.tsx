@@ -16,7 +16,7 @@ import { countReview, REVIEW_FILTERS, REVIEW_ORDER, type ReviewFilter } from '@/
 import { OrderStatsChart } from '@/features/orders/components/OrderStatsChart';
 import { getOrderStats } from '@/features/orders/queries';
 import { countPendingReviews } from '@/features/reviews/queries';
-import { getViewStats } from '@/features/views/queries';
+import { getSearchMisses, getViewStats } from '@/features/views/queries';
 import { getLocale, getT } from '@/i18n/server';
 import { requireBusinessContext } from '@/lib/auth/session';
 import { parseContact } from '@/lib/business/profile';
@@ -26,6 +26,10 @@ import { parseCatalogSettings } from '@/lib/catalog/settings';
 import { catalogUrl } from '@/lib/catalog/view-model';
 import { formatDate, formatPrice, formatRelative } from '@/lib/utils/format';
 import { ordersPer100Views } from '@/lib/views/stats';
+import { inSeason } from '@/lib/catalog/season';
+import { variantPriceSummary } from '@/lib/catalog/variants';
+import { priceListText } from '@/site-renderer/price-list';
+import { siteTranslator } from '@/site-renderer/site-i18n';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
@@ -36,7 +40,7 @@ const RECENT_COUNT = 5;
 
 export default async function DashboardHome({ searchParams }: PageProps<'/dashboard'>) {
   const ctx = await requireBusinessContext();
-  const [{ welcome }, categories, items, pages, t, locale, orderStats, viewStats, pendingReviews] = await Promise.all([
+  const [{ welcome }, categories, items, pages, t, locale, orderStats, viewStats, pendingReviews, searchMisses] = await Promise.all([
     searchParams,
     listCategories(ctx),
     listItemsWithImages(ctx),
@@ -46,6 +50,7 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
     getOrderStats(ctx),
     getViewStats(ctx),
     countPendingReviews(ctx),
+    getSearchMisses(ctx),
   ]);
   const contact = parseContact(ctx.business.contact);
   const settings = parseCatalogSettings(ctx.catalog.settings);
@@ -109,6 +114,20 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
   const ordersOn = settings.order.enabled && (Boolean(contact.whatsapp) || settings.order.branches.length > 0);
   const itemNames = new Map(items.map((i) => [i.id, i.name]));
   const money = (value: number) => formatPrice(value, settings.currency, settings.locale, settings.priceFormat);
+
+  // Lista de precios en el idioma del sitio: lo visible y disponible (en temporada), por categoría.
+  const siteT = siteTranslator(settings.language);
+  const listed = items.filter((i) => i.is_visible && i.is_available && inSeason(parseItemAttributes(i.attributes).season, now));
+  const priceGroups = [...categories.map((c) => ({ id: c.id as string | null, name: c.name as string | null })), { id: null, name: categories.length ? siteT('Otros') : null }].map((group) => ({
+    name: group.name,
+    items: listed
+      .filter((i) => i.category_id === group.id || (group.id === null && !categories.some((c) => c.id === i.category_id)))
+      .map((i) => {
+        const summary = variantPriceSummary(i.price === null ? null : Number(i.price), parseItemAttributes(i.attributes).variants);
+        return { name: i.name, price: summary.price === null ? null : money(summary.price), from: summary.from };
+      }),
+  }));
+  const priceList = priceListText(siteT, { businessName: ctx.business.name, url, groups: priceGroups });
 
   return (
     <>
@@ -309,6 +328,33 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
               </SectionCard>
             )}
 
+            {searchMisses && published && (
+              <SectionCard title={t('Lo que buscaron y no encontraron')} description={t('Últimos 30 días, en el buscador de tu sitio')}>
+                {searchMisses.length === 0 ? (
+                  <Typography variant="body2" color="text.secondary">
+                    {t('Todavía nadie buscó algo que no tengas. Aquí verás lo que tus clientes buscan sin encontrar.')}
+                  </Typography>
+                ) : (
+                  <Stack spacing={1.5}>
+                    <Stack component="ol" spacing={0.75} sx={{ m: 0, pl: 2.5 }} aria-label={t('Búsquedas sin resultados')}>
+                      {searchMisses.map((miss) => (
+                        <Typography component="li" variant="body2" key={miss.term}>
+                          «{miss.term}»
+                          <Typography component="span" variant="body2" color="text.secondary">
+                            {' · '}
+                            {miss.searches === 1 ? t('1 vez') : t('{count} veces', { count: miss.searches })}
+                          </Typography>
+                        </Typography>
+                      ))}
+                    </Stack>
+                    <Typography variant="caption" color="text.secondary">
+                      {t('Si lo vendes, agrégalo; si ya lo tienes con otro nombre, pon esas palabras en sus etiquetas para que lo encuentren.')}
+                    </Typography>
+                  </Stack>
+                )}
+              </SectionCard>
+            )}
+
             <SectionCard
               title={t('Editado recientemente')}
               flush={recent.length > 0}
@@ -368,6 +414,7 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
                     color={parseTheme(ctx.catalog.theme).colors.accent}
                     slug={ctx.business.slug}
                     published={published}
+                    priceList={priceList}
                   />
                 </Stack>
               </Box>
