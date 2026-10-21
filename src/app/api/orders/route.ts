@@ -54,6 +54,9 @@ const MAX_BYTES = 32_000;
 const LIMIT = 20;
 const WINDOW_SECONDS = 3600;
 
+/** La función no existe (PostgREST / Postgres). */
+const MISSING_FUNCTION = new Set(['PGRST202', '42883']);
+
 const noContent = () => new NextResponse(null, { status: 204, headers: { 'Cache-Control': 'no-store' } });
 
 export async function POST(request: NextRequest) {
@@ -77,7 +80,10 @@ export async function POST(request: NextRequest) {
   }
 
   const order = orderSchema.safeParse(body.order);
-  const { error } = await createAdminClient().rpc('record_order_v2', { p_business_slug: body.slug, p_items: body.items, p_order: order.success ? (order.data as Json) : null });
+  const supabase = createAdminClient();
+  let { error } = await supabase.rpc('record_order_v2', { p_business_slug: body.slug, p_items: body.items, p_order: order.success ? (order.data as Json) : null });
+  // Base sin la migración de la bandeja todavía: al menos se cuentan (como antes).
+  if (error && MISSING_FUNCTION.has(error.code ?? '')) ({ error } = await supabase.rpc('record_order', { p_business_slug: body.slug, p_items: body.items }));
   if (error) console.error('[orders] no se pudo registrar el pedido', { code: error.code });
   return noContent();
 }
