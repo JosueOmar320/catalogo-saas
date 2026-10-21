@@ -16,6 +16,8 @@ import type { Translator } from '@/i18n/translate';
 import {
   applyTiers,
   buildOrderMessage,
+  inboxOrder,
+  type InboxOrder,
   clampQty,
   effectiveFulfillment,
   findCoupon,
@@ -233,13 +235,14 @@ function writeLast(key: string, lines: OrderLine[]) {
 }
 
 /**
- * Avisa al servidor que se envió un pedido (sólo ids y cantidades, para las
- * estadísticas del negocio). sendBeacon no bloquea ni se cancela al abrir
+ * Avisa al servidor que se envió un pedido: ids y cantidades para las
+ * estadísticas y, si el negocio usa la bandeja, la copia del pedido (lo mismo
+ * que dice el mensaje). sendBeacon no bloquea ni se cancela al abrir
  * WhatsApp; si el navegador no lo tiene, no pasa nada.
  */
-function trackOrder(slug: string, lines: OrderLine[]) {
+function trackOrder(slug: string, lines: OrderLine[], order: InboxOrder | null) {
   try {
-    const body = JSON.stringify({ slug, items: lines.map((line) => ({ id: line.itemId ?? line.id, qty: line.qty })) });
+    const body = JSON.stringify({ slug, items: lines.map((line) => ({ id: line.itemId ?? line.id, qty: line.qty })), ...(order ? { order } : {}) });
     navigator.sendBeacon?.('/api/orders', new Blob([body], { type: 'application/json' }));
   } catch {}
 }
@@ -596,7 +599,8 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
     const key = JSON.stringify(state.lines.map((line) => [line.id, line.qty]));
     if (tracked.current === key) return;
     tracked.current = key;
-    trackOrder(config.trackSlug, state.lines);
+    const copy = config.inbox ? inboxOrder({ lines: state.lines, pricing, customerName: state.name, note: state.note, options, choices, reference: state.reference || undefined }) : null;
+    trackOrder(config.trackSlug, state.lines, copy);
   };
   const close = (event: SyntheticEvent) => (event.currentTarget.closest('dialog') as HTMLDialogElement | null)?.close();
 
@@ -912,6 +916,7 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
               {t('Enviar pedido por WhatsApp')}
             </a>
           )}
+          {href && config.inbox && <p className={styles.orderCopyNote}>{t('{business} también recibe una copia de tu pedido en su panel para darle seguimiento.', { business: config.businessName })}</p>}
           {state.lines.length > 0 && (
             <div className={styles.orderFooterLinks}>
               <ShareListButton lines={state.lines} siteUrl={config.siteUrl} businessName={config.businessName} />

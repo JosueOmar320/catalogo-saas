@@ -454,6 +454,64 @@ export function buildOrderMessage({ lines, pricing, intro, businessName, custome
 }
 
 /** Enlace wa.me con el mensaje, o null si el número no sirve. */
+/** Copia del pedido para la bandeja del negocio (lo mismo que dice el mensaje de WhatsApp). */
+export type InboxOrder = {
+  reference: string;
+  customerName: string;
+  fulfillment: Fulfillment | 'table' | '';
+  address: string;
+  zone: string;
+  branch: string;
+  table: string;
+  when: string;
+  payment: PaymentMethod | '';
+  note: string;
+  coupon: string;
+  currency: string;
+  subtotal: number | null;
+  discount: number | null;
+  deliveryFee: number | null;
+  tip: number | null;
+  total: number | null;
+  partial: boolean;
+  lines: { itemId: string; name: string; qty: number; unitPrice: number | null; note: string }[];
+};
+
+export function inboxOrder({ lines, pricing, customerName, note, options = NO_OPTIONS, choices = NO_CHOICES, now, reference }: Omit<OrderMessageInput, 'intro' | 'businessName' | 'siteUrl' | 't'>): InboxOrder | null {
+  if (!reference || lines.length === 0) return null;
+  const summary = summarizeOrder(lines, pricing, options, choices, now);
+  const table = summary.table;
+  const fulfillment = table ? 'table' : (effectiveFulfillment(options, choices.fulfillment) ?? '');
+  const discount = (summary.discount?.value ?? 0) + (summary.promotion?.value ?? 0);
+  return {
+    reference,
+    customerName: customerName?.trim() ?? '',
+    fulfillment,
+    address: fulfillment === 'delivery' ? choices.address.trim() : '',
+    zone: summary.zone?.name ?? '',
+    branch: summary.branch && options.branches.length > 1 ? summary.branch.name : '',
+    table: table ?? '',
+    when: !table && options.scheduling !== 'off' && choices.when ? `${choices.when.date} ${choices.when.time}` : '',
+    payment: choices.payment && options.payments.includes(choices.payment) ? choices.payment : '',
+    note: note?.trim() ?? '',
+    coupon: summary.discount?.code ?? '',
+    currency: pricing.currency,
+    subtotal: summary.subtotal?.value ?? null,
+    discount: discount > 0 ? cents(discount) : null,
+    deliveryFee: summary.delivery?.kind === 'fee' ? summary.delivery.value : null,
+    tip: summary.tip?.value ?? null,
+    total: summary.total?.value ?? null,
+    partial: Boolean(summary.subtotal?.partial),
+    lines: lines.map((line) => ({
+      itemId: line.itemId ?? line.id,
+      name: line.name,
+      qty: line.qty,
+      unitPrice: line.price !== null && line.currency === pricing.currency ? line.price : null,
+      note: line.note?.trim() ?? '',
+    })),
+  };
+}
+
 export function orderWhatsappHref(whatsapp: string, text: string): string | null {
   const number = digitsOnly(whatsapp).replace('+', '');
   return number ? `https://wa.me/${number}?text=${encodeURIComponent(text)}` : null;

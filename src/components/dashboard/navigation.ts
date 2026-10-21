@@ -1,4 +1,4 @@
-import { Building2, FileDown, Globe, History, Home, Image as ImageIcon, LayoutDashboard, LibraryBig, MessageSquareText, Package, Settings, SlidersHorizontal, Users, type LucideIcon } from 'lucide-react';
+import { Building2, FileDown, Globe, History, Home, Image as ImageIcon, LayoutDashboard, LibraryBig, MessageSquareText, Package, ReceiptText, Settings, SlidersHorizontal, Users, type LucideIcon } from 'lucide-react';
 import { msg } from '@/i18n/translate';
 
 /** Las etiquetas se marcan con msg(): quien las muestra las traduce con t(). */
@@ -17,6 +17,7 @@ export type SettingsSectionId = (typeof SETTINGS_SECTIONS)[number]['id'];
 
 export const NAVIGATION: NavEntry[] = [
   { label: msg('Inicio'), icon: Home, href: '/dashboard' },
+  { label: msg('Pedidos'), icon: ReceiptText, href: '/dashboard/pedidos' },
   {
     label: msg('Contenido'),
     icon: Package,

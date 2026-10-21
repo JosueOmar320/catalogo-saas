@@ -15,6 +15,7 @@ import { itemThumbnail, listCategories, listItemsWithImages, listPages } from '@
 import { countReview, REVIEW_FILTERS, REVIEW_ORDER, type ReviewFilter } from '@/features/items/review';
 import { OrderStatsChart } from '@/features/orders/components/OrderStatsChart';
 import { getOrderStats } from '@/features/orders/queries';
+import { countNewOrders } from '@/features/orders/inbox-queries';
 import { countPendingReviews } from '@/features/reviews/queries';
 import { getSearchMisses, getViewStats } from '@/features/views/queries';
 import { getLocale, getT } from '@/i18n/server';
@@ -41,7 +42,7 @@ const RECENT_COUNT = 5;
 
 export default async function DashboardHome({ searchParams }: PageProps<'/dashboard'>) {
   const ctx = await requireBusinessContext();
-  const [{ welcome }, categories, items, pages, t, locale, orderStats, viewStats, pendingReviews, searchMisses] = await Promise.all([
+  const [{ welcome }, categories, items, pages, t, locale, orderStats, viewStats, pendingReviews, searchMisses, newOrders] = await Promise.all([
     searchParams,
     listCategories(ctx),
     listItemsWithImages(ctx),
@@ -52,6 +53,7 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
     getViewStats(ctx),
     countPendingReviews(ctx),
     getSearchMisses(ctx),
+    countNewOrders(ctx),
   ]);
   const contact = parseContact(ctx.business.contact);
   const settings = parseCatalogSettings(ctx.catalog.settings);
@@ -233,7 +235,17 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
             )}
 
             {orderStats && (
-              <SectionCard title={t('Pedidos por WhatsApp')} description={t('Últimos 30 días')}>
+              <SectionCard
+                title={t('Pedidos por WhatsApp')}
+                description={t('Últimos 30 días')}
+                action={
+                  ordersOn && (
+                    <LinkButton href="/dashboard/pedidos" size="small" variant={newOrders > 0 ? 'contained' : 'outlined'} color={newOrders > 0 ? 'primary' : 'inherit'}>
+                      {newOrders > 0 ? t('{count} nuevos', { count: newOrders }) : t('Ver pedidos')}
+                    </LinkButton>
+                  )
+                }
+              >
                 {!ordersOn ? (
                   <Stack spacing={1.5} sx={{ alignItems: 'flex-start' }}>
                     <Typography variant="body2" color="text.secondary">
