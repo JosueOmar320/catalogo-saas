@@ -1,6 +1,6 @@
 import { toCsv } from '@/lib/catalog/csv';
 import { msg, type Translator } from '@/i18n/translate';
-import { PAYMENT_LABELS } from '@/site-renderer/order/message';
+import { PAYMENT_LABELS } from './payment-labels';
 import type { OrderLineRow, OrderStatus } from '@/types/database';
 
 /** Bandeja de pedidos: estados, pestañas y el reporte CSV (puro: lo usan la página, la ruta y las pruebas). */

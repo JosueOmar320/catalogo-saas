@@ -2,11 +2,14 @@ import { Alert } from '@mui/material';
 import type { Metadata } from 'next';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { OrdersBoard } from '@/features/orders/components/OrdersBoard';
-import { countNewOrders, listOrders } from '@/features/orders/inbox-queries';
+import { countNewOrders, listOrders, PAGE } from '@/features/orders/inbox-queries';
 import { getLocale, getT } from '@/i18n/server';
 import { canManageCatalog, requireCatalogSite } from '@/lib/auth/session';
 import { parseCatalogSettings } from '@/lib/catalog/settings';
 import { findTab, parseRange } from '@/lib/orders/inbox';
+
+/** Momento del render (ms) para "hace 5 min". Server Component: una vez por petición, y el cliente lo reutiliza al hidratar. */
+const requestNow = () => Date.now();
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
@@ -39,6 +42,8 @@ export default async function OrdersPage({ searchParams }: PageProps<'/dashboard
           canManage={canManageCatalog(ctx)}
           locale={locale}
           priceLocale={settings.locale}
+          now={requestNow()}
+          pageSize={PAGE}
         />
       )}
     </>

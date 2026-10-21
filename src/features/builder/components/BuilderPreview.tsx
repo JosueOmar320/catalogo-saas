@@ -92,6 +92,8 @@ export function BuilderPreview({ site, pageId, selectedSectionId, device, onDevi
             border: 1,
             borderColor: 'divider',
             transition: 'width .2s ease',
+            // Nada del sitio (ni del código propio del negocio) pinta fuera de la vista previa.
+            contain: 'paint',
             '& [data-section-id]': { cursor: 'pointer' },
             '& [data-section-id]:hover': { outline: '2px dashed rgba(47,84,214,.55)', outlineOffset: '-2px' },
             ...(selectedSectionId ? { [`& [data-section-id="${selectedSectionId}"]`]: { outline: '2px solid #2F54D6', outlineOffset: '-2px' } } : {}),

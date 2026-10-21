@@ -2,7 +2,7 @@
 
 import { ArrowRight, X } from 'lucide-react';
 import { useCallback, useSyncExternalStore } from 'react';
-import { isSaleOver } from '@/lib/catalog/sale';
+import { isSaleOver } from '@/lib/catalog/sale-core';
 import type { AnnouncementProps } from './chrome';
 import { useSiteT } from './SiteI18n';
 import styles from './site.module.css';

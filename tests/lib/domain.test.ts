@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { internalAuthEmail, usernameSchema } from '@/lib/auth/username';
 import { fillTemplate, resolveContactActions, type ContactContext } from '@/lib/contact/actions';
-import { catalogSettingsSchema } from '@/lib/catalog/settings';
+import { catalogSettingsSchema, parseCatalogSettings } from '@/lib/catalog/settings';
 import { isWithinLimit, parseEntitlements } from '@/lib/plans/entitlements';
 import { fetchAllRows } from '@/lib/supabase/paginate';
 import { BUSINESS_SLUG_PATTERN, slugify, slugifyLive, withRandomSuffix } from '@/lib/utils/slug';
@@ -99,6 +99,30 @@ describe('Acciones de contacto', () => {
     assert.ok(!whatsapp!.href.includes(' '));
     const noWhatsapp = resolveContactActions(config, { ...base, contact: { ...base.contact, whatsapp: '' } });
     assert.equal(noWhatsapp.some((a) => a.type === 'whatsapp'), false);
+  });
+});
+
+describe('Configuración del catálogo', () => {
+  it('un campo corrupto no borra el resto: cada sección (y cada campo de la sección) cae a su valor por defecto por separado', () => {
+    const settings = parseCatalogSettings({
+      currency: 'MXN',
+      language: 'en',
+      order: { enabled: true, paused: true, coupons: [{ code: 'x', value: 'abc' }] },
+      pdf: { layout: 'list', paperSize: 'oficio' },
+    });
+    assert.equal(settings.currency, 'MXN');
+    assert.equal(settings.language, 'en');
+    assert.equal(settings.order.enabled, true, 'los pedidos siguen activos aunque un cupón esté mal guardado');
+    assert.equal(settings.order.paused, true);
+    assert.deepEqual(settings.order.coupons, []);
+    assert.equal(settings.pdf.layout, 'list');
+    assert.equal(settings.pdf.paperSize, 'A4');
+    // Una sección entera corrupta vuelve a su valor por defecto sin afectar a las demás.
+    const broken = parseCatalogSettings({ currency: 'EUR', order: 'no' });
+    assert.equal(broken.currency, 'EUR');
+    assert.equal(broken.order.enabled, false);
+    assert.deepEqual(parseCatalogSettings(null), catalogSettingsSchema.parse({}));
+    assert.deepEqual(parseCatalogSettings('basura'), catalogSettingsSchema.parse({}));
   });
 });
 

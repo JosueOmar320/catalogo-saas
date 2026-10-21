@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import { z } from 'zod';
 import { buildAssistantContext } from '@/lib/assistant/context';
-import { RulesModel, WithBasicFallback } from '@/features/assistant/server/basic';
 import { resolveProvider } from '@/features/assistant/server/config';
+import { withFallback } from '@/features/assistant/server/fallback';
 import { OpenAICompatibleModel, parse } from '@/features/assistant/server/openai-compatible';
-import { ProviderError, QuotaExceededError, type ModelInput } from '@/features/assistant/server/types';
+import { HybridModel } from '@/features/assistant/server/router';
+import { ProviderError, QuotaExceededError, type ModelInput, type TaskModel } from '@/features/assistant/server/types';
 import { buildSampleSite } from '@/lib/site/sample-site';
 
 const site = buildSampleSite();
@@ -76,9 +78,9 @@ describe('Garfield AI · proveedor compatible con OpenAI (Gemini)', () => {
     await assert.rejects(gemini(impl).respond(input('hola')), QuotaExceededError);
   });
 
-  it('clave inválida → error claro (no se oculta con el modo básico)', async () => {
+  it('clave inválida → error claro (no se oculta con el intérprete local)', async () => {
     const { impl } = fakeFetch([{ status: 401 }]);
-    const model = new WithBasicFallback(gemini(impl));
+    const model = new HybridModel(gemini(impl), 'llm-first');
     await assert.rejects(model.respond(input('hola')), (error) => error instanceof ProviderError && error.status === 401);
   });
 
@@ -90,17 +92,56 @@ describe('Garfield AI · proveedor compatible con OpenAI (Gemini)', () => {
     assert.equal(result.actions.length, 1);
   });
 
-  it('sin cuota: Garfield sigue en modo básico y lo avisa', async () => {
+  it('sin cuota: Garfield sigue con el intérprete local y lo avisa', async () => {
     const { impl } = fakeFetch([{ status: 429 }]);
-    const result = await new WithBasicFallback(gemini(impl)).respond(input('Agrega una sección de contacto al final'));
+    const result = await new HybridModel(gemini(impl), 'llm-first').respond(input('Agrega una sección de contacto al final'));
     assert.equal(result.mode, 'basic');
+    assert.equal(result.routed, 'local');
     assert.match(result.message, /cuota gratuita/);
+    assert.equal(result.actions[0].action, 'create_section');
+    assert.equal(result.warnings.length, 1);
+  });
+
+  it('proveedor caído (5xx): el intérprete local responde y lo avisa', async () => {
+    const { impl } = fakeFetch([{ status: 503, error: 'overloaded' }]);
+    const result = await new HybridModel(gemini(impl), 'llm-first').respond(input('Agrega una sección de contacto al final'));
+    assert.equal(result.mode, 'basic');
+    assert.match(result.message, /no respondió/);
     assert.equal(result.actions[0].action, 'create_section');
   });
 
-  it('el modo básico funciona sin proveedor', async () => {
-    const result = await new RulesModel().respond(input('Haz que el encabezado sea más elegante'));
+  it('el intérprete local funciona sin proveedor', async () => {
+    const result = await new HybridModel(null).respond(input('Haz que el encabezado sea más elegante'));
+    assert.equal(result.mode, 'basic');
+    assert.equal(result.provider, 'local');
     assert.equal(result.actions[0].action, 'update_theme');
+  });
+});
+
+describe('Garfield AI · tareas con respaldo sin IA (withFallback)', () => {
+  const failing = (error: Error): TaskModel => ({ provider: 'test', generate: async () => { throw error; } });
+  const task = (model: TaskModel) => model.generate({ system: 's', prompt: 'p', schema: z.string() });
+
+  it('sin modelo: la versión sin IA, sin aviso', async () => {
+    const out = await withFallback(null, async () => 'ia', () => 'local');
+    assert.deepEqual(out, { result: 'local', mode: 'basic', notice: null });
+  });
+
+  it('cuota agotada → versión sin IA con aviso de cuota', async () => {
+    const out = await withFallback(failing(new QuotaExceededError('cuota')), task, () => 'local');
+    assert.equal(out.result, 'local');
+    assert.equal(out.mode, 'basic');
+    assert.match(out.notice ?? '', /cuota/);
+  });
+
+  it('proveedor caído (5xx) → versión sin IA con aviso', async () => {
+    const out = await withFallback(failing(new ProviderError('caído', 503)), task, () => 'local');
+    assert.equal(out.mode, 'basic');
+    assert.match(out.notice ?? '', /no respondió/);
+  });
+
+  it('otro error no se oculta', async () => {
+    await assert.rejects(withFallback(failing(new TypeError('bug')), task, () => 'local'), TypeError);
   });
 });
 

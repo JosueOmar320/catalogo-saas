@@ -1,7 +1,10 @@
 import type { Catalog } from '../translate';
+import status from './status';
 
 /** Traducciones al inglés: área "core". Clave = texto en español tal como aparece en el código. */
 const catalog: Catalog = {
+  // Pantallas de estado (error.tsx, not-found.tsx, global-error.tsx): catálogo propio, mínimo.
+  ...status,
   // Preferencias (idioma y apariencia)
   Idioma: 'Language',
   'Cambiar idioma': 'Change language',
@@ -45,7 +48,11 @@ const catalog: Catalog = {
   'Guardando…': 'Saving…',
   Descartar: 'Discard',
   'Tienes cambios sin guardar': 'You have unsaved changes',
-  Reintentar: 'Retry',
+  'Si sales ahora se perderán.': 'If you leave now, they will be lost.',
+  'Salir sin guardar': 'Leave without saving',
+  // Bandejas con tope de filas
+  'Mostrando los últimos {count} pedidos. Acota el periodo o busca por folio para ver otros.': 'Showing the latest {count} orders. Narrow the period or search by reference to see others.',
+  'Mostrando las últimas {count} reseñas.': 'Showing the latest {count} reviews.',
   Cargando: 'Loading',
   Abrir: 'Open',
   'Abrir en otra pestaña': 'Open in a new tab',
@@ -57,16 +64,6 @@ const catalog: Catalog = {
   'No pudimos cargar esta sección': "We couldn't load this section",
   'Puede ser un problema temporal. Si se repite, comparte este código con soporte:': 'It may be a temporary problem. If it keeps happening, share this code with support:',
   'sin código': 'no code',
-  'Algo salió mal': 'Something went wrong',
-  'No pudimos cargar esta página': "We couldn't load this page",
-  'Puede ser un problema temporal de conexión. Intenta de nuevo en unos segundos.': 'It may be a temporary connection problem. Try again in a few seconds.',
-  'Código: {code}': 'Code: {code}',
-  'No pudimos cargar la aplicación': "We couldn't load the app",
-  'Es un error inesperado. Intenta de nuevo en unos segundos.': 'This is an unexpected error. Try again in a few seconds.',
-  'Error 404': 'Error 404',
-  'No encontramos esta página': "We couldn't find this page",
-  'Puede que el enlace esté mal escrito o que la página ya no exista.': 'The link may be mistyped, or the page may no longer exist.',
-  'Ir al inicio': 'Go to home',
   // Imágenes (campos de imagen y galería)
   Subir: 'Upload',
   Reemplazar: 'Replace',
@@ -448,6 +445,7 @@ const catalog: Catalog = {
   'No se pudieron cargar los pedidos. Intenta de nuevo en unos minutos.': 'Orders could not be loaded. Try again in a few minutes.',
   'Ese pedido ya no existe.': 'That order no longer exists.',
   'No se pudo actualizar el pedido.': 'The order could not be updated.',
+  'Ese cambio de estado no está permitido. Recarga la bandeja.': 'That status change is not allowed. Reload the inbox.',
   'No se pudo borrar el pedido.': 'The order could not be deleted.',
   'Pedido borrado': 'Order deleted',
   'Sólo el dueño o un administrador puede borrar pedidos.': 'Only the owner or an admin can delete orders.',

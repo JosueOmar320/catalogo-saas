@@ -1,4 +1,5 @@
 import { parseVideoUrl } from '@/lib/site/video';
+import { AutoplayVideo } from '../AutoplayVideo';
 import { Placeholder, SectionFrame, SectionHead } from '../SectionFrame';
 import { siteTranslator } from '../site-i18n';
 import styles from '../site.module.css';
@@ -14,7 +15,8 @@ export function VideoSection({ section, site, env }: SectionProps<'video'>) {
   const player = video && (
     <div className={styles.videoFrame} style={{ aspectRatio: RATIO[content.ratio], maxWidth: content.ratio === '9:16' ? 420 : undefined }}>
       {video.kind === 'file' ? (
-        <video src={video.src} controls={!content.autoplay} autoPlay={content.autoplay} muted={content.autoplay} loop={content.autoplay} playsInline preload="metadata" />
+        // Con autoplay, un componente cliente decide si arranca (respeta «reducir movimiento»).
+        content.autoplay ? <AutoplayVideo src={video.src} /> : <video src={video.src} controls playsInline preload="metadata" />
       ) : (
         <iframe
           src={video.embed}

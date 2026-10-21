@@ -28,7 +28,7 @@ export default async function PublicSiteLayout({ children, params }: LayoutProps
   const header = buildHeaderProps(site, env);
 
   return (
-    <SiteShell theme={site.theme} language={site.settings.language} order={orderConfig(site, { track: true })}>
+    <SiteShell theme={site.theme} language={site.settings.language} order={orderConfig(site, { track: true })} showBranding={site.showBranding} htmlLang>
       <SiteCustomCss site={site} />
       <SiteHeader {...header} />
       <main className={siteStyles.main}>{children}</main>

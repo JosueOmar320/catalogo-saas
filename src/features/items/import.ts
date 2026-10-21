@@ -1,12 +1,11 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { getT } from '@/i18n/server';
 import { msg } from '@/i18n/translate';
 import { requireBusinessContext } from '@/lib/auth/session';
-import { invalidatePublicCatalog } from '@/lib/catalog/cache';
-import { matchKey, MAX_IMPORT_IMAGES, MAX_IMPORT_ROWS } from '@/lib/catalog/csv';
+import { afterCatalogChange } from '@/lib/catalog/cache';
+import { importUpdatePatch, ITEM_COLUMNS, matchKey, MAX_IMPORT_IMAGES, MAX_IMPORT_ROWS } from '@/lib/catalog/csv';
 import { parseCatalogSettings } from '@/lib/catalog/settings';
 import { isWithinLimit } from '@/lib/plans/entitlements';
 import { fetchAllRows } from '@/lib/supabase/paginate';
@@ -18,8 +17,10 @@ import { importFromUrl, MediaError } from '@/features/media/service';
 /**
  * Importa productos y servicios desde las filas que ya validó la vista previa
  * (lib/catalog/csv). Aquí se vuelve a validar todo: el navegador no es de
- * confianza. Reconoce los existentes por código (o por nombre y tipo) y los
- * actualiza; los demás se crean. Las fotos (enlaces) se descargan después,
+ * confianza. Reconoce los existentes por código (o por nombre y tipo; sólo
+ * por nombre si el archivo no trae la columna de código) y los actualiza
+ * tocando únicamente las columnas que vienen en el archivo; los demás se
+ * crean. Las fotos (enlaces) se descargan después,
  * una por una desde el navegador con importItemImages, para no pasar del
  * tiempo de una función; sólo a los ítems que aún no tienen fotos, así volver
  * a importar el mismo archivo no las duplica.
@@ -44,9 +45,13 @@ const rowSchema = z.object({
   images: z.array(z.url({ protocol: /^https?$/ }).max(1000)).max(MAX_IMPORT_IMAGES).default([]),
 });
 
+const COLUMN_KEYS = ITEM_COLUMNS.map((c) => c.key);
+
 const importSchema = z.object({
   rows: z.array(rowSchema).min(1).max(MAX_IMPORT_ROWS),
   createCategories: z.boolean(),
+  /** Columnas que trae el archivo (las ausentes no se tocan al actualizar). Sin la lista, se toman todas. */
+  columns: z.array(z.enum(COLUMN_KEYS)).max(COLUMN_KEYS.length).default(COLUMN_KEYS),
 });
 
 export type ImportItemsInput = z.input<typeof importSchema>;
@@ -60,23 +65,26 @@ export async function importItems(input: ImportItemsInput): Promise<ActionResult
   const ctx = await requireBusinessContext();
   const parsed = parseInput(importSchema, input);
   if (!parsed.success) return parsed.result;
-  const { createCategories } = parsed.data;
+  const { createCategories, columns } = parsed.data;
   const t = await getT();
+  // Sin columna de código, el ítem guardado se reconoce por nombre aunque tenga código.
+  const bySku = columns.includes('sku');
+  const key = (item: { sku?: string | null; name: string; type: string }) => matchKey(item, bySku);
 
   // Un mismo producto repetido en el archivo: gana la última fila.
-  const byKey = new Map(parsed.data.rows.map((row) => [matchKey(row), row]));
+  const byKey = new Map(parsed.data.rows.map((row) => [key(row), row]));
   const rows = [...byKey.values()];
 
   const [existing, categories] = await Promise.all([
     fetchAllRows((from, to) =>
-      ctx.supabase.from('catalog_items').select('id, name, sku, type, slug, position').eq('catalog_id', ctx.catalog.id).is('deleted_at', null).order('id').range(from, to),
+      ctx.supabase.from('catalog_items').select('id, name, sku, type, slug, position, price, compare_at_price').eq('catalog_id', ctx.catalog.id).is('deleted_at', null).order('id').range(from, to),
     ),
     ctx.supabase.from('categories').select('id, name, position').eq('catalog_id', ctx.catalog.id).is('deleted_at', null),
   ]);
   if (categories.error) return fail(dbErrorMessage(categories.error));
-  const existingByKey = new Map(existing.map((item) => [matchKey(item), item]));
+  const existingByKey = new Map(existing.map((item) => [key(item), item]));
 
-  const toCreate = rows.filter((row) => !existingByKey.has(matchKey(row)));
+  const toCreate = rows.filter((row) => !existingByKey.has(key(row)));
   const maxItems = ctx.entitlements.limits.max_items;
   if (maxItems !== null && !isWithinLimit(maxItems, existing.length + toCreate.length - 1)) {
     return fail(t('Tu plan permite hasta {max} ítems: tienes {current} y el archivo agrega {count}.', { max: maxItems, current: existing.length, count: toCreate.length }));
@@ -86,21 +94,13 @@ export async function importItems(input: ImportItemsInput): Promise<ActionResult
   const categoryId = new Map(categories.data.map((c) => [nameKey(c.name), c.id]));
   const missing = [...new Map(rows.filter((r) => r.category && !categoryId.has(nameKey(r.category))).map((r) => [nameKey(r.category!), r.category!])).values()];
   let createdCategories = 0;
-  if (createCategories && missing.length) {
-    const start = Math.max(-1, ...categories.data.map((c) => c.position)) + 1;
-    const { data, error } = await ctx.supabase
-      .from('categories')
-      .insert(missing.map((name, index) => ({ business_id: ctx.business.id, catalog_id: ctx.catalog.id, name, position: start + index })))
-      .select('id, name');
-    if (error) return fail(dbErrorMessage(error));
-    for (const c of data) categoryId.set(nameKey(c.name), c.id);
-    createdCategories = data.length;
-  }
+  const categoryOf = (row: z.output<typeof rowSchema>) => (row.category ? (categoryId.get(nameKey(row.category)) ?? null) : null);
 
+  // Nuevos: todas las columnas (las que faltan en el archivo, con su valor por defecto).
   const values = (row: z.output<typeof rowSchema>) => ({
     name: row.name,
     type: row.type,
-    category_id: row.category ? (categoryId.get(nameKey(row.category)) ?? null) : null,
+    category_id: categoryOf(row),
     price: row.price,
     compare_at_price: row.compareAt !== null && row.price !== null && row.compareAt > row.price ? row.compareAt : null,
     price_note: row.priceNote,
@@ -113,36 +113,61 @@ export async function importItems(input: ImportItemsInput): Promise<ActionResult
     tags: row.tags,
   });
 
-  // Actualizaciones, de 20 en 20.
-  const toUpdate = rows.filter((row) => existingByKey.has(matchKey(row)));
-  for (let i = 0; i < toUpdate.length; i += 20) {
-    const results = await Promise.all(
-      toUpdate.slice(i, i + 20).map((row) => ctx.supabase.from('catalog_items').update(values(row)).eq('id', existingByKey.get(matchKey(row))!.id).eq('catalog_id', ctx.catalog.id)),
-    );
-    const failed = results.find((r) => r.error);
-    if (failed?.error) return fail(dbErrorMessage(failed.error));
-  }
-
-  // Nuevos: al final del orden actual, con URL única.
+  const toUpdate = rows.filter((row) => existingByKey.has(key(row)));
   const { currency } = parseCatalogSettings(ctx.catalog.settings);
   const usedSlugs = new Set(existing.map((item) => item.slug));
   let position = Math.max(-1, ...existing.map((item) => item.position)) + 1;
-  const inserts = toCreate.map((row) => {
+  const createdIds = new Map<string, string>();
+  // Nuevos: al final del orden actual, con URL única (las columnas se arman después de crear las categorías).
+  const placements = toCreate.map((row) => {
     let slug = slugify(row.name, 60) || 'item';
     while (usedSlugs.has(slug)) slug = withRandomSuffix(slugify(row.name, 60) || 'item');
     usedSlugs.add(slug);
-    return { ...values(row), slug, position: position++, currency, business_id: ctx.business.id, catalog_id: ctx.catalog.id };
+    return { row, slug, position: position++ };
   });
-  const createdIds = new Map<string, string>();
-  for (let i = 0; i < inserts.length; i += 100) {
-    const { data, error } = await ctx.supabase.from('catalog_items').insert(inserts.slice(i, i + 100)).select('id, name, sku, type');
-    if (error) return fail(error.message.includes('plan_limit_reached') ? msg('Se alcanzó el límite de tu plan durante la importación.') : dbErrorMessage(error));
-    for (const item of data) createdIds.set(matchKey(item), item.id);
+  // Desde la primera escritura, el sitio y el panel se refrescan aunque un lote posterior falle.
+  let written = false;
+  try {
+    if (createCategories && missing.length) {
+      const start = Math.max(-1, ...categories.data.map((c) => c.position)) + 1;
+      written = true;
+      const { data, error } = await ctx.supabase
+        .from('categories')
+        .insert(missing.map((name, index) => ({ business_id: ctx.business.id, catalog_id: ctx.catalog.id, name, position: start + index })))
+        .select('id, name');
+      if (error) return fail(dbErrorMessage(error));
+      for (const c of data) categoryId.set(nameKey(c.name), c.id);
+      createdCategories = data.length;
+    }
+
+    // Actualizaciones, de 20 en 20: sólo las columnas que trae el archivo.
+    for (let i = 0; i < toUpdate.length; i += 20) {
+      written = true;
+      const results = await Promise.all(
+        toUpdate.slice(i, i + 20).map((row) => {
+          const current = existingByKey.get(key(row))!;
+          const stored = { price: current.price === null ? null : Number(current.price), compareAt: current.compare_at_price === null ? null : Number(current.compare_at_price) };
+          return ctx.supabase.from('catalog_items').update(importUpdatePatch(row, columns, stored, categoryOf(row))).eq('id', current.id).eq('catalog_id', ctx.catalog.id);
+        }),
+      );
+      const failed = results.find((r) => r.error);
+      if (failed?.error) return fail(dbErrorMessage(failed.error));
+    }
+
+    const inserts = placements.map(({ row, slug, position }) => ({ ...values(row), slug, position, currency, business_id: ctx.business.id, catalog_id: ctx.catalog.id }));
+    for (let i = 0; i < inserts.length; i += 100) {
+      written = true;
+      const { data, error } = await ctx.supabase.from('catalog_items').insert(inserts.slice(i, i + 100)).select('id, name, sku, type');
+      if (error) return fail(error.message.includes('plan_limit_reached') ? msg('Se alcanzó el límite de tu plan durante la importación.') : dbErrorMessage(error));
+      for (const item of data) createdIds.set(key(item), item.id);
+    }
+  } finally {
+    if (written) afterCatalogChange(ctx);
   }
 
   // Fotos: a los nuevos siempre; a los existentes sólo si todavía no tienen.
   const withImages = rows.filter((row) => row.images.length > 0);
-  const updatedIds = withImages.flatMap((row) => existingByKey.get(matchKey(row))?.id ?? []);
+  const updatedIds = withImages.flatMap((row) => existingByKey.get(key(row))?.id ?? []);
   const hasImages = new Set<string>();
   for (let i = 0; i < updatedIds.length; i += 100) {
     const { data, error } = await ctx.supabase.from('catalog_item_images').select('item_id').in('item_id', updatedIds.slice(i, i + 100));
@@ -150,15 +175,13 @@ export async function importItems(input: ImportItemsInput): Promise<ActionResult
     for (const image of data) hasImages.add(image.item_id);
   }
   const images = withImages.flatMap((row): PendingImages[] => {
-    const itemId = createdIds.get(matchKey(row)) ?? existingByKey.get(matchKey(row))?.id;
+    const itemId = createdIds.get(key(row)) ?? existingByKey.get(key(row))?.id;
     return itemId && !hasImages.has(itemId) ? [{ itemId, name: row.name, urls: row.images }] : [];
   });
 
-  invalidatePublicCatalog(ctx.business.slug);
-  revalidatePath('/dashboard', 'layout');
   return ok(
-    { created: inserts.length, updated: toUpdate.length, categories: createdCategories, images },
-    t('Importación lista: {created} nuevos y {updated} actualizados.', { created: inserts.length, updated: toUpdate.length }),
+    { created: toCreate.length, updated: toUpdate.length, categories: createdCategories, images },
+    t('Importación lista: {created} nuevos y {updated} actualizados.', { created: toCreate.length, updated: toUpdate.length }),
   );
 }
 
@@ -206,9 +229,6 @@ export async function importItemImages(input: z.input<typeof imagesSchema>): Pro
       failed.push(url);
     }
   }
-  if (added) {
-    invalidatePublicCatalog(ctx.business.slug);
-    revalidatePath('/dashboard', 'layout');
-  }
+  if (added) afterCatalogChange(ctx);
   return ok({ added, failed });
 }

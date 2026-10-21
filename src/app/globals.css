@@ -18,6 +18,8 @@ body {
 
 img {
   max-width: 100%;
+  /* Con width/height en el HTML la imagen conserva su proporción al encoger (sin saltos de layout). */
+  height: auto;
 }
 
 /*

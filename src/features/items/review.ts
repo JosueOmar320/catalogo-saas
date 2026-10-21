@@ -1,4 +1,7 @@
 import { msg } from '@/i18n/translate';
+import { parseItemAttributes } from '@/lib/catalog/item-attributes';
+import { effectivePrice } from '@/lib/catalog/next-price';
+import { variantPriceSummary } from '@/lib/catalog/variants';
 
 /**
  * Filtros de revisión del listado de ítems ("sin foto", "ocultos"…). El
@@ -28,6 +31,18 @@ export type ReviewableItem = {
   /** Tiene precio anterior con una fecha de fin que ya pasó. */
   saleOver?: boolean;
 };
+
+/**
+ * ¿Tiene precio? El mismo criterio que el sitio y el PDF: el precio que vale
+ * hoy (programado si ya empezó) o, con opciones, el menor de las opciones que
+ * tienen el suyo. Un producto sin precio base pero con precio en cada tamaño
+ * no está "sin precio". Único punto para el panel, la lista y el aviso por correo.
+ */
+export function itemHasPrice(item: { price: number | string | null; attributes?: unknown }, now = new Date()): boolean {
+  const attributes = parseItemAttributes(item.attributes);
+  const base = effectivePrice(item.price === null ? null : Number(item.price), attributes.variants ? null : attributes.nextPrice, now);
+  return variantPriceSummary(base, attributes.variants).price !== null;
+}
 
 export const isReviewFilter = (value: unknown): value is ReviewFilter => typeof value === 'string' && Object.hasOwn(REVIEW_FILTERS, value);
 

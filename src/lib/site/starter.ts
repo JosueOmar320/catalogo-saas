@@ -95,22 +95,6 @@ export const PAGE_BLUEPRINTS = (['blank', 'home', 'products', 'services', 'menu'
 });
 
 /**
- * Página de inicio equivalente a la v1 (hero + catálogo completo + contacto).
- * Red de seguridad si un catálogo aún no tiene páginas guardadas; la
- * migración SQL crea la misma estructura de forma permanente.
- */
-export function buildFallbackHome(hasCover: boolean, coverPath: string | null): SitePage {
-  const sections: Section[] = [
-    ...(hasCover
-      ? [createSection('hero', { height: 'md' }, { background: { type: 'image', image: { path: coverPath }, overlay: { color: '#000000', opacity: 45 } }, textColor: 'light' }, 'fallback-hero')]
-      : []),
-    createSection('catalog', {}, {}, 'fallback-catalog'),
-    createSection('contact', {}, {}, 'fallback-contact'),
-  ];
-  return { ...newPage('Inicio', 'inicio', sections, 'home', '00000000-0000-4000-8000-00000000f001'), isHome: true };
-}
-
-/**
  * Sitio web sin catálogo (portafolio, organización, evento…): portada,
  * "Nosotros" y "Contacto", con textos de ejemplo para reemplazar.
  */

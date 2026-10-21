@@ -5,7 +5,6 @@
 | Funcionalidad | Cómo encaja en la arquitectura actual |
 | --- | --- |
 | **Arrastrar y soltar en la preview** | Hoy se reordena en el panel (arrastrar o flechas) y se selecciona una sección haciendo clic en la preview. Arrastrar dentro de la preview es el siguiente paso natural. |
-| **Deshacer / rehacer en el builder** | El estado del builder es un reducer: basta con guardar el historial de estados. |
 | **Estilos por breakpoint más finos** | Hoy: columnas y visibilidad por dispositivo, tamaños de texto de escritorio y móvil (v4), padding y alineación sólo en celular y columnas apiladas/invertidas (v5). Siguiente: ajustes de tablet. |
 | **Video subido** | El hero acepta una URL .mp4. Subir video a Storage requiere otro perfil de media (tamaño, formatos). |
 | **Más plantillas de sitio** | v5 trae 10. Agregar una = otra entrada en `lib/site/templates.ts` (tema + páginas + secciones existentes). |
@@ -14,13 +13,10 @@
 | **Dominios personalizados** | Tabla `business_domains (domain, business_id, verified_at)` + en `proxy.ts`, reescribir `host → /catalogo/[slug]`. Vercel Domains API para el alta. |
 | **Equipos (plan Business)** | `business_members` y `has_business_role` ya existen, y el administrador asigna usuarios a negocios con rol (v4). Falta que el dueño invite a su propio equipo (tabla `invitations` + límite por plan). |
 | **Varios catálogos por negocio** | El administrador ya crea, activa y elige el catálogo principal (v4). Falta que el editor trabaje sobre un catálogo elegido (hoy siempre el principal) y la ruta `/catalogo/[negocio]/[catalogo]`. |
-| **Analytics** | Tabla `catalog_events` (vistas, clics en WhatsApp por ítem) escrita desde un Route Handler con rate limit. Sólo para planes con `features.analytics`. |
 | **Más acciones de contacto** | Agregar la clave en `contactActionsSchema` y su definición en `lib/contact/actions.ts` (link externo, formulario, reservación, compra). |
 | **Más secciones, estilos, fuentes, plantillas PDF** | Ver "Registros extensibles" en ARQUITECTURA.md: cada uno se agrega en un registro y TypeScript obliga a completar web, editor y PDF. |
 | **Papelera** | Ítems y categorías usan `deleted_at`: sólo falta la vista para restaurar y un job que purgue imágenes. |
 | **Limpieza de Storage** | La biblioteca ya sabe qué se usa (`media_references`). Falta un job programado que borre archivos sin registro ni uso (subidas abandonadas). |
-| **Variantes con precio propio** | Los atributos personalizados ya existen (v3). Variantes (talla M = $X, stock por variante) necesitan una tabla `catalog_item_variants` y selección en la ficha. |
-| **Sitemap de catálogos** | `sitemap.ts` puede listar los catálogos publicados con una RPC pública. |
 | **i18n** | Los textos están en español en los componentes. Extraerlos a diccionarios cuando se venda fuera de LATAM. |
 | **PDF en background** | Para catálogos de miles de ítems: generar en una cola, guardar en Storage y notificar. |
 
@@ -40,7 +36,6 @@
 
 | Funcionalidad | Cómo encaja |
 | --- | --- |
-| **Límite de intentos de inicio de sesión** | `signIn` no tiene rate limit propio (Supabase Auth sí limita por IP). Agregar un contador por usuario/IP (Upstash o tabla con TTL) y bloqueo temporal. |
 | **Recuperar contraseña sin administrador** | Hoy la restablece un administrador. Si el usuario tiene email de contacto verificado, un flujo de enlace por email (requiere SMTP propio). |
 | **Funciones por plan (feature flags)** | `plans.features` ya existe. Falta la UI en `/admin/configuracion` para editar planes y que el editor oculte lo no incluido. |
 | **Retención y exportación de auditoría** | Job que archive `audit_log` viejo y exportación CSV desde `/admin/auditoria`. |
@@ -58,18 +53,16 @@
 
 ## Mejoras de producto propuestas (no implementadas; conviene validarlas antes)
 
-1. **Importar desde Excel/CSV o fotos**: el mayor freno para un negocio pequeño es cargar 100 productos uno por uno.
-2. **Código QR del catálogo** (para mostrador, mesas o volantes) en la página de Publicación. Es barato de hacer y de alto valor para restaurantes.
-3. **Carrito de consulta por WhatsApp**: el cliente arma una lista y envía un solo mensaje con todos los productos. Encaja como nueva acción de contacto.
-4. **Horarios estructurados** ("abierto ahora") en lugar de texto libre.
-5. **Plantillas por rubro** al crear el negocio desde `/admin` (restaurante, tienda, servicios profesionales) que creen categorías y ejemplos iniciales.
-6. **Recorte de imagen** al subir (encuadre cuadrado para tarjetas).
+> Ya implementadas desde que se escribió esta lista: importar CSV y fotos, código QR, pedido por WhatsApp, horarios estructurados, deshacer/rehacer, sitemap de catálogos, límite de intentos de login, variantes con precio propio y visitas por producto.
+
+1. **Plantillas por rubro** al crear el negocio desde `/admin` (restaurante, tienda, servicios profesionales) que creen categorías y ejemplos iniciales.
+2. **Recorte de imagen** al subir (encuadre cuadrado para tarjetas).
 
 ## Recomendaciones para la siguiente fase
 
 1. **Pruebas end-to-end** (Playwright) contra `supabase start`: el administrador crea usuario y negocio → el usuario inicia sesión → crea ítem con imagen → publica → ve el sitio público → PDF.
 2. **Monitoreo**: Sentry (o Vercel Observability) para errores de Server Actions y del endpoint de PDF.
-3. **Rate limiting** en el inicio de sesión y en el endpoint de PDF (Upstash Redis o la protección de bots de Vercel).
+3. **Rate limiting** adicional con la protección de bots de Vercel (el login y el PDF ya limitan en Postgres).
 4. **SMTP propio y dominio de envío** si se habilita recuperación de contraseña por email.
 5. **Regenerar tipos** con `npm run db:types` en CI para detectar desalineaciones con la migración.
 6. **Backups**: el plan gratuito de Supabase pausa proyectos inactivos y no tiene PITR. Pasar a Pro al tener clientes de pago.

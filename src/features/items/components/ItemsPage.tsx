@@ -16,7 +16,7 @@ import { seasonStatus } from '@/lib/catalog/season';
 import { parseCatalogSettings } from '@/lib/catalog/settings';
 import { formatPrice } from '@/lib/utils/format';
 import type { ItemType } from '@/types/database';
-import type { ReviewFilter } from '../review';
+import { itemHasPrice, type ReviewFilter } from '../review';
 import { ITEM_TYPE_LABELS } from '../schema';
 import { getItemPerformance } from '@/features/views/queries';
 import { matchKey } from '@/lib/catalog/csv';
@@ -65,6 +65,7 @@ export async function ItemsPage({ type, review }: { type: ItemType; review?: Rev
       categoryId: i.category_id,
       categoryName: i.category_id ? (categoryNames.get(i.category_id) ?? null) : null,
       priceLabel: priceOf(i) === null ? null : formatPrice(priceOf(i)!, i.currency, locale),
+      hasPrice: itemHasPrice(i, now),
       price: priceOf(i),
       nextPrice: upcomingPrice(i),
       currency: i.currency,
@@ -96,7 +97,7 @@ export async function ItemsPage({ type, review }: { type: ItemType; review?: Rev
         }
         actions={
           <>
-            <ImportExport existingKeys={items.map(matchKey)} categoryNames={categories.map((c) => c.name)} defaultType={type} />
+            <ImportExport existingKeys={items.map((i) => matchKey(i))} existingNameKeys={items.map((i) => matchKey(i, false))} categoryNames={categories.map((c) => c.name)} defaultType={type} />
             <PhotoBatchButton businessId={ctx.business.id} type={type} categories={categories.map((c) => ({ id: c.id, name: c.name }))} />
             <LinkButton href={newHref} variant="contained" startIcon={<Plus size={15} />}>
               {t(labels.newLabel)}

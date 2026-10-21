@@ -4,7 +4,8 @@ import type { OrderStatus, Tables } from '@/types/database';
 
 export type PanelOrder = Tables<'orders'>;
 
-const PAGE = 300;
+/** Tope de filas por consulta (la bandeja avisa cuando llega a él). */
+export const PAGE = 300;
 export const since = (days: number, now = Date.now()) => new Date(now - days * 86_400_000).toISOString();
 
 /**

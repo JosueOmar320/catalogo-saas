@@ -46,10 +46,11 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
           </DialogContent>
         )}
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button color="inherit" onClick={() => close(false)}>
+          {/* En lo destructivo el foco inicial va a Cancelar: un Enter por reflejo no borra nada. */}
+          <Button color="inherit" onClick={() => close(false)} autoFocus={options?.destructive}>
             {t('Cancelar')}
           </Button>
-          <Button variant="contained" color={options?.destructive ? 'error' : 'primary'} onClick={() => close(true)} autoFocus>
+          <Button variant="contained" color={options?.destructive ? 'error' : 'primary'} onClick={() => close(true)} autoFocus={!options?.destructive}>
             {options?.confirmLabel ?? t('Confirmar')}
           </Button>
         </DialogActions>

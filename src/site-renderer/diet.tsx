@@ -1,6 +1,6 @@
 import type { Translator } from '@/i18n/translate';
 import { msg } from '@/i18n/translate';
-import { DIET_TAGS, type DietTag } from '@/lib/catalog/item-attributes';
+import { DIET_TAGS, type DietTag } from '@/lib/catalog/item-attributes-core';
 import styles from './site.module.css';
 
 /** Etiquetas de dieta y alérgenos en el idioma del sitio. */

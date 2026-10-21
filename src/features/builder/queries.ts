@@ -15,6 +15,8 @@ export type BuilderData = {
   /** Se muestran ítems de ejemplo porque el catálogo está vacío. */
   usesSampleItems: boolean;
   sectionTemplates: SectionTemplate[];
+  /** Versión del sitio cargada (site_version): el guardado la envía para detectar cambios de otra persona. */
+  version: string | null;
 };
 
 /** Sección guardada por el negocio para reusarla ("Mis plantillas"). */
@@ -35,7 +37,7 @@ async function listSectionTemplates(ctx: BusinessContext): Promise<SectionTempla
  * ítems visibles. Si el catálogo está vacío, la preview usa ítems de ejemplo.
  */
 export async function getBuilderData(ctx: BusinessContext): Promise<BuilderData> {
-  const [loaded, sectionTemplates] = await Promise.all([getSiteForAdmin(ctx), listSectionTemplates(ctx)]);
+  const [loaded, sectionTemplates, version] = await Promise.all([getSiteForAdmin(ctx), listSectionTemplates(ctx), getSiteVersion(ctx)]);
   let site = loaded;
   const pages = site.pages;
 
@@ -50,5 +52,11 @@ export async function getBuilderData(ctx: BusinessContext): Promise<BuilderData>
     site = { ...site, items: sample.items, categories: sample.categories };
   }
 
-  return { site, persistedPageIds: pages.map((p) => p.id), isStarter, usesSampleItems, sectionTemplates };
+  return { site, persistedPageIds: pages.map((p) => p.id), isStarter, usesSampleItems, sectionTemplates, version };
+}
+
+/** Versión actual del sitio (null si no se pudo leer: el guardado entonces no verifica). */
+export async function getSiteVersion(ctx: BusinessContext): Promise<string | null> {
+  const { data, error } = await ctx.supabase.rpc('site_version', { p_catalog_id: ctx.catalog.id });
+  return error || typeof data !== 'string' ? null : data;
 }

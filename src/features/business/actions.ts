@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { resolveMapsLocation } from '@/lib/business/maps-server';
 import { contactSchema, socialLinksSchema } from '@/lib/business/profile';
 import { ACTIVE_BUSINESS_COOKIE, canManageCatalog, getBusinessContext, requireBusinessContext, requireUser, type BusinessContext } from '@/lib/auth/session';
-import { invalidatePublicCatalog } from '@/lib/catalog/cache';
+import { afterCatalogChange, invalidatePublicCatalog } from '@/lib/catalog/cache';
 import { createClient } from '@/lib/supabase/server';
 import { dbErrorMessage, fail, ok, type ActionResult } from '@/lib/utils/result';
 import { parseInput } from '@/lib/utils/validation';
@@ -33,9 +33,8 @@ async function updateBusiness(ctx: BusinessContext, patch: TablesUpdate<'busines
   if (!canManageCatalog(ctx)) return fail(msg('Sólo el dueño o un administrador puede cambiar esto.'));
   const { error } = await ctx.supabase.from('businesses').update(patch).eq('id', ctx.business.id);
   if (error) return fail(dbErrorMessage(error));
-  invalidatePublicCatalog(ctx.business.slug);
+  afterCatalogChange(ctx);
   if (previousSlug && patch.slug && patch.slug !== previousSlug) invalidatePublicCatalog(patch.slug);
-  revalidatePath('/dashboard', 'layout');
   return ok(undefined, message);
 }
 

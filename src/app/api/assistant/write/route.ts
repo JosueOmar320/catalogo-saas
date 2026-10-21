@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { withFallback } from '@/features/assistant/server/fallback';
-import { guardAssistantRequest } from '@/features/assistant/server/guard';
+import { guardAssistantRequest, logAssistantError } from '@/features/assistant/server/guard';
 import { getTaskModel } from '@/features/assistant/server/model';
 import { writeWithModel, writeWithoutModel, type WriteContext } from '@/features/assistant/server/writer';
 import { writeRequestSchema } from '@/lib/assistant/writer';
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     if (result.length === 0) return NextResponse.json({ error: t('Me faltan datos para escribir algo útil. Completa el nombre o la descripción y vuelve a intentarlo.') }, { status: 422 });
     return NextResponse.json({ options: result, mode, notice: notice && t(notice) }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
-    console.error('[assistant/write]', error);
+    logAssistantError('[assistant/write]', error);
     return NextResponse.json({ error: t('Garfield se enredó con la madeja. Intenta de nuevo.') }, { status: 500 });
   }
 }

@@ -1,6 +1,6 @@
 import 'server-only';
 import { isLocale } from '@/i18n/config';
-import { countReview } from '@/features/items/review';
+import { countReview, itemHasPrice } from '@/features/items/review';
 import { buildCatalogReviewEmail, reviewTotal, type CatalogReviewCounts } from '@/lib/email/catalog-review';
 import { unsubscribeToken } from '@/lib/email/links';
 import { isEmailConfigured, sendEmail } from '@/lib/email/resend';
@@ -91,7 +91,7 @@ export async function findCatalogReviewRecipients(now = new Date()): Promise<{ c
     Promise.all(
       chunks(catalogIds).map((ids) =>
         fetchAllRows((from, to) =>
-          db.from('catalog_items').select('id, catalog_id, type, price, category_id, is_available, is_visible').in('catalog_id', ids).is('deleted_at', null).order('id').range(from, to),
+          db.from('catalog_items').select('id, catalog_id, type, price, attributes, category_id, is_available, is_visible').in('catalog_id', ids).is('deleted_at', null).order('id').range(from, to),
         ),
       ),
     ).then((r) => r.flat()),
@@ -124,7 +124,7 @@ export async function findCatalogReviewRecipients(now = new Date()): Promise<{ c
   const countsByBusiness = new Map<string, CatalogReviewCounts>();
   for (const catalog of catalogs) {
     const review = countReview(
-      (itemsByBusiness.get(catalog.business_id) ?? []).map((i) => ({ type: i.type, hasImage: withImage.has(i.id), hasPrice: i.price !== null, categoryId: i.category_id, isAvailable: i.is_available, isVisible: i.is_visible })),
+      (itemsByBusiness.get(catalog.business_id) ?? []).map((i) => ({ type: i.type, hasImage: withImage.has(i.id), hasPrice: itemHasPrice(i, now), categoryId: i.category_id, isAvailable: i.is_available, isVisible: i.is_visible })),
       catalogsWithCategories.has(catalog.id),
     );
     countsByBusiness.set(catalog.business_id, {

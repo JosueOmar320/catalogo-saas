@@ -25,13 +25,15 @@ import { Download, FileUp, Upload } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import { useT } from '@/i18n/client';
-import { CSV_TEMPLATE_ROWS, itemsToCsv, matchKey, parseCsv, parseItemTable, type ImportIssue, type ImportRow } from '@/lib/catalog/csv';
+import { CSV_TEMPLATE_ROWS, itemsToCsv, matchKey, parseCsv, parseItemTable, type ImportIssue, type ImportRow, type ItemColumn } from '@/lib/catalog/csv';
 import { useAction } from '@/lib/hooks/use-action';
 import { importItemImages, importItems, type PendingImages } from '../import';
 
 type Props = {
   /** Claves (código o nombre+tipo) de los ítems que ya existen: para saber qué se actualiza. */
   existingKeys: string[];
+  /** Las mismas claves sólo por nombre+tipo: valen cuando el archivo no trae la columna de código. */
+  existingNameKeys: string[];
   /** Nombres de categorías existentes (en minúsculas): para avisar cuáles se crean. */
   categoryNames: string[];
   defaultType: 'product' | 'service';
@@ -49,7 +51,7 @@ function download(name: string, content: string) {
 }
 
 /** Botones "Exportar" e "Importar" del listado de productos y servicios. */
-export function ImportExport({ existingKeys, categoryNames, defaultType }: Props) {
+export function ImportExport({ existingKeys, existingNameKeys, categoryNames, defaultType }: Props) {
   const t = useT();
   const [open, setOpen] = useState(false);
   return (
@@ -60,12 +62,12 @@ export function ImportExport({ existingKeys, categoryNames, defaultType }: Props
       <Button variant="outlined" color="inherit" startIcon={<Upload size={15} />} onClick={() => setOpen(true)}>
         {t('Importar')}
       </Button>
-      {open && <ImportDialog existingKeys={existingKeys} categoryNames={categoryNames} defaultType={defaultType} onClose={() => setOpen(false)} />}
+      {open && <ImportDialog existingKeys={existingKeys} existingNameKeys={existingNameKeys} categoryNames={categoryNames} defaultType={defaultType} onClose={() => setOpen(false)} />}
     </>
   );
 }
 
-type Parsed = { fileName: string; rows: ImportRow[]; issues: ImportIssue[] };
+type Parsed = { fileName: string; rows: ImportRow[]; issues: ImportIssue[]; columns: ItemColumn[] };
 type Photos = { done: number; total: number; added: number; failed: { name: string; url: string }[]; finished: boolean };
 
 /** Descarga las fotos de varios ítems, de 3 en 3 (cada llamada es una función corta en el servidor). Devuelve cuántas fallaron. */
@@ -86,7 +88,7 @@ async function downloadPhotos(pending: PendingImages[], onProgress: (update: (ph
   return failures;
 }
 
-function ImportDialog({ existingKeys, categoryNames, defaultType, onClose }: Props & { onClose: () => void }) {
+function ImportDialog({ existingKeys, existingNameKeys, categoryNames, defaultType, onClose }: Props & { onClose: () => void }) {
   const t = useT();
   const router = useRouter();
   const { run, pending } = useAction();
@@ -99,9 +101,11 @@ function ImportDialog({ existingKeys, categoryNames, defaultType, onClose }: Pro
   const busy = pending || downloading;
   const withPhotos = parsed?.rows.filter((r) => r.images.length > 0).length ?? 0;
 
-  const existing = new Set(existingKeys);
+  // Sin columna de código, los existentes se reconocen por nombre (igual que en el servidor).
+  const bySku = parsed?.columns.includes('sku') ?? true;
+  const existing = new Set(bySku ? existingKeys : existingNameKeys);
   const knownCategories = new Set(categoryNames.map((n) => n.toLowerCase()));
-  const updates = parsed?.rows.filter((r) => existing.has(matchKey(r))).length ?? 0;
+  const updates = parsed?.rows.filter((r) => existing.has(matchKey(r, bySku))).length ?? 0;
   const creates = (parsed?.rows.length ?? 0) - updates;
   const newCategories = parsed ? [...new Set(parsed.rows.map((r) => r.category).filter((c): c is string => Boolean(c) && !knownCategories.has(c!.toLowerCase())))] : [];
 
@@ -109,13 +113,13 @@ function ImportDialog({ existingKeys, categoryNames, defaultType, onClose }: Pro
     setFileError(null);
     if (file.size > MAX_BYTES) return setFileError(t('El archivo pesa más de 2 MB.'));
     const text = await file.text();
-    const { rows, issues } = parseItemTable(parseCsv(text), defaultType);
-    setParsed({ fileName: file.name, rows, issues });
+    const { rows, issues, columns } = parseItemTable(parseCsv(text), defaultType);
+    setParsed({ fileName: file.name, rows, issues, columns });
   };
 
   const submit = async () => {
     if (!parsed?.rows.length) return;
-    const result = await run(() => importItems({ rows: parsed.rows.map(({ line: _line, ...row }) => row), createCategories }));
+    const result = await run(() => importItems({ rows: parsed.rows.map(({ line: _line, ...row }) => row), createCategories, columns: parsed.columns }));
     if (!result?.ok) return;
     const pendingPhotos = result.data.images;
     if (pendingPhotos.length === 0) {
@@ -212,7 +216,7 @@ function ImportDialog({ existingKeys, categoryNames, defaultType, onClose }: Pro
                             <TableCell>{row.category ?? '—'}</TableCell>
                             <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>{row.price ?? '—'}</TableCell>
                             <TableCell>{row.sku ?? '—'}</TableCell>
-                            <TableCell>{existing.has(matchKey(row)) ? t('Se actualiza') : t('Nuevo')}</TableCell>
+                            <TableCell>{existing.has(matchKey(row, bySku)) ? t('Se actualiza') : t('Nuevo')}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>

@@ -1,7 +1,15 @@
 import type { AdminItem } from '@/features/catalog/queries';
 import type { ItemType, Tables } from '@/types/database';
-import { parseItemAttributes } from '@/lib/catalog/item-attributes';
+import { parseItemAttributes, type ItemAttributes } from '@/lib/catalog/item-attributes';
 import type { ItemFormValues } from './schema';
+
+/**
+ * Zona horaria con la que se programaron la oferta, la temporada o el precio
+ * programado ('' si no hay ninguno). El formulario la manda en `saleTimeZone`
+ * y sin ella el esquema descarta los tres.
+ */
+export const storedTimeZone = (attributes: Pick<ItemAttributes, 'saleEnds' | 'season' | 'nextPrice'>): string =>
+  attributes.saleEnds?.timeZone ?? attributes.season?.timeZone ?? attributes.nextPrice?.timeZone ?? '';
 
 export function emptyItemValues(type: ItemType, currency: ItemFormValues['currency']): ItemFormValues {
   return {
@@ -85,7 +93,7 @@ export function itemToFormValues(item: Omit<AdminItem, 'images'> & { images: Tab
     nextPriceOn: attributes.nextPrice?.on ?? '',
     nextPrice: attributes.nextPrice ? String(attributes.nextPrice.price) : '',
     saleEndsOn: attributes.saleEnds?.on ?? '',
-    saleTimeZone: attributes.saleEnds?.timeZone ?? '',
+    saleTimeZone: storedTimeZone(attributes),
     currency: item.currency as ItemFormValues['currency'],
     priceNote: item.price_note ?? '',
     sku: item.sku ?? '',

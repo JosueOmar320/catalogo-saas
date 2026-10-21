@@ -1,11 +1,10 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { getT } from '@/i18n/server';
 import { msg } from '@/i18n/translate';
 import { requireBusinessContext, type BusinessContext } from '@/lib/auth/session';
-import { invalidatePublicCatalog } from '@/lib/catalog/cache';
+import { afterCatalogChange } from '@/lib/catalog/cache';
 import { isWithinLimit } from '@/lib/plans/entitlements';
 import { dbErrorMessage, fail, ok, type ActionResult } from '@/lib/utils/result';
 import { slugify, withRandomSuffix } from '@/lib/utils/slug';
@@ -19,13 +18,10 @@ import { nextPriceStarted } from '@/lib/catalog/next-price';
 import type { Json, TablesUpdate } from '@/types/database';
 import { releaseStorageObjects } from '@/features/media/server';
 import { parseAttributeDefs, parseAttributeValues } from '@/lib/catalog/attributes';
-import { adjustPrice, isValidAdjustment, PRICE_ROUNDINGS } from '@/lib/catalog/price-adjust';
+import { parseItemAttributes } from '@/lib/catalog/item-attributes';
+import { adjustItemPrices, isValidAdjustment, PRICE_ROUNDINGS } from '@/lib/catalog/price-adjust';
 import { itemFormSchema, itemFormToAttributes, itemFormToRow, type ItemFormValues } from './schema';
-
-function afterChange(ctx: BusinessContext) {
-  invalidatePublicCatalog(ctx.business.slug);
-  revalidatePath('/dashboard', 'layout');
-}
+import { storedTimeZone } from './defaults';
 
 async function nextPosition(ctx: BusinessContext): Promise<number> {
   const { data } = await ctx.supabase
@@ -76,6 +72,8 @@ export async function saveItem(itemId: string | null, input: ItemFormValues): Pr
     if (data?.attributes && typeof data.attributes === 'object' && !Array.isArray(data.attributes)) existingAttributes = data.attributes as Record<string, unknown>;
   }
   const defs = parseAttributeDefs(ctx.catalog.attribute_defs);
+  // Sin zona horaria en el envío (p. ej. Garfield), vale la que ya tenían la oferta, la temporada o el precio programado.
+  if (!values.saleTimeZone) values.saleTimeZone = storedTimeZone(parseItemAttributes(existingAttributes));
   const attributes = { ...existingAttributes, ...itemFormToAttributes(values), values: parseAttributeValues(values.attributeValues, defs) };
   const row = { ...itemFormToRow(values), attributes: attributes as Json };
   // El precio programado que ya empezó pasa a ser el precio guardado (y deja de estar programado).
@@ -128,7 +126,7 @@ export async function saveItem(itemId: string | null, input: ItemFormValues): Pr
   if (imageError) return fail(imageError);
   await syncCost(ctx, id, values.type === 'product' ? priceToNumber(values.cost) : null);
 
-  afterChange(ctx);
+  afterCatalogChange(ctx);
   return ok({ id }, itemId ? msg('Cambios guardados') : msg('Ítem creado'));
 }
 
@@ -205,7 +203,7 @@ export async function toggleItemField(input: z.input<typeof toggleSchema>): Prom
     .eq('id', id)
     .eq('catalog_id', ctx.catalog.id);
   if (error) return fail(dbErrorMessage(error));
-  afterChange(ctx);
+  afterCatalogChange(ctx);
   return ok(undefined);
 }
 
@@ -219,7 +217,7 @@ export async function deleteItem(id: string): Promise<ActionResult> {
     .eq('id', id)
     .eq('catalog_id', ctx.catalog.id);
   if (error) return fail(dbErrorMessage(error));
-  afterChange(ctx);
+  afterCatalogChange(ctx);
   return ok(undefined, msg('Ítem eliminado'));
 }
 
@@ -240,9 +238,11 @@ export async function duplicateItem(id: string): Promise<ActionResult<{ id: stri
   const { id: _id, created_at: _c, updated_at: _u, deleted_at: _d, slug, name, ...rest } = source;
   const t = await getT();
   const copyName = t('{name} (copia)', { name }).slice(0, 160);
+  // Sin código (un código repetido confunde la importación por CSV) ni existencias: son de cada producto.
+  const attributes = rest.attributes && typeof rest.attributes === 'object' && !Array.isArray(rest.attributes) ? ({ ...rest.attributes, stock: null } as Json) : rest.attributes;
   const { data: copy, error } = await ctx.supabase
     .from('catalog_items')
-    .insert({ ...rest, name: copyName, slug: withRandomSuffix(slug), is_visible: false, position: await nextPosition(ctx) })
+    .insert({ ...rest, name: copyName, slug: withRandomSuffix(slug), sku: null, attributes, is_visible: false, position: await nextPosition(ctx) })
     .select('id')
     .single();
   if (error) return fail(dbErrorMessage(error));
@@ -258,7 +258,7 @@ export async function duplicateItem(id: string): Promise<ActionResult<{ id: stri
     return fail(dbErrorMessage(insertError, msg('No se pudo duplicar el ítem.')));
   }
 
-  afterChange(ctx);
+  afterCatalogChange(ctx);
   return ok({ id: copy.id }, msg('Ítem duplicado (oculto hasta que lo actives)'));
 }
 
@@ -290,21 +290,30 @@ export async function bulkUpdateItems(input: BulkItemsInput): Promise<ActionResu
   let count = 0;
   if (action.type === 'price') {
     if (!isValidAdjustment(action)) return fail(msg('El ajuste debe estar entre -90 % y +500 % (o un monto distinto de cero).'));
-    const { data, error } = await scoped().select('id, price, compare_at_price').in('id', ids).eq('catalog_id', ctx.catalog.id).is('deleted_at', null);
+    const { data, error } = await scoped().select('id, price, compare_at_price, attributes').in('id', ids).eq('catalog_id', ctx.catalog.id).is('deleted_at', null);
     if (error) return fail(dbErrorMessage(error));
+    // El mismo ajuste al precio, al anterior, a las opciones, al mayoreo y al precio programado.
     const changes = data.flatMap((row) => {
-      const price = adjustPrice(row.price === null ? null : Number(row.price), action);
-      if (price === null) return [];
-      const compare = adjustPrice(row.compare_at_price === null ? null : Number(row.compare_at_price), action);
-      // Un "precio anterior" que ya no es mayor que el nuevo dejaría de ser una oferta.
-      return [{ id: row.id, price, compare_at_price: compare !== null && compare > price ? compare : null }];
-    });
-    for (let i = 0; i < changes.length; i += 20) {
-      const results = await Promise.all(
-        changes.slice(i, i + 20).map(({ id, ...values }) => scoped().update(values).eq('id', id).eq('catalog_id', ctx.catalog.id)),
+      const raw = row.attributes && typeof row.attributes === 'object' && !Array.isArray(row.attributes) ? (row.attributes as Record<string, unknown>) : {};
+      const { variants, tiers, nextPrice } = parseItemAttributes(row.attributes);
+      const adjusted = adjustItemPrices(
+        { price: row.price === null ? null : Number(row.price), compareAtPrice: row.compare_at_price === null ? null : Number(row.compare_at_price), attributes: { variants, tiers, nextPrice } },
+        action,
       );
-      const failed = results.find((r) => r.error);
-      if (failed?.error) return fail(dbErrorMessage(failed.error));
+      if (!adjusted) return [];
+      return [{ id: row.id, price: adjusted.price, compare_at_price: adjusted.compareAtPrice, attributes: { ...raw, ...adjusted.attributes } as Json }];
+    });
+    // Desde la primera escritura, el sitio y el panel se refrescan aunque un lote posterior falle.
+    try {
+      for (let i = 0; i < changes.length; i += 20) {
+        const results = await Promise.all(
+          changes.slice(i, i + 20).map(({ id, ...values }) => scoped().update(values).eq('id', id).eq('catalog_id', ctx.catalog.id)),
+        );
+        const failed = results.find((r) => r.error);
+        if (failed?.error) return fail(dbErrorMessage(failed.error));
+      }
+    } finally {
+      if (changes.length) afterCatalogChange(ctx);
     }
     count = changes.length;
   } else {
@@ -314,9 +323,9 @@ export async function bulkUpdateItems(input: BulkItemsInput): Promise<ActionResu
     const { data, error } = await scoped().update(values).in('id', ids).eq('catalog_id', ctx.catalog.id).is('deleted_at', null).select('id');
     if (error) return fail(dbErrorMessage(error));
     count = data.length;
+    afterCatalogChange(ctx);
   }
 
-  afterChange(ctx);
   const t = await getT();
   return ok({ count }, count === 1 ? t('1 ítem actualizado') : t('{count} ítems actualizados', { count }));
 }
@@ -343,6 +352,18 @@ export async function restoreItems(ids: string[]): Promise<ActionResult<{ restor
   const ctx = await requireBusinessContext();
   const parsed = restoreSchema.safeParse(ids);
   if (!parsed.success) return fail(msg('Ítem inválido.'));
+  // El límite del plan también cuenta al restaurar (la base sólo lo revisa al crear).
+  const maxItems = ctx.entitlements.limits.max_items;
+  if (maxItems !== null) {
+    const [{ count: live }, { count: deleted }] = await Promise.all([
+      ctx.supabase.from('catalog_items').select('id', { count: 'exact', head: true }).eq('business_id', ctx.business.id).is('deleted_at', null),
+      ctx.supabase.from('catalog_items').select('id', { count: 'exact', head: true }).in('id', parsed.data).eq('catalog_id', ctx.catalog.id).not('deleted_at', 'is', null),
+    ]);
+    if (deleted && !isWithinLimit(maxItems, (live ?? 0) + deleted - 1)) {
+      const t = await getT();
+      return fail(t('Tu plan permite hasta {max} ítems.', { max: String(maxItems) }));
+    }
+  }
   const { data, error } = await ctx.supabase
     .from('catalog_items')
     .update({ deleted_at: null })
@@ -351,7 +372,7 @@ export async function restoreItems(ids: string[]): Promise<ActionResult<{ restor
     .not('deleted_at', 'is', null)
     .select('id');
   if (error) return fail(dbErrorMessage(error, msg('No se pudo restaurar. Si creaste otro ítem con el mismo nombre, cámbiale el nombre e intenta de nuevo.')));
-  afterChange(ctx);
+  afterCatalogChange(ctx);
   return ok({ restored: data.length }, data.length === 1 ? msg('Ítem restaurado') : msg('Ítems restaurados'));
 }
 
@@ -374,7 +395,7 @@ export async function setItemPrice(input: z.input<typeof priceSchema>): Promise<
   const values = { price, ...(compare !== null && (price === null || compare <= price) ? { compare_at_price: null } : {}) };
   const { error } = await scoped().update(values).eq('id', id).eq('catalog_id', ctx.catalog.id);
   if (error) return fail(dbErrorMessage(error));
-  afterChange(ctx);
+  afterCatalogChange(ctx);
   return ok({ price }, msg('Precio actualizado'));
 }
 
@@ -439,7 +460,7 @@ export async function createItemsFromPhotos(input: z.input<typeof photoBatchSche
     })),
   );
   if (imageError) return fail(dbErrorMessage(imageError, msg('No se pudo guardar una imagen.')));
-  afterChange(ctx);
+  afterCatalogChange(ctx);
   const t = await getT();
   return ok({ created: created.length }, created.length === 1 ? t('Se creó 1 ítem') : t('Se crearon {count} ítems', { count: created.length }));
 }

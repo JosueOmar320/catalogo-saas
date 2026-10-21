@@ -779,6 +779,11 @@ const catalog: Catalog = {
   'Quitar la promoción {index}': 'Remove promotion {index}',
   'Sin código: se aplican solas desde cierto monto y el pedido avisa cuánto falta. No se suman a un cupón: vale el descuento mayor.': 'No code: they apply on their own from a certain amount and the order shows how much is missing. They don’t stack with a coupon: the larger discount wins.',
   'Usa un número, ej. 300': 'Use a number, e.g. 300',
+
+  // Correcciones: inicio publicada, tope de páginas, PDF
+  'La página de inicio debe estar publicada.': 'The home page must be published.',
+  'El sitio ya tiene el máximo de {max} páginas. Borra alguna para crear otra.': 'The site already has the maximum of {max} pages. Delete one to create another.',
+  'Demasiadas solicitudes. Intenta de nuevo en unos minutos.': 'Too many requests. Try again in a few minutes.',
 };
 
 export default catalog;

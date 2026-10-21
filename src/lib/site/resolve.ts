@@ -1,5 +1,5 @@
 import { resolveCollection } from '@/lib/catalog/collections-core';
-import { LOW_STOCK } from '@/lib/catalog/item-attributes';
+import { LOW_STOCK } from '@/lib/catalog/item-attributes-core';
 import type { CatalogItemView } from '@/lib/catalog/view-model';
 import type { Background } from '@/lib/design/background';
 import { backgroundTone, resolveBackground } from '@/lib/design/background-core';

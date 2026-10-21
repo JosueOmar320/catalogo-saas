@@ -209,7 +209,7 @@ Igual que la v1 (RLS, FKs compuestas, privilegios por columna, Storage por carpe
 - Videos: sólo `https`; YouTube (dominio `youtube-nocookie`), Vimeo (`dnt=1`) o archivos `.mp4/.webm`. Nada se inserta como HTML.
 - `attribute_defs`: validado con Zod en la acción (`saveAttributeDefs`, sólo owner/admin) y con un CHECK en la base (arreglo, máx. 40).
 - Service role sólo en el servidor (`lib/supabase/admin.ts`, `server-only`) y sólo para la API de Auth y la búsqueda de usuario al iniciar sesión.
-- 126 pruebas de base de datos (`npm run test:db`): aislamiento, migración v1, atributos, v4 (autopromoción bloqueada, suspensión, cuotas, auditoría, catálogo inactivo) v5 (URLs externas, dónde se usa, reemplazo, aislamiento) y conteos del panel admin (sólo administradores). 95 pruebas unitarias (`npm run test:unit`).
+- 309 pruebas de base de datos (`npm run test:db`): aislamiento, migración v1, atributos, v4 (autopromoción bloqueada, suspensión, cuotas, auditoría, catálogo inactivo) v5 (URLs externas, dónde se usa, reemplazo, aislamiento) y conteos del panel admin (sólo administradores). 395 pruebas unitarias (`npm run test:unit`).
 
 ## Rendimiento
 
@@ -228,3 +228,13 @@ Igual que la v1 (RLS, FKs compuestas, privilegios por columna, Storage por carpe
 - **Cabeceras** en `next.config.ts` (CSP mínima sin nonces, anti-clickjacking, nosniff, Referrer/Permissions-Policy, HSTS en producción).
 - **Errores**: `error.tsx` por segmento (panel y administración conservan la navegación) y `global-error.tsx`; usan `retry()` (vuelve a pedir al servidor) y muestran el `digest` para encontrar el error en los logs.
 
+
+## Auditoría oct-2026 (endurecimiento)
+
+- **Módulos sin zod**: `lib/business/schedule-core.ts`, `lib/catalog/sale-core.ts`, `lib/catalog/item-attributes-core.ts` y `lib/catalog/settings-core.ts` contienen la lógica y las constantes que usa el sitio público; los módulos con esquema (`schedule.ts`, `sale.ts`…) los reexportan. `tests/lib/bundle-boundaries.test.ts` recorre los imports de cada componente cliente de `site-renderer/` y falla si alguno llega a `zod` (y si `lib/` importa `site-renderer/` o `features/`).
+- **Sección de catálogo**: `site-renderer/catalog-client-model.ts` recorta el `SiteViewModel` a lo que la cuadrícula dibuja (`CatalogClientSite`) antes de cruzar al Client Component; el payload RSC ya no repite todo el sitio.
+- **Pantallas de error** (`error.tsx`, `not-found.tsx`, `global-error.tsx`) usan `i18n/en/status.ts` (11 textos), no el catálogo completo.
+- **Pedido**: nombre, nota, dirección y notas por línea se escriben como borrador local y se guardan al salir del campo (y al enviar), así cada tecla no re-renderiza todos los botones "Agregar".
+- **Base de datos** (migración `20261102000000_hardening.sql`): `orders.stock_deltas` guarda lo que se descontó y se devuelve exactamente eso; `save_site(…, p_expected_version)` + `site_version()`; `vitrina.skip_audit` para pasos transitorios; `purge_old_data()`; privilegios por columna sobre `business_id`/`catalog_id`/`item_id`; topes `pg_column_size` en JSONB; candados en los límites de plan.
+- **API**: los cuatro avisos anónimos (`/api/orders`, `/api/views`, `/api/reviews`, `/api/search-misses`) comparten `lib/api/beacon.ts`; el proxy ya no refresca sesión en ellos. `/api/catalogs/[id]/pdf` tiene tope de cuerpo y límite de solicitudes por usuario.
+- **Reglas unificadas**: "sin precio" se calcula en un solo lugar (`features/items/review.ts: itemHasPrice`) para el inicio del panel, la lista y el aviso semanal; la importación CSV sólo actualiza las columnas presentes en el archivo; el ajuste masivo de precios también ajusta opciones, mayoreo y precio programado.

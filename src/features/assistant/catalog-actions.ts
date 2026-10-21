@@ -6,7 +6,7 @@ import { parseCatalogSettings } from '@/lib/catalog/settings';
 import { fetchAllRows } from '@/lib/supabase/paginate';
 import { fail, ok, type ActionResult } from '@/lib/utils/result';
 import { isPathOwnedBy } from '@/lib/utils/storage';
-import { getItem } from '@/features/catalog/queries';
+import { getItem, getItemCost } from '@/features/catalog/queries';
 import { reorder } from '@/features/catalog/reorder-actions';
 import { createCategory, deleteCategory, updateCategory } from '@/features/categories/actions';
 import { setBusinessLogo } from '@/features/business/actions';
@@ -175,7 +175,8 @@ async function applyOne(ctx: BusinessContext, action: CatalogAction, h: Helpers)
       const id = h.resolve(h.itemList, action.product, 'product');
       const item = await getItem(ctx, id);
       if (!item) throw new Error(t('El producto ya no existe.'));
-      const current = itemToFormValues(item);
+      // Con su costo privado: sin él, guardar lo borraría.
+      const current = itemToFormValues(item, await getItemCost(ctx, id));
       const values: ItemFormValues = {
         ...current,
         ...(action.name !== undefined ? { name: action.name } : {}),

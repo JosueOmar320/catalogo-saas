@@ -1,9 +1,8 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
 import { canManageCatalog, requireBusinessContext } from '@/lib/auth/session';
 import { attributeDefsSchema, type AttributeDef } from '@/lib/catalog/attributes';
-import { invalidatePublicCatalog } from '@/lib/catalog/cache';
+import { afterCatalogChange } from '@/lib/catalog/cache';
 import { dbErrorMessage, fail, ok, type ActionResult } from '@/lib/utils/result';
 import type { Json } from '@/types/database';
 import { msg } from '@/i18n/translate';
@@ -23,7 +22,6 @@ export async function saveAttributeDefs(input: AttributeDef[]): Promise<ActionRe
   if (defs.some((d) => d.type === 'select' && d.options.length === 0)) return fail(msg('Agrega al menos una opción a los atributos de tipo "Opciones".'));
   const { error } = await ctx.supabase.from('catalogs').update({ attribute_defs: defs as Json }).eq('id', ctx.catalog.id);
   if (error) return fail(dbErrorMessage(error));
-  invalidatePublicCatalog(ctx.business.slug);
-  revalidatePath('/dashboard', 'layout');
+  afterCatalogChange(ctx);
   return ok(undefined, msg('Atributos guardados'));
 }

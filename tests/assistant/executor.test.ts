@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import { parseActions, type AssistantAction } from '@/lib/assistant/actions';
 import type { BuilderState } from '@/features/builder/reducer';
 import { planAssistantActions } from '@/features/assistant/executor';
+import { MAX_SITE_PAGES } from '@/features/builder/schema';
 import { pageSchema } from '@/lib/site/pages';
 import { buildSampleSite } from '@/lib/site/sample-site';
 import { themeSchema } from '@/lib/design/theme';
@@ -93,6 +94,20 @@ describe('Garfield AI · ejecutor de acciones', () => {
     assert.equal(plan.next.selectedPageId, created.id);
     assert.equal(plan.autoApply, false, 'crear una página se muestra como plan');
     assertSavable(plan.next);
+  });
+
+  it('no crea más páginas que el máximo del sitio (el servidor lo rechazaría al guardar)', () => {
+    const s = sampleState();
+    const extra = Array.from({ length: MAX_SITE_PAGES - s.pages.length }, (_, i) => ({ ...s.pages[1], id: `00000000-0000-4000-8000-0000000009${String(i).padStart(2, '0')}`, slug: `extra-${i}`, isHome: false }));
+    const full = { ...s, pages: [...s.pages, ...extra] };
+    assert.equal(full.pages.length, MAX_SITE_PAGES);
+    const plan = planAssistantActions(full, actions([{ action: 'create_page', title: 'Una más', blueprint: 'services' }]));
+    assert.equal(plan.next.pages.length, MAX_SITE_PAGES);
+    assert.notEqual(plan.steps[0].status, 'ok');
+    assert.match(plan.steps[0].error ?? '', /máximo de 30 páginas/);
+    // Con una menos, sí.
+    const almost = { ...full, pages: full.pages.slice(0, -1) };
+    assert.equal(planAssistantActions(almost, actions([{ action: 'create_page', title: 'Una más', blueprint: 'services' }])).next.pages.length, MAX_SITE_PAGES);
   });
 
   it('crea una página con secciones propias, alias y un botón que enlaza a otra página por referencia', () => {

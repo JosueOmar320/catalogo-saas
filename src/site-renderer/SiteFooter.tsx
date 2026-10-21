@@ -1,6 +1,5 @@
 import { Clock, Globe, Mail, MapPin, MessageCircle, Phone } from 'lucide-react';
 import { digitsOnly, hoursText } from '@/lib/business/profile';
-import { env as appEnv } from '@/lib/env';
 import { flattenNavigation, type ResolvedNavItem } from '@/lib/site/navigation';
 import type { SiteViewModel } from '@/lib/site/view-model';
 import { BackgroundLayers } from './Background';
@@ -22,8 +21,6 @@ export function SiteFooter({ site, navItems, columns }: { site: SiteViewModel; n
   const showPages = footer.showNav && pageLinks.length > 1 && footer.style !== 'simple';
   // Con muchas columnas, el negocio va en su propia fila y las demás se acomodan solas.
   const columnCount = columns.length + Number(showPages) + Number(footer.showContact && hasContact) + Number(footer.showHours && Boolean(hours));
-  // "Sitio creado con {app}": el enlace va donde está la variable (el orden cambia según el idioma).
-  const [brandingBefore, brandingAfter = ''] = t('Sitio creado con {app}').split('{app}');
 
   return (
     <footer className={`${styles.footer} ${styles.layered}`} data-style={footer.style} data-custom-bg={customBg}>
@@ -98,15 +95,9 @@ export function SiteFooter({ site, navItems, columns }: { site: SiteViewModel; n
           )}
         </div>
 
+        {/* "Sitio creado con …" ya no va aquí: SiteShell lo dibuja fuera de [data-site], donde el CSS propio no lo alcanza. */}
         <div className={styles.footerBottom}>
           <span>© {new Date().getFullYear()} {site.business.name}</span>
-          {site.showBranding && (
-            <span>
-              {brandingBefore}
-              <a href={appEnv.siteUrl} target="_blank" rel="noopener">{appEnv.appName}</a>
-              {brandingAfter}
-            </span>
-          )}
         </div>
       </div>
     </footer>

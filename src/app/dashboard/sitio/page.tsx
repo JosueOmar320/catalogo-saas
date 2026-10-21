@@ -22,6 +22,7 @@ export default async function SiteBuilderPage({ searchParams }: PageProps<'/dash
       key={ctx.business.id}
       site={data.site}
       persistedPageIds={data.persistedPageIds}
+      version={data.version}
       isStarter={data.isStarter}
       usesSampleItems={data.usesSampleItems}
       sectionTemplates={data.sectionTemplates}

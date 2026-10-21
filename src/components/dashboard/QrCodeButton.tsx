@@ -5,6 +5,7 @@ import { Download, Printer, QrCode } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useT } from '@/i18n/client';
 import { qrMatrix, qrPath, qrSvg } from '@/lib/qr';
+import { escapeHtml } from '@/lib/utils/text';
 
 type Props = { url: string; businessName: string; slug: string; published: boolean };
 
@@ -18,8 +19,6 @@ function save(name: string, blob: Blob) {
   a.click();
   setTimeout(() => URL.revokeObjectURL(href), 5000);
 }
-
-const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
 /** Botón "Código QR" del catálogo: vista previa, descarga en PNG/SVG y cartel para imprimir. */
 export function QrCodeButton({ url, businessName, slug, published }: Props) {

@@ -1,9 +1,8 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { canManageCatalog, requireBusinessContext, type BusinessContext } from '@/lib/auth/session';
-import { invalidatePublicCatalog } from '@/lib/catalog/cache';
+import { afterCatalogChange } from '@/lib/catalog/cache';
 import { msg } from '@/i18n/translate';
 import { fail, ok, type ActionResult } from '@/lib/utils/result';
 import { isPathOwnedBy, type MediaKind } from '@/lib/utils/storage';
@@ -30,8 +29,7 @@ async function run<T>(fn: () => Promise<T>, message?: string): Promise<ActionRes
 
 /** Cambios que afectan el sitio publicado (reemplazar, importar una externa). */
 function contentChanged(ctx: BusinessContext) {
-  invalidatePublicCatalog(ctx.business.slug);
-  revalidatePath('/dashboard', 'layout');
+  afterCatalogChange(ctx);
 }
 
 /** Registra en la biblioteca una imagen recién subida a Storage (ruta del negocio actual). */

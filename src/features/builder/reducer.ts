@@ -58,6 +58,9 @@ function uniqueSlug(base: string, pages: SitePage[]): string {
   }
 }
 
+/** Invariante: la página de inicio está publicada (sin portada no hay sitio). */
+const withHomePublished = (page: SitePage): SitePage => (page.isHome && !page.isPublished ? { ...page, isPublished: true } : page);
+
 const pagesChanged = (state: BuilderState, pages: SitePage[], extra: Partial<BuilderState> = {}): BuilderState => ({
   ...state,
   ...extra,
@@ -94,12 +97,13 @@ export function builderReducer(state: BuilderState, action: BuilderAction): Buil
       return pagesChanged(state, [...state.pages, newPage], { navigation, selectedPageId: newPage.id, selectedSectionId: null });
     }
     case 'updatePage':
-      return pagesChanged(state, mapPage(state, action.pageId, (p) => ({ ...p, ...action.patch })));
+      // La página de inicio siempre está publicada.
+      return pagesChanged(state, mapPage(state, action.pageId, (p) => withHomePublished({ ...p, ...action.patch })));
     case 'removePage': {
       if (state.pages.length <= 1) return state;
       const target = state.pages.find((p) => p.id === action.pageId);
       let pages = state.pages.filter((p) => p.id !== action.pageId);
-      if (target?.isHome) pages = pages.map((p, i) => (i === 0 ? { ...p, isHome: true } : p));
+      if (target?.isHome) pages = pages.map((p, i) => (i === 0 ? { ...p, isHome: true, isPublished: true } : p));
       const navigation = { items: state.navigation.items.filter((i) => !(i.kind === 'page' && i.pageId === action.pageId)) };
       return pagesChanged(state, pages, {
         navigation,

@@ -31,9 +31,14 @@ type Props = {
   enabled: boolean;
   canManage: boolean;
   locale: string;
+  /** Momento del servidor (ms) para "hace 5 min": el mismo al renderizar y al hidratar. */
+  now: number;
+  /** Tope de filas de la consulta: al llegar a él se avisa que hay más. */
+  pageSize: number;
 };
 
-export function ReviewsBoard({ status, reviews: initial, pending, enabled: initialEnabled, canManage, locale }: Props) {
+
+export function ReviewsBoard({ status, reviews: initial, pending, enabled: initialEnabled, canManage, locale, now, pageSize }: Props) {
   const t = useT();
   const router = useRouter();
   const confirm = useConfirm();
@@ -138,7 +143,7 @@ export function ReviewsBoard({ status, reviews: initial, pending, enabled: initi
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
                         <time dateTime={review.createdAt} title={formatDate(review.createdAt, locale)}>
-                          {formatRelative(review.createdAt, locale)}
+                          {formatRelative(review.createdAt, locale, now)}
                         </time>
                       </Typography>
                     </Stack>
@@ -179,6 +184,11 @@ export function ReviewsBoard({ status, reviews: initial, pending, enabled: initi
               </Box>
             ))}
           </Box>
+        )}
+        {reviews.length >= pageSize && (
+          <Typography variant="body2" color="text.secondary" sx={{ px: 2.5, py: 1.5 }}>
+            {t('Mostrando las últimas {count} reseñas.', { count: pageSize })}
+          </Typography>
         )}
       </SectionCard>
     </Stack>

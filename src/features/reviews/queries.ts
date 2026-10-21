@@ -13,7 +13,8 @@ export type PanelReview = {
   item: { id: string; name: string } | null;
 };
 
-const PAGE = 200;
+/** Tope de filas por consulta (la bandeja avisa cuando llega a él). */
+export const PAGE = 200;
 
 /**
  * Reseñas del negocio activo en un estado (RLS: sólo sus miembros), las más

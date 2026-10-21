@@ -1,6 +1,6 @@
 import { msg, type Translator } from '@/i18n/translate';
-import { formatPickup } from '@/lib/business/schedule';
-import { isSaleOver, type SaleEnds } from '@/lib/catalog/sale';
+import { formatPickup } from '@/lib/business/schedule-core';
+import { isSaleOver, type SaleEnds } from '@/lib/catalog/sale-core';
 import type { Branch, DeliveryZone, OrderSettings, PaymentMethod, PriceFormat, Promotion } from '@/lib/catalog/settings';
 import { formatPrice } from '@/lib/utils/format';
 import { digitsOnly } from '@/lib/utils/phone';
@@ -208,12 +208,17 @@ export const NO_OPTIONS: OrderOptions = {
 };
 export const NO_CHOICES: OrderChoices = { fulfillment: null, address: '', payment: null };
 
-export const PAYMENT_LABELS: Record<PaymentMethod, string> = {
-  cash: msg('Efectivo'),
-  card: msg('Tarjeta'),
-  transfer: msg('Transferencia'),
-  link: msg('Enlace de pago'),
-};
+/**
+ * Formas de pago: viven en lib/orders (la bandeja del panel las comparte).
+ * Los msg() de abajo las registran también en el catálogo del sitio
+ * (en/site.ts): el mensaje del pedido las traduce con el idioma del sitio.
+ */
+import { PAYMENT_LABELS } from '@/lib/orders/payment-labels';
+export { PAYMENT_LABELS };
+msg('Efectivo');
+msg('Tarjeta');
+msg('Transferencia');
+msg('Enlace de pago');
 
 export const fulfillmentOptions = (options: OrderOptions): Fulfillment[] => [...(options.pickup ? ['pickup' as const] : []), ...(options.delivery ? ['delivery' as const] : [])];
 

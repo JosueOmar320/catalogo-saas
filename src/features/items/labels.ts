@@ -1,4 +1,5 @@
 import { qrSvg } from '@/lib/qr';
+import { escapeHtml } from '@/lib/utils/text';
 
 /**
  * Etiquetas para imprimir (anaquel, mostrador, vitrina): nombre, precio y un
@@ -6,8 +7,6 @@ import { qrSvg } from '@/lib/qr';
  * con estilos de impresión; los textos llegan ya traducidos y se escapan.
  */
 export type LabelItem = { name: string; priceLabel: string | null; url: string };
-
-const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
 export function labelsHtml({ items, businessName, title, scanText, lang }: { items: LabelItem[]; businessName: string; title: string; scanText: string; lang: string }): string {
   const labels = items

@@ -10,6 +10,8 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const ctx = await getBusinessContext();
   if (!ctx) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  // Sitio web sin catálogo: no hay productos, pedidos ni estadísticas de catálogo que exportar.
+  if (ctx.siteKind !== 'catalog') return NextResponse.json({ error: 'not_found' }, { status: 404 });
   const [categories, items] = await Promise.all([listCategories(ctx), listItemsWithImages(ctx)]);
   const categoryName = new Map(categories.map((c) => [c.id, c.name]));
   const csv = itemsToCsv(

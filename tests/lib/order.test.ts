@@ -12,7 +12,10 @@ import { dailyReportCsv, productReportCsv } from '@/lib/reports/stats-csv';
 import { createTranslator } from '@/i18n/translate';
 import { resolveBadges } from '@/lib/site/resolve';
 import { marginOf } from '@/lib/catalog/margin';
-import { orderConfig } from '@/site-renderer/order/config';
+import { orderConfig, orderable } from '@/site-renderer/order/config';
+import { toCatalogClientSite } from '@/site-renderer/catalog-client-model';
+import { PAYMENT_LABELS } from '@/lib/orders/payment-labels';
+import { paymentLabel } from '@/lib/orders/inbox';
 import { buildSampleSite } from '@/lib/site/sample-site';
 import { summarizeOrders, windowStart } from '@/lib/orders/stats';
 import { ordersPer100Views, summarizeViews } from '@/lib/views/stats';
@@ -456,3 +459,44 @@ describe('Promociones automáticas y «Nuevo» automático', () => {
   });
 });
 
+
+describe('Modelo recortado de la sección de catálogo', () => {
+  const site = { ...buildSampleSite(), reviews: [{ id: 'r1', itemId: 'x', name: 'Ana', rating: 5, body: '', createdAt: '2026-01-01T00:00:00Z' }] };
+  const catalog = site.pages.flatMap((p) => p.sections).find((s) => s.type === 'catalog');
+
+  it('la demo tiene una sección de catálogo', () => {
+    assert.ok(catalog);
+  });
+
+  it('al navegador no viajan las descripciones largas, los «combínalo con» ni las reseñas; sí el resumen por producto', () => {
+    assert.ok(catalog && catalog.type === 'catalog');
+    const reviewed = site.items[0];
+    const withReviews = { ...site, reviews: [{ id: 'r1', itemId: reviewed.id, name: 'Ana', rating: 5, body: 'Excelente', createdAt: '2026-01-01T00:00:00Z' }, { id: 'r2', itemId: reviewed.id, name: 'Luis', rating: 4, body: '', createdAt: '2026-01-02T00:00:00Z' }] };
+    const client = toCatalogClientSite(withReviews, catalog);
+    assert.ok(client.items.length > 0);
+    assert.ok(client.items.every((item) => item.description === null && item.pairings.length === 0));
+    assert.equal('reviews' in client, false);
+    assert.equal('pages' in client, false);
+    assert.equal('seo' in client, false);
+    assert.deepEqual(client.ratings?.[reviewed.id], { average: 4.5, count: 2 });
+    // Lo que las tarjetas y el pedido necesitan sigue ahí y da lo mismo con el modelo completo o el recortado.
+    assert.equal(client.items.length, site.items.filter((i) => catalog.content.itemType === 'any' || i.type === catalog.content.itemType).length);
+    for (const item of client.items) assert.equal(orderable(client, item), orderable(withReviews, item));
+    assert.ok(client.attributeDefs.every((def) => def.filterable || def.showInCard || def.showInDetail || catalog.content.filters.attributes.includes(def.id)));
+  });
+
+  it('la presentación «detalle» conserva la descripción larga (la dibuja)', () => {
+    assert.ok(catalog && catalog.type === 'catalog');
+    const detail = { ...catalog, content: { ...catalog.content, presentation: { ...catalog.content.presentation, layout: 'detail' as const } } };
+    const client = toCatalogClientSite(site, detail);
+    assert.ok(client.items.some((item) => item.description !== null) === site.items.some((item) => item.description !== null));
+  });
+});
+
+describe('Formas de pago compartidas (sitio y bandeja)', () => {
+  it('la etiqueta vive en lib/orders y la traduce cada área con su catálogo', () => {
+    assert.equal(paymentLabel(createTranslator('es', null), 'cash'), PAYMENT_LABELS.cash);
+    assert.equal(paymentLabel(siteTranslator('en'), 'transfer'), 'Bank transfer');
+    assert.equal(paymentLabel(createTranslator('es', null), 'otro'), 'otro');
+  });
+});

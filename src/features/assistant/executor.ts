@@ -14,6 +14,7 @@ import { deepMerge, isPlainObject, type PlainObject } from '@/lib/utils/object';
 import { slugify } from '@/lib/utils/slug';
 import { collectMediaPaths } from '@/lib/utils/storage';
 import { builderReducer, type BuilderAction, type BuilderState } from '../builder/reducer';
+import { MAX_SITE_PAGES } from '../builder/schema';
 import { foldText } from '@/lib/utils/text';
 import { interpolate, msg, type Translator } from '@/i18n/translate';
 
@@ -317,6 +318,7 @@ export function planAssistantActions(initial: BuilderState, actions: AssistantAc
     let risk: StepRisk = CONFIRM_ACTIONS.has(a.action) ? 'confirm' : 'safe';
     switch (a.action) {
       case 'create_page': {
+        if (s.pages.length >= MAX_SITE_PAGES) fail(t('El sitio ya tiene el máximo de {max} páginas. Borra alguna para crear otra.', { max: MAX_SITE_PAGES }));
         const blueprint = a.blueprint ? PAGE_BLUEPRINT_DEFS[a.blueprint] : null;
         const catalogPage = s.pages.find((p) => p.sections.some((x) => x.type === 'catalog'));
         const sectionErrors: string[] = [];

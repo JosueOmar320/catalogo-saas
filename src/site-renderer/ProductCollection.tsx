@@ -2,8 +2,8 @@ import type { CSSProperties } from 'react';
 import { visibleAttributes } from '@/lib/catalog/attributes-core';
 import type { Presentation } from '@/lib/catalog/presentation';
 import type { CatalogItemView } from '@/lib/catalog/view-model';
-import type { SiteViewModel } from '@/lib/site/view-model';
 import { Badges } from './Badges';
+import type { CatalogClientSite } from './catalog-client-model';
 import { ContactActions } from './ContactActions';
 import type { RenderEnv } from './env';
 import { ImageGallery } from './ImageGallery';
@@ -15,7 +15,8 @@ import { CARD_RATIOS } from './theme-vars';
 
 type Props = {
   items: CatalogItemView[];
-  site: SiteViewModel;
+  /** El modelo completo o el recortado de la sección de catálogo. */
+  site: CatalogClientSite;
   env: RenderEnv;
   presentation: Presentation;
   categoryNames: Map<string, string>;

@@ -159,7 +159,7 @@ const catalog: Catalog = {
   Agregar: 'Add',
   'Hola {negocio}, quiero hacer este pedido:': 'Hi {negocio}, I would like to place this order:',
   'El pedido llegó al máximo de {count} productos.': 'The order has reached the maximum of {count} products.',
-  'Agregado al pedido: {name}': 'Added to order: {name}',
+  'Agregado al pedido: {name} ({count} en total)': 'Added to order: {name} ({count} in total)',
   'Cantidad de {name}': 'Quantity of {name}',
   'Quitar del pedido': 'Remove from order',
   'Uno menos': 'One less',

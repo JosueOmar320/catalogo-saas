@@ -2,6 +2,7 @@ import type { Schedule } from '@/lib/business/schedule';
 import type { CatalogExtrasView, CatalogItemView, CatalogVariantsView } from '@/lib/catalog/view-model';
 import type { SiteViewModel } from '@/lib/site/view-model';
 import { digitsOnly } from '@/lib/utils/phone';
+import type { CatalogClientSite } from '../catalog-client-model';
 import { defaultText } from '../default-texts';
 import { siteTranslator } from '../site-i18n';
 import { couponHash, type TierIndex, type CatalogIndex, type OrderItem, type OrderOptions, type OrderPause, type OrderPricing, type PublicCoupon } from './message';
@@ -97,11 +98,11 @@ export function orderConfig(site: SiteViewModel, { track = false }: { track?: bo
 }
 
 /** Sólo los productos disponibles se piden; los servicios se siguen consultando. */
-export const orderable = (site: SiteViewModel, item: CatalogItemView) =>
+export const orderable = (site: Pick<CatalogClientSite, 'settings' | 'business'>, item: CatalogItemView) =>
   site.settings.order.enabled && item.type === 'product' && item.isAvailable && receivesOrders(site);
 
 /** ¿Hay a dónde mandar los pedidos? El WhatsApp del negocio o el de alguna sucursal. */
-export const receivesOrders = (site: SiteViewModel) => Boolean(digitsOnly(site.business.contact.whatsapp)) || site.settings.order.branches.length > 0;
+export const receivesOrders = (site: Pick<CatalogClientSite, 'settings' | 'business'>) => Boolean(digitsOnly(site.business.contact.whatsapp)) || site.settings.order.branches.length > 0;
 
 export function toOrderItem(item: CatalogItemView): OrderItem {
   return {

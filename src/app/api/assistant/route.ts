@@ -1,22 +1,19 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
+import { guardAssistantRequest, logAssistantError } from '@/features/assistant/server/guard';
 import { describeModelError, getAssistantModel } from '@/features/assistant/server/model';
-import { checkRateLimit } from '@/features/assistant/server/rate-limit';
-import { consumeRateLimit } from '@/lib/security/rate-limit';
 import { createToolRunner, serverContext, validatedMedia } from '@/features/assistant/server/tool-runner';
-import { canManageCatalog, getBusinessContext } from '@/lib/auth/session';
+import { canManageCatalog } from '@/lib/auth/session';
 import { assistantContextSchema } from '@/lib/assistant/context';
 import { parseModeActions } from '@/lib/assistant/modes';
 import { resolveMediaQueries } from '@/features/assistant/server/resolve-media';
-import { getLocale, getT } from '@/i18n/server';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
+/** El editor manda el contexto del sitio (páginas, secciones): más grande que un pedido del panel. */
 const MAX_BODY = 200_000;
-/** Pedidos por usuario y día (cada uno puede llamar al modelo varias veces). */
-const DAILY_REQUESTS = 300;
 
 const requestSchema = z.object({
   messages: z
@@ -34,35 +31,19 @@ const requestSchema = z.object({
  * aquí es aditiva: importar a la biblioteca las fotos libres que el pedido usa.
  */
 export async function POST(request: NextRequest) {
-  // Idioma de la app del usuario: los errores se muestran traducidos y el modelo le responde en ese idioma.
-  const [locale, t] = await Promise.all([getLocale(), getT()]);
-  const ctx = await getBusinessContext();
-  if (!ctx) return NextResponse.json({ error: t('Inicia sesión para usar a Garfield.') }, { status: 401 });
-  if (!canManageCatalog(ctx)) return NextResponse.json({ error: t('Sólo el dueño o un administrador puede editar el sitio.') }, { status: 403 });
-
-  // Ráfagas: contador local (sin red). Cupo diario: compartido entre instancias (controla el gasto del modelo).
-  const limit = checkRateLimit(ctx.userId);
-  if (!limit.ok) return NextResponse.json({ error: t('Garfield necesita una siesta corta. Intenta en {seconds} s.', { seconds: limit.retryAfter }) }, { status: 429, headers: { 'Retry-After': String(limit.retryAfter) } });
-  if (!(await consumeRateLimit(`assistant:${ctx.userId}`, DAILY_REQUESTS, 86_400))) {
-    return NextResponse.json({ error: t('Garfield ya trabajó mucho hoy. Vuelve mañana o sigue editando a mano.') }, { status: 429, headers: { 'Retry-After': '3600' } });
-  }
-
-  if (Number(request.headers.get('content-length') ?? 0) > MAX_BODY) return NextResponse.json({ error: t('El pedido es demasiado grande.') }, { status: 413 });
-  const raw = await request.text();
-  if (raw.length > MAX_BODY) return NextResponse.json({ error: t('El pedido es demasiado grande.') }, { status: 413 });
-  let body: unknown;
-  try {
-    body = JSON.parse(raw);
-  } catch {
-    return NextResponse.json({ error: t('Pedido inválido.') }, { status: 400 });
-  }
-  const parsed = requestSchema.safeParse(body);
-  if (!parsed.success) return NextResponse.json({ error: t('Pedido inválido.') }, { status: 400 });
+  // Sesión, permiso de edición, límites y cuerpo validado; el idioma de la app del usuario
+  // traduce los errores y el modelo le responde en ese idioma.
+  const guarded = await guardAssistantRequest(request, requestSchema, {
+    maxBody: MAX_BODY,
+    forbid: (ctx, t) => (canManageCatalog(ctx) ? null : t('Sólo el dueño o un administrador puede editar el sitio.')),
+  });
+  if (!guarded.ok) return guarded.response;
+  const { ctx, data, t, locale } = guarded;
   // El contexto describe SIEMPRE el negocio de la sesión (no se confía en el cliente para eso)
   // y el servidor agrega las imágenes y productos reales.
-  const messages = parsed.data.messages.slice(-16);
+  const messages = data.messages.slice(-16);
   const context = {
-    ...parsed.data.context,
+    ...data.context,
     business: { name: ctx.business.name, slogan: ctx.business.slogan ?? '', description: (ctx.business.description ?? '').slice(0, 400) },
     ...(await serverContext(ctx)),
   };
@@ -93,7 +74,7 @@ export async function POST(request: NextRequest) {
     const message = resolved.notes.length ? `${result.message}\n\n${resolved.notes.join(' ')}` : result.message;
     return NextResponse.json({ ...result, message, actions, warnings: [...result.warnings, ...errors], allowedMedia }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
-    console.error('[assistant]', error);
+    logAssistantError('[assistant]', error);
     const { status, message, params } = describeModelError(error);
     return NextResponse.json({ error: t(message, params) }, { status });
   }

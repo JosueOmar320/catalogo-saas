@@ -1,16 +1,17 @@
 import { z } from 'zod';
 import { msg } from '@/i18n/translate';
 import { hexColor } from '@/lib/design/schema-utils';
-import { isTimeZone } from '@/lib/business/schedule';
+import { isTimeZone } from '@/lib/business/schedule-core';
 import { saleEndsSchema } from './sale';
+import { DIET_TAGS, MANUAL_BADGES, MAX_EXTRA_OPTIONS, MAX_PAIRINGS, MAX_PRICE_TIERS, MAX_TIER_QTY, MAX_VARIANT_OPTIONS } from './item-attributes-core';
+
+export * from './item-attributes-core';
 
 /**
  * Campos extensibles del ítem (catalog_items.attributes, JSONB).
  * Hoy: badges manuales y badge personalizado. Mañana: duración, variantes…
  * sin migraciones.
  */
-export const MANUAL_BADGES = ['new', 'featured', 'popular'] as const;
-export type ManualBadge = (typeof MANUAL_BADGES)[number];
 
 /**
  * Variantes: un grupo de opciones (Tamaño: Chico / Mediano / Grande) con
@@ -25,7 +26,6 @@ export const variantOptionSchema = z.object({
   available: z.boolean().default(true),
 });
 
-export const MAX_VARIANT_OPTIONS = 20;
 
 export const variantsSchema = z
   .object({
@@ -46,7 +46,6 @@ export const extraOptionSchema = z.object({
   available: z.boolean().default(true),
 });
 
-export const MAX_EXTRA_OPTIONS = 20;
 
 export const extrasSchema = z
   .object({
@@ -72,9 +71,6 @@ export type OrderHours = NonNullable<z.output<typeof orderHoursSchema>>;
  * Precios por mayoreo: desde cierta cantidad (de la misma línea del pedido),
  * otro precio por unidad. Sólo productos sin opciones.
  */
-export const MAX_PRICE_TIERS = 5;
-/** Tope de unidades por línea del pedido (igual que el pedido y sus estadísticas). */
-export const MAX_TIER_QTY = 99;
 export const priceTierSchema = z.object({ minQty: z.number().int().min(2).max(MAX_TIER_QTY), price: z.number().min(0).max(99_999_999) });
 export const tiersSchema = z
   .array(priceTierSchema)
@@ -91,7 +87,6 @@ export const seasonSchema = z
   .nullable()
   .default(null);
 
-export const MAX_PAIRINGS = 4;
 
 /** Precio programado (sólo productos sin opciones): desde ese día vale `price`. */
 export const nextPriceSchema = z
@@ -99,12 +94,7 @@ export const nextPriceSchema = z
   .nullable()
   .default(null);
 
-/** Etiquetas de dieta y alérgenos (se muestran en la ficha y se filtran en el catálogo). */
-export const DIET_TAGS = ['vegan', 'vegetarian', 'gluten-free', 'lactose-free', 'sugar-free', 'spicy', 'organic'] as const;
-export type DietTag = (typeof DIET_TAGS)[number];
 
-/** Avisa "¡Quedan N!" desde estas existencias o menos. */
-export const LOW_STOCK = 5;
 
 export type VariantOption = z.output<typeof variantOptionSchema>;
 export type ItemVariants = NonNullable<z.output<typeof variantsSchema>>;

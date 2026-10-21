@@ -1,4 +1,4 @@
-import { todayIn, type SaleEnds } from './sale';
+import { todayIn, type SaleEnds } from './sale-core';
 
 /**
  * Productos de temporada (pan de muerto, roscas): se ven en el sitio sólo
