@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { clampEmbedHeight, EMBED_MESSAGE, EMBED_SANDBOX, embedDocument, htmlToText, sanitizeCustomHtml, scopeCustomCss } from '@/lib/site/custom-code';
+import { clampEmbedHeight, cleanCustomHtmlSource, cleanInlineStyle, EMBED_MESSAGE, EMBED_SANDBOX, embedDocument, htmlToText, renderCustomHtml, sanitizeCustomHtml, scopeCustomCss } from '@/lib/site/custom-code';
 
 describe('Código propio: HTML', () => {
   it('quita scripts, eventos, iframes, formularios y URLs javascript:', () => {
@@ -12,10 +12,10 @@ describe('Código propio: HTML', () => {
 
   it('conserva el contenido y el estilo seguro; las imágenes sólo por https', () => {
     const clean = sanitizeCustomHtml('<section style="color: #c00; position: fixed; background: url(https://x.test/a.png); padding: 24px"><h2>Promo</h2><img src="https://cdn.test/a.jpg" alt="A"><img src="http://cdn.test/b.jpg" alt="B"><table><tr><td colspan="2">1</td></tr></table></section>');
-    assert.match(clean, /style="color:#c00;padding:24px"/);
+    assert.match(clean, /style="color:#c00;background:url\(https:\/\/x\.test\/a\.png\);padding:24px"/);
     assert.match(clean, /<h2>Promo<\/h2>/);
     assert.match(clean, /<img loading="lazy" src="https:\/\/cdn\.test\/a\.jpg" alt="A" \/>/);
-    assert.doesNotMatch(clean, /http:\/\/cdn|position|url\(/);
+    assert.doesNotMatch(clean, /http:\/\/cdn|position/);
     assert.match(clean, /<td colspan="2">1<\/td>/);
   });
 
@@ -28,6 +28,37 @@ describe('Código propio: HTML', () => {
     assert.equal(htmlToText('<h2>Horario</h2><p>Lunes &amp; martes</p><ul><li>9:00</li><li>18:00</li></ul><script>x()</script>'), 'Horario\nLunes & martes\n9:00\n18:00');
     // Sin decodificar dos veces: el texto "&lt;b&gt;" escrito como entidades sigue siendo ese texto.
     assert.equal(htmlToText('<p>Usa &amp;lt;b&amp;gt; para negritas</p>'), 'Usa &lt;b&gt; para negritas');
+  });
+});
+
+describe('Código propio: HTML con su CSS, variables y más etiquetas', () => {
+  it('estilo en línea: variables CSS, transformaciones y animaciones sí; position: fixed y url() inseguras no', () => {
+    assert.equal(cleanInlineStyle('--progress: 92%; transform: rotate(3deg); animation: spin 2s infinite; position: fixed; top: 0'), '--progress:92%;transform:rotate(3deg);animation:spin 2s infinite;top:0');
+    assert.equal(cleanInlineStyle('position: absolute; background: url(javascript:alert(1)); color: red'), 'position:absolute;color:red');
+    assert.equal(cleanInlineStyle('width: expression(alert(1)); behavior: url(x.htc)'), '');
+    assert.equal(cleanInlineStyle('}} body { display:none'), '');
+  });
+
+  it('nav, botones (siempre type="button"), progress y tabindex 0/-1', () => {
+    const clean = sanitizeCustomHtml('<nav aria-label="Vistas"><a href="#a">A</a></nav><button type="submit" onclick="x()">Ok</button><progress value="3" max="5"></progress><article tabindex="5">X</article>');
+    assert.equal(clean, '<nav aria-label="Vistas"><a href="#a">A</a></nav><button type="button">Ok</button><progress value="3" max="5"></progress><article tabindex="0">X</article>');
+  });
+
+  it('el <style> del HTML se guarda limpio y al mostrarse sólo alcanza a su sección', () => {
+    const source = '<article class="card" style="--progress: 92%">Hola</article><style>.card { border-radius: 24px } body { background: #000 } @import url(https://x.test/a.css); .x { background: url(javascript:alert(1)) }</style><script>alert(1)</script>';
+    const saved = cleanCustomHtmlSource(source);
+    assert.match(saved, /^<article class="card" style="--progress:92%">Hola<\/article>\n<style>/);
+    assert.doesNotMatch(saved, /script|@import|javascript/);
+    const { markup, css } = renderCustomHtml(saved, 'sec-1');
+    assert.equal(markup, '<article class="card" style="--progress:92%">Hola</article>');
+    assert.match(css, /\[data-custom-html="sec-1"\] \.card \{ border-radius: 24px \}/);
+    assert.match(css, /\[data-custom-html="sec-1"\] \{ background: #000 \}/);
+  });
+
+  it('un </style> dentro del CSS no permite meter HTML', () => {
+    const { markup, css } = renderCustomHtml('<style>.a{content:"x"}</style><img src=x onerror=alert(1)><style>.b{color:red}</style>', 'id"]{}*{');
+    assert.equal(markup, '<img loading="lazy" src="x" />');
+    assert.match(css, /\[data-custom-html="id"\] \.b\{color:red\}/);
   });
 });
 
@@ -75,5 +106,35 @@ describe('Código propio: widget', () => {
     assert.equal(clampEmbedHeight(99999), 4000);
     assert.equal(clampEmbedHeight('300'), null);
     assert.equal(clampEmbedHeight(Number.NaN), null);
+  });
+});
+
+describe('Código propio: efectos fx', () => {
+  it('los contadores leen y escriben números con miles, decimales y texto alrededor', async () => {
+    const { parseCount, formatCount } = await import('@/lib/site/fx');
+    const price = parseCount('$1,450.00 MXN')!;
+    assert.deepEqual([price.value, price.decimals, price.prefix, price.suffix], [1450, 2, '$', ' MXN']);
+    assert.equal(formatCount(725, price), '$725.00 MXN');
+    const percent = parseCount('98%')!;
+    assert.equal(formatCount(49.4, percent), '49%');
+    assert.equal(formatCount(1234567, parseCount('1.000.000')!), '1.234.567');
+    assert.equal(parseCount('sin número'), null);
+  });
+
+  it('los efectos quedan limitados a las secciones HTML; las animaciones respetan "reducir movimiento"', async () => {
+    const { customHtmlFxCss } = await import('@/lib/site/custom-code');
+    const css = customHtmlFxCss();
+    assert.match(css, /\[data-custom-html\] \.fx-hover-lift:hover/);
+    assert.match(css, /\[data-custom-html\] \[data-fx~="tilt"\]/);
+    assert.match(css, /@keyframes fx-fade-up/);
+    assert.match(css, /@media \(prefers-reduced-motion: no-preference\) \{[\s\S]*\[data-custom-html\] \.fx-float \{ animation: fx-float/);
+    assert.doesNotMatch(css, /(^|\})\s*\.fx-/);
+  });
+
+  it('el widget trae los colores del sitio y los efectos; valores raros no pasan', () => {
+    const doc = embedDocument('<p class="fx-pulse">Hola</p>', { '--c-accent': '#06B6D4', '--c-primary': 'red;}</style><script>alert(1)</script>', '--font-x': 'x' });
+    assert.match(doc, /:root\{--c-accent:#06B6D4\}/);
+    assert.doesNotMatch(doc, /alert|--font-x/);
+    assert.match(doc, /\.fx-pulse \{ animation: fx-pulse/);
   });
 });

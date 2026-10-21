@@ -10,10 +10,10 @@ import styles from './site.module.css';
  * la sesión ni al sitio). Con alto automático, sólo se aceptan mensajes de
  * ESTE iframe y el valor se limita.
  */
-export function EmbedFrame({ code, title, height }: { code: string; title: string; height: number }) {
+export function EmbedFrame({ code, title, height, vars }: { code: string; title: string; height: number; vars?: Record<string, string> }) {
   const frame = useRef<HTMLIFrameElement>(null);
   const [auto, setAuto] = useState(160);
-  const srcDoc = useMemo(() => embedDocument(code), [code]);
+  const srcDoc = useMemo(() => embedDocument(code, vars), [code, vars]);
 
   useEffect(() => {
     if (height > 0) return;

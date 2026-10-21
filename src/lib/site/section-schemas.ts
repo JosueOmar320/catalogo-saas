@@ -127,7 +127,7 @@ function build(lenient: boolean) {
       dividerTop: divider,
       dividerBottom: divider,
       /** Animación de entrada al hacer scroll (sólo CSS; sin movimiento si el visitante lo pidió). */
-      animation: f(z.enum(['none', 'fade', 'up', 'zoom', 'left', 'right']), 'none'),
+      animation: f(z.enum(['none', 'fade', 'up', 'zoom', 'left', 'right', 'blur', 'flip']), 'none'),
       hideOnMobile: bool(false),
       hideOnTablet: bool(false),
       hideOnDesktop: bool(false),

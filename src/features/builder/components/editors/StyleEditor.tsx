@@ -42,6 +42,8 @@ const animations = [
   { value: 'zoom' as const, label: msg('Acercar') },
   { value: 'left' as const, label: msg('Desde la izquierda') },
   { value: 'right' as const, label: msg('Desde la derecha') },
+  { value: 'blur' as const, label: msg('Desenfoque') },
+  { value: 'flip' as const, label: msg('Giro') },
 ];
 const dividerShapes = [
   { value: 'none' as const, label: msg('Ninguno') },

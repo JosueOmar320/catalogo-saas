@@ -1075,8 +1075,12 @@ test('código propio: el administrador lo habilita; HTML limpio, widget aislado 
   await page.goto('/dashboard/sitio');
   await page.getByRole('button', { name: 'Sección', exact: true }).click();
   await page.getByRole('button', { name: /^HTML propio/ }).click();
-  await page.getByLabel('HTML', { exact: true }).fill('<div class="promo-e2e"><h2>Promo E2E</h2><p onclick="alert(1)">2×1 los martes</p><script>window.__pwned = true</script></div>');
+  // Con su propio <style> (sólo alcanza a esta sección) y un ejemplo con efectos.
+  await page.getByLabel('HTML', { exact: true }).fill('<div class="promo-e2e"><h2>Promo E2E</h2><p onclick="alert(1)">2×1 los martes</p><script>window.__pwned = true</script></div><style>.promo-e2e p { letter-spacing: 3px }</style>');
   await expect(page.getByText(/Los scripts, iframes, formularios/)).toBeVisible();
+  await page.getByRole('button', { name: 'Insertar ejemplo' }).click();
+  await page.getByRole('menuitem', { name: 'Tarjeta 3D con reflejo' }).click();
+  await expect(page.getByLabel('HTML', { exact: true })).toHaveValue(/class="holo fx-fade-up" data-fx="tilt"/);
   await page.getByRole('button', { name: 'Volver a las secciones' }).click();
   await page.getByRole('button', { name: 'Sección', exact: true }).click();
   await page.getByRole('button', { name: /^Widget con código/ }).click();
@@ -1110,6 +1114,15 @@ test('código propio: el administrador lo habilita; HTML limpio, widget aislado 
   await expect(promo).toHaveCSS('color', 'rgb(200, 0, 0)');
   await expect(site.locator('[data-site]')).toHaveCSS('outline-color', 'rgb(0, 128, 0)');
   await expect(site.locator('.promo-e2e [onclick], .promo-e2e script')).toHaveCount(0);
+  await expect(site.locator('.promo-e2e p')).toHaveCSS('letter-spacing', '3px');
+  // El ejemplo: su CSS, la variable en línea y la inclinación 3D con el mouse.
+  const card = site.locator('.holo');
+  await card.scrollIntoViewIfNeeded();
+  await expect(card).toHaveCSS('border-radius', '24px');
+  await expect(site.locator('.holo__bar').first()).toHaveAttribute('style', '--progress:92%');
+  const box = (await card.boundingBox())!;
+  await site.mouse.move(box.x + box.width * 0.9, box.y + box.height * 0.2);
+  await expect(card).toHaveAttribute('style', /--fx-ry: [1-9]/);
   expect(await site.evaluate(() => (window as unknown as { __pwned?: boolean }).__pwned)).toBeUndefined();
 
   const frame = site.locator('iframe[title="Reservas E2E"]');
