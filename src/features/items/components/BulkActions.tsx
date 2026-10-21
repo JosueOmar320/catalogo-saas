@@ -121,7 +121,7 @@ export function BulkActions({ selected, categories, locale, businessName, pendin
         {t('Eliminar')}
       </Button>
       <Tooltip title={t('Quitar selección')}>
-        <IconButton size="small" color="inherit" onClick={onClear}>
+        <IconButton size="small" color="inherit" onClick={onClear} aria-label={t('Quitar selección')}>
           <X size={16} />
         </IconButton>
       </Tooltip>

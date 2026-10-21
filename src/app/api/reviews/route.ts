@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
+import { readJsonBody } from '@/lib/api/beacon';
 import { isSupabaseConfigured } from '@/lib/env';
 import { clientIp, consumeRateLimit } from '@/lib/security/rate-limit';
 import { createAdminClient, isServiceRoleConfigured } from '@/lib/supabase/admin';
@@ -29,18 +30,9 @@ const WINDOW_SECONDS = 3600;
 const json = (ok: boolean, status = 200) => NextResponse.json({ ok }, { status, headers: { 'Cache-Control': 'no-store' } });
 
 export async function POST(request: NextRequest) {
-  const origin = request.headers.get('origin');
-  if (origin && origin !== request.nextUrl.origin) return new NextResponse(null, { status: 403 });
-  if (Number(request.headers.get('content-length') ?? 0) > MAX_BYTES) return new NextResponse(null, { status: 413 });
-
-  let body: z.output<typeof bodySchema>;
-  try {
-    const text = await request.text();
-    if (text.length > MAX_BYTES) return new NextResponse(null, { status: 413 });
-    body = bodySchema.parse(JSON.parse(text));
-  } catch {
-    return new NextResponse(null, { status: 400 });
-  }
+  const read = await readJsonBody(request, bodySchema, { maxBytes: MAX_BYTES });
+  if (!read.ok) return read.response;
+  const { body } = read;
 
   // El robot cree que funcionó; no se guarda nada.
   if (body.website) return json(true);

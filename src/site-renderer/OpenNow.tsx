@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore } from 'react';
 import type { Translator } from '@/i18n/translate';
-import { openStatus, shortTime, weekdayName, type OpenStatus, type Schedule } from '@/lib/business/schedule';
+import { openStatus, shortTime, weekdayName, type OpenStatus, type Schedule } from '@/lib/business/schedule-core';
 import { useSiteT } from './SiteI18n';
 import styles from './site.module.css';
 

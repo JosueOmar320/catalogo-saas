@@ -5,6 +5,7 @@ import type { CatalogItemView } from '@/lib/catalog/view-model';
 import type { CardStyleId } from '@/lib/design/styles-registry';
 import type { SiteViewModel } from '@/lib/site/view-model';
 import { Badges } from './Badges';
+import type { CatalogClientSite } from './catalog-client-model';
 import { ContactActions } from './ContactActions';
 import { DietTags } from './diet';
 import { FavoriteButton } from './Favorites';
@@ -48,7 +49,7 @@ export type CardOptions = {
   size?: 'normal' | 'large' | 'compact';
 };
 
-export function resolveFields(site: SiteViewModel, fields: Partial<CardFields> = {}): CardFields {
+export function resolveFields(site: Pick<CatalogClientSite, 'theme'>, fields: Partial<CardFields> = {}): CardFields {
   const cards = site.theme.cards;
   return {
     image: fields.image ?? true,
@@ -91,7 +92,7 @@ export function ItemMedia({ item, className, sizes, priority, shape, frame, inde
 }
 
 /** Atributos del ítem como "Origen: Chiapas · Tamaño: 12 oz". */
-export function ItemAttributes({ item, site, mode, className }: { item: CatalogItemView; site: SiteViewModel; mode: 'card' | 'all'; className?: string }) {
+export function ItemAttributes({ item, site, mode, className }: { item: CatalogItemView; site: Pick<CatalogClientSite, 'attributeDefs' | 'settings'>; mode: 'card' | 'all'; className?: string }) {
   const attrs = visibleAttributes(item.attributes, site.attributeDefs, mode === 'card' ? 'card' : 'detail', siteYesNo(site.settings.language)).filter((a) => !a.list || mode === 'all');
   if (attrs.length === 0) return null;
   return (
@@ -105,8 +106,8 @@ export function ItemAttributes({ item, site, mode, className }: { item: CatalogI
   );
 }
 
-/** Tarjeta de ítem. Estilo (7 variantes), forma de imagen, campos y hover configurables. */
-export function ItemCard({ item, site, env, options = {} }: { item: CatalogItemView; site: SiteViewModel; env: RenderEnv; options?: CardOptions }) {
+/** Tarjeta de ítem. Estilo (7 variantes), forma de imagen, campos y hover configurables. `site`: el modelo completo o el recortado del catálogo. */
+export function ItemCard({ item, site, env, options = {} }: { item: CatalogItemView; site: CatalogClientSite; env: RenderEnv; options?: CardOptions }) {
   const cards = site.theme.cards;
   const style = options.style ?? cards.style;
   const imagePosition = options.imagePosition ?? cards.imagePosition;

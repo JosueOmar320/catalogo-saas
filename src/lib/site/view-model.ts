@@ -1,4 +1,5 @@
 import { parseContact, parseSocialLinks, type BusinessContact, type SocialLink } from '@/lib/business/profile';
+import type { SiteKind } from '@/lib/business/site-kind';
 import { parseAttributeDefs, type AttributeDef } from '@/lib/catalog/attributes';
 import { parseItemAttributes } from '@/lib/catalog/item-attributes';
 import { inSeason } from '@/lib/catalog/season';
@@ -26,6 +27,11 @@ export type SiteViewModel = {
     socialLinks: SocialLink[];
   };
   theme: ThemeConfig;
+  /**
+   * Sitio web sin catálogo: sin productos, pedidos ni reseñas (las secciones de
+   * catálogo quedan vacías). Ausente (demo construida a mano) = catálogo.
+   */
+  siteKind?: SiteKind;
   settings: CatalogSettings;
   seo: CatalogSeo;
   coverUrl: string | null;
@@ -54,6 +60,8 @@ export type SiteInput = {
   pages: Parameters<typeof pageFromRow>[0][];
   removeBranding: boolean;
   customCode?: boolean;
+  /** Por defecto, negocio con catálogo (demo, vista previa y PDF no lo pasan). */
+  siteKind?: SiteKind;
 };
 
 /**
@@ -61,9 +69,13 @@ export type SiteInput = {
  * temporada. El panel los conserva (vista previa, PDF del panel).
  */
 export function buildSiteViewModel(input: SiteInput, { public: isPublic = false, now = new Date() }: { public?: boolean; now?: Date } = {}): SiteViewModel {
-  const settings = parseCatalogSettings(input.catalog.settings);
+  const siteKind = input.siteKind ?? 'catalog';
+  const parsed = parseCatalogSettings(input.catalog.settings);
+  // Sitio web sin catálogo: nada de productos, pedidos ni reseñas aunque la configuración los tenga activos.
+  const settings = siteKind === 'catalog' ? parsed : { ...parsed, order: { ...parsed.order, enabled: false }, reviews: { ...parsed.reviews, enabled: false } };
   const categories = mapCategories(input.categories);
   const attributeDefs = parseAttributeDefs(input.catalog.attribute_defs);
+  const items = siteKind === 'catalog' ? (isPublic ? input.items.filter((item) => inSeason(parseItemAttributes(item.attributes).season, now)) : input.items) : [];
   return {
     business: {
       name: input.business.name,
@@ -75,12 +87,13 @@ export function buildSiteViewModel(input: SiteInput, { public: isPublic = false,
       socialLinks: parseSocialLinks(input.business.social_links),
     },
     theme: parseTheme(input.catalog.theme),
+    siteKind,
     settings,
     seo: parseSeo(input.catalog.seo),
     coverUrl: publicStorageUrl(input.catalog.cover_path),
     faviconUrl: publicStorageUrl(input.catalog.favicon_path),
     categories,
-    items: mapItems(isPublic ? input.items.filter((item) => inSeason(parseItemAttributes(item.attributes).season, now)) : input.items, categories, input.business.slug, {
+    items: mapItems(items, categories, input.business.slug, {
       locale: settings.locale,
       attributeDefs,
       priceFormat: settings.priceFormat,

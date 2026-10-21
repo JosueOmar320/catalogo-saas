@@ -3,7 +3,7 @@
 import { ChevronDown, Menu, X } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import type { ResolvedNavItem } from '@/lib/site/navigation';
-import { SocialIcon } from '@/components/SocialIcon';
+import { SocialIcon } from './SocialIcon';
 import { SOCIAL_NETWORKS } from '@/lib/social/networks';
 import { WelcomePopup } from './WelcomePopup';
 import { AnnouncementBar } from './AnnouncementBar';

@@ -41,6 +41,7 @@ export function MediaGrid({ items }: { items: Item[] }) {
                 <Tooltip title={t('Quitar de la biblioteca')}>
                   <IconButton
                     size="small"
+                    aria-label={t('Quitar de la biblioteca')}
                     onClick={async () => {
                       const ok = await confirm({
                         title: t('¿Quitar la imagen de la biblioteca?'),

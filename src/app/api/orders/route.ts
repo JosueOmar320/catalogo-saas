@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
+import { noContent, readJsonBody } from '@/lib/api/beacon';
 import { isSupabaseConfigured } from '@/lib/env';
 import { clientIp, consumeRateLimit } from '@/lib/security/rate-limit';
 import { createAdminClient, isServiceRoleConfigured } from '@/lib/supabase/admin';
@@ -54,24 +55,10 @@ const MAX_BYTES = 32_000;
 const LIMIT = 20;
 const WINDOW_SECONDS = 3600;
 
-/** La función no existe (PostgREST / Postgres). */
-const MISSING_FUNCTION = new Set(['PGRST202', '42883']);
-
-const noContent = () => new NextResponse(null, { status: 204, headers: { 'Cache-Control': 'no-store' } });
-
 export async function POST(request: NextRequest) {
-  const origin = request.headers.get('origin');
-  if (origin && origin !== request.nextUrl.origin) return new NextResponse(null, { status: 403 });
-  if (Number(request.headers.get('content-length') ?? 0) > MAX_BYTES) return new NextResponse(null, { status: 413 });
-
-  let body: z.output<typeof bodySchema>;
-  try {
-    const text = await request.text();
-    if (text.length > MAX_BYTES) return new NextResponse(null, { status: 413 });
-    body = bodySchema.parse(JSON.parse(text));
-  } catch {
-    return new NextResponse(null, { status: 400 });
-  }
+  const read = await readJsonBody(request, bodySchema, { maxBytes: MAX_BYTES });
+  if (!read.ok) return read.response;
+  const { body } = read;
 
   // Sin base (recién clonado, demo) no hay dónde contar.
   if (!isSupabaseConfigured || !isServiceRoleConfigured()) return noContent();
@@ -80,10 +67,7 @@ export async function POST(request: NextRequest) {
   }
 
   const order = orderSchema.safeParse(body.order);
-  const supabase = createAdminClient();
-  let { error } = await supabase.rpc('record_order_v2', { p_business_slug: body.slug, p_items: body.items, p_order: order.success ? (order.data as Json) : null });
-  // Base sin la migración de la bandeja todavía: al menos se cuentan (como antes).
-  if (error && MISSING_FUNCTION.has(error.code ?? '')) ({ error } = await supabase.rpc('record_order', { p_business_slug: body.slug, p_items: body.items }));
+  const { error } = await createAdminClient().rpc('record_order_v2', { p_business_slug: body.slug, p_items: body.items, p_order: order.success ? (order.data as Json) : null });
   if (error) console.error('[orders] no se pudo registrar el pedido', { code: error.code });
   return noContent();
 }

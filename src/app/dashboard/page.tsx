@@ -12,7 +12,7 @@ import { LinkCard } from '@/components/ui/LinkCard';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { itemThumbnail, listCategories, listItemsWithImages, listPages } from '@/features/catalog/queries';
-import { countReview, REVIEW_FILTERS, REVIEW_ORDER, type ReviewFilter } from '@/features/items/review';
+import { countReview, itemHasPrice, REVIEW_FILTERS, REVIEW_ORDER, type ReviewFilter } from '@/features/items/review';
 import { OrderStatsChart } from '@/features/orders/components/OrderStatsChart';
 import { getOrderStats } from '@/features/orders/queries';
 import { countNewOrders } from '@/features/orders/inbox-queries';
@@ -85,7 +85,7 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
     items.map((i) => ({
       type: i.type,
       hasImage: i.images.length > 0,
-      hasPrice: i.price !== null,
+      hasPrice: itemHasPrice(i, now),
       categoryId: i.category_id,
       isAvailable: i.is_available,
       isVisible: i.is_visible,

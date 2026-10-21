@@ -8,10 +8,23 @@ import { dbErrorMessage, fail, ok, type ActionResult } from '@/lib/utils/result'
 import { uuidSchema } from '@/lib/utils/validation';
 import type { OrderStatus } from '@/types/database';
 
+/** Transiciones que ofrece la bandeja (OrdersBoard): el siguiente paso, cancelar, o volver a nuevo. */
+const ALLOWED_TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
+  new: ['confirmed', 'cancelled'],
+  confirmed: ['ready', 'cancelled'],
+  ready: ['delivered', 'cancelled'],
+  delivered: ['new'],
+  cancelled: ['new'],
+};
+
 /** Cambia el estado de un pedido (la base descuenta o devuelve existencias si el negocio lo activó). */
 export async function changeOrderStatus(id: string, status: OrderStatus): Promise<ActionResult> {
   const ctx = await requireBusinessContext();
   if (!uuidSchema.safeParse(id).success || !ORDER_STATUSES.includes(status)) return fail(msg('Datos inválidos.'));
+  const { data: current } = await ctx.supabase.from('orders').select('status').eq('id', id).eq('business_id', ctx.business.id).maybeSingle();
+  if (!current) return fail(msg('Ese pedido ya no existe.'));
+  if (current.status === status) return ok(undefined);
+  if (!ALLOWED_TRANSITIONS[current.status].includes(status)) return fail(msg('Ese cambio de estado no está permitido. Recarga la bandeja.'));
   const { error } = await ctx.supabase.rpc('set_order_status', { p_order: id, p_status: status });
   if (error) return fail(error.message.includes('order_not_found') ? msg('Ese pedido ya no existe.') : dbErrorMessage(error, msg('No se pudo actualizar el pedido.')));
   revalidatePath('/dashboard', 'layout');

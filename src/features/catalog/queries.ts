@@ -2,6 +2,8 @@ import 'server-only';
 import { cache } from 'react';
 import { fetchAllRows } from '@/lib/supabase/paginate';
 import type { BusinessContext } from '@/lib/auth/session';
+import { parseItemAttributes } from '@/lib/catalog/item-attributes';
+import { inSeason } from '@/lib/catalog/season';
 import { pageFromRow, type SitePage } from '@/lib/site/pages';
 import { buildSiteViewModel, type SiteViewModel } from '@/lib/site/view-model';
 import { publicStorageUrl } from '@/lib/utils/storage';
@@ -83,9 +85,11 @@ export async function listItemCosts(ctx: BusinessContext): Promise<Map<string, n
 
 /**
  * Sitio con los datos actuales (lo que se publicaría al guardar): todas las
- * páginas (también ocultas, para la preview) e ítems visibles.
+ * páginas (también ocultas, para la preview) e ítems visibles. Con
+ * `inSeasonOnly`, sin los productos fuera de temporada (como el sitio
+ * publicado: para el PDF).
  */
-export async function getSiteForAdmin(ctx: BusinessContext): Promise<SiteViewModel> {
+export async function getSiteForAdmin(ctx: BusinessContext, { inSeasonOnly = false, now = new Date() }: { inSeasonOnly?: boolean; now?: Date } = {}): Promise<SiteViewModel> {
   const [pages, categories, items] = await Promise.all([listPages(ctx), listCategories(ctx), listItemsWithImages(ctx)]);
   const activeCategories = categories.filter((c) => c.is_active);
   const activeIds = new Set(activeCategories.map((c) => c.id));
@@ -93,7 +97,7 @@ export async function getSiteForAdmin(ctx: BusinessContext): Promise<SiteViewMod
     business: ctx.business,
     catalog: ctx.catalog,
     categories: activeCategories,
-    items: items.filter((i) => i.is_visible && (i.category_id === null || activeIds.has(i.category_id))),
+    items: items.filter((i) => i.is_visible && (i.category_id === null || activeIds.has(i.category_id)) && (!inSeasonOnly || inSeason(parseItemAttributes(i.attributes).season, now))),
     pages: [],
     removeBranding: ctx.entitlements.features.remove_branding,
     customCode: ctx.customCode,

@@ -2,11 +2,14 @@ import { Alert } from '@mui/material';
 import type { Metadata } from 'next';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { ReviewsBoard } from '@/features/reviews/components/ReviewsBoard';
-import { countPendingReviews, listReviews } from '@/features/reviews/queries';
+import { countPendingReviews, listReviews, PAGE } from '@/features/reviews/queries';
 import { REVIEW_TABS } from '@/features/reviews/tabs';
 import { getLocale, getT } from '@/i18n/server';
 import { canManageCatalog, requireCatalogSite } from '@/lib/auth/session';
 import { parseCatalogSettings } from '@/lib/catalog/settings';
+
+/** Momento del render (ms) para "hace 5 min". Server Component: una vez por petición, y el cliente lo reutiliza al hidratar. */
+const requestNow = () => Date.now();
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
@@ -26,7 +29,7 @@ export default async function ReviewsPage({ searchParams }: PageProps<'/dashboar
       {reviews === null ? (
         <Alert severity="warning">{t('No se pudieron cargar las reseñas. Intenta de nuevo en unos minutos.')}</Alert>
       ) : (
-        <ReviewsBoard status={status} reviews={reviews} pending={pending ?? 0} enabled={settings.reviews.enabled} canManage={canManageCatalog(ctx)} locale={locale} />
+        <ReviewsBoard status={status} reviews={reviews} pending={pending ?? 0} enabled={settings.reviews.enabled} canManage={canManageCatalog(ctx)} locale={locale} now={requestNow()} pageSize={PAGE} />
       )}
     </>
   );

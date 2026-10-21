@@ -110,8 +110,7 @@ export async function listCatalogs(supabase: ServerSupabase) {
     supabase.rpc('admin_catalog_counts'),
   ]);
   const byBusiness = new Map(businesses.map((b) => [b.id, b]));
-  // Sin la migración 20261005 (función inexistente): conteo anterior, en memoria.
-  const totals = new Map((counts ?? (await legacyCatalogCounts(supabase))).map((c) => [c.catalog_id, c]));
+  const totals = new Map((counts ?? []).map((c) => [c.catalog_id, c]));
   return catalogs.flatMap((c) => {
     const business = byBusiness.get(c.business_id);
     const total = totals.get(c.id);
@@ -119,37 +118,10 @@ export async function listCatalogs(supabase: ServerSupabase) {
   });
 }
 
-async function legacyCatalogCounts(supabase: ServerSupabase) {
-  const [pages, items] = await Promise.all([
-    fetchAllRows((from, to) => supabase.from('catalog_pages').select('catalog_id').is('deleted_at', null).order('id').range(from, to)),
-    fetchAllRows((from, to) => supabase.from('catalog_items').select('catalog_id').is('deleted_at', null).order('id').range(from, to)),
-  ]);
-  const count = new Map<string, { catalog_id: string; pages: number; items: number }>();
-  const row = (id: string) => count.get(id) ?? count.set(id, { catalog_id: id, pages: 0, items: 0 }).get(id)!;
-  for (const p of pages) row(p.catalog_id).pages += 1;
-  for (const i of items) row(i.catalog_id).items += 1;
-  return [...count.values()];
-}
-
-async function legacyStats(supabase: ServerSupabase) {
-  const [u, b, c] = await Promise.all([
-    fetchAllRows((from, to) => supabase.from('profiles').select('status, platform_role, last_login_at').order('id').range(from, to)),
-    fetchAllRows((from, to) => supabase.from('businesses').select('status').is('deleted_at', null).order('id').range(from, to)),
-    fetchAllRows((from, to) => supabase.from('catalogs').select('status, is_active').is('deleted_at', null).order('id').range(from, to)),
-  ]);
-  const weekAgo = Date.now() - 7 * 24 * 3600 * 1000;
-  return {
-    users: { total: u.length, active: u.filter((x) => x.status === 'active').length, admins: u.filter((x) => x.platform_role === 'admin').length, recent: u.filter((x) => x.last_login_at && Date.parse(x.last_login_at) > weekAgo).length },
-    businesses: { total: b.length, active: b.filter((x) => x.status === 'active').length, suspended: b.filter((x) => x.status === 'suspended').length },
-    catalogs: { total: c.length, published: c.filter((x) => x.status === 'published' && x.is_active).length, inactive: c.filter((x) => !x.is_active).length },
-  };
-}
-
 export async function adminStats(supabase: ServerSupabase) {
   // Una sola consulta agregada en SQL (antes: todas las filas de perfiles, negocios y catálogos).
   const [{ data, error }, audit] = await Promise.all([supabase.rpc('admin_stats'), listAudit(supabase, { limit: 12 })]);
-  // Sin la migración 20261005 (función inexistente): cálculo anterior.
-  if (error) return { ...(await legacyStats(supabase)), audit: audit.rows };
+  if (error) console.error('[admin-stats]', { code: error.code });
   const stats = (data ?? {}) as Partial<Record<'users' | 'businesses' | 'catalogs', Record<string, number>>>;
   const n = (group: Record<string, number> | undefined, key: string) => Number(group?.[key] ?? 0);
   return {

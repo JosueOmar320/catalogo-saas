@@ -19,6 +19,30 @@ function initial(): BuilderState {
   };
 }
 
+describe('Builder: la página de inicio siempre está publicada', () => {
+  it('no se puede despublicar la página de inicio', () => {
+    const first = initial();
+    const home = first.pages.find((p) => p.isHome)!;
+    const state = builderReducer(first, { type: 'updatePage', pageId: home.id, patch: { isPublished: false } });
+    assert.equal(state.pages.find((p) => p.id === home.id)!.isPublished, true);
+    // Las demás sí.
+    const other = first.pages.find((p) => !p.isHome)!;
+    assert.equal(builderReducer(first, { type: 'updatePage', pageId: other.id, patch: { isPublished: false } }).pages.find((p) => p.id === other.id)!.isPublished, false);
+  });
+
+  it('al borrar el inicio, la que pasa a ser inicio queda publicada aunque estuviera oculta', () => {
+    const first = initial();
+    const home = first.pages.find((p) => p.isHome)!;
+    const next = first.pages.find((p) => !p.isHome)!;
+    let state = builderReducer(first, { type: 'updatePage', pageId: next.id, patch: { isPublished: false } });
+    state = builderReducer(state, { type: 'reorderPages', ids: [home.id, next.id, ...state.pages.filter((p) => p.id !== home.id && p.id !== next.id).map((p) => p.id)] });
+    state = builderReducer(state, { type: 'removePage', pageId: home.id });
+    assert.equal(state.pages[0].id, next.id);
+    assert.deepEqual([state.pages[0].isHome, state.pages[0].isPublished], [true, true]);
+    assert.equal(state.pages.filter((p) => p.isHome).length, 1);
+  });
+});
+
 describe('Builder: guardado', () => {
   it('después de guardar sin más cambios, nada queda pendiente', () => {
     let state = builderReducer(initial(), { type: 'updatePage', pageId: initial().pages[0].id, patch: { title: 'Inicio nuevo' } });

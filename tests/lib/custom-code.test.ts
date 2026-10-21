@@ -89,6 +89,20 @@ describe('Código propio: CSS del sitio', () => {
     assert.equal(scopeCustomCss('}}} {{{'), '');
     assert.equal(scopeCustomCss('   '), '');
   });
+
+  it('no se escapa del sitio con combinadores iniciales ni con position: fixed', () => {
+    // "[data-site] ~ *" alcanzaría a los hermanos del sitio (fuera de él): la regla se descarta.
+    assert.equal(scopeCustomCss('~ * { display: none } + div { display: none } > p { color: red } & .x { color: red }'), '');
+    // Si una regla tiene varios selectores, se conservan sólo los que se pueden limitar.
+    assert.equal(scopeCustomCss('~ *, .promo { color: red }'), '[data-site] .promo { color: red }');
+    // position: fixed taparía todo el documento (también la vista previa del panel): se quita la declaración.
+    const css = scopeCustomCss('.cover { position: fixed; inset: 0; z-index: 2147483647 } .pill { position: sticky; top: 0 }');
+    assert.doesNotMatch(css, /fixed/);
+    assert.match(css, /\[data-site\] \.cover \{ inset: 0; z-index: 2147483647 \}/);
+    assert.match(css, /position: sticky/);
+    const { css: sectionCss } = renderCustomHtml('<div class="x">Hola</div><style>.x { position: fixed; top: 0 } ~ * { display: none }</style>', 'sec-9');
+    assert.doesNotMatch(sectionCss, /fixed|display: none/);
+  });
 });
 
 describe('Código propio: widget', () => {

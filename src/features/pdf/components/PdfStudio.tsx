@@ -295,7 +295,7 @@ export function PdfStudio({ catalogId, initial, site, enabled, canManage = true 
                 <Settings2 size={16} />
                 <Typography variant="h4" sx={{ ml: 1, flex: 1 }}>{t(PDF_BLOCK_META[current.type].label)}</Typography>
                 <Tooltip title={t('Quitar bloque')}>
-                  <IconButton size="small" onClick={() => { removeBlock(current.id); setSelected(null); }}><Trash2 size={16} /></IconButton>
+                  <IconButton size="small" aria-label={t('Quitar bloque')} onClick={() => { removeBlock(current.id); setSelected(null); }}><Trash2 size={16} /></IconButton>
                 </Tooltip>
               </Stack>
               <BlockEditor block={current} onChange={(next) => updateBlock(current.id, next)} site={site} onCoverTab={() => setTab('cover')} />

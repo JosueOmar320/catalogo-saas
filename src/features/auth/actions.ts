@@ -8,6 +8,7 @@ import { msg } from '@/i18n/translate';
 import { safeNextPath } from '@/lib/auth/redirect';
 import { clientIp, consumeRateLimit } from '@/lib/security/rate-limit';
 import { getProfile, getUser } from '@/lib/auth/session';
+import { internalAuthSuffix } from '@/lib/auth/username';
 import { createAdminClient, isServiceRoleConfigured } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { fail, ok, type ActionResult } from '@/lib/utils/result';
@@ -27,8 +28,10 @@ export async function signIn(input: SignInValues, next?: string): Promise<Action
   const { username, password } = parsed.data;
 
   // Fuerza bruta: por cuenta (10 intentos / 15 min) y por IP (30 / 15 min), compartido entre instancias.
+  // La clave por cuenta es el usuario: "ana" y "ana@usuarios.invalid" (su correo interno) son la misma cuenta.
   const ip = await clientIp();
-  const [byAccount, byIp] = await Promise.all([consumeRateLimit(`login:u:${username.toLowerCase()}`, 10, 900), consumeRateLimit(`login:ip:${ip}`, 30, 900)]);
+  const accountKey = username.toLowerCase().replace(internalAuthSuffix(), '');
+  const [byAccount, byIp] = await Promise.all([consumeRateLimit(`login:u:${accountKey}`, 10, 900), consumeRateLimit(`login:ip:${ip}`, 30, 900)]);
   if (!byAccount || !byIp) return fail(msg('Demasiados intentos. Espera unos minutos e inténtalo de nuevo.'));
 
   let loginEmail: string | null = null;

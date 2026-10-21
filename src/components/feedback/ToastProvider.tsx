@@ -37,6 +37,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {toast ? (
           <Alert
             severity={toast.severity}
+            // Los errores interrumpen (alert); los demás avisos se leen sin interrumpir (status).
+            role={toast.severity === 'error' ? 'alert' : 'status'}
             variant="filled"
             onClose={() => setToast(null)}
             sx={{ minWidth: 280, alignItems: 'center' }}

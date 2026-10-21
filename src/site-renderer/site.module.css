@@ -77,6 +77,13 @@
   inset: 0;
 }
 
+/* Video de fondo decorativo: con «reducir movimiento» se oculta y queda el color o la imagen de abajo. */
+@media (prefers-reduced-motion: reduce) {
+  .bgVideo {
+    display: none;
+  }
+}
+
 .main {
   flex: 1;
 }
@@ -902,6 +909,26 @@
 .footerBottom a {
   text-decoration: none;
   font-weight: 600;
+}
+
+/* "Sitio creado con …": hermano de [data-site] (el CSS propio no lo alcanza); estilos propios, sin variables del tema. */
+.branding {
+  margin: 0;
+  padding: 12px 16px;
+  text-align: center;
+  font: 500 13px/1.4 system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color: #6b7280;
+  background: #f7f7f8;
+}
+
+.branding a {
+  color: inherit;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.branding a:hover {
+  text-decoration: underline;
 }
 
 /* ============================================================== Secciones */
@@ -5562,6 +5589,8 @@ input.qtyValue:focus-visible {
 
 .customHtml {
   overflow-wrap: anywhere;
+  /* Nada del HTML propio pinta fuera de su caja (ni lo fijo ni lo absoluto): el panel y el resto del sitio quedan a salvo. */
+  contain: paint;
 }
 
 .customHtml img,

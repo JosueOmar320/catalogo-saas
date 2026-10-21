@@ -11,7 +11,7 @@ import styles from './site.module.css';
  * Fotos de la ficha: la principal, miniaturas y, al tocar la principal, la
  * vista a pantalla completa (flechas, deslizar o el teclado; Escape cierra).
  */
-export function ImageGallery({ images, name }: { images: CatalogImageView[]; name: string }) {
+export function ImageGallery({ images, name, priority = false }: { images: CatalogImageView[]; name: string; /** Precarga la foto principal (sólo la ficha: es su LCP). */ priority?: boolean }) {
   const [active, setActive] = useState(0);
   const t = useSiteT();
   const viewer = useRef<HTMLDialogElement>(null);
@@ -25,7 +25,7 @@ export function ImageGallery({ images, name }: { images: CatalogImageView[]; nam
       <div className={styles.galleryMain}>
         {current ? (
           <button type="button" className={styles.galleryZoom} onClick={() => viewer.current?.showModal()} aria-label={t('Ver la imagen de {name} en grande', { name })}>
-            <SiteImage src={current.url} alt={current.alt} sizes="(max-width: 820px) 100vw, 600px" priority />
+            <SiteImage src={current.url} alt={current.alt} sizes="(max-width: 820px) 100vw, 600px" priority={priority} />
           </button>
         ) : (
           <div className={styles.mediaPlaceholder}>

@@ -33,9 +33,13 @@ type Props = {
   canManage: boolean;
   locale: string;
   priceLocale: string;
+  /** Momento del servidor (ms) para "hace 5 min": el mismo al renderizar y al hidratar. Se renueva con cada refresh. */
+  now: number;
+  /** Tope de filas de la consulta: al llegar a él se avisa que hay más. */
+  pageSize: number;
 };
 
-export function OrdersBoard({ tab, days, query, orders: initial, newCount, enabled, canManage, locale, priceLocale }: Props) {
+export function OrdersBoard({ tab, days, query, orders: initial, newCount, enabled, canManage, locale, priceLocale, now, pageSize }: Props) {
   const t = useT();
   const router = useRouter();
   const pathname = usePathname();
@@ -141,7 +145,7 @@ export function OrdersBoard({ tab, days, query, orders: initial, newCount, enabl
                     <Chip size="small" color={STATUS_COLOR[order.status]} label={t(ORDER_STATUS_LABELS[order.status])} />
                     {FulfillmentIcon && <FulfillmentIcon size={15} aria-hidden />}
                     <Typography variant="body2" color="text.secondary" sx={{ flex: 1 }}>
-                      {order.customer_name || (order.personal_data_cleared ? t('Datos del cliente borrados (180 días)') : t('Sin nombre'))} · {formatRelative(order.created_at, locale)}
+                      {order.customer_name || (order.personal_data_cleared ? t('Datos del cliente borrados (180 días)') : t('Sin nombre'))} · {formatRelative(order.created_at, locale, now)}
                     </Typography>
                     <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                       {money(order, order.total)}
@@ -182,6 +186,11 @@ export function OrdersBoard({ tab, days, query, orders: initial, newCount, enabl
             );
           })}
         </Stack>
+      )}
+      {orders.length >= pageSize && (
+        <Typography variant="body2" color="text.secondary">
+          {t('Mostrando los últimos {count} pedidos. Acota el periodo o busca por folio para ver otros.', { count: pageSize })}
+        </Typography>
       )}
     </Stack>
   );

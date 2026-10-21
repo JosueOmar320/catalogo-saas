@@ -35,7 +35,7 @@ export function PublishingPanel({ status, url, publishedAt, visibleItems, hidden
                 : t('Tu sitio todavía no es público: nadie más puede verlo. Revisa la vista previa y publícalo cuando esté listo.')
               : published
               ? publishedAt
-                ? t('Tu catálogo es público desde el {date}. Cada cambio que guardes se refleja de inmediato.', { date: new Date(publishedAt).toLocaleDateString(locale) })
+                ? t('Tu catálogo es público desde el {date}. Cada cambio que guardes se refleja de inmediato.', { date: new Date(publishedAt).toLocaleDateString(locale, { timeZone: 'UTC' }) })
                 : t('Tu catálogo es público. Cada cambio que guardes se refleja de inmediato.')
               : status === 'draft'
                 ? t('Tu catálogo todavía es un borrador: nadie más puede verlo. Revisa la vista previa y publícalo cuando esté listo.')

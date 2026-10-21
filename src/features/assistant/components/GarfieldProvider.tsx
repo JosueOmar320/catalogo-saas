@@ -354,7 +354,13 @@ export function GarfieldProvider({ state, dispatch, site, onPreview, endpoint, c
     () => ({ categories: site.categories.map((c) => ({ id: c.id, name: c.name })), items: site.items.map((i) => ({ id: i.id, name: i.name })) }),
     [site.categories, site.items],
   );
-  const suggestions = useMemo(() => contextSuggestions(state), [state]);
+  // Las sugerencias sólo dependen del panel, la página y la sección elegidas (no de cada
+  // tecla en el editor): así los consumidores de Garfield no se re-renderizan al escribir.
+  const suggestionPage = state.pages.find((p) => p.id === state.selectedPageId) ?? state.pages[0];
+  const suggestionSection = suggestionPage?.sections.find((x) => x.id === state.selectedSectionId);
+  const suggestionKey = [state.panel, suggestionPage?.id, suggestionPage?.title, suggestionPage?.sections.length === 0, suggestionSection?.type].join('|');
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- `suggestionKey` resume lo que contextSuggestions lee del estado.
+  const suggestions = useMemo(() => contextSuggestions(state), [suggestionKey]);
   const t = useT();
 
   const adapter = useMemo<GarfieldAdapter>(

@@ -3,6 +3,7 @@ import type { Translator } from '@/i18n/translate';
 import { ratingOf, type PublicReview } from '@/lib/catalog/reviews';
 import type { CatalogItemView } from '@/lib/catalog/view-model';
 import type { SiteViewModel } from '@/lib/site/view-model';
+import type { CatalogClientSite } from './catalog-client-model';
 import { ReviewForm } from './ReviewForm';
 import { siteTranslator } from './site-i18n';
 import styles from './site.module.css';
@@ -19,16 +20,20 @@ export function Stars({ value, size = 16, t }: { value: number; size?: number; t
   );
 }
 
-/** "★ 4.8 (12)" en las tarjetas. */
-export function RatingBadge({ site, item }: { site: SiteViewModel; item: CatalogItemView }) {
-  const rating = ratingOf(site.reviews ?? [], item.id);
+/** Promedio con una cifra decimal en el formato del idioma del sitio ("4.8" / "4,8"). */
+const averageText = (average: number, locale: string) => new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(average);
+
+/** "★ 4.8 (12)" en las tarjetas. `site`: el modelo completo (reseñas) o el recortado del catálogo (resumen ya calculado). */
+export function RatingBadge({ site, item }: { site: Pick<CatalogClientSite, 'settings' | 'reviews' | 'ratings'>; item: CatalogItemView }) {
+  const rating = site.ratings ? (site.ratings[item.id] ?? null) : ratingOf(site.reviews ?? [], item.id);
   if (!rating) return null;
   const t = siteTranslator(site.settings.language);
+  const average = averageText(rating.average, site.settings.locale);
   return (
-    <span className={styles.ratingBadge} role="img" aria-label={t('{rating} de 5 estrellas, {count} opiniones', { rating: rating.average, count: rating.count })}>
+    <span className={styles.ratingBadge} role="img" aria-label={t('{rating} de 5 estrellas, {count} opiniones', { rating: average, count: rating.count })}>
       <Star size={13} fill="currentColor" aria-hidden />
       <span aria-hidden>
-        {rating.average.toFixed(1)} ({rating.count})
+        {average} ({rating.count})
       </span>
     </span>
   );
@@ -48,7 +53,7 @@ export function ItemReviews({ site, item }: { site: SiteViewModel; item: Catalog
       {rating ? (
         <p className={styles.reviewSummary}>
           <Stars value={rating.average} size={18} t={t} />
-          <strong>{rating.average.toFixed(1)}</strong>
+          <strong>{averageText(rating.average, site.settings.locale)}</strong>
           <span>{rating.count === 1 ? t('1 opinión') : t('{count} opiniones', { count: rating.count })}</span>
         </p>
       ) : (

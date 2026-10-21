@@ -183,8 +183,16 @@ const URL_PATTERN = /url\(\s*(['"]?)(.*?)\1\s*\)/gi;
 const isKeyframes = (node: postcss.Container | postcss.Document | undefined) => node?.type === 'atrule' && /keyframes$/i.test((node as postcss.AtRule).name);
 
 /** `body`, `html` y `:root` se vuelven el sitio; lo demás queda dentro de él. */
-function scopeSelector(selector: string, scope: string): string {
+/**
+ * Un selector que empieza con un combinador (`~ *`, `+ div`, `> p`) no se
+ * puede limitar: "[data-site] ~ *" alcanza a los hermanos del sitio (fuera
+ * de él). También se rechazan `&` y `|` por la misma razón.
+ */
+const ESCAPES_SCOPE = /^[>+~&|]/;
+
+function scopeSelector(selector: string, scope: string): string | null {
   const trimmed = selector.trim();
+  if (!trimmed || ESCAPES_SCOPE.test(trimmed)) return null;
   const root = /^(html|body|:root)(?=$|[\s.#:[>+~])/i.exec(trimmed);
   if (root) return `${scope}${trimmed.slice(root[0].length).replace(/^\s*(html|body)(?=$|[\s.#:[>+~])/i, '')}`;
   return `${scope} ${trimmed}`;
@@ -217,12 +225,16 @@ function processCss(css: string, scope: string | null): string {
   root.walkDecls((decl) => {
     const urls = [...decl.value.matchAll(URL_PATTERN)].map((m) => m[2]);
     if (UNSAFE_CSS_VALUE.test(decl.value) || urls.some((url) => !/^https:\/\//i.test(url)) || (/url\s*\(/i.test(decl.value) && urls.length === 0)) decl.remove();
+    // Igual que el estilo en línea: nada puede taparlo todo (la vista previa del panel comparte el documento).
+    if (decl.prop.toLowerCase() === 'position' && /fixed/i.test(decl.value)) decl.remove();
   });
   if (scope !== null) {
     root.walkRules((rule) => {
       // Sólo las reglas de primer nivel (o dentro de @media…); las anidadas ya heredan el alcance.
       if (rule.parent?.type === 'rule' || isKeyframes(rule.parent)) return;
-      rule.selectors = rule.selectors.map((selector) => scopeSelector(selector, scope));
+      const scoped = rule.selectors.map((selector) => scopeSelector(selector, scope)).filter((selector): selector is string => selector !== null);
+      if (scoped.length === 0) rule.remove();
+      else rule.selectors = scoped;
     });
   }
   // "<" nunca es necesario fuera de un texto, y escapado no puede cerrar la etiqueta <style>.

@@ -38,6 +38,8 @@ export type ItemRowData = {
   categoryId: string | null;
   categoryName: string | null;
   priceLabel: string | null;
+  /** Tiene precio (base o en sus opciones): el mismo criterio del inicio del panel. */
+  hasPrice: boolean;
   /** Precio numérico y moneda (vista previa del ajuste masivo). */
   price: number | null;
   currency: string;
@@ -111,7 +113,7 @@ export function ItemsTable({ items: initialItems, categories, initialReview = nu
     const filtered = items.filter(
       (i) =>
         (category === 'all' || (category === 'none' ? !i.categoryId : i.categoryId === category)) &&
-        (review === 'all' || REVIEW_FILTERS[review].test({ ...i, hasImage: Boolean(i.thumbUrl), hasPrice: i.priceLabel !== null, saleOver: i.sale?.over ?? false })) &&
+        (review === 'all' || REVIEW_FILTERS[review].test({ ...i, hasImage: Boolean(i.thumbUrl), saleOver: i.sale?.over ?? false })) &&
         (!q || i.name.toLowerCase().includes(q) || i.sku?.toLowerCase().includes(q)),
     );
     // Más vistos / más pedidos (30 días); empates en el orden del catálogo.
@@ -363,7 +365,7 @@ export function ItemsTable({ items: initialItems, categories, initialReview = nu
                 <PriceCell
                   item={item}
                   locale={locale}
-                  onSaved={(price, priceLabel) => setItems((list) => list.map((i) => (i.id === item.id ? { ...i, price, priceLabel } : i)))}
+                  onSaved={(price, priceLabel) => setItems((list) => list.map((i) => (i.id === item.id ? { ...i, price, priceLabel, hasPrice: price !== null || i.hasPrice } : i)))}
                 />
                 <Tooltip title={item.isVisible ? t('Visible en el catálogo') : t('Oculto')}>
                   <Switch checked={item.isVisible} onChange={(e) => toggle(item, 'is_visible', e.target.checked)} slotProps={{ input: { 'aria-label': t('Visible en el catálogo') } }} />

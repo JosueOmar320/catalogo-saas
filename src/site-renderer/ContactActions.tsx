@@ -1,6 +1,6 @@
 import { resolveContactActions, type ContactActionType } from '@/lib/contact/actions';
 import type { CatalogItemView } from '@/lib/catalog/view-model';
-import type { SiteViewModel } from '@/lib/site/view-model';
+import type { CatalogClientSite } from './catalog-client-model';
 import { defaultText } from './default-texts';
 import { itemPath, type RenderEnv } from './env';
 import { buttonVariant } from './SiteButton';
@@ -13,7 +13,8 @@ import styles from './site.module.css';
 const ICONS: Record<ContactActionType, string> = { whatsapp: 'message-circle', phone: 'phone', email: 'mail' };
 
 type Props = {
-  site: SiteViewModel;
+  /** El modelo completo o el recortado de la sección de catálogo. */
+  site: CatalogClientSite;
   item?: CatalogItemView;
   show?: 'primary' | 'all';
   small?: boolean;

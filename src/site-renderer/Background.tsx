@@ -57,7 +57,10 @@ export function BackgroundLayers({ background, priority = false, videoUrl }: { b
           }}
         />
       )}
-      {video && <video className={styles.bgLayer} src={video} autoPlay muted loop playsInline preload="metadata" style={{ objectFit: 'cover', width: '100%', height: '100%' }} />}
+      {video && (
+        // Decorativo; con «reducir movimiento» se oculta (queda el color/imagen de abajo): ver .bgVideo.
+        <video className={`${styles.bgLayer} ${styles.bgVideo}`} src={video} autoPlay muted loop playsInline preload="metadata" disablePictureInPicture aria-hidden style={{ objectFit: 'cover', width: '100%', height: '100%' }} />
+      )}
       {overlay.opacity > 0 && background.type !== 'color' && <div className={styles.bgLayer} style={{ backgroundColor: alpha(overlay.color, overlay.opacity / 100) }} />}
     </div>
   );

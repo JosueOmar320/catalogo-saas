@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
+import { isBot, noContent, readJsonBody } from '@/lib/api/beacon';
 import { isSupabaseConfigured } from '@/lib/env';
 import { clientIp, consumeRateLimit } from '@/lib/security/rate-limit';
 import { createAdminClient, isServiceRoleConfigured } from '@/lib/supabase/admin';
@@ -26,26 +27,14 @@ const MAX_BYTES = 1_000;
 // Por IP y negocio: navegar mucho un catálogo es normal; miles de páginas en una hora, no.
 const LIMIT = 300;
 const WINDOW_SECONDS = 3600;
-const BOTS = /bot|crawl|spider|slurp|facebookexternalhit|whatsapp|preview|lighthouse/i;
-
-const noContent = () => new NextResponse(null, { status: 204, headers: { 'Cache-Control': 'no-store' } });
 
 export async function POST(request: NextRequest) {
-  const origin = request.headers.get('origin');
-  if (origin && origin !== request.nextUrl.origin) return new NextResponse(null, { status: 403 });
-  if (Number(request.headers.get('content-length') ?? 0) > MAX_BYTES) return new NextResponse(null, { status: 413 });
-
-  let body: z.output<typeof bodySchema>;
-  try {
-    const text = await request.text();
-    if (text.length > MAX_BYTES) return new NextResponse(null, { status: 413 });
-    body = bodySchema.parse(JSON.parse(text));
-  } catch {
-    return new NextResponse(null, { status: 400 });
-  }
+  const read = await readJsonBody(request, bodySchema, { maxBytes: MAX_BYTES });
+  if (!read.ok) return read.response;
+  const { body } = read;
 
   // Robots y vistas previas de enlaces no son visitas.
-  if (BOTS.test(request.headers.get('user-agent') ?? '')) return noContent();
+  if (isBot(request)) return noContent();
   // Sin base (recién clonado, demo) no hay dónde contar.
   if (!isSupabaseConfigured || !isServiceRoleConfigured()) return noContent();
   if (!(await consumeRateLimit(`view:${await clientIp()}:${body.slug}`, LIMIT, WINDOW_SECONDS))) {

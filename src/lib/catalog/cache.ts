@@ -1,5 +1,6 @@
 import 'server-only';
 import { revalidatePath, revalidateTag } from 'next/cache';
+import type { BusinessContext } from '@/lib/auth/session';
 
 export const publicCatalogTag = (businessSlug: string) => `public-catalog:${businessSlug}`;
 
@@ -10,4 +11,14 @@ export const publicCatalogTag = (businessSlug: string) => `public-catalog:${busi
 export function invalidatePublicCatalog(businessSlug: string) {
   revalidateTag(publicCatalogTag(businessSlug), { expire: 0 });
   revalidatePath(`/catalogo/${businessSlug}`, 'layout');
+}
+
+/**
+ * Después de cambiar el catálogo (ítems, categorías, importación…): el sitio
+ * público y el panel vuelven a leer. Una sola función para todas las Server
+ * Actions, así ninguna olvida una de las dos.
+ */
+export function afterCatalogChange(ctx: Pick<BusinessContext, 'business'>) {
+  invalidatePublicCatalog(ctx.business.slug);
+  revalidatePath('/dashboard', 'layout');
 }

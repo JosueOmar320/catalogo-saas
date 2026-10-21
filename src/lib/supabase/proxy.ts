@@ -39,6 +39,15 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (isAuthenticated && AUTH_PAGES.includes(pathname)) {
+    // Una cuenta desactivada llega con ?error=disabled, y una bloqueada en Auth
+    // conserva un JWT válido hasta que expire aunque getUser() ya la rechace.
+    // En ambos casos se cierra la sesión local y se muestra el login: si no,
+    // /login → /dashboard → /login sería un bucle de redirecciones.
+    const disabled = request.nextUrl.searchParams.get('error') === 'disabled';
+    if (disabled || (await supabase.auth.getUser()).error) {
+      await supabase.auth.signOut({ scope: 'local' });
+      return response;
+    }
     const url = request.nextUrl.clone();
     url.pathname = '/dashboard';
     url.search = '';

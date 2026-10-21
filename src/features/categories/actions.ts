@@ -1,18 +1,12 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
-import { requireBusinessContext, type BusinessContext } from '@/lib/auth/session';
-import { invalidatePublicCatalog } from '@/lib/catalog/cache';
+import { requireBusinessContext } from '@/lib/auth/session';
+import { afterCatalogChange } from '@/lib/catalog/cache';
 import { dbErrorMessage, fail, ok, type ActionResult } from '@/lib/utils/result';
 import { parseInput, uuidSchema } from '@/lib/utils/validation';
 import { msg } from '@/i18n/translate';
 import { isValidMediaPath, releaseStorageObjects } from '@/features/media/server';
 import { categoryFormSchema, type CategoryFormValues } from './schema';
-
-function afterChange(ctx: BusinessContext) {
-  invalidatePublicCatalog(ctx.business.slug);
-  revalidatePath('/dashboard', 'layout');
-}
 
 export async function createCategory(input: CategoryFormValues): Promise<ActionResult<{ id: string }>> {
   const ctx = await requireBusinessContext();
@@ -43,7 +37,7 @@ export async function createCategory(input: CategoryFormValues): Promise<ActionR
     .select('id')
     .single();
   if (error) return fail(dbErrorMessage(error));
-  afterChange(ctx);
+  afterCatalogChange(ctx);
   return ok({ id: data.id }, msg('Categoría creada'));
 }
 
@@ -75,7 +69,7 @@ export async function updateCategory(id: string, input: CategoryFormValues): Pro
   if (current.image_path && current.image_path !== parsed.data.imagePath) {
     await releaseStorageObjects(ctx, [current.image_path]);
   }
-  afterChange(ctx);
+  afterCatalogChange(ctx);
   return ok(undefined, msg('Categoría actualizada'));
 }
 
@@ -88,7 +82,7 @@ export async function setCategoryActive(id: string, isActive: boolean): Promise<
     .eq('id', id)
     .eq('catalog_id', ctx.catalog.id);
   if (error) return fail(dbErrorMessage(error));
-  afterChange(ctx);
+  afterCatalogChange(ctx);
   return ok(undefined, isActive ? msg('Categoría visible') : msg('Categoría oculta'));
 }
 
@@ -108,6 +102,6 @@ export async function deleteCategory(id: string): Promise<ActionResult> {
     .eq('id', id)
     .eq('catalog_id', ctx.catalog.id);
   if (error) return fail(dbErrorMessage(error));
-  afterChange(ctx);
+  afterCatalogChange(ctx);
   return ok(undefined, msg('Categoría eliminada'));
 }

@@ -1,4 +1,4 @@
-import { SocialIcon } from '@/components/SocialIcon';
+import { SocialIcon } from './SocialIcon';
 import { SOCIAL_NETWORKS } from '@/lib/social/networks';
 import type { SiteViewModel } from '@/lib/site/view-model';
 import styles from './site.module.css';

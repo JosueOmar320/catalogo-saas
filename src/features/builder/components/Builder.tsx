@@ -31,6 +31,8 @@ type Props = {
   isStarter: boolean;
   usesSampleItems: boolean;
   sectionTemplates: SectionTemplate[];
+  /** Versión del sitio cargada (site_version): detecta si otra persona guardó en medio. */
+  version?: string | null;
   /** Sitio web (sin catálogo): el editor no ofrece secciones ni páginas de productos. */
   siteKind?: SiteKind;
   identity: IdentityImages;
@@ -93,6 +95,8 @@ export function Builder(props: Props) {
   const [mobileView, setMobileView] = useState<'edit' | 'preview'>('edit');
   // Vista previa de un plan de Garfield: se muestra en lugar del borrador sin modificarlo.
   const [assistantPreview, setAssistantPreview] = useState<BuilderState | null>(null);
+  // Versión con la que se guardó por última vez: el servidor rechaza el guardado si otra persona la cambió.
+  const [version, setVersion] = useState<string | null>(props.version ?? null);
   const shown = assistantPreview ?? state;
   const router = useRouter();
   const confirm = useConfirm();
@@ -122,9 +126,10 @@ export function Builder(props: Props) {
           navigation: state.dirty.navigation ? saved.navigation : undefined,
           pages: state.dirty.pages ? saved.pages.map((p) => ({ ...p, slug: slugify(p.slug, 60) || 'pagina' })) : undefined,
           deletedPageIds: saved.deletedPageIds,
-        }),
+        }, version),
       {
-        onSuccess: () => {
+        onSuccess: (result) => {
+          setVersion(result.version);
           dispatch({ type: 'saved', saved });
           router.refresh();
         },

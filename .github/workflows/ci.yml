@@ -44,6 +44,7 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      # Falla si la cobertura de los módulos probados baja de los umbrales (package.json: test:coverage).
       - name: Unit tests + coverage
         run: npm run test:coverage
       - name: Database tests (migrations + RLS on PGlite, no network)
@@ -84,8 +85,19 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      # Chromium se guarda en caché por versión de Playwright (lockfile); las dependencias del sistema no.
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - name: Install Chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
+      - name: Install Chromium system dependencies
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
       # Sin secretos, como el build: landing, demo y pedido por WhatsApp no necesitan Supabase.
       - name: E2E tests (production build)
         run: npm run test:e2e
@@ -109,8 +121,18 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - name: Install Chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
+      - name: Install Chromium system dependencies
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
       # Supabase local en Docker dentro del runner (claves de desarrollo estándar, sin secretos):
       # login, admin, panel, publicar y pedido de un visitante sobre el sitio real.
       - name: E2E tests with local Supabase

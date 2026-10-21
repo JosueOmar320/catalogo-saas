@@ -8,10 +8,9 @@ import { SwitchControl } from '@/components/form/fields';
 import { useT } from '@/i18n/client';
 import type { OrderSettings } from '@/lib/catalog/settings';
 import { qrSvg } from '@/lib/qr';
+import { escapeHtml } from '@/lib/utils/text';
 
 const MAX_TABLES = 100;
-
-const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
 /** Enlace del código QR de una mesa: el sitio con ?mesa=N. */
 export const tableUrl = (catalogUrl: string, table: number | string) => `${catalogUrl}?mesa=${encodeURIComponent(String(table))}`;

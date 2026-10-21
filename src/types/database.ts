@@ -225,6 +225,8 @@ type OrderRow = {
   total: number | null;
   partial: boolean;
   stock_applied: boolean;
+  /** Existencias descontadas por producto al confirmar ({ itemId: qty }); se devuelven tal cual al cancelar. */
+  stock_deltas: Json;
   personal_data_cleared: boolean;
   created_at: string;
   status_changed_at: string;
@@ -305,16 +307,6 @@ export type Database = {
     };
     Views: { [_ in never]: never };
     Functions: {
-      create_business: {
-        Args: {
-          p_name: string;
-          p_slug: string;
-          p_contact?: Json;
-          p_catalog_theme?: Json;
-          p_catalog_settings?: Json;
-        };
-        Returns: string;
-      };
       is_business_slug_available: { Args: { p_slug: string }; Returns: boolean };
       is_platform_admin: { Args: Record<string, never>; Returns: boolean };
       admin_create_business: {
@@ -342,7 +334,6 @@ export type Database = {
       admin_catalog_counts: { Args: Record<string, never>; Returns: { catalog_id: string; pages: number; items: number }[] };
       admin_stats: { Args: Record<string, never>; Returns: Json };
       rate_limit_consume: { Args: { p_key: string; p_limit: number; p_window_seconds: number }; Returns: boolean };
-      record_order: { Args: { p_business_slug: string; p_items: { id: string; qty: number }[] }; Returns: boolean };
       record_order_v2: { Args: { p_business_slug: string; p_items: { id: string; qty: number }[]; p_order: Json | null }; Returns: boolean };
       set_order_status: { Args: { p_order: string; p_status: OrderStatus }; Returns: string };
       record_view: { Args: { p_business_slug: string; p_item_slug?: string | null }; Returns: boolean };
@@ -358,9 +349,15 @@ export type Database = {
           p_navigation?: Json | null;
           p_pages?: Json | null;
           p_deleted_page_ids?: string[];
+          /** Versión del sitio que cargó el editor (site_version); `site_changed` si cambió. null = sin verificación. */
+          p_expected_version?: string | null;
         };
         Returns: undefined;
       };
+      /** Última modificación del catálogo o de sus páginas (control de concurrencia de save_site). */
+      site_version: { Args: { p_catalog_id: string }; Returns: string | null };
+      /** Retención (sólo service_role): limpia datos personales viejos, rate limit, auditoría, estadísticas y avisos. */
+      purge_old_data: { Args: Record<string, never>; Returns: Json };
     };
     Enums: { [_ in never]: never };
     CompositeTypes: { [_ in never]: never };

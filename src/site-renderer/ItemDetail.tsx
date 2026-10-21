@@ -36,7 +36,7 @@ export function ItemDetail({ site, item, backHref, env }: { site: SiteViewModel;
       </a>
       <div className={styles.detail}>
         <div className={styles.mediaWrap}>
-          <ImageGallery images={item.images} name={item.name} />
+          <ImageGallery images={item.images} name={item.name} priority />
           <Badges item={item} theme={site.theme} t={t} />
         </div>
         <div className={styles.detailInfo}>

@@ -1,4 +1,4 @@
-import { todayIn } from './sale';
+import { todayIn } from './sale-core';
 
 /**
  * Precio programado: "desde el 1 de noviembre cuesta $55". El día llega en la

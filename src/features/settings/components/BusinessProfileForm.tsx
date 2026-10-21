@@ -72,8 +72,12 @@ export function BusinessProfileForm({ defaultValues, currency, language, priceFo
           sx={{ maxWidth: 200 }}
           onChange={(e) => {
             const value = e.target.value as Currency;
+            const previous = currentCurrency;
             setCurrentCurrency(value);
-            void run(() => updateCatalogSettings({ currency: value }), { onSuccess: () => router.refresh() });
+            // Si no se guardó, el selector vuelve a lo que había (igual que ItemsTable.toggle).
+            void run(() => updateCatalogSettings({ currency: value }), { onSuccess: () => router.refresh() }).then((result) => {
+              if (!result?.ok) setCurrentCurrency(previous);
+            });
           }}
           slotProps={{ select: { native: true }, htmlInput: { 'aria-label': t('Moneda') } }}
         >
@@ -92,8 +96,11 @@ export function BusinessProfileForm({ defaultValues, currency, language, priceFo
           sx={{ maxWidth: 200 }}
           onChange={(e) => {
             const value = e.target.value as Locale;
+            const previous = siteLanguage;
             setSiteLanguage(value);
-            void run(() => updateCatalogSettings({ language: value }), { onSuccess: () => router.refresh() });
+            void run(() => updateCatalogSettings({ language: value }), { onSuccess: () => router.refresh() }).then((result) => {
+              if (!result?.ok) setSiteLanguage(previous);
+            });
           }}
           slotProps={{ select: { native: true }, htmlInput: { 'aria-label': t('Idioma del sitio') } }}
         >

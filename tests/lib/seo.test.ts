@@ -36,6 +36,25 @@ describe('Sitemap de los catálogos publicados', () => {
   it('respeta el máximo de URLs', () => {
     assert.equal(catalogSitemapEntries(data, 2).length, 2);
   });
+
+  it('omite las fichas de ítems en categorías ocultas o borradas (en el sitio dan 404); sin categoría, sí van', () => {
+    const withCategories = {
+      ...data,
+      categories: [
+        { id: 'cat-on', is_active: true, deleted_at: null },
+        { id: 'cat-off', is_active: false, deleted_at: null },
+        { id: 'cat-gone', is_active: true, deleted_at: day },
+      ],
+      items: [
+        { catalog_id: 'c1', slug: 'latte', updated_at: day, category_id: 'cat-on' },
+        { catalog_id: 'c1', slug: 'oculto', updated_at: day, category_id: 'cat-off' },
+        { catalog_id: 'c1', slug: 'borrado', updated_at: day, category_id: 'cat-gone' },
+        { catalog_id: 'c1', slug: 'suelto', updated_at: day, category_id: null },
+      ],
+    };
+    const urls = catalogSitemapEntries(withCategories).map((e) => e.url.replace(/^https?:\/\/[^/]+/, ''));
+    assert.deepEqual(urls, ['/catalogo/cafe', '/catalogo/cafe/menu', '/catalogo/cafe/p/latte', '/catalogo/cafe/p/suelto']);
+  });
 });
 
 describe('Datos estructurados de la ficha', () => {

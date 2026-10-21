@@ -3,15 +3,16 @@
 import { Clock, Minus, Plus, RotateCcw, ShoppingBag, Ticket, Trash2, X } from 'lucide-react';
 import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type ReactNode, type Ref, type SyntheticEvent } from 'react';
 import { Icon } from '../Icon';
-import { pickupSlots, shortTime, weekdayName, withinHours, type PickupDay } from '@/lib/business/schedule';
-import { formatSaleDate } from '@/lib/catalog/sale';
+import { pickupSlots, shortTime, weekdayName, withinHours, type PickupDay } from '@/lib/business/schedule-core';
+import { formatSaleDate } from '@/lib/catalog/sale-core';
 import { opensText, useMinute, useOpenStatus } from '../OpenNow';
 import { SiteImage } from '../SiteImage';
 import { useSiteT } from '../SiteI18n';
 import styles from '../site.module.css';
 import type { OrderConfig } from './config';
 import { decodeList, encodeList, LIST_PARAM, mergeLines } from './share-list';
-import { PAYMENT_METHODS, type DeliveryZone, type PaymentMethod } from '@/lib/catalog/settings';
+import { PAYMENT_METHODS, type PaymentMethod } from '@/lib/catalog/settings-core';
+import type { DeliveryZone } from '@/lib/catalog/settings';
 import type { Translator } from '@/i18n/translate';
 import {
   applyTiers,
@@ -375,7 +376,8 @@ export function OrderProvider({ config, children }: { config: OrderConfig; child
           ? lines.map((line) => (line.id === item.id ? { ...line, ...item, qty: clampQty(line.qty + 1) } : line))
           : [...lines, { ...item, qty: 1 }];
         write(key, { ...rest, lines: next, reference: rest.reference || newReference() });
-        setAnnouncement(t('Agregado al pedido: {name}', { name: item.name }));
+        // Con la cantidad: agregar dos veces lo mismo cambia el texto y el lector de pantalla lo vuelve a leer.
+        setAnnouncement(t('Agregado al pedido: {name} ({count} en total)', { name: item.name, count: next.find((line) => line.id === item.id)?.qty ?? 1 }));
       },
       setQty: (id, qty) => {
         const { lines, ...rest } = current();
@@ -521,6 +523,16 @@ function OrderDock() {
   );
 }
 
+/**
+ * Lo que el cliente va escribiendo (nombre, nota, dirección y la nota de cada
+ * línea) vive aquí hasta que sale del campo: así cada tecla no escribe en
+ * localStorage ni re-renderiza todos los botones "Agregar" del sitio. El
+ * mensaje y el resumen se arman con el borrador, y al enviar se guarda todo.
+ */
+type Drafts = { name?: string; note?: string; address?: string; lines: Record<string, string> };
+const NO_DRAFTS: Drafts = { lines: {} };
+type DraftField = 'name' | 'note' | 'address';
+
 function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
   const t = useSiteT();
   const order = useOrder();
@@ -529,9 +541,37 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
   const tracked = useRef<string | null>(null);
   const status = useOpenStatus(order?.config.schedule ?? null);
   const minute = useMinute();
+  const [drafts, setDrafts] = useState<Drafts>(NO_DRAFTS);
   if (!order) return null;
   const { config, state } = order;
   const { options, pricing } = config;
+  // Valores vigentes: el borrador si se está escribiendo; si no, lo guardado (vuelve al reabrir el panel).
+  const name = drafts.name ?? state.name;
+  const note = drafts.note ?? state.note;
+  const address = drafts.address ?? state.address;
+  const lines = Object.keys(drafts.lines).length ? state.lines.map((line) => (drafts.lines[line.id] === undefined ? line : { ...line, note: drafts.lines[line.id] })) : state.lines;
+  const setDraft = (field: DraftField, value: string) => setDrafts((d) => ({ ...d, [field]: value }));
+  const commitDraft = (field: DraftField) => {
+    const value = drafts[field];
+    if (value === undefined) return;
+    setDrafts(({ [field]: _done, ...rest }) => rest as Drafts);
+    if (value !== state[field]) order.update({ [field]: value });
+  };
+  const setLineDraft = (id: string, value: string) => setDrafts((d) => ({ ...d, lines: { ...d.lines, [id]: value.slice(0, 120) } }));
+  const commitLineDraft = (id: string) => {
+    const value = drafts.lines[id];
+    if (value === undefined) return;
+    setDrafts(({ lines: { [id]: _done, ...rest }, ...others }) => ({ ...others, lines: rest }));
+    if (value !== (state.lines.find((line) => line.id === id)?.note ?? '')) order.setNote(id, value);
+  };
+  /** Guarda todo lo escrito (al enviar el pedido: el mensaje ya lleva el borrador). */
+  const flushDrafts = () => {
+    const { lines: lineDrafts, ...fields } = drafts;
+    const patch = Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined));
+    if (Object.keys(patch).length) order.update(patch);
+    for (const [id, value] of Object.entries(lineDrafts)) order.setNote(id, value);
+    setDrafts(NO_DRAFTS);
+  };
   const coupon = findCoupon(config.coupons, config.couponScope, state.coupon);
   // "¿Para cuándo?": horarios disponibles ahora (en el navegador: la página está en caché).
   const pickupDays =
@@ -539,16 +579,17 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
       ? pickupSlots(config.schedule, new Date(minute * 60_000), { leadMinutes: options.leadMinutes, days: options.scheduleDays, step: Number(options.slotMinutes) })
       : [];
   const when = state.when && pickupDays.some((d) => d.date === state.when!.date && d.slots.includes(state.when!.time)) ? state.when : null;
-  const choices = { fulfillment: state.fulfillment, address: state.address, zone: state.zone, branch: state.branch, tip: state.tip, table: order.table, payment: state.payment, coupon, when };
-  const summary = summarizeOrder(state.lines, pricing, options, choices);
+  const choices = { fulfillment: state.fulfillment, address, zone: state.zone, branch: state.branch, tip: state.tip, table: order.table, payment: state.payment, coupon, when };
+  const now = minute === null ? null : new Date(minute * 60_000);
+  // El reloj del minuto (el mismo que usan los horarios): no un new Date() por render.
+  const summary = summarizeOrder(lines, pricing, options, choices, now ?? undefined);
   const { subtotal, delivery, total, discount } = summary;
   const modes = fulfillmentOptions(options);
   const fulfillment = summary.table ? null : effectiveFulfillment(options, state.fulfillment);
   const money = (value: number) => formatAmount(value, pricing);
-  const message = buildOrderMessage({ lines: state.lines, pricing, intro: config.intro, businessName: config.businessName, customerName: state.name, note: state.note, siteUrl: config.siteUrl, t, options, choices, reference: state.reference || undefined });
-  const now = minute === null ? null : new Date(minute * 60_000);
+  const message = buildOrderMessage({ lines, pricing, intro: config.intro, businessName: config.businessName, customerName: name, note, siteUrl: config.siteUrl, t, options, choices, reference: state.reference || undefined });
   const outOfHours = now
-    ? state.lines.flatMap((line) => {
+    ? lines.flatMap((line) => {
         const hours = config.orderHours[line.itemId ?? line.id];
         return hours && !withinHours(hours, config.timeZone, now) ? [{ name: line.name, hours }] : [];
       })
@@ -594,13 +635,14 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
           .filter(Boolean)
           .join(' · ');
   const onSend = () => {
+    flushDrafts();
     order.remember();
     if (!config.trackSlug) return;
-    const key = JSON.stringify(state.lines.map((line) => [line.id, line.qty]));
+    const key = JSON.stringify(lines.map((line) => [line.id, line.qty]));
     if (tracked.current === key) return;
     tracked.current = key;
-    const copy = config.inbox ? inboxOrder({ lines: state.lines, pricing, customerName: state.name, note: state.note, options, choices, reference: state.reference || undefined }) : null;
-    trackOrder(config.trackSlug, state.lines, copy);
+    const copy = config.inbox ? inboxOrder({ lines, pricing, customerName: name, note, options, choices, reference: state.reference || undefined }) : null;
+    trackOrder(config.trackSlug, lines, copy);
   };
   const close = (event: SyntheticEvent) => (event.currentTarget.closest('dialog') as HTMLDialogElement | null)?.close();
 
@@ -655,12 +697,12 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
               </p>
             )}
             <ul className={styles.orderLines}>
-              {state.lines.map((line) => (
+              {lines.map((line) => (
                 <li key={line.id}>
                   <div className={styles.orderThumb}>{line.image && <SiteImage src={line.image} alt="" sizes="48px" />}</div>
                   <div className={styles.orderLineInfo}>
                     <span className={styles.orderLineName}>{line.name}</span>
-                    <LineNote note={line.note ?? ''} name={line.name} onChange={(note) => order.setNote(line.id, note)} />
+                    <LineNote note={line.note ?? ''} name={line.name} onChange={(value) => setLineDraft(line.id, value)} onBlur={() => commitLineDraft(line.id)} />
                     <span className={styles.orderLinePrice}>
                       {line.price !== null && line.currency === config.pricing.currency
                         ? formatAmount(line.price * line.qty, config.pricing)
@@ -833,12 +875,13 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
                   <span>{t('Dirección de entrega')}</span>
                   <textarea
                     rows={2}
-                    value={state.address}
+                    value={address}
                     maxLength={300}
                     autoComplete="street-address"
                     required
                     placeholder={t('Calle, número, colonia y referencias')}
-                    onChange={(event) => order.update({ address: event.target.value })}
+                    onChange={(event) => setDraft('address', event.target.value)}
+                    onBlur={() => commitDraft('address')}
                   />
                 </label>
               )}
@@ -889,12 +932,12 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
               {config.askName && (
                 <label>
                   <span>{t('Tu nombre (opcional)')}</span>
-                  <input type="text" value={state.name} maxLength={80} autoComplete="name" onChange={(event) => order.update({ name: event.target.value })} />
+                  <input type="text" value={name} maxLength={80} autoComplete="name" onChange={(event) => setDraft('name', event.target.value)} onBlur={() => commitDraft('name')} />
                 </label>
               )}
               <label>
                 <span>{t('Nota (opcional)')}</span>
-                <textarea rows={2} value={state.note} maxLength={500} placeholder={t('Entrega, horario, detalles…')} onChange={(event) => order.update({ note: event.target.value })} />
+                <textarea rows={2} value={note} maxLength={500} placeholder={t('Entrega, horario, detalles…')} onChange={(event) => setDraft('note', event.target.value)} onBlur={() => commitDraft('note')} />
               </label>
             </div>
           </>
@@ -991,8 +1034,8 @@ function CouponField({ applied, issue, onApply, onRemove }: { applied: AppliedCo
   );
 }
 
-/** "Agregar nota" bajo cada producto del pedido ("sin cebolla"): se abre al pedirla o si ya tiene una. */
-function LineNote({ note, name, onChange }: { note: string; name: string; onChange: (note: string) => void }) {
+/** "Agregar nota" bajo cada producto del pedido ("sin cebolla"): se abre al pedirla o si ya tiene una. Se guarda al salir del campo. */
+function LineNote({ note, name, onChange, onBlur }: { note: string; name: string; onChange: (note: string) => void; onBlur: () => void }) {
   const t = useSiteT();
   const [open, setOpen] = useState(false);
   if (!open && !note) {
@@ -1012,6 +1055,7 @@ function LineNote({ note, name, onChange }: { note: string; name: string; onChan
       placeholder={t('Ej. sin cebolla')}
       aria-label={t('Nota para {name}', { name })}
       onChange={(event) => onChange(event.target.value)}
+      onBlur={onBlur}
     />
   );
 }

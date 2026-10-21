@@ -17,6 +17,8 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   const ctx = await getBusinessContext();
   if (!ctx) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  // Sitio web sin catálogo: no hay productos, pedidos ni estadísticas de catálogo que exportar.
+  if (ctx.siteKind !== 'catalog') return NextResponse.json({ error: 'not_found' }, { status: 404 });
   const kind = request.nextUrl.searchParams.get('tipo') === 'productos' ? 'productos' : 'dias';
   const today = new Date();
   const since = windowStart(today, REPORT_DAYS);

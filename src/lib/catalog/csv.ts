@@ -42,10 +42,24 @@ export function parseCsv(text: string): string[][] {
     row.push(cell);
     rows.push(row);
   }
-  return rows.filter((r) => r.some((value) => value.trim() !== ''));
+  return rows.filter((r) => r.some((value) => value.trim() !== '')).map((r) => r.map(unescapeFormula));
 }
 
-const escapeCell = (value: string) => (/[",;\r\n]/.test(value) || /^\s|\s$/.test(value) ? `"${value.replace(/"/g, '""')}"` : value);
+/**
+ * Una celda que empieza con =, +, -, @ o tabulador la hoja de cálculo la
+ * ejecutaría como fórmula (=HYPERLINK, =cmd|…): se antepone un apóstrofo, como
+ * hace Excel para "texto literal". También a teléfonos "+52 …" (inofensivo: al
+ * reimportar, parseCsv lo quita).
+ */
+const FORMULA_START = /^[=+\-@\t\r]/;
+const escapeCell = (raw: string) => {
+  const formula = FORMULA_START.test(raw);
+  const value = formula ? `'${raw}` : raw;
+  return formula || /[",;\r\n]/.test(value) || /^\s|\s$/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+};
+
+/** Quita el apóstrofo que escapeCell antepone a una fórmula (y el que pone Excel al exportar texto así). */
+const unescapeFormula = (cell: string) => (cell.length > 1 && cell[0] === "'" && FORMULA_START.test(cell.slice(1)) ? cell.slice(1) : cell);
 
 /** CSV con BOM (Excel reconoce los acentos) y CRLF. */
 export function toCsv(rows: string[][]): string {
@@ -228,9 +242,68 @@ export function parseItemTable(table: string[][], defaultType: 'product' | 'serv
   return { rows, issues, columns: found };
 }
 
-/** Clave para reconocer un ítem existente: el código si hay, si no el nombre (sin mayúsculas ni acentos) y el tipo. */
-export function matchKey(item: { sku: string | null; name: string; type: string }): string {
-  return item.sku ? `sku:${item.sku.trim().toLowerCase()}` : `name:${item.type}:${normalizeHeader(item.name)}`;
+/**
+ * Clave para reconocer un ítem existente: el código si hay, si no el nombre
+ * (sin mayúsculas ni acentos) y el tipo. Con `bySku` en false (el archivo no
+ * trae la columna de código) siempre va por nombre y tipo, aunque el ítem
+ * guardado tenga código: así no se duplica.
+ */
+export function matchKey(item: { sku?: string | null; name: string; type: string }, bySku = true): string {
+  return bySku && item.sku ? `sku:${item.sku.trim().toLowerCase()}` : `name:${item.type}:${normalizeHeader(item.name)}`;
+}
+
+/* ------------------------------------------------------- Actualización */
+
+/** Columnas de catalog_items que puede tocar una fila importada. */
+export type ImportItemPatch = Partial<{
+  name: string;
+  type: 'product' | 'service';
+  category_id: string | null;
+  price: number | null;
+  compare_at_price: number | null;
+  price_note: string | null;
+  sku: string | null;
+  short_description: string | null;
+  description: string | null;
+  is_available: boolean;
+  is_visible: boolean;
+  is_featured: boolean;
+  tags: string[];
+}>;
+
+/**
+ * Qué cambia una fila en un ítem que YA existe: sólo las columnas que vienen
+ * en el archivo; las demás (código, descripciones, visible, etiquetas…) quedan
+ * como están. `existing` trae el precio y precio anterior guardados, para que
+ * el precio anterior siga siendo válido (mayor que el precio) al combinar lo
+ * del archivo con lo guardado. Puro.
+ */
+export function importUpdatePatch(
+  row: Omit<ImportRow, 'line' | 'images'>,
+  columns: readonly ItemColumn[],
+  existing: { price: number | null; compareAt: number | null },
+  categoryId: string | null,
+): ImportItemPatch {
+  const has = (column: ItemColumn) => columns.includes(column);
+  const patch: ImportItemPatch = {};
+  if (has('name')) patch.name = row.name;
+  if (has('type')) patch.type = row.type;
+  if (has('category')) patch.category_id = categoryId;
+  if (has('price') || has('compareAt')) {
+    const price = has('price') ? row.price : existing.price;
+    const compareAt = has('compareAt') ? row.compareAt : existing.compareAt;
+    if (has('price')) patch.price = price;
+    patch.compare_at_price = compareAt !== null && price !== null && compareAt > price ? compareAt : null;
+  }
+  if (has('priceNote')) patch.price_note = row.priceNote;
+  if (has('sku')) patch.sku = row.sku;
+  if (has('shortDescription')) patch.short_description = row.shortDescription;
+  if (has('description')) patch.description = row.description;
+  if (has('available')) patch.is_available = row.available;
+  if (has('visible')) patch.is_visible = row.visible;
+  if (has('featured')) patch.is_featured = row.featured;
+  if (has('tags')) patch.tags = row.tags;
+  return patch;
 }
 
 /* ------------------------------------------------------------- Exportar */

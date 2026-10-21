@@ -23,14 +23,17 @@ export async function publishedCatalogsSitemap(): Promise<MetadataRoute.Sitemap>
         db.from('catalogs').select('id, business_id, seo, updated_at').eq('status', 'published').eq('is_default', true).eq('is_active', true).is('deleted_at', null).order('id').range(from, to),
       )
     ).filter((c) => active.has(c.business_id));
-    const data: SitemapData = { businesses, catalogs, pages: [], items: [] };
+    const data: SitemapData = { businesses, catalogs, pages: [], items: [], categories: [] };
     for (const ids of chunk(catalogs.map((c) => c.id), 100)) {
-      const [pages, items] = await Promise.all([
+      const [pages, items, categories] = await Promise.all([
         fetchAllRows((from, to) => db.from('catalog_pages').select('catalog_id, slug, is_home, seo, updated_at').in('catalog_id', ids).eq('is_published', true).is('deleted_at', null).order('id').range(from, to)),
-        fetchAllRows((from, to) => db.from('catalog_items').select('catalog_id, slug, updated_at, attributes').in('catalog_id', ids).eq('is_visible', true).is('deleted_at', null).order('id').range(from, to)),
+        fetchAllRows((from, to) => db.from('catalog_items').select('catalog_id, slug, updated_at, attributes, category_id').in('catalog_id', ids).eq('is_visible', true).is('deleted_at', null).order('id').range(from, to)),
+        // Todas (también ocultas y borradas): sus ítems no tienen ficha en el sitio.
+        fetchAllRows((from, to) => db.from('categories').select('id, is_active, deleted_at').in('catalog_id', ids).order('id').range(from, to)),
       ]);
       data.pages.push(...pages);
       data.items.push(...items);
+      data.categories!.push(...categories);
     }
     return catalogSitemapEntries(data);
   } catch (error) {

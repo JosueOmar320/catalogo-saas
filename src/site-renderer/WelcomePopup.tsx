@@ -2,7 +2,7 @@
 
 import { Copy, X } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
-import { isSaleOver } from '@/lib/catalog/sale';
+import { isSaleOver } from '@/lib/catalog/sale-core';
 import type { PopupProps } from './chrome';
 import { useSiteT } from './SiteI18n';
 import styles from './site.module.css';

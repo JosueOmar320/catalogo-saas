@@ -1,11 +1,10 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { LOCALES } from '@/i18n/config';
 import { msg } from '@/i18n/translate';
 import { canManageCatalog, requireBusinessContext, type BusinessContext } from '@/lib/auth/session';
-import { invalidatePublicCatalog } from '@/lib/catalog/cache';
+import { afterCatalogChange } from '@/lib/catalog/cache';
 import {
   catalogSettingsSchema,
   contactActionsSchema,
@@ -26,8 +25,7 @@ async function updateCatalog(ctx: BusinessContext, patch: TablesUpdate<'catalogs
   if (!canManageCatalog(ctx)) return fail(msg('Sólo el dueño o un administrador puede cambiar esto.'));
   const { error } = await ctx.supabase.from('catalogs').update(patch).eq('id', ctx.catalog.id);
   if (error) return fail(dbErrorMessage(error));
-  invalidatePublicCatalog(ctx.business.slug);
-  revalidatePath('/dashboard', 'layout');
+  afterCatalogChange(ctx);
   return ok(undefined, message);
 }
 

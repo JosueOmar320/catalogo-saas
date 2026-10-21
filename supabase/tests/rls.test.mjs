@@ -91,7 +91,7 @@ await expectEq('self-registered account is born disabled', () => q(`select statu
 
 await as(A);
 let bizA, bizB, catA, catB, catgA, itemA;
-await expectErr('user cannot create businesses (old RPC)', () => q(`select public.create_business('X','x-biz')`), 'permission denied');
+await expectErr('user cannot create businesses (old RPC was dropped)', () => q(`select public.create_business('X','x-biz')`), 'does not exist');
 await expectErr('user cannot use admin RPC', () => q(`select public.admin_create_business('X','x-biz')`), 'forbidden');
 await as(ADM);
 await expectOk('admin creates business for A', async () => { bizA = (await q(`select public.admin_create_business('Tienda A','tienda-a',$1,'free','{"phone":"1"}','{"version":1}','{}') as id`, [A]))[0].id; return bizA; });
@@ -138,7 +138,7 @@ await q(`update public.catalogs set status='published', published_at=now() where
 await q(`update public.catalog_items set is_visible=false where slug='asesoria'`);
 await as(null);
 await expectOk('anon: published catalog visible', async () => { const c = (await q(`select public.get_public_catalog('tienda-a') as c`))[0].c; if (c.items.length!==1 || c.items[0].images.length!==1 || c.categories.length!==1) throw new Error(JSON.stringify(c)); if ('plan_id' in c.business) throw new Error('leaks plan'); return {items: c.items.map(i=>i.slug), business: c.business}; });
-await expectErr('anon cannot create business', () => q(`select public.create_business('x','anon-biz')`), 'permission denied');
+await expectErr('anon cannot create business (old RPC was dropped)', () => q(`select public.create_business('x','anon-biz')`), 'does not exist');
 await as(A);
 await q(`update public.categories set is_active=false`);
 await as(null);
@@ -217,7 +217,7 @@ await expectOk('admin limits Juan to 1 business', () => q(`select public.admin_u
 await expectErr('business quota enforced', () => q(`select public.admin_set_business_member($1,$2,'editor')`, [bizB, JUAN]), 'business_limit_reached');
 await as(JUAN);
 await expectEq('Juan only sees assigned business', () => q(`select slug from public.businesses`).then((r) => r.map((x) => x.slug)), ['tienda-a']);
-await expectEq('Juan sees his teammates', () => q(`select username from public.profiles order by username`).then((r) => r.map((x) => x.username)), ['ana', 'juan']);
+await expectEq('Juan sees only his own profile (no team read)', () => q(`select username from public.profiles order by username`).then((r) => r.map((x) => x.username)), ['juan']);
 await as(ADM);
 await expectOk('admin disables Juan', () => q(`select public.admin_update_profile($1,'Juan Pérez','juan@correo.com','user','disabled',1)`, [JUAN]));
 await as(JUAN);
@@ -670,6 +670,137 @@ await expectErr('unknown kind rejected', () => q(`select public.admin_set_site_k
 await expectErr('direct writes cannot bypass the check', async () => { await db.exec('reset role'); return q(`update public.businesses set site_kind='tienda' where id=$1`, [bizB]); }, 'check constraint');
 await as(A);
 await expectOk('admin turns it back into a catalog', () => q(`select public.admin_set_site_kind($1, 'catalog')`, [bizB]));
+
+/* ------------------------------------------------------------ Endurecimiento (20261102) */
+// Aquí A es administrador de la plataforma; B dueño de un negocio suspendido; Juan editor de Tienda A.
+const saveSiteV = (catalogId, pages, version) => q(`select public.save_site($1, null, null, $2::jsonb, '{}'::uuid[], $3::timestamptz)`, [catalogId, JSON.stringify(pages), version]);
+const siteVersion = () => q(`select public.site_version($1)::text v`, [catA.id]).then((r) => r[0].v);
+const P4 = '44444444-0000-4000-8000-000000000004';
+
+// 1 · Existencias: se devuelve lo que se descontó, no lo pedido.
+await db.exec('reset role');
+await q(`update public.catalog_items set attributes = attributes || '{"stock": 2}' where id=$1`, [itemA]);
+await expectEq('stock 2, order 5: confirm → 0, cancel → 2 (not 5)', async () => {
+  await sendOrder({ ...baseOrder, reference: 'G7G7', lines: [{ itemId: itemA, name: 'Croissant', qty: 5, unitPrice: 2.5 }] }, [{ id: itemA, qty: 5 }]);
+  const id = await asSuper(() => q(`select id from public.orders where reference='G7G7'`).then((r) => r[0].id), 'authenticated');
+  await as(A);
+  await q(`select public.set_order_status($1, 'confirmed')`, [id]);
+  const after = await stockA();
+  const deltas = await asSuper(() => q(`select stock_deltas d from public.orders where id=$1`, [id]).then((r) => r[0].d), 'authenticated');
+  await as(A);
+  await q(`select public.set_order_status($1, 'cancelled')`, [id]);
+  return [after, deltas[itemA], await stockA()];
+}, ['0', 2, '2']);
+
+// 2 · save_site con versión.
+await as(A);
+const threePages = (title3 = 'Borrador') => [page(P2, 'Productos', 'inicio', true), page(P3, title3, 'borrador', false, { is_published: false }), page(P4, 'Contacto', 'contacto', false)];
+await expectOk('save_site: null version → ok', () => saveSiteV(catA.id, threePages(), null));
+let v1;
+await expectOk('site_version is readable by the member', async () => { v1 = await siteVersion(); if (!v1) throw new Error('null'); return v1; });
+await expectOk('save_site: current version → ok', () => saveSiteV(catA.id, threePages('Borrador 2'), v1));
+await expectErr('save_site: stale version → site_changed', () => saveSiteV(catA.id, threePages('Borrador 3'), v1), 'site_changed');
+await expectEq('the stale save did not apply', () => q(`select title from public.catalog_pages where id=$1`, [P3]).then((r) => r[0].title), 'Borrador 2');
+await expectOk('a deletion also advances the version', async () => { const before = await siteVersion(); await saveSite(catA.id, [page(P2, 'Productos', 'inicio', true), page(P3, 'Borrador 2', 'borrador', false, { is_published: false })], null, [P4]); if ((await siteVersion()) === before) throw new Error('same version'); });
+await as(B);
+await expectEq('other business cannot read A site version', () => siteVersion(), null);
+await as(A);
+
+// 3 · Auditoría sin ruido: un guardado con 3 páginas y 1 título cambiado = 1 fila.
+await saveSite(catA.id, threePages('Borrador 2'));
+await expectEq('audit: saving 3 pages with one real change writes exactly 1 catalog_pages row', async () => {
+  const count = () => q(`select count(*)::int n from public.audit_log where entity_type='catalog_pages'`).then((r) => r[0].n);
+  const before = await count();
+  await saveSite(catA.id, threePages('Borrador 3'));
+  const rows = await q(`select entity_id, metadata->'changed' c from public.audit_log where entity_type='catalog_pages' order by id desc limit 1`);
+  return [(await count()) - before, rows[0].entity_id === P3, rows[0].c];
+}, [1, true, ['title']]);
+await expectEq('audit: an unchanged save writes nothing', async () => {
+  const before = (await q(`select count(*)::int n from public.audit_log where entity_type='catalog_pages'`))[0].n;
+  await saveSite(catA.id, threePages('Borrador 3'));
+  return (await q(`select count(*)::int n from public.audit_log where entity_type='catalog_pages'`))[0].n - before;
+}, 0);
+
+// 4 · Retención global.
+await db.exec('reset role');
+await q(`insert into public.orders(business_id, reference, customer_name, address, note, lines, created_at) values ($1,'OLD1','Viejo','Calle 9','nota','[{"itemId":null,"name":"x","variant":"","qty":1,"unitPrice":1,"note":""}]', now() - interval '200 days')`, [bizB]);
+await q(`insert into public.rate_limit_events(key, created_at) values ('old:key', now() - interval '3 days')`);
+await q(`insert into public.notification_log(user_id, business_id, kind, sent_at) values ($1,$2,'catalog_review', now() - interval '100 days')`, [A, bizA]);
+await q(`insert into public.audit_log(action, entity_type, entity_id, business_id, created_at) values ('catalog_pages.update','catalog_pages','x',$1, now() - interval '200 days'), ('businesses.update','businesses','y',$1, now() - interval '200 days')`, [bizA]);
+await as(A);
+await expectErr('authenticated cannot run purge_old_data', () => q(`select public.purge_old_data()`), 'permission denied');
+await as(null);
+await expectErr('anon cannot run purge_old_data', () => q(`select public.purge_old_data()`), 'permission denied');
+await db.exec('reset role; set role service_role;');
+await expectEq('purge: clears personal data of a business with no new orders, old rate-limit rows, content audit noise, old notices', async () => {
+  const r = (await q(`select public.purge_old_data() r`))[0].r;
+  const o = await asSuper(() => q(`select customer_name, address, note, personal_data_cleared, lines from public.orders where reference='OLD1'`).then((x) => x[0]), 'service_role');
+  const rest = await asSuper(() => q(`select (select count(*) from public.rate_limit_events where key='old:key')::int rl, (select count(*) from public.notification_log where sent_at < now() - interval '90 days')::int nl, (select count(*) from public.audit_log where entity_id in ('x','y'))::int al`).then((x) => x[0]), 'service_role');
+  return [r.orders_cleared >= 1, o.customer_name, o.address, o.note, o.personal_data_cleared, o.lines.length, rest];
+}, [true, null, null, null, true, 1, { rl: 0, nl: 0, al: 1 }]);
+await expectEq('purge: safe to run again', () => q(`select (public.purge_old_data()->>'orders_cleared')::int n`).then((r) => r[0].n), 0);
+await db.exec('reset role');
+
+// 6 · Topes de tamaño.
+await as(A);
+await expectErr('theme of 400 KB rejected', () => q(`update public.catalogs set theme = (select jsonb_build_object('x', string_agg(md5(g::text), '')) from generate_series(1, 13000) g) where id=$1`, [catA.id]), 'check constraint');
+await expectErr('more than 30 tags rejected', () => q(`update public.catalog_items set tags = (select array_agg('t' || g) from generate_series(1, 31) g) where id=$1`, [itemA]), 'check constraint');
+await expectOk('30 tags still fine', () => q(`update public.catalog_items set tags = (select array_agg('t' || g) from generate_series(1, 30) g) where id=$1 returning cardinality(tags)`, [itemA]));
+
+// 7 · Las claves de pertenencia no cambian por la API.
+await as(A);
+await q(`select public.admin_update_profile($1,'Juan Pérez','juan@correo.com','user','active',null)`, [JUAN]);
+let bizC;
+await expectOk('admin creates a second active business for Juan', async () => { bizC = (await q(`select public.admin_create_business('Tienda C','tienda-c',$1) as id`, [JUAN]))[0].id; return bizC; });
+await as(JUAN);
+const catC = (await q(`select id from public.catalogs where business_id=$1`, [bizC]))[0];
+await expectEq('Juan is a member of both businesses', () => q(`select count(*)::int n from public.businesses where id in ($1,$2)`, [bizA, bizC]).then((r) => r[0].n), 2);
+await expectErr('dual member cannot move a category to his other business', () => q(`update public.categories set business_id=$1, catalog_id=$2 where id=$3`, [bizC, catC.id, catgA]), 'permission denied');
+await expectErr('nor an item', () => q(`update public.catalog_items set business_id=$1 where id=$2`, [bizC, itemA]), 'permission denied');
+await expectErr('nor an image', () => q(`update public.catalog_item_images set item_id=$1 where business_id=$2`, [itemA, bizA]), 'permission denied');
+await expectErr('nor a page', () => q(`update public.catalog_pages set catalog_id=$1 where id=$2`, [catC.id, P2]), 'permission denied');
+await expectOk('editable columns still work (category rename)', () => q(`update public.categories set name='Bebidas frías' where id=$1 returning name`, [catgA]));
+await expectOk('reorder_rows still works after the column grants', () => q(`select public.reorder_rows('categories', array[$1::uuid])`, [catgA]));
+await as(A);
+await expectOk('save_site still works after the column grants', () => saveSite(catA.id, threePages('Borrador 4')));
+
+// 8 · Límites por plan con candado: el tope sigue aplicando.
+await db.exec(`reset role; update public.plans set limits = jsonb_set(limits, '{max_images_per_item}', '1') where id='free';`);
+await as(A);
+await expectOk('image limit 1: first image ok', () => q(`insert into public.catalog_item_images(business_id, item_id, storage_path) values ($1,$2,$3)`, [bizA, svcA, `${bizA}/items/s1.jpg`]));
+await expectErr('image limit 1: second image rejected', () => q(`insert into public.catalog_item_images(business_id, item_id, storage_path) values ($1,$2,$3)`, [bizA, svcA, `${bizA}/items/s2.jpg`]), 'plan_limit_reached:max_images_per_item');
+await db.exec(`reset role; update public.plans set limits = jsonb_set(limits, '{max_images_per_item}', '4') where id='free';`);
+
+// 9 · admin_create_catalog respeta max_catalogs (free = 1).
+await as(A);
+await expectErr('admin_create_catalog enforces max_catalogs', () => q(`select public.admin_create_catalog($1, 'Segundo')`, [bizA]), 'plan_limit_reached:max_catalogs');
+await db.exec(`reset role; update public.plans set limits = jsonb_set(limits, '{max_catalogs}', '2') where id='free';`);
+await as(A);
+let cat2;
+await expectOk('with room in the plan, the catalog is created', async () => { cat2 = (await q(`select public.admin_create_catalog($1, 'Segundo') id`, [bizA]))[0].id; return cat2; });
+
+// 10 · Reseñas públicas: sólo del catálogo publicado.
+await db.exec('reset role');
+await q(`update public.catalogs set settings = settings || '{"reviews":{"enabled":true}}' where id=$1`, [catA.id]);
+const itemOther = (await q(`insert into public.catalog_items(business_id, catalog_id, name, slug, price) values ($1,$2,'Otro','otro', 1) returning id`, [bizA, cat2]))[0].id;
+await q(`insert into public.reviews(business_id, item_id, name, rating, status) values ($1,$2,'Zoe',5,'approved')`, [bizA, itemOther]);
+await as(null);
+await expectEq('review of an item in another catalog is not public', () => publicReviews().then((r) => r.map((x) => x.name)), ['Ana', 'Beto']);
+await db.exec(`reset role; update public.plans set limits = jsonb_set(limits, '{max_catalogs}', '1') where id='free';`);
+
+// 11 · replace_media_references valida las rutas.
+await as(A);
+await expectErr('replace: old path with quotes rejected', () => q(`select public.replace_media_references($1, $2, $3)`, [bizA, `${bizA}/media/x".jpg`, `${bizA}/media/y.jpg`]), 'invalid_path');
+await expectErr('replace: arbitrary text rejected', () => q(`select public.replace_media_references($1, 'hero', $2)`, [bizA, `${bizA}/media/y.jpg`]), 'invalid_path');
+await expectErr('replace: new path with odd chars rejected', () => q(`select public.replace_media_references($1, $2, $3)`, [bizA, `${bizA}/media/a.jpg`, `${bizA}/media/b c.jpg`]), 'invalid_path');
+await expectErr('replace: thumb from another business rejected', () => q(`select public.replace_media_references($1, $2, $3, $4)`, [bizA, `${bizA}/media/a.jpg`, `${bizA}/media/b.jpg`, `${bizB}/media/t.jpg`]), 'invalid_path');
+await expectOk('replace: external https URL → own copy still allowed', () => q(`select public.replace_media_references($1, 'https://cdn.example.com/a.jpg', $2) n`, [bizA, `${bizA}/media/copia.jpg`]));
+await expectOk('replace: storage path → storage path still allowed', () => q(`select public.replace_media_references($1, $2, $3, $4) n`, [bizA, NEW, `${bizA}/media/nueva2.jpg`, `${bizA}/media/nueva2-thumb.jpg`]));
+
+// 12 · El catálogo público publica site_kind.
+await as(null);
+await expectEq('public catalog exposes business.site_kind', () => q(`select public.get_public_catalog('tienda-a') -> 'business' ->> 'site_kind' k`).then((r) => r[0].k), 'catalog');
+await expectErr('create_business no longer exists', () => q(`select public.create_business('x','y')`), 'does not exist');
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);

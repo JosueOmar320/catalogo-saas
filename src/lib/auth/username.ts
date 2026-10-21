@@ -15,7 +15,15 @@ export const usernameSchema = z
   .toLowerCase()
   .regex(USERNAME_PATTERN, msg('De 3 a 32 caracteres: letras minúsculas, números, punto, guion o guion bajo.'));
 
+function internalAuthDomain(): string {
+  return (process.env.AUTH_USERNAME_DOMAIN || 'usuarios.invalid').replace(/^@/, '');
+}
+
 export function internalAuthEmail(username: string): string {
-  const domain = (process.env.AUTH_USERNAME_DOMAIN || 'usuarios.invalid').replace(/^@/, '');
-  return `${username}@${domain}`;
+  return `${username}@${internalAuthDomain()}`;
+}
+
+/** "@usuarios.invalid" al final de un texto (para volver del correo interno al usuario). */
+export function internalAuthSuffix(): RegExp {
+  return new RegExp(`@${internalAuthDomain().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
 }

@@ -1,11 +1,10 @@
 import 'server-only';
 import { unstable_cache } from 'next/cache';
 import { cache } from 'react';
+import { parseSiteKind } from '@/lib/business/site-kind';
 import { publicCatalogTag } from '@/lib/catalog/cache';
 import type { ItemInput } from '@/lib/catalog/view-model';
 import { isSupabaseConfigured } from '@/lib/env';
-import { navigationFromPages } from '@/lib/site/navigation';
-import { buildFallbackHome } from '@/lib/site/starter';
 import { toPublicReview, type PublicReview } from '@/lib/catalog/reviews';
 import { buildSiteViewModel, type SiteViewModel } from '@/lib/site/view-model';
 import { createPublicClient } from '@/lib/supabase/public';
@@ -14,20 +13,32 @@ import type { Tables } from '@/types/database';
 type PublicCatalogPayload = {
   business: Pick<Tables<'businesses'>, 'id' | 'name' | 'slug' | 'description' | 'slogan' | 'logo_path' | 'contact' | 'social_links'> & {
     remove_branding: boolean;
-    /** Ausente antes de la migración custom_code: apagado. */
-    custom_code?: boolean;
+    custom_code: boolean;
+    /** Tipo de sitio (migración site_kind); ausente = negocio con catálogo. */
+    site_kind?: string;
   };
   catalog: Tables<'catalogs'>;
   categories: Tables<'categories'>[];
   items: (Tables<'catalog_items'> & { images: Tables<'catalog_item_images'>[] })[];
-  pages?: Tables<'catalog_pages'>[];
+  /** Sólo las páginas publicadas (puede ser vacío si el dueño las ocultó todas). */
+  pages: Tables<'catalog_pages'>[];
 };
 
-/** Reseñas aprobadas. Si la migración aún no está, o falla, el sitio sigue sin ellas. */
+/** Reseñas aprobadas. Un error se lanza (no se cachea como "sin reseñas"). */
 async function fetchPublicReviews(slug: string): Promise<PublicReview[]> {
   const { data, error } = await createPublicClient().rpc('get_public_reviews', { p_business_slug: slug });
-  if (error) return [];
+  if (error) throw Object.assign(new Error(`get_public_reviews: ${error.message}`), { code: error.code });
   return (data ?? []).map(toPublicReview);
+}
+
+/** Si la RPC falla, este render sale sin reseñas; el siguiente vuelve a intentarlo (la caché no guarda el fallo). */
+async function getPublicReviews(slug: string): Promise<PublicReview[]> {
+  try {
+    return await unstable_cache(fetchPublicReviews, ['public-reviews', slug], { tags: [publicCatalogTag(slug)], revalidate: 3600 })(slug);
+  } catch (error) {
+    console.error('[public-reviews]', { code: (error as { code?: string }).code ?? null });
+    return [];
+  }
 }
 
 async function fetchPublicCatalog(slug: string): Promise<PublicCatalogPayload | null> {
@@ -40,14 +51,15 @@ async function fetchPublicCatalog(slug: string): Promise<PublicCatalogPayload | 
 /**
  * Sitio público completo (páginas publicadas, navegación, ítems): 1 llamada
  * RPC, cacheada entre requests y deduplicada dentro del mismo render
- * (layout + page + generateMetadata).
+ * (layout + page + generateMetadata). Sin páginas publicadas, `pages` queda
+ * vacío y la página pública responde 404 (el layout tolera la lista vacía).
  */
 export const getPublicSite = cache(async (slug: string): Promise<SiteViewModel | null> => {
   if (!isSupabaseConfigured || !/^[a-z0-9-]{3,48}$/.test(slug)) return null;
 
   const [payload, reviews] = await Promise.all([
     unstable_cache(fetchPublicCatalog, ['public-catalog-v2', slug], { tags: [publicCatalogTag(slug)], revalidate: 3600 })(slug),
-    unstable_cache(fetchPublicReviews, ['public-reviews', slug], { tags: [publicCatalogTag(slug)], revalidate: 3600 })(slug),
+    getPublicReviews(slug),
   ]);
   if (!payload) return null;
 
@@ -56,13 +68,11 @@ export const getPublicSite = cache(async (slug: string): Promise<SiteViewModel |
     catalog: payload.catalog,
     categories: payload.categories,
     items: payload.items as ItemInput[],
-    pages: payload.pages ?? [],
+    pages: payload.pages,
     removeBranding: payload.business.remove_branding,
     customCode: payload.business.custom_code === true,
+    siteKind: parseSiteKind(payload.business.site_kind),
   }, { public: true });
   site.reviews = site.settings.reviews.enabled ? reviews : [];
-  if (site.pages.length > 0) return site;
-  // Sin páginas (p. ej. antes de aplicar la migración v2): mismo sitio que en la v1.
-  const home = buildFallbackHome(Boolean(payload.catalog.cover_path), payload.catalog.cover_path);
-  return { ...site, pages: [home], navigation: site.navigation.items.length ? site.navigation : navigationFromPages([home]) };
+  return site;
 });

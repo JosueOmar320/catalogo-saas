@@ -2,12 +2,14 @@ import { z } from 'zod';
 import { LOCALES } from '@/i18n/config';
 import { msg } from '@/i18n/translate';
 import { saleEndsSchema } from './sale';
+import { CURRENCIES, MAX_BRANCHES, MAX_COUPONS, MAX_PROMOTIONS, MAX_ZONES, PAYMENT_METHODS } from './settings-core';
+
+export * from './settings-core';
 
 /**
  * Configuración de comportamiento del catálogo (catalogs.settings).
  * Igual que el tema: todo campo nuevo debe tener default.
  */
-export const CURRENCIES = ['USD', 'MXN', 'EUR', 'COP', 'ARS', 'CLP', 'PEN', 'GTQ', 'DOP', 'CRC', 'BOB', 'UYU', 'PYG', 'HNL', 'NIO', 'PAB', 'VES'] as const;
 
 export const contactActionsSchema = z.object({
   whatsapp: z
@@ -40,8 +42,6 @@ export const contactActionsSchema = z.object({
  * Pedido por WhatsApp: el visitante arma una lista con cantidades en el sitio
  * y la envía al WhatsApp del negocio con un mensaje ya escrito. Sólo productos.
  */
-export const PAYMENT_METHODS = ['cash', 'card', 'transfer', 'link'] as const;
-export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 
 /** Monto opcional: '' o null → sin valor; acepta "1,200.50" o "35,5" escritos en el formulario. */
 const optionalAmount = () =>
@@ -54,9 +54,6 @@ const optionalAmount = () =>
     }, z.number({ error: msg('Usa un número, ej. 120 o 99.90') }).min(0).max(9_999_999).nullable())
     .default(null);
 
-export const MAX_COUPONS = 20;
-export const MAX_ZONES = 20;
-export const MAX_PROMOTIONS = 5;
 
 /** Promoción automática (sin código): desde cierto subtotal, un porcentaje o un monto menos. */
 export const promotionSchema = z.object({
@@ -84,7 +81,6 @@ export const deliveryZoneSchema = z.object({
 
 export type DeliveryZone = z.output<typeof deliveryZoneSchema>;
 
-export const MAX_BRANCHES = 10;
 
 /** Sucursal: el pedido llega a su WhatsApp; su dirección se muestra al recoger. */
 export const branchSchema = z.object({
@@ -242,5 +238,36 @@ function safe<S extends z.ZodType>(schema: S, raw: unknown): z.output<S> {
   return result.success ? result.data : schema.parse({});
 }
 
-export const parseCatalogSettings = (raw: unknown): CatalogSettings => safe(catalogSettingsSchema, raw);
+const isRecord = (value: unknown): value is Record<string, unknown> => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
+/**
+ * Valida campo por campo: lo válido se conserva y sólo lo corrupto vuelve a
+ * su valor por defecto (como parseItemAttributes). Un cupón mal guardado no
+ * apaga los pedidos ni cambia la moneda del sitio. Un nivel más adentro para
+ * los objetos (order, contactActions…), así un campo malo no borra la sección.
+ */
+function parseByField<T extends z.ZodRawShape>(schema: z.ZodObject<T>, raw: unknown, depth = 1): z.output<z.ZodObject<T>> {
+  const whole = schema.safeParse(raw ?? {});
+  if (whole.success) return whole.data;
+  const partial = isRecord(raw) ? raw : {};
+  const entries = Object.entries(schema.shape as unknown as Record<string, z.ZodType>).map(([key, field]) => {
+    const result = field.safeParse(partial[key]);
+    if (result.success) return [key, result.data];
+    const inner = depth > 0 ? unwrapObject(field) : null;
+    return [key, inner ? parseByField(inner, partial[key], depth - 1) : field.parse(undefined)];
+  });
+  return Object.fromEntries(entries) as z.output<z.ZodObject<T>>;
+}
+
+/** El objeto detrás de .prefault()/.default() (z.object(...).prefault({}) es un ZodDefault). */
+function unwrapObject(field: z.ZodType): z.ZodObject | null {
+  let current: unknown = field;
+  for (let i = 0; i < 3 && current; i++) {
+    if (current instanceof z.ZodObject) return current;
+    current = (current as { def?: { innerType?: unknown } }).def?.innerType;
+  }
+  return null;
+}
+
+export const parseCatalogSettings = (raw: unknown): CatalogSettings => parseByField(catalogSettingsSchema, raw);
 export const parseSeo = (raw: unknown): CatalogSeo => safe(seoSchema, raw);
