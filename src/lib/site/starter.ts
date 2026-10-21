@@ -3,13 +3,15 @@ import { navigationFromPages, type NavigationConfig } from './navigation';
 import { newPage, type SitePage } from './pages';
 import { createSection, type Section } from './section-schemas';
 
-export type BusinessOffering = 'products' | 'services' | 'both';
+/** Qué ofrece el negocio; 'website' = sitio web sin catálogo (sin páginas ni secciones de productos). */
+export type BusinessOffering = 'products' | 'services' | 'both' | 'website';
 
 /**
  * Sitio inicial para negocios nuevos. Es contenido editable, no una
  * plantilla fija: el usuario puede cambiar, ocultar o borrar todo.
  */
 export function buildStarterSite(offering: BusinessOffering): { pages: SitePage[]; navigation: NavigationConfig } {
+  if (offering === 'website') return buildWebsiteStarter();
   const sellsProducts = offering !== 'services';
   const sellsServices = offering !== 'products';
 
@@ -106,4 +108,55 @@ export function buildFallbackHome(hasCover: boolean, coverPath: string | null): 
     createSection('contact', {}, {}, 'fallback-contact'),
   ];
   return { ...newPage('Inicio', 'inicio', sections, 'home', '00000000-0000-4000-8000-00000000f001'), isHome: true };
+}
+
+/**
+ * Sitio web sin catálogo (portafolio, organización, evento…): portada,
+ * "Nosotros" y "Contacto", con textos de ejemplo para reemplazar.
+ */
+function buildWebsiteStarter(): { pages: SitePage[]; navigation: NavigationConfig } {
+  const about = newPage(
+    'Nosotros',
+    'nosotros',
+    [
+      createSection('hero', { title: 'Quiénes somos', subtitle: 'Nuestra historia, en pocas palabras.', height: 'sm' }),
+      createSection('text', {
+        title: 'Nuestra historia',
+        body: 'Cuenta **quiénes son**, cómo empezaron y qué los mueve.\n\n- Qué hacen\n- Para quién lo hacen\n- Por qué confiar en ustedes',
+        imagePosition: 'none',
+      }),
+    ],
+    'about',
+  );
+  const contact = newPage('Contacto', 'contacto', [createSection('contact', { title: 'Contáctanos', subtitle: 'Escríbenos y te respondemos pronto.', showMap: true })], 'contact');
+  const home = {
+    ...newPage(
+      'Inicio',
+      'inicio',
+      [
+        createSection('hero', {
+          height: 'md',
+          primaryButton: { label: 'Conócenos', link: { kind: 'page', pageId: about.id } },
+          secondaryButton: { label: 'Contacto', variant: 'secondary', link: { kind: 'page', pageId: contact.id } },
+        }),
+        createSection('features', {
+          title: 'Lo que hacemos',
+          items: [
+            { id: crypto.randomUUID(), icon: 'sparkles', title: 'Primer punto', text: 'Describe en una línea algo que haces o que te distingue.' },
+            { id: crypto.randomUUID(), icon: 'users', title: 'Segundo punto', text: 'Para quién es o cómo trabajas.' },
+            { id: crypto.randomUUID(), icon: 'award', title: 'Tercer punto', text: 'Un logro, un valor o una garantía.' },
+          ],
+        }),
+        createSection('banner', {
+          title: '¿Hablamos?',
+          subtitle: 'Cuéntanos qué necesitas.',
+          button: { label: 'Ir a contacto', link: { kind: 'page', pageId: contact.id } },
+        }),
+      ],
+      'home',
+    ),
+    isHome: true,
+  };
+  const pages = [home, about, contact];
+  return { pages, navigation: navigationFromPages(pages) };
 }

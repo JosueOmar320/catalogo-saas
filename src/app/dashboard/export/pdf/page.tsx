@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { getSiteForAdmin } from '@/features/catalog/queries';
 import { PdfStudio } from '@/features/pdf/components/PdfStudio';
 import { getT } from '@/i18n/server';
-import { canManageCatalog, requireBusinessContext } from '@/lib/auth/session';
+import { canManageCatalog, requireCatalogSite } from '@/lib/auth/session';
 import { parsePdfSettings } from '@/lib/pdf/settings';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -11,7 +11,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function ExportPdfPage() {
-  const ctx = await requireBusinessContext();
+  const ctx = await requireCatalogSite();
   const site = await getSiteForAdmin(ctx);
   const legacy = (ctx.catalog.settings as { pdf?: unknown } | null)?.pdf;
 

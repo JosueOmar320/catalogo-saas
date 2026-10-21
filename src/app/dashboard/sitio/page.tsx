@@ -26,6 +26,7 @@ export default async function SiteBuilderPage({ searchParams }: PageProps<'/dash
       usesSampleItems={data.usesSampleItems}
       sectionTemplates={data.sectionTemplates}
       canManage={canManageCatalog(ctx)}
+      siteKind={ctx.siteKind}
       initialPanel={PANELS.find((p) => p === panel) ?? 'pages'}
       initialDesignTab={DESIGN_TABS.find((d) => d === tab)}
       identity={{

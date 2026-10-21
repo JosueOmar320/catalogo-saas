@@ -23,7 +23,8 @@ import { msg } from '@/i18n/translate';
 
 const PAYMENT_LABELS = { cash: msg('Efectivo'), card: msg('Tarjeta'), transfer: msg('Transferencia'), link: msg('Enlace de pago') } as const;
 
-export function ContactForm({ contact, actions, order, businessName, catalogUrl }: { contact: BusinessContact; actions: ContactActionsConfig; order: OrderSettings; businessName: string; catalogUrl: string }) {
+/** catalog = false (sitio web): sólo los datos de contacto y el horario; sin botones de producto ni pedidos. */
+export function ContactForm({ contact, actions, order, businessName, catalogUrl, catalog = true }: { contact: BusinessContact; actions: ContactActionsConfig; order: OrderSettings; businessName: string; catalogUrl: string; catalog?: boolean }) {
   const t = useT();
   const router = useRouter();
   const { run, pending } = useAction();
@@ -80,6 +81,8 @@ export function ContactForm({ contact, actions, order, businessName, catalogUrl 
         </Box>
       </SectionCard>
 
+      {catalog && (
+      <>
       <SectionCard title={t('Botones de contacto')} description={t('Qué acciones ven tus clientes en cada producto o servicio.')}>
         <Stack
           component="form"
@@ -290,6 +293,8 @@ export function ContactForm({ contact, actions, order, businessName, catalogUrl 
           </Stack>
         </Stack>
       </SectionCard>
+      </>
+      )}
     </Stack>
   );
 }

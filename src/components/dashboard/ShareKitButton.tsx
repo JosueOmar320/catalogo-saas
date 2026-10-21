@@ -8,7 +8,7 @@ import { useT } from '@/i18n/client';
 import { qrMatrix } from '@/lib/qr';
 import { displayUrl, readableOn, shareMessages, wrapText } from '@/lib/share/kit';
 
-type Props = { url: string; businessName: string; slogan: string | null; color: string; slug: string; published: boolean; /** Lista de precios en texto (en el idioma del sitio). */ priceList: string };
+type Props = { url: string; businessName: string; slogan: string | null; color: string; slug: string; published: boolean; /** Lista de precios en texto (en el idioma del sitio); sin ella (sitio web) no se ofrece. */ priceList?: string };
 
 const W = 1080;
 const H = 1920;
@@ -27,7 +27,7 @@ export function ShareKitButton({ url, businessName, slogan, color, slug, publish
   const [copied, setCopied] = useState(false);
   const copyList = async () => {
     try {
-      await navigator.clipboard.writeText(priceList);
+      await navigator.clipboard.writeText(priceList ?? '');
       setCopied(true);
     } catch {}
   };
@@ -101,6 +101,8 @@ export function ShareKitButton({ url, businessName, slogan, color, slug, publish
                   {t('Enviar por WhatsApp')}
                 </Button>
               </Box>
+              {priceList && (
+              <>
               <TextField
                 label={t('Lista de precios (para WhatsApp)')}
                 value={priceList}
@@ -115,6 +117,8 @@ export function ShareKitButton({ url, businessName, slogan, color, slug, publish
                   {copied ? t('Lista copiada') : t('Copiar lista de precios')}
                 </Button>
               </Stack>
+              </>
+              )}
             </Stack>
           </Stack>
         </DialogContent>

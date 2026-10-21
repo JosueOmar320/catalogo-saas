@@ -7,7 +7,8 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNod
 import { listQuickItems } from '@/features/items/actions';
 import { useT } from '@/i18n/client';
 import { msg } from '@/i18n/translate';
-import { ADMIN_NAVIGATION, NAVIGATION } from './navigation';
+import { ADMIN_NAVIGATION, navigationFor } from './navigation';
+import type { SiteKind } from '@/lib/business/site-kind';
 import { GarfieldAvatar } from '@/features/assistant/components/GarfieldAvatar';
 import { askGarfield } from '@/features/assistant/components/PanelGarfield';
 
@@ -26,8 +27,8 @@ const matches = (query: string, ...fields: (string | null | undefined)[]) => {
 };
 
 const ACTIONS = [
-  { label: msg('Nuevo producto'), href: '/dashboard/catalog/items/new?type=product', icon: <Plus size={16} /> },
-  { label: msg('Nuevo servicio'), href: '/dashboard/catalog/items/new?type=service', icon: <Plus size={16} /> },
+  { label: msg('Nuevo producto'), href: '/dashboard/catalog/items/new?type=product', icon: <Plus size={16} />, catalogOnly: true },
+  { label: msg('Nuevo servicio'), href: '/dashboard/catalog/items/new?type=service', icon: <Plus size={16} />, catalogOnly: true },
   { label: msg('Vista previa del sitio'), href: '/preview', icon: <FileText size={16} /> },
   { label: msg('Mi cuenta'), href: '/cuenta', icon: <ArrowRight size={16} /> },
 ];
@@ -35,7 +36,8 @@ const ACTIONS = [
 /** Para que el botón de la barra superior pueda abrir la búsqueda. */
 export const OPEN_PALETTE_EVENT = 'open-command-palette';
 
-export function CommandPalette({ admin }: { admin: boolean }) {
+export function CommandPalette({ admin, siteKind = 'catalog' }: { admin: boolean; siteKind?: SiteKind }) {
+  const catalog = siteKind === 'catalog';
   const t = useT();
   const router = useRouter();
   const listId = useId();
@@ -49,14 +51,14 @@ export function CommandPalette({ admin }: { admin: boolean }) {
     setQuery('');
     setActive(0);
     setOpen(true);
-    if (!admin && items === null && !loading.current) {
+    if (!admin && catalog && items === null && !loading.current) {
       loading.current = true;
       void listQuickItems().then((result) => {
         loading.current = false;
         if (result.ok) setItems(result.data);
       });
     }
-  }, [admin, items]);
+  }, [admin, catalog, items]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -75,7 +77,7 @@ export function CommandPalette({ admin }: { admin: boolean }) {
   }, [open, show]);
 
   const entries = useMemo<Entry[]>(() => {
-    const navigation = (admin ? ADMIN_NAVIGATION : NAVIGATION).flatMap((entry): { label: string; hint?: string; href: string }[] =>
+    const navigation = (admin ? ADMIN_NAVIGATION : navigationFor(siteKind)).flatMap((entry): { label: string; hint?: string; href: string }[] =>
       entry.children
         ? entry.children.map((child) => ({ label: t(child.label), hint: t(entry.label), href: child.href }))
         : entry.href
@@ -88,7 +90,7 @@ export function CommandPalette({ admin }: { admin: boolean }) {
       .map((n) => ({ id: `go:${n.href}`, group: 'go', label: n.label, hint: n.hint, href: n.href, icon: <ArrowRight size={16} /> }));
     const actions: Entry[] = admin
       ? []
-      : ACTIONS.filter((a) => !query || matches(query, t(a.label))).map((a) => ({ id: `action:${a.href}`, group: 'action', label: t(a.label), href: a.href, icon: a.icon }));
+      : ACTIONS.filter((a) => (catalog || !('catalogOnly' in a)) && (!query || matches(query, t(a.label)))).map((a) => ({ id: `action:${a.href}`, group: 'action', label: t(a.label), href: a.href, icon: a.icon }));
     const found: Entry[] =
       !admin && query.trim() && items
         ? items
@@ -106,7 +108,7 @@ export function CommandPalette({ admin }: { admin: boolean }) {
     // Una pregunta ("¿cómo creo un cupón?") va a Garfield; siempre al final, para no tapar los resultados.
     const ask: Entry[] = !admin && query.trim().length >= 3 ? [{ id: 'ask', group: 'ask', label: t('Preguntar a Garfield: «{query}»', { query: query.trim() }), href: '', icon: <GarfieldAvatar size={18} ring={false} />, run: () => askGarfield(query.trim()) }] : [];
     return [...found, ...go, ...actions, ...ask];
-  }, [admin, items, query, t]);
+  }, [admin, catalog, items, query, siteKind, t]);
 
   const go = (entry: Entry | undefined) => {
     if (!entry) return;
@@ -132,7 +134,7 @@ export function CommandPalette({ admin }: { admin: boolean }) {
         <InputBase
           autoFocus
           fullWidth
-          placeholder={admin ? t('Ir a una sección…') : t('Busca productos, servicios o secciones…')}
+          placeholder={admin || !catalog ? t('Ir a una sección…') : t('Busca productos, servicios o secciones…')}
           value={query}
           onChange={(event) => {
             setQuery(event.target.value);
@@ -165,7 +167,7 @@ export function CommandPalette({ admin }: { admin: boolean }) {
       <Box component="ul" id={listId} role="listbox" aria-label={t('Resultados')} sx={{ listStyle: 'none', m: 0, p: 1, maxHeight: '55vh', overflowY: 'auto' }}>
         {entries.length === 0 ? (
           <Typography component="li" variant="body2" color="text.secondary" sx={{ p: 2, textAlign: 'center' }}>
-            {!admin && items === null ? t('Cargando…') : t('Sin resultados para "{query}"', { query })}
+            {!admin && catalog && items === null ? t('Cargando…') : t('Sin resultados para "{query}"', { query })}
           </Typography>
         ) : (
           entries.map((entry, index) => (

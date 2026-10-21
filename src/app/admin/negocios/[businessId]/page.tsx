@@ -9,6 +9,7 @@ import { getT } from '@/i18n/server';
 import { requirePlatformAdmin } from '@/lib/auth/session';
 import { uuidSchema } from '@/lib/utils/validation';
 import { parseEntitlements } from '@/lib/plans/entitlements';
+import { parseSiteKind } from '@/lib/business/site-kind';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
@@ -36,6 +37,7 @@ export default async function BusinessDetailPage({ params }: PageProps<'/admin/n
           members: detail.members,
           catalogs: detail.catalogs.map((c) => ({ id: c.id, name: c.name, status: c.status, isActive: c.is_active, isDefault: c.is_default, updatedAt: c.updated_at })),
           customCode: business.custom_code ?? null,
+          siteKind: parseSiteKind(business.site_kind),
         }}
         users={detail.users}
         plans={plans.map((p) => ({ id: p.id, name: p.name, customCode: parseEntitlements(p).features.custom_code }))}

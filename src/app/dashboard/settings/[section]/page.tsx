@@ -39,11 +39,12 @@ export default async function SettingsPage({ params }: PageProps<'/dashboard/set
           currency={settings.currency}
           language={settings.language}
           priceFormat={settings.priceFormat}
+          catalog={ctx.siteKind === 'catalog'}
         />
       );
       break;
     case 'contacto':
-      content = <ContactForm contact={parseContact(ctx.business.contact)} actions={settings.contactActions} order={settings.order} businessName={ctx.business.name} catalogUrl={catalogUrl(ctx.business.slug)} />;
+      content = <ContactForm contact={parseContact(ctx.business.contact)} actions={settings.contactActions} order={settings.order} businessName={ctx.business.name} catalogUrl={catalogUrl(ctx.business.slug)} catalog={ctx.siteKind === 'catalog'} />;
       break;
     case 'redes':
       content = <SocialLinksForm links={parseSocialLinks(ctx.business.social_links)} />;
@@ -62,7 +63,7 @@ export default async function SettingsPage({ params }: PageProps<'/dashboard/set
       const items = await listItemsWithImages(ctx);
       const visible = items.filter((i) => i.is_visible).length;
       content = (
-        <PublishingPanel status={ctx.catalog.status} url={url} publishedAt={ctx.catalog.published_at} visibleItems={visible} hiddenItems={items.length - visible} businessName={ctx.business.name} slug={ctx.business.slug} />
+        <PublishingPanel status={ctx.catalog.status} url={url} publishedAt={ctx.catalog.published_at} visibleItems={visible} hiddenItems={items.length - visible} businessName={ctx.business.name} slug={ctx.business.slug} catalog={ctx.siteKind === 'catalog'} />
       );
       break;
     }

@@ -15,7 +15,8 @@ import { env } from '@/lib/env';
 import { useAction } from '@/lib/hooks/use-action';
 import { slugify } from '@/lib/utils/slug';
 import type { MemberRole } from '@/types/database';
-import { createBusiness, createCatalog, openBusiness, removeMembership, setBusinessCustomCode, setMembership, updateBusiness, updateCatalog, type CustomCodeMode } from '../actions';
+import { createBusiness, createCatalog, openBusiness, removeMembership, setBusinessCustomCode, setBusinessSiteKind, setMembership, updateBusiness, updateCatalog, type CustomCodeMode } from '../actions';
+import { SITE_KIND_LABELS, SITE_KINDS, type SiteKind } from '@/lib/business/site-kind';
 import { createBusinessSchema, MEMBER_ROLE_LABELS, MEMBER_ROLES, updateBusinessSchema, type CreateBusinessValues, type UpdateBusinessValues } from '../schema';
 import { matches, SearchField, StatusChip, useDateFormat } from './common';
 
@@ -96,9 +97,10 @@ export function CreateBusinessForm({ users, plans, defaultOwner }: { users: User
   const { run, pending } = useAction();
   const { control, handleSubmit, setError, setValue } = useForm<CreateBusinessValues>({
     resolver: zodResolver(createBusinessSchema),
-    defaultValues: { name: '', slug: '', ownerId: defaultOwner ?? '', planId: plans[0]?.id ?? 'free', presetId: 'minimal', offering: 'products', whatsapp: '' },
+    defaultValues: { name: '', slug: '', ownerId: defaultOwner ?? '', planId: plans[0]?.id ?? 'free', presetId: 'minimal', siteKind: 'catalog', offering: 'products', whatsapp: '' },
   });
   const name = useWatch({ control, name: 'name' });
+  const siteKind = useWatch({ control, name: 'siteKind' });
   const slugEdited = useRef(false);
   useEffect(() => {
     if (!slugEdited.current) setValue('slug', slugify(name ?? ''));
@@ -127,9 +129,20 @@ export function CreateBusinessForm({ users, plans, defaultOwner }: { users: User
             <Grid size={{ xs: 12, sm: 6 }}>
               <SelectControl control={control} name="planId" label={t('Plan')} options={plans.map((p) => ({ value: p.id, label: p.name }))} />
             </Grid>
-            <Grid size={{ xs: 12, sm: 4 }}>
-              <SelectControl control={control} name="offering" label={t('Ofrece')} options={[{ value: 'products', label: t('Productos') }, { value: 'services', label: t('Servicios') }, { value: 'both', label: t('Ambos') }]} />
+            <Grid size={12}>
+              <SelectControl
+                control={control}
+                name="siteKind"
+                label={t('Tipo de sitio')}
+                options={SITE_KINDS.map((kind) => ({ value: kind, label: t(SITE_KIND_LABELS[kind].label) }))}
+                helperText={t(SITE_KIND_LABELS[siteKind ?? 'catalog'].description)}
+              />
             </Grid>
+            {siteKind !== 'website' && (
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <SelectControl control={control} name="offering" label={t('Ofrece')} options={[{ value: 'products', label: t('Productos') }, { value: 'services', label: t('Servicios') }, { value: 'both', label: t('Ambos') }]} />
+              </Grid>
+            )}
             <Grid size={{ xs: 12, sm: 4 }}>
               <SelectControl control={control} name="presetId" label={t('Estilo inicial')} options={THEME_PRESETS.map((p) => ({ value: p.id, label: t(p.name) }))} />
             </Grid>
@@ -159,6 +172,7 @@ type Detail = {
   catalogs: { id: string; name: string; status: string; isActive: boolean; isDefault: boolean; updatedAt: string }[];
   /** null = según el plan. */
   customCode: boolean | null;
+  siteKind: SiteKind;
 };
 
 export function EditBusinessPanel({ business, users, plans }: { business: Detail; users: UserOption[]; plans: PlanOption[] }) {
@@ -218,6 +232,7 @@ export function EditBusinessPanel({ business, users, plans }: { business: Detail
             </Stack>
           </SectionCard>
 
+          <SiteKindCard business={business} />
           <CustomCodeCard business={business} plan={plans.find((p) => p.id === business.planId)} />
         </Stack>
       </Grid>
@@ -292,6 +307,29 @@ function CustomCodeCard({ business, plan }: { business: Detail; plan?: PlanOptio
           <MenuItem value="plan">{planLabel}</MenuItem>
           <MenuItem value="on">{t('Activado para este negocio')}</MenuItem>
           <MenuItem value="off">{t('Desactivado para este negocio')}</MenuItem>
+        </TextField>
+      </Stack>
+    </SectionCard>
+  );
+}
+
+/** Negocio con catálogo o sitio web (lo que muestran el panel y el editor; no borra datos). */
+function SiteKindCard({ business }: { business: Detail }) {
+  const t = useT();
+  const router = useRouter();
+  const { run, pending } = useAction();
+  return (
+    <SectionCard title={t('Tipo de sitio')} description={t('Un sitio web oculta productos, servicios, pedidos, reseñas y el PDF del panel y del editor. Cambiarlo no borra nada.')}>
+      <Stack sx={{ pb: 2 }}>
+        <TextField
+          select
+          label={t('Tipo de sitio')}
+          value={business.siteKind}
+          disabled={pending}
+          onChange={(e) => run(() => setBusinessSiteKind(business.id, e.target.value as SiteKind), { onSuccess: () => router.refresh() })}
+          helperText={t(SITE_KIND_LABELS[business.siteKind].description)}
+        >
+          {SITE_KINDS.map((kind) => <MenuItem key={kind} value={kind}>{t(SITE_KIND_LABELS[kind].label)}</MenuItem>)}
         </TextField>
       </Stack>
     </SectionCard>

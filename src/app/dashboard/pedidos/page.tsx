@@ -4,7 +4,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { OrdersBoard } from '@/features/orders/components/OrdersBoard';
 import { countNewOrders, listOrders } from '@/features/orders/inbox-queries';
 import { getLocale, getT } from '@/i18n/server';
-import { canManageCatalog, requireBusinessContext } from '@/lib/auth/session';
+import { canManageCatalog, requireCatalogSite } from '@/lib/auth/session';
 import { parseCatalogSettings } from '@/lib/catalog/settings';
 import { findTab, parseRange } from '@/lib/orders/inbox';
 
@@ -14,7 +14,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function OrdersPage({ searchParams }: PageProps<'/dashboard/pedidos'>) {
-  const ctx = await requireBusinessContext();
+  const ctx = await requireCatalogSite();
   const { estado, dias, q } = await searchParams;
   const tab = findTab(estado);
   const days = parseRange(dias);

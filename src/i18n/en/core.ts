@@ -497,6 +497,17 @@ const catalog: Catalog = {
   'Para': 'For',
   'Propina': 'Tip',
   'Subtotal': 'Subtotal',
+  'Administra tu sitio web, personaliza su diseño y compártelo.': 'Manage your website, customize its design and share it.',
+  'Publica tu sitio para que este enlace funcione.': 'Publish your site for this link to work.',
+  'Publica tu sitio': 'Publish your site',
+  'Páginas de tu sitio': 'Your site’s pages',
+  'Tu sitio': 'Your site',
+  '¡Tu sitio está listo! Sigue los pasos de abajo para completarlo.': 'Your site is ready! Follow the steps below to complete it.',
+  'El enlace dejará de mostrar tu sitio hasta que lo vuelvas a publicar.': 'The link will stop showing your site until you publish it again.',
+  'Publicar sitio': 'Publish site',
+  'Tu sitio es público. Cada cambio que guardes se refleja de inmediato.': 'Your site is public. Every change you save shows right away.',
+  'Tu sitio todavía no es público: nadie más puede verlo. Revisa la vista previa y publícalo cuando esté listo.': 'Your site is not public yet: nobody else can see it. Check the preview and publish it when it’s ready.',
+  '¿Despublicar el sitio?': 'Unpublish the site?',
 };
 
 export default catalog;

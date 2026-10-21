@@ -22,6 +22,7 @@ import { PagesPanel } from './PagesPanel';
 import { SectionEditor } from './SectionEditor';
 import { SectionTemplatesProvider } from './SectionTemplates';
 import type { SectionTemplate } from '../queries';
+import type { SiteKind } from '@/lib/business/site-kind';
 import { useT } from '@/i18n/client';
 
 type Props = {
@@ -30,6 +31,8 @@ type Props = {
   isStarter: boolean;
   usesSampleItems: boolean;
   sectionTemplates: SectionTemplate[];
+  /** Sitio web (sin catálogo): el editor no ofrece secciones ni páginas de productos. */
+  siteKind?: SiteKind;
   identity: IdentityImages;
   initialPanel: BuilderPanel;
   initialDesignTab?: DesignTab;
@@ -142,7 +145,7 @@ export function Builder(props: Props) {
         <Tab value="design" label={t('Diseño')} />
       </Tabs>
       {state.panel === 'pages' &&
-        (state.selectedSectionId ? <SectionEditor site={draftSite} /> : state.editingPageSettings ? <PageSettings baseUrl={props.site.url} /> : <PagesPanel customCode={props.site.customCode} />)}
+        (state.selectedSectionId ? <SectionEditor site={draftSite} /> : state.editingPageSettings ? <PageSettings baseUrl={props.site.url} /> : <PagesPanel customCode={props.site.customCode} catalog={props.siteKind !== 'website'} />)}
       {state.panel === 'navigation' && <NavigationPanel />}
       {state.panel === 'design' && <DesignPanel identity={props.identity} initialTab={props.initialDesignTab} customCode={props.site.customCode} />}
     </Paper>

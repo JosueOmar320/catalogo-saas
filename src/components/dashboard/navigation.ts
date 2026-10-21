@@ -1,9 +1,11 @@
 import { Building2, FileDown, Globe, History, Home, Image as ImageIcon, LayoutDashboard, LibraryBig, MessageSquareText, Package, ReceiptText, Settings, SlidersHorizontal, Users, type LucideIcon } from 'lucide-react';
 import { msg } from '@/i18n/translate';
+import type { SiteKind } from '@/lib/business/site-kind';
 
 /** Las etiquetas se marcan con msg(): quien las muestra las traduce con t(). */
 export type NavLink = { label: string; href: string };
-export type NavEntry = { label: string; icon: LucideIcon; href?: string; children?: NavLink[] };
+/** catalogOnly: no aparece en un sitio web (sin productos ni pedidos). */
+export type NavEntry = { label: string; icon: LucideIcon; href?: string; children?: NavLink[]; catalogOnly?: boolean };
 
 export const SETTINGS_SECTIONS = [
   { id: 'negocio', label: msg('Negocio') },
@@ -17,10 +19,11 @@ export type SettingsSectionId = (typeof SETTINGS_SECTIONS)[number]['id'];
 
 export const NAVIGATION: NavEntry[] = [
   { label: msg('Inicio'), icon: Home, href: '/dashboard' },
-  { label: msg('Pedidos'), icon: ReceiptText, href: '/dashboard/pedidos' },
+  { label: msg('Pedidos'), icon: ReceiptText, href: '/dashboard/pedidos', catalogOnly: true },
   {
     label: msg('Contenido'),
     icon: Package,
+    catalogOnly: true,
     children: [
       { label: msg('Productos'), href: '/dashboard/catalog/products' },
       { label: msg('Servicios'), href: '/dashboard/catalog/services' },
@@ -30,7 +33,7 @@ export const NAVIGATION: NavEntry[] = [
     ],
   },
   { label: msg('Medios'), icon: ImageIcon, href: '/dashboard/media' },
-  { label: msg('Reseñas'), icon: MessageSquareText, href: '/dashboard/resenas' },
+  { label: msg('Reseñas'), icon: MessageSquareText, href: '/dashboard/resenas', catalogOnly: true },
   {
     label: msg('Sitio web'),
     icon: Globe,
@@ -40,7 +43,7 @@ export const NAVIGATION: NavEntry[] = [
       { label: msg('Diseño'), href: '/dashboard/sitio?panel=design' },
     ],
   },
-  { label: msg('Catálogo PDF'), icon: FileDown, href: '/dashboard/export/pdf' },
+  { label: msg('Catálogo PDF'), icon: FileDown, href: '/dashboard/export/pdf', catalogOnly: true },
   {
     label: msg('Configuración'),
     icon: Settings,
@@ -58,3 +61,6 @@ export const ADMIN_NAVIGATION: NavEntry[] = [
   { label: msg('Auditoría'), icon: History, href: '/admin/auditoria' },
   { label: msg('Configuración'), icon: SlidersHorizontal, href: '/admin/configuracion' },
 ];
+
+/** Menú del panel según el tipo de sitio. */
+export const navigationFor = (kind: SiteKind): NavEntry[] => (kind === 'website' ? NAVIGATION.filter((entry) => !entry.catalogOnly) : NAVIGATION);

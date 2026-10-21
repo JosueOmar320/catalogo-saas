@@ -2,6 +2,7 @@
 
 import { createContext, useContext, type ReactNode } from 'react';
 import type { CatalogStatus } from '@/types/database';
+import type { SiteKind } from '@/lib/business/site-kind';
 
 export type DashboardInfo = {
   businessId: string;
@@ -12,6 +13,8 @@ export type DashboardInfo = {
   publicUrl: string;
   maxImagesPerItem: number | null;
   canManage: boolean;
+  /** Negocio con catálogo o sitio web sin productos. */
+  siteKind: SiteKind;
 };
 
 const DashboardContext = createContext<DashboardInfo | null>(null);

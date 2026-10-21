@@ -256,6 +256,12 @@ const catalog: Catalog = {
   'Según el plan ({plan}: activado)': 'Per plan ({plan}: on)',
   'Según el plan ({plan}: desactivado)': 'Per plan ({plan}: off)',
   'Código propio en el plan {plan}': 'Custom code in the {plan} plan',
+  'Tipo de sitio actualizado': 'Site type updated',
+  'Tipo de sitio': 'Site type',
+  'Un sitio web oculta productos, servicios, pedidos, reseñas y el PDF del panel y del editor. Cambiarlo no borra nada.': 'A website hides products, services, orders, reviews and the PDF from the dashboard and the editor. Changing it doesn’t delete anything.',
+  'Negocio con catálogo': 'Business with catalog',
+  'Productos y servicios, pedidos por WhatsApp, reseñas y catálogo PDF.': 'Products and services, WhatsApp orders, reviews and PDF catalog.',
+  'Páginas informativas sin productos ni pedidos: portafolio, organización, evento, landing…': 'Informational pages without products or orders: portfolio, organization, event, landing page…',
 };
 
 export default catalog;

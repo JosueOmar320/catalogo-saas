@@ -1147,6 +1147,48 @@ test('Garfield en el panel (sin IA): dice dónde está cada cosa, lleva ahí y p
   await expect(page.getByLabel('Título', { exact: true })).toHaveValue(new RegExp(businessName));
 });
 
+test('tipo de sitio: un sitio web nace sin catálogo y el panel no muestra productos, pedidos ni PDF', async ({ page }) => {
+  await page.goto('/admin/negocios/nuevo');
+  await page.getByLabel('Nombre', { exact: true }).fill(`Estudio Web ${Date.now().toString(36)}`);
+  await page.getByLabel('Propietario').click();
+  await page.getByRole('option', { name: new RegExp(`^@${admin.username}`) }).click();
+  await page.getByRole('combobox', { name: 'Tipo de sitio' }).click();
+  await page.getByRole('option', { name: 'Sitio web' }).click();
+  // Un sitio web no pregunta qué ofrece.
+  await expect(page.getByRole('combobox', { name: 'Ofrece' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Crear negocio' }).click();
+  await expect(page).toHaveURL(/\/admin\/negocios\/[0-9a-f-]{36}$/);
+  await expect(page.getByRole('combobox', { name: 'Tipo de sitio' })).toHaveText('Sitio web');
+
+  await page.getByRole('button', { name: 'Abrir en el editor' }).click();
+  await expect(page).toHaveURL(/\/dashboard/);
+  await page.goto('/dashboard');
+  const menu = page.getByRole('navigation', { name: 'Menú principal' });
+  await expect(menu.getByRole('link', { name: 'Medios' })).toBeVisible();
+  for (const name of ['Pedidos', 'Reseñas', 'Catálogo PDF']) await expect(menu.getByRole('link', { name })).toHaveCount(0);
+  await expect(menu.getByRole('button', { name: 'Contenido' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Páginas de tu sitio' })).toBeVisible();
+  // Por URL tampoco: vuelve al inicio del panel.
+  await page.goto('/dashboard/catalog/products');
+  await expect(page).toHaveURL(/\/dashboard$/);
+  await page.goto('/dashboard/pedidos');
+  await expect(page).toHaveURL(/\/dashboard$/);
+
+  // El editor no ofrece secciones de productos; el sitio inicial no las tiene.
+  await page.goto('/dashboard/sitio');
+  await page.getByRole('button', { name: 'Sección', exact: true }).click();
+  await expect(page.getByRole('button', { name: /^Hero Portada grande/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Catálogo completo/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^Productos/ })).toHaveCount(0);
+
+  // De vuelta al negocio con catálogo para las pruebas siguientes.
+  await page.goto(businessPath);
+  await page.getByRole('button', { name: 'Abrir en el editor' }).click();
+  await expect(page).toHaveURL(/\/dashboard/);
+  await page.goto('/dashboard');
+  await expect(page.getByRole('navigation', { name: 'Menú principal' }).getByRole('link', { name: 'Pedidos' })).toBeVisible();
+});
+
 test('accesibilidad del panel y la administración (axe)', async ({ page }) => {
   test.setTimeout(120_000); // 13 páginas, cada una con su análisis
   for (const path of ['/dashboard', '/dashboard/pedidos', '/dashboard/catalog/products', '/dashboard/catalog/items/new?type=product', '/dashboard/catalog/categories', '/dashboard/settings/contacto', '/dashboard/settings/negocio', '/dashboard/resenas', '/dashboard/media', '/dashboard/sitio', '/dashboard/export/pdf', '/admin', '/admin/usuarios', '/cuenta']) {
