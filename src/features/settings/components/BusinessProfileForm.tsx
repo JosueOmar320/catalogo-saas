@@ -21,7 +21,8 @@ import { useAction } from '@/lib/hooks/use-action';
 
 type Currency = (typeof CURRENCIES)[number];
 
-export function BusinessProfileForm({ defaultValues, currency, language, priceFormat }: { defaultValues: BusinessProfileValues; currency: Currency; language: Locale; priceFormat: PriceFormat }) {
+/** catalog = false (sitio web): sin moneda ni formato de precios. */
+export function BusinessProfileForm({ defaultValues, currency, language, priceFormat, catalog = true }: { defaultValues: BusinessProfileValues; currency: Currency; language: Locale; priceFormat: PriceFormat; catalog?: boolean }) {
   const t = useT();
   const router = useRouter();
   const { run, pending } = useAction();
@@ -63,6 +64,7 @@ export function BusinessProfileForm({ defaultValues, currency, language, priceFo
         </Stack>
       </SectionCard>
 
+      {catalog && (
       <SectionCard title={t('Moneda')} description={t('Moneda predeterminada para ítems nuevos.')}>
         <TextField
           select
@@ -80,6 +82,8 @@ export function BusinessProfileForm({ defaultValues, currency, language, priceFo
           ))}
         </TextField>
       </SectionCard>
+
+      )}
 
       <SectionCard title={t('Idioma del sitio')} description={t('Idioma de los textos fijos del sitio público y del PDF: botones, filtros y avisos. Tus propios textos (productos, páginas) no se traducen.')}>
         <TextField
@@ -99,7 +103,7 @@ export function BusinessProfileForm({ defaultValues, currency, language, priceFo
         </TextField>
       </SectionCard>
 
-      <PriceFormatCard currency={currentCurrency} initial={priceFormat} />
+      {catalog && <PriceFormatCard currency={currentCurrency} initial={priceFormat} />}
     </Stack>
   );
 }

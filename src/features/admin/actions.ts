@@ -8,6 +8,7 @@ import { msg } from '@/i18n/translate';
 import { ACTIVE_BUSINESS_COOKIE, requirePlatformAdmin } from '@/lib/auth/session';
 import { internalAuthEmail } from '@/lib/auth/username';
 import { contactSchema } from '@/lib/business/profile';
+import { SITE_KINDS, type SiteKind } from '@/lib/business/site-kind';
 import { invalidatePublicCatalog } from '@/lib/catalog/cache';
 import { catalogSettingsSchema } from '@/lib/catalog/settings';
 import { applyPreset, getPreset } from '@/lib/design/presets';
@@ -188,7 +189,9 @@ export async function createBusiness(input: CreateBusinessValues): Promise<Actio
   const values = parsed.data;
 
   const theme = applyPreset(DEFAULT_THEME, getPreset(values.presetId));
-  const settings = catalogSettingsSchema.parse({ contactActions: { whatsapp: { enabled: true }, phone: { enabled: !values.whatsapp } }, order: { enabled: Boolean(values.whatsapp) } });
+  const website = values.siteKind === 'website';
+  // Un sitio web no recibe pedidos.
+  const settings = catalogSettingsSchema.parse({ contactActions: { whatsapp: { enabled: true }, phone: { enabled: !values.whatsapp } }, order: { enabled: !website && Boolean(values.whatsapp) } });
   const { data: businessId, error } = await supabase.rpc('admin_create_business', {
     p_name: values.name,
     p_slug: values.slug,
@@ -200,10 +203,14 @@ export async function createBusiness(input: CreateBusinessValues): Promise<Actio
   });
   if (error || !businessId) return fail(dbErrorMessage(error, msg('No se pudo crear el negocio.')), error?.message.includes('slug') ? { slug: [msg('Esa dirección ya está en uso')] } : undefined);
 
+  if (website) {
+    const { error: kindError } = await supabase.rpc('admin_set_site_kind', { p_business: businessId, p_kind: 'website' });
+    if (kindError) console.error('[admin] no se pudo marcar el sitio web', { code: kindError.code });
+  }
   const { data: catalog } = await supabase.from('catalogs').select('id').eq('business_id', businessId).eq('is_default', true).single();
   let starterSaved = false;
   if (catalog) {
-    const starter = buildStarterSite(values.offering);
+    const starter = buildStarterSite(website ? 'website' : values.offering);
     const { error: siteError } = await supabase.rpc('save_site', { p_catalog_id: catalog.id, p_navigation: starter.navigation as Json, p_pages: starter.pages.map(pageToRow) as unknown as Json, p_deleted_page_ids: [] });
     starterSaved = !siteError;
   }
@@ -227,6 +234,16 @@ export async function updateBusiness(id: string, input: UpdateBusinessValues): P
   invalidatePublicCatalog(parsed.data.slug);
   refresh('/admin/negocios');
   return ok(undefined, parsed.data.status === 'suspended' ? msg('Negocio guardado (suspendido)') : msg('Negocio guardado'));
+}
+
+/** Negocio con catálogo o sitio web: cambia lo que muestran el panel y el editor (no borra datos). */
+export async function setBusinessSiteKind(id: string, kind: SiteKind): Promise<ActionResult> {
+  const { supabase } = await requirePlatformAdmin();
+  if (!isUuid(id) || !SITE_KINDS.includes(kind)) return fail(msg('Datos inválidos.'));
+  const { error } = await supabase.rpc('admin_set_site_kind', { p_business: id, p_kind: kind });
+  if (error) return fail(dbErrorMessage(error));
+  refresh('/admin/negocios', '/dashboard');
+  return ok(undefined, msg('Tipo de sitio actualizado'));
 }
 
 export type CustomCodeMode = 'plan' | 'on' | 'off';

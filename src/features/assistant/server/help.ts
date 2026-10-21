@@ -5,10 +5,11 @@ import type { Translator } from '@/i18n/translate';
 import { foldText } from '@/lib/utils/text';
 import type { ChatMessage, TaskModel } from './types';
 
-export type HelpContext = { messages: ChatMessage[]; path: string; admin: boolean; locale: Locale; businessName: string };
+/** catalog = false: sitio web (la guía no incluye productos, pedidos, reseñas ni PDF). */
+export type HelpContext = { messages: ChatMessage[]; path: string; admin: boolean; locale: Locale; businessName: string; catalog?: boolean };
 
 export function helpPrompt(context: HelpContext): { system: string; prompt: string } {
-  const guide = areasFor(context.admin)
+  const guide = areasFor(context.admin, context.catalog ?? true)
     .map((area) => `- ${area.id} (${area.href}): ${area.summary}`)
     .join('\n');
   const system = `Eres ${ASSISTANT.name}, el asistente del PANEL de una plataforma de catálogos y sitios web para pequeños negocios (gato naranja simpático, práctico y breve). Respondes dudas sobre cómo usar el panel y llevas al usuario al lugar correcto.
@@ -35,7 +36,7 @@ export async function helpWithModel(model: TaskModel, context: HelpContext): Pro
   const { system, prompt } = helpPrompt(context);
   const result = await model.generate({ system, prompt, schema: helpResultSchema, maxTokens: 900 });
   // Sólo áreas que este usuario puede abrir.
-  const allowed = new Set(areasFor(context.admin).map((area) => area.id));
+  const allowed = new Set(areasFor(context.admin, context.catalog ?? true).map((area) => area.id));
   return { ...result, links: [...new Set(result.links)].filter((id) => allowed.has(id)) };
 }
 
@@ -44,11 +45,11 @@ const GREETING = /^(hola|buenas|buenos dias|buenas tardes|hey|hi|hello|ayuda|hel
 /** Sin IA: el área que coincide con las palabras de la pregunta. */
 export function helpWithoutModel(context: HelpContext, t: Translator): HelpResult {
   const question = [...context.messages].reverse().find((m) => m.role === 'user')?.content ?? '';
-  const suggestions = [t('¿Cómo creo un cupón de descuento?'), t('¿Dónde cambio mi horario?'), t('¿Cómo cambio los colores del sitio?')];
+  const suggestions = context.catalog === false ? [t('¿Cómo agrego una página?'), t('¿Cómo cambio los colores del sitio?'), t('¿Cómo publico mi sitio?')] : [t('¿Cómo creo un cupón de descuento?'), t('¿Dónde cambio mi horario?'), t('¿Cómo cambio los colores del sitio?')];
   if (GREETING.test(foldText(question).trim())) {
     return { message: t('¡Hola! Pregúntame dónde se hace algo en el panel («¿dónde cambio mi horario?») y te llevo. En el editor del sitio y en el estudio de PDF también hago los cambios por ti.'), links: [], suggestions };
   }
-  const areas = matchAreas(question, context.admin);
+  const areas = matchAreas(question, context.admin, 3, context.catalog ?? true);
   if (areas.length === 0) return { message: t('No encontré eso en el panel. Prueba con otras palabras, por ejemplo «cupones», «horario» o «colores».'), links: [], suggestions };
   return { message: areas.length === 1 ? t('Eso lo encuentras aquí:') : t('Eso lo encuentras en alguno de estos lugares:'), links: areas.map((area) => area.id as HelpResult['links'][number]), suggestions: [] };
 }

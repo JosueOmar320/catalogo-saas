@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { cache } from 'react';
 import { isSupabaseConfigured } from '@/lib/env';
 import { customCodeEnabled, parseEntitlements, type Entitlements } from '@/lib/plans/entitlements';
+import { parseSiteKind, type SiteKind } from '@/lib/business/site-kind';
 import { createClient, type ServerSupabase } from '@/lib/supabase/server';
 import type { MemberRole, Tables } from '@/types/database';
 
@@ -49,6 +50,8 @@ export type BusinessContext = {
   entitlements: Entitlements;
   /** Código propio habilitado por el administrador (plan o negocio). */
   customCode: boolean;
+  /** Negocio con catálogo o sitio web sin productos (lo decide el administrador). */
+  siteKind: SiteKind;
 };
 
 /**
@@ -106,6 +109,7 @@ export const getBusinessContext = cache(async (): Promise<BusinessContext | null
     businesses: businesses.map(({ id, name, slug }) => ({ id, name, slug })),
     entitlements,
     customCode: customCodeEnabled(business, entitlements.features),
+    siteKind: parseSiteKind(business.site_kind),
   };
 });
 
@@ -130,4 +134,11 @@ export async function requirePlatformAdmin(): Promise<{ supabase: ServerSupabase
 
 export function canManageCatalog(ctx: BusinessContext): boolean {
   return ctx.role === 'owner' || ctx.role === 'admin';
+}
+
+/** Páginas sólo de un negocio con catálogo: en un sitio web llevan al inicio del panel. */
+export async function requireCatalogSite(): Promise<BusinessContext> {
+  const ctx = await requireBusinessContext();
+  if (ctx.siteKind !== 'catalog') redirect('/dashboard');
+  return ctx;
 }

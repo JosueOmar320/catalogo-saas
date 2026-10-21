@@ -20,7 +20,7 @@ import { TemplateList } from './SectionTemplates';
 import { useT } from '@/i18n/client';
 
 /** Lista de páginas + secciones de la página seleccionada. */
-export function PagesPanel({ customCode = false }: { customCode?: boolean }) {
+export function PagesPanel({ customCode = false, catalog = true }: { customCode?: boolean; catalog?: boolean }) {
   const t = useT();
   const { state, dispatch } = useBuilder();
   const page = useSelectedPage();
@@ -61,7 +61,7 @@ export function PagesPanel({ customCode = false }: { customCode?: boolean }) {
             <Typography variant="caption" sx={{ fontWeight: 600, flex: 1 }}>{t('Elige un punto de partida')}</Typography>
             <IconButton size="small" onClick={() => setAdding(null)} aria-label={t('Cerrar')}><X size={14} /></IconButton>
           </Stack>
-          {PAGE_BLUEPRINTS.map((bp) => (
+          {(catalog ? PAGE_BLUEPRINTS : PAGE_BLUEPRINTS.filter((bp) => !bp.sections().some((section) => SECTION_META[section.type].group === 'Catálogo'))).map((bp) => (
             <ButtonBase
               key={bp.template + bp.title}
               onClick={() => {
@@ -166,6 +166,7 @@ export function PagesPanel({ customCode = false }: { customCode?: boolean }) {
       {adding === 'section' && (
         <SectionPicker
           customCode={customCode}
+          catalog={catalog}
           onPick={(section) => {
             dispatch({ type: 'addSection', section });
             setAdding(null);
@@ -217,7 +218,7 @@ export function PagesPanel({ customCode = false }: { customCode?: boolean }) {
   );
 }
 
-function SectionPicker({ onPick, onClose, customCode }: { onPick: (section: Section) => void; onClose: () => void; customCode: boolean }) {
+function SectionPicker({ onPick, onClose, customCode, catalog }: { onPick: (section: Section) => void; onClose: () => void; customCode: boolean; catalog: boolean }) {
   const t = useT();
   return (
     <Box sx={{ mb: 1.5, p: 1, border: 1, borderColor: 'divider', borderRadius: 1.5 }}>
@@ -227,7 +228,8 @@ function SectionPicker({ onPick, onClose, customCode }: { onPick: (section: Sect
       </Stack>
       <TemplateList onPick={onPick} />
       {/* Las secciones de código propio sólo si el administrador lo habilitó. */}
-      {SECTION_GROUPS.filter((group) => customCode || group !== 'Código').map((group) => (
+      {/* Un sitio web (sin catálogo) no tiene secciones de productos. */}
+      {SECTION_GROUPS.filter((group) => (customCode || group !== 'Código') && (catalog || group !== 'Catálogo')).map((group) => (
         <Box key={group} sx={{ mt: 1 }}>
           <Typography variant="overline" color="text.secondary" sx={{ px: 1 }}>{t(group)}</Typography>
           {SECTION_TYPES.filter((st) => SECTION_META[st].group === group).map((type) => (

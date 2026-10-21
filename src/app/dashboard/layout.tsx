@@ -36,6 +36,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
             publicUrl: catalogUrl(ctx.business.slug),
             maxImagesPerItem: ctx.entitlements.limits.max_images_per_item,
             canManage: canManageCatalog(ctx),
+            siteKind: ctx.siteKind,
           }}
         >
           <AppShell
@@ -46,6 +47,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
               isAdmin: ctx.isPlatformAdmin,
               planName: ctx.entitlements.planName,
             }}
+            siteKind={ctx.siteKind}
           >
             {children}
           </AppShell>

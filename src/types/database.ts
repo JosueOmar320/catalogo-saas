@@ -24,6 +24,8 @@ type BusinessRow = Timestamps & {
   status: BusinessStatus;
   /** Código propio: null = según el plan; true/false = decisión del administrador. */
   custom_code: boolean | null;
+  /** catalog = negocio con catálogo; website = sitio web sin productos (lo decide el administrador). */
+  site_kind: 'catalog' | 'website';
   deleted_at: string | null;
 };
 
@@ -319,6 +321,7 @@ export type Database = {
         Args: { p_name: string; p_slug: string; p_owner?: string | null; p_plan_id?: string; p_contact?: Json; p_catalog_theme?: Json; p_catalog_settings?: Json };
         Returns: string;
       };
+      admin_set_site_kind: { Args: { p_business: string; p_kind: 'catalog' | 'website' }; Returns: undefined };
       admin_set_custom_code: { Args: { p_business: string; p_value: boolean | null }; Returns: undefined };
       admin_set_plan_custom_code: { Args: { p_plan: string; p_value: boolean }; Returns: undefined };
       admin_update_business: { Args: { p_business: string; p_name: string; p_slug: string; p_plan_id: string; p_status: BusinessStatus }; Returns: undefined };

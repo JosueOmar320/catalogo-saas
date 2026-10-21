@@ -415,6 +415,8 @@ const catalog: Catalog = {
   'Menú, header y pie de página': 'Menu, header and footer',
   'Negocios (administración)': 'Businesses (admin)',
   'Usuarios (administración)': 'Users (admin)',
+  '¿Cómo agrego una página?': 'How do I add a page?',
+  '¿Cómo publico mi sitio?': 'How do I publish my site?',
 };
 
 export default catalog;

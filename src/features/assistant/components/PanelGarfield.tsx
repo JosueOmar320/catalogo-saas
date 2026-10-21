@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { findArea } from '@/lib/assistant/panel-guide';
 import { GarfieldAvatar } from './GarfieldAvatar';
+import { useDashboard } from '@/components/dashboard/DashboardContext';
 import { useT } from '@/i18n/client';
 
 /** Otro componente (la búsqueda rápida) puede abrir la ayuda con una pregunta. */
@@ -25,6 +26,7 @@ type Message = { role: 'user' | 'assistant'; content: string; links?: string[] }
 export function PanelGarfield() {
   const t = useT();
   const pathname = usePathname() ?? '/dashboard';
+  const { siteKind } = useDashboard();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -78,7 +80,10 @@ export function PanelGarfield() {
   }, [messages, pending]);
 
   if (hidden) return null;
-  const starters = [t('¿Cómo creo un cupón de descuento?'), t('¿Dónde cambio mi horario?'), t('¿Cómo subo varios productos a la vez?')];
+  const starters =
+    siteKind === 'catalog'
+      ? [t('¿Cómo creo un cupón de descuento?'), t('¿Dónde cambio mi horario?'), t('¿Cómo subo varios productos a la vez?')]
+      : [t('¿Cómo agrego una página?'), t('¿Cómo cambio los colores del sitio?'), t('¿Cómo publico mi sitio?')];
 
   return (
     <>

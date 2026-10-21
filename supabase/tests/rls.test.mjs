@@ -655,5 +655,21 @@ await expectEq('personal data is erased after 180 days (the order stays)', async
 await as(A);
 await expectEq('owner deletes an order', () => q(`delete from public.orders where id=$1 returning id`, [orderK]).then((r) => r.length), 1);
 
+/* ------------------------------------------------------------ Tipo de sitio */
+// Aquí A es administrador de la plataforma y B un dueño sin permisos de administración.
+const kindOf = (biz) => asSuper(() => q(`select site_kind k from public.businesses where id=$1`, [biz]).then((r) => r[0].k), 'authenticated');
+await expectEq('businesses are catalogs by default', () => kindOf(bizB), 'catalog');
+await as(B);
+await expectErr('owner cannot change the site kind', () => q(`update public.businesses set site_kind='website' where id=$1`, [bizB]), 'permission denied');
+await expectErr('owner cannot use the admin RPC', () => q(`select public.admin_set_site_kind($1, 'website')`, [bizB]), 'forbidden');
+await as(A);
+await expectOk('admin turns a business into a website', () => q(`select public.admin_set_site_kind($1, 'website')`, [bizB]));
+await expectEq('it is a website now', () => kindOf(bizB), 'website');
+await as(A);
+await expectErr('unknown kind rejected', () => q(`select public.admin_set_site_kind($1, 'tienda')`, [bizB]), 'invalid_site_kind');
+await expectErr('direct writes cannot bypass the check', async () => { await db.exec('reset role'); return q(`update public.businesses set site_kind='tienda' where id=$1`, [bizB]); }, 'check constraint');
+await as(A);
+await expectOk('admin turns it back into a catalog', () => q(`select public.admin_set_site_kind($1, 'catalog')`, [bizB]));
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);

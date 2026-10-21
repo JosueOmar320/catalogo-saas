@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { SITE_KINDS } from '@/lib/business/site-kind';
 import { msg } from '@/i18n/translate';
 import { usernameSchema } from '@/lib/auth/username';
 import { THEME_PRESETS } from '@/lib/design/presets';
@@ -38,6 +39,8 @@ export const createBusinessSchema = z.object({
   ownerId: z.union([z.literal(''), z.uuid()]).default(''),
   planId: z.string().min(1).max(40).default('free'),
   presetId: z.enum(THEME_PRESETS.map((p) => p.id) as [string, ...string[]]).default('minimal'),
+  /** Negocio con catálogo o sitio web sin productos (no se puede cambiar desde el panel del negocio). */
+  siteKind: z.enum(SITE_KINDS).default('catalog'),
   offering: z.enum(['products', 'services', 'both']).default('products'),
   whatsapp: z.string().trim().max(30).default(''),
 });

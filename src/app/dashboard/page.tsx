@@ -62,14 +62,20 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
   const published = ctx.catalog.status === 'published';
   const now = new Date();
   const url = catalogUrl(ctx.business.slug);
+  // Sitio web (sin catálogo): sin productos, pedidos, reseñas ni PDF.
+  const catalog = ctx.siteKind === 'catalog';
 
   const steps = [
     { done: Boolean(ctx.business.logo_path), label: t('Sube tu logo'), href: '/dashboard/sitio?panel=design' },
     { done: ctx.catalog.theme !== null && (ctx.catalog.theme as { version?: number }).version === 2, label: t('Elige el diseño de tu sitio'), href: '/dashboard/sitio?panel=design' },
     { done: Boolean(contact.whatsapp || contact.phone || contact.email), label: t('Agrega tus datos de contacto'), href: '/dashboard/settings/contacto' },
-    { done: categories.length > 0, label: t('Crea tu primera categoría'), href: '/dashboard/catalog/categories' },
-    { done: items.some((i) => i.images.length > 0), label: t('Agrega un producto o servicio con foto'), href: '/dashboard/catalog/items/new?type=product' },
-    { done: published, label: t('Publica tu catálogo'), href: '/dashboard/settings/publicacion' },
+    ...(catalog
+      ? [
+          { done: categories.length > 0, label: t('Crea tu primera categoría'), href: '/dashboard/catalog/categories' },
+          { done: items.some((i) => i.images.length > 0), label: t('Agrega un producto o servicio con foto'), href: '/dashboard/catalog/items/new?type=product' },
+        ]
+      : []),
+    { done: published, label: catalog ? t('Publica tu catálogo') : t('Publica tu sitio'), href: '/dashboard/settings/publicacion' },
   ];
   const completed = steps.filter((s) => s.done).length;
   const setupDone = completed === steps.length;
@@ -108,9 +114,13 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
   const usage = maxItems ? Math.min(100, (items.length / maxItems) * 100) : null;
 
   const stats = [
-    { label: t('Productos'), value: products.length, icon: Package, href: '/dashboard/catalog/products' },
-    { label: t('Servicios'), value: services, icon: Wrench, href: '/dashboard/catalog/services' },
-    { label: t('Categorías'), value: categories.length, icon: FolderTree, href: '/dashboard/catalog/categories' },
+    ...(catalog
+      ? [
+          { label: t('Productos'), value: products.length, icon: Package, href: '/dashboard/catalog/products' },
+          { label: t('Servicios'), value: services, icon: Wrench, href: '/dashboard/catalog/services' },
+          { label: t('Categorías'), value: categories.length, icon: FolderTree, href: '/dashboard/catalog/categories' },
+        ]
+      : []),
     { label: t('Páginas'), value: pages.length, icon: LayoutTemplate, href: '/dashboard/sitio' },
   ];
 
@@ -138,7 +148,7 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
     <>
       <PageHeader
         title={t('Hola, {name}', { name: ctx.business.name })}
-        description={t('Administra tu catálogo, personaliza su diseño y compártelo con tus clientes.')}
+        description={catalog ? t('Administra tu catálogo, personaliza su diseño y compártelo con tus clientes.') : t('Administra tu sitio web, personaliza su diseño y compártelo.')}
         actions={
           <>
             {published && (
@@ -146,20 +156,26 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
                 {t('Ver sitio')}
               </LinkButton>
             )}
-            <LinkButton href="/dashboard/catalog/items/new?type=product" variant="contained" startIcon={<Plus size={15} />}>
-              {t('Nuevo producto')}
-            </LinkButton>
+            {catalog ? (
+              <LinkButton href="/dashboard/catalog/items/new?type=product" variant="contained" startIcon={<Plus size={15} />}>
+                {t('Nuevo producto')}
+              </LinkButton>
+            ) : (
+              <LinkButton href="/dashboard/sitio" variant="contained" startIcon={<Palette size={15} />}>
+                {t('Abrir el editor')}
+              </LinkButton>
+            )}
           </>
         }
       />
 
       {welcome && (
         <Alert severity="success" sx={{ mb: 3 }}>
-          {t('¡Tu negocio está listo! Sigue los pasos de abajo para completar tu catálogo.')}
+          {catalog ? t('¡Tu negocio está listo! Sigue los pasos de abajo para completar tu catálogo.') : t('¡Tu sitio está listo! Sigue los pasos de abajo para completarlo.')}
         </Alert>
       )}
 
-      {pendingReviews ? (
+      {catalog && pendingReviews ? (
         <Alert
           severity="info"
           sx={{ mb: 3, alignItems: 'center' }}
@@ -204,7 +220,7 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
               </SectionCard>
             )}
 
-            {items.length > 0 && (
+            {catalog && items.length > 0 && (
               <SectionCard
                 title={t('Revisa tu catálogo')}
                 description={issues.length ? t('Detalles que mejoran cómo se ve tu catálogo.') : t('Todo en orden: tus productos y servicios están completos.')}
@@ -234,7 +250,7 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
               </SectionCard>
             )}
 
-            {orderStats && (
+            {catalog && orderStats && (
               <SectionCard
                 title={t('Pedidos por WhatsApp')}
                 description={t('Últimos 30 días')}
@@ -351,7 +367,7 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
               </SectionCard>
             )}
 
-            {searchMisses && published && (
+            {catalog && searchMisses && published && (
               <SectionCard title={t('Lo que buscaron y no encontraron')} description={t('Últimos 30 días, en el buscador de tu sitio')}>
                 {searchMisses.length === 0 ? (
                   <Typography variant="body2" color="text.secondary">
@@ -378,6 +394,20 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
               </SectionCard>
             )}
 
+            {!catalog && (
+              <SectionCard title={t('Páginas de tu sitio')} flush action={<LinkButton href="/dashboard/sitio" size="small" color="inherit">{t('Abrir el editor')}</LinkButton>}>
+                <Box component="ul" sx={{ listStyle: 'none', m: 0, p: 0 }}>
+                  {pages.map((page) => (
+                    <Box component="li" key={page.id} sx={{ borderBottom: 1, borderColor: 'divider', '&:last-child': { borderBottom: 0 }, py: 1.25, px: 2.5 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>{page.title}</Typography>
+                      <Typography variant="caption" color="text.secondary">/{page.isHome ? '' : page.slug}{page.isPublished ? '' : ` · ${t('oculta')}`}</Typography>
+                    </Box>
+                  ))}
+                </Box>
+              </SectionCard>
+            )}
+
+            {catalog && (
             <SectionCard
               title={t('Editado recientemente')}
               flush={recent.length > 0}
@@ -420,12 +450,13 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
                 </Box>
               )}
             </SectionCard>
+            )}
           </Stack>
         </Grid>
 
         <Grid size={{ xs: 12, lg: 4 }}>
           <Stack spacing={2.5}>
-            <SectionCard title={t('Tu catálogo')} description={t('Estado: {status}', { status: t(STATUS_LABELS[ctx.catalog.status].label) })}>
+            <SectionCard title={catalog ? t('Tu catálogo') : t('Tu sitio')} description={t('Estado: {status}', { status: t(STATUS_LABELS[ctx.catalog.status].label) })}>
               <CopyField value={url} openable={published} />
               <Box sx={{ mt: 1.5 }}>
                 <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
@@ -437,14 +468,14 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
                     color={parseTheme(ctx.catalog.theme).colors.accent}
                     slug={ctx.business.slug}
                     published={published}
-                    priceList={priceList}
+                    priceList={catalog ? priceList : undefined}
                   />
                 </Stack>
               </Box>
               <Typography variant="caption" color="text.secondary" component="p" sx={{ mt: 1 }}>
                 {published && ctx.catalog.published_at
                   ? t('Publicado el {date}. Los cambios se reflejan al instante.', { date: formatDate(ctx.catalog.published_at, locale) })
-                  : t('Publica el catálogo para que este enlace funcione.')}
+                  : catalog ? t('Publica el catálogo para que este enlace funcione.') : t('Publica tu sitio para que este enlace funcione.')}
               </Typography>
               {setupDone && (
                 <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', mt: 1.5, color: 'success.main' }}>
@@ -466,6 +497,7 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
               ))}
             </Grid>
 
+            {catalog && (
             <SectionCard title={t('Plan {plan}', { plan: ctx.entitlements.planName })}>
               {maxItems === null || usage === null ? (
                 <Typography variant="body2" color="text.secondary">{t('{count} productos y servicios. Sin límite en tu plan.', { count: items.length })}</Typography>
@@ -490,20 +522,23 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
                 </>
               )}
             </SectionCard>
+            )}
 
             <SectionCard title={t('Accesos rápidos')}>
               <Stack spacing={1}>
                 <LinkButton href="/dashboard/sitio" variant="contained" startIcon={<Palette size={14} />} fullWidth>
                   {t('Abrir el editor')}
                 </LinkButton>
-                {ctx.entitlements.features.pdf_export && (
+                {catalog && ctx.entitlements.features.pdf_export && (
                   <LinkButton href="/dashboard/export/pdf" variant="outlined" color="inherit" startIcon={<FileText size={14} />} fullWidth>
                     {t('Catálogo en PDF')}
                   </LinkButton>
                 )}
-                <LinkButton href="/dashboard/settings/contacto" variant="outlined" color="inherit" startIcon={<MessageCircle size={14} />} fullWidth>
-                  {ordersOn ? t('Pedidos por WhatsApp: activos') : t('Activar pedidos por WhatsApp')}
-                </LinkButton>
+                {catalog && (
+                  <LinkButton href="/dashboard/settings/contacto" variant="outlined" color="inherit" startIcon={<MessageCircle size={14} />} fullWidth>
+                    {ordersOn ? t('Pedidos por WhatsApp: activos') : t('Activar pedidos por WhatsApp')}
+                  </LinkButton>
+                )}
               </Stack>
             </SectionCard>
           </Stack>

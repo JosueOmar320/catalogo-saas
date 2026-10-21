@@ -5,7 +5,7 @@ import { ReviewsBoard } from '@/features/reviews/components/ReviewsBoard';
 import { countPendingReviews, listReviews } from '@/features/reviews/queries';
 import { REVIEW_TABS } from '@/features/reviews/tabs';
 import { getLocale, getT } from '@/i18n/server';
-import { canManageCatalog, requireBusinessContext } from '@/lib/auth/session';
+import { canManageCatalog, requireCatalogSite } from '@/lib/auth/session';
 import { parseCatalogSettings } from '@/lib/catalog/settings';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -14,7 +14,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function ReviewsPage({ searchParams }: PageProps<'/dashboard/resenas'>) {
-  const ctx = await requireBusinessContext();
+  const ctx = await requireCatalogSite();
   const { estado } = await searchParams;
   const status = REVIEW_TABS.find((tab) => tab.slug === estado)?.status ?? 'pending';
   const [t, locale, reviews, pending] = await Promise.all([getT(), getLocale(), listReviews(ctx, status), countPendingReviews(ctx)]);

@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
   const guarded = await guardAssistantRequest(request, helpRequestSchema);
   if (!guarded.ok) return guarded.response;
   const { ctx, data, t, locale } = guarded;
-  const context: HelpContext = { messages: data.messages, path: data.path, admin: ctx.isPlatformAdmin, locale, businessName: ctx.business.name };
+  const context: HelpContext = { messages: data.messages, path: data.path, admin: ctx.isPlatformAdmin, locale, businessName: ctx.business.name, catalog: ctx.siteKind === 'catalog' };
 
   try {
     const { result, mode, notice } = await withFallback(getTaskModel(), (model) => helpWithModel(model, context), () => helpWithoutModel(context, t));
