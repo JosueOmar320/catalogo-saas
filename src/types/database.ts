@@ -195,6 +195,39 @@ type SectionTemplateRow = { id: string; business_id: string; name: string; secti
 /** Búsquedas sin resultados del sitio publicado (término en minúsculas, por día UTC; las escribe record_search_miss). */
 type SearchMissStatsDailyRow = { business_id: string; day: string; term: string; searches: number };
 
+export type OrderStatus = 'new' | 'confirmed' | 'ready' | 'delivered' | 'cancelled';
+/** Línea de un pedido de la bandeja (itemId sólo si el producto es del catálogo). */
+export type OrderLineRow = { itemId: string | null; name: string; variant: string; qty: number; unitPrice: number | null; note: string };
+/** Bandeja de pedidos: copia de cada pedido enviado (la escribe record_order_v2). */
+type OrderRow = {
+  id: string;
+  business_id: string;
+  reference: string;
+  status: OrderStatus;
+  customer_name: string | null;
+  fulfillment: 'pickup' | 'delivery' | 'table' | null;
+  address: string | null;
+  zone: string | null;
+  branch: string | null;
+  table_label: string | null;
+  scheduled_for: string | null;
+  payment: string | null;
+  note: string | null;
+  coupon: string | null;
+  lines: OrderLineRow[];
+  currency: string;
+  subtotal: number | null;
+  discount: number | null;
+  delivery_fee: number | null;
+  tip: number | null;
+  total: number | null;
+  partial: boolean;
+  stock_applied: boolean;
+  personal_data_cleared: boolean;
+  created_at: string;
+  status_changed_at: string;
+};
+
 /** Pedidos por WhatsApp enviados (contadores por día UTC; los escribe record_order). */
 type OrderStatsDailyRow = {
   business_id: string;
@@ -265,6 +298,7 @@ export type Database = {
       search_miss_stats_daily: Table<SearchMissStatsDailyRow, 'business_id' | 'day' | 'term'>;
       item_costs: Table<ItemCostRow, 'item_id' | 'business_id' | 'cost'>;
       section_templates: Table<SectionTemplateRow, 'business_id' | 'name' | 'section'>;
+      orders: Table<OrderRow, 'business_id' | 'reference' | 'lines'>;
       notification_log: Table<NotificationLogRow, 'user_id' | 'business_id' | 'kind'>;
     };
     Views: { [_ in never]: never };
@@ -306,6 +340,8 @@ export type Database = {
       admin_stats: { Args: Record<string, never>; Returns: Json };
       rate_limit_consume: { Args: { p_key: string; p_limit: number; p_window_seconds: number }; Returns: boolean };
       record_order: { Args: { p_business_slug: string; p_items: { id: string; qty: number }[] }; Returns: boolean };
+      record_order_v2: { Args: { p_business_slug: string; p_items: { id: string; qty: number }[]; p_order: Json | null }; Returns: boolean };
+      set_order_status: { Args: { p_order: string; p_status: OrderStatus }; Returns: string };
       record_view: { Args: { p_business_slug: string; p_item_slug?: string | null }; Returns: boolean };
       record_search_miss: { Args: { p_business_slug: string; p_term: string }; Returns: boolean };
       submit_review: { Args: { p_business_slug: string; p_item_slug: string | null; p_name: string; p_rating: number; p_body: string }; Returns: boolean };

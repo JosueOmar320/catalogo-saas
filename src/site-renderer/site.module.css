@@ -5564,3 +5564,11 @@ input.qtyValue:focus-visible {
   border: 0;
   background: transparent;
 }
+
+/* Aviso al cliente: el negocio guarda una copia del pedido en su bandeja. */
+.orderCopyNote {
+  margin: 8px 0 0;
+  font-size: var(--fs-small);
+  color: var(--c-muted);
+  text-align: center;
+}

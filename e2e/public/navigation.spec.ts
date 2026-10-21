@@ -25,7 +25,7 @@ test.describe('/api/orders (aviso de pedido enviado)', () => {
     expect((await request.post('/api/orders', { data: { slug: 'X Y', items: [] } })).status()).toBe(400);
     expect((await request.post('/api/orders', { data: { ...valid, items: [{ id: 'no-uuid', qty: 1 }] } })).status()).toBe(400);
     expect((await request.post('/api/orders', { data: { ...valid, items: [{ ...valid.items[0], qty: 500 }] } })).status()).toBe(400);
-    expect((await request.post('/api/orders', { headers: { 'content-type': 'application/json' }, data: 'x'.repeat(9000) })).status()).toBe(413);
+    expect((await request.post('/api/orders', { headers: { 'content-type': 'application/json' }, data: 'x'.repeat(33_000) })).status()).toBe(413);
   });
 
   test('rechaza otros orígenes', async ({ request }) => {

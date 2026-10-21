@@ -583,5 +583,77 @@ await expectOk('admin turns the plan feature off again', () => q(`select public.
 await as(null);
 await expectEq('off again', customCode, false);
 
+/* ------------------------------------------------------------ Bandeja de pedidos */
+await db.exec('reset role');
+await q(`update public.catalogs set status='published', is_active=true, deleted_at=null, settings = coalesce(settings,'{}') || '{"order":{"enabled":true}}' where id=$1`, [catA.id]);
+await q(`update public.catalog_items set is_visible=true, is_available=true, deleted_at=null, price=2.5, attributes = coalesce(attributes,'{}') || '{"stock": 5}' where id=$1`, [itemA]);
+const setOrderSettings = async (patch) => { await db.exec('reset role'); await q(`update public.catalogs set settings = jsonb_set(settings, '{order}', (settings -> 'order') || $2::jsonb) where id=$1`, [catA.id, JSON.stringify(patch)]); };
+const sendOrder = async (order, items = [{ id: itemA, qty: 2 }], slug = 'tienda-a') => { await db.exec('reset role; set role service_role'); return q(`select public.record_order_v2($1, $2::jsonb, $3::jsonb) ok`, [slug, JSON.stringify(items), JSON.stringify(order)]).then((r) => r[0].ok); };
+const inbox = () => asSuper(() => q(`select reference, status, customer_name, fulfillment, address, lines, total::text, partial, personal_data_cleared from public.orders where business_id=$1 order by created_at, reference`, [bizA]));
+const stockA = () => asSuper(() => q(`select attributes->>'stock' s from public.catalog_items where id=$1`, [itemA]).then((r) => r[0].s));
+const baseOrder = { reference: 'K7Q2', customerName: '  Ana  ', fulfillment: 'pickup', address: 'Calle 1', currency: 'MXN', subtotal: 5, total: 5, lines: [{ itemId: itemA, name: 'Croissant', qty: 2, unitPrice: 2.5 }, { itemId: itemB, name: 'Ajeno', qty: 500, unitPrice: -3 }, { name: '', qty: 1 }, 'basura'] };
+
+await as(null);
+await expectErr('anon cannot call record_order_v2', () => q(`select public.record_order_v2('tienda-a', '[]', '{}')`), 'permission denied');
+await expectErr('anon cannot read orders', () => q(`select * from public.orders`), 'permission denied');
+await as(A);
+await expectErr('members cannot call record_order_v2', () => q(`select public.record_order_v2('tienda-a', '[]', '{}')`), 'permission denied');
+await expectEq('order is saved: own products only, quantities and prices bounded, no address for pickup', async () => {
+  const ok = await sendOrder(baseOrder);
+  const [row] = await inbox();
+  return { ok, row: { ...row, lines: row.lines.map((l) => [l.itemId === itemA, l.name, l.qty, l.unitPrice]) } };
+}, { ok: true, row: { reference: 'K7Q2', status: 'new', customer_name: 'Ana', fulfillment: 'pickup', address: null, lines: [[true, 'Croissant', 2, 2.5], [false, 'Ajeno', 99, 0]], total: '5.00', partial: false, personal_data_cleared: false } });
+await expectEq('same folio twice → one order', async () => { await sendOrder(baseOrder); return (await inbox()).length; }, 1);
+await expectEq('the same folio days later is another order (4-character folios repeat)', async () => {
+  await db.exec('reset role');
+  await q(`update public.orders set created_at = now() - interval '2 days' where reference='K7Q2'`);
+  await sendOrder(baseOrder);
+  const count = (await inbox()).filter((o) => o.reference === 'K7Q2').length;
+  await db.exec('reset role');
+  await q(`delete from public.orders where reference='K7Q2' and created_at > now() - interval '1 day'`);
+  await q(`update public.orders set created_at = now() where reference='K7Q2'`);
+  return count;
+}, 2);
+await expectEq('invalid folio, malformed lines or partial flag → counted but not saved / saved safely', async () => {
+  const counted = [await sendOrder({ ...baseOrder, reference: 'mal' }), await sendOrder({ ...baseOrder, reference: 'B2B2', lines: 'x' }), await sendOrder({ ...baseOrder, reference: 'C3C3', partial: 'sí', lines: [{ itemId: 'no-uuid', name: 'Pan', qty: 1 }] })];
+  return { counted, refs: (await inbox()).map((o) => [o.reference, o.partial]) };
+}, { counted: [true, true, true], refs: [['K7Q2', false], ['C3C3', false]] });
+await setOrderSettings({ inbox: false });
+await expectEq('inbox turned off → only the counters', async () => [await sendOrder({ ...baseOrder, reference: 'D4D4' }), (await inbox()).length], [true, 2]);
+await setOrderSettings({ inbox: true });
+
+await as(B);
+await expectEq('other business cannot read A orders', () => q(`select count(*)::int n from public.orders where business_id=$1`, [bizA]).then((r) => r[0].n), 0);
+const orderK = await asSuper(() => q(`select id from public.orders where reference='K7Q2'`).then((r) => r[0].id), 'authenticated');
+await as(B);
+await expectErr('other business cannot change A order status', () => q(`select public.set_order_status($1, 'confirmed')`, [orderK]), 'order_not_found');
+await expectEq('other business cannot delete A orders', () => q(`delete from public.orders where id=$1 returning id`, [orderK]).then((r) => r.length), 0);
+await as(A);
+await expectErr('members cannot write orders directly', () => q(`update public.orders set status='delivered' where id=$1`, [orderK]), 'permission denied');
+await expectErr('members cannot insert orders', () => q(`insert into public.orders(business_id, reference, lines) values ($1,'ZZZZ','[{}]')`, [bizA]), 'permission denied');
+await expectErr('unknown status rejected', () => q(`select public.set_order_status($1, 'perdido')`, [orderK]), 'invalid_status');
+await expectEq('confirm without stock option: stock untouched', async () => { await q(`select public.set_order_status($1, 'confirmed')`, [orderK]); return stockA(); }, '5');
+await setOrderSettings({ inboxStock: true });
+await as(A);
+await expectEq('with stock option: confirming discounts once, cancelling returns it', async () => {
+  await sendOrder({ ...baseOrder, reference: 'E5E5' });
+  const id = await asSuper(() => q(`select id from public.orders where reference='E5E5'`).then((r) => r[0].id), 'authenticated');
+  await as(A);
+  const steps = [];
+  for (const status of ['confirmed', 'ready', 'delivered']) { await q(`select public.set_order_status($1, $2)`, [id, status]); steps.push(await stockA()); }
+  await q(`select public.set_order_status($1, 'cancelled')`, [id]);
+  steps.push(await stockA());
+  return steps;
+}, ['3', '3', '3', '5']);
+await expectEq('personal data is erased after 180 days (the order stays)', async () => {
+  await db.exec('reset role');
+  await q(`update public.orders set created_at = now() - interval '200 days' where reference='K7Q2'`);
+  await sendOrder({ ...baseOrder, reference: 'F6F6' });
+  const old = (await inbox()).find((o) => o.reference === 'K7Q2');
+  return [old.customer_name, old.personal_data_cleared, old.lines.length];
+}, [null, true, 2]);
+await as(A);
+await expectEq('owner deletes an order', () => q(`delete from public.orders where id=$1 returning id`, [orderK]).then((r) => r.length), 1);
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);

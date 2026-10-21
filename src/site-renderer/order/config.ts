@@ -40,6 +40,8 @@ export type OrderConfig = {
   schedule: Schedule | null;
   /** Negocio al que se le cuenta el pedido enviado (sólo en el sitio publicado). */
   trackSlug: string | null;
+  /** El pedido enviado queda también en la bandeja del negocio (se le avisa al cliente). */
+  inbox: boolean;
 };
 
 /**
@@ -90,6 +92,7 @@ export function orderConfig(site: SiteViewModel, { track = false }: { track?: bo
     pause: order.paused ? { until: order.pausedUntil, timeZone: order.pauseTimeZone, message: order.pauseMessage } : null,
     schedule: site.business.contact.schedule.enabled ? site.business.contact.schedule : null,
     trackSlug: track ? site.business.slug : null,
+    inbox: track && order.inbox,
   };
 }
 

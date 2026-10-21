@@ -141,6 +141,18 @@ export function ContactForm({ contact, actions, order, businessName, catalogUrl 
           <SwitchControl control={orderForm.control} name="askName" label={t('Pedir el nombre del cliente')} description={t('Campo opcional en el pedido.')} />
           <SwitchControl
             control={orderForm.control}
+            name="inbox"
+            label={t('Guardar los pedidos en el panel')}
+            description={t('Cada pedido enviado queda en Pedidos para confirmarlo y darle seguimiento (al cliente se le avisa). Los datos del cliente se borran solos a los 180 días.')}
+          />
+          <SwitchControl
+            control={orderForm.control}
+            name="inboxStock"
+            label={t('Descontar existencias al confirmar')}
+            description={t('Al confirmar un pedido de la bandeja se restan las existencias de sus productos; si lo cancelas, se devuelven.')}
+          />
+          <SwitchControl
+            control={orderForm.control}
             name="paused"
             label={t('Pausar pedidos')}
             description={t('Vacaciones o sin servicio: tus clientes ven el catálogo y un aviso, pero no pueden enviar pedidos.')}

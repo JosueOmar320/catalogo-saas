@@ -15,6 +15,8 @@ const businessName = `Café E2E ${Date.now().toString(36)}`;
 const productName = 'Croissant E2E';
 let slug = '';
 let businessPath = '';
+/** Folio del primer pedido que envía el visitante (para buscarlo en la bandeja). */
+let firstReference = '';
 // Los contextos nuevos heredan la sesión del proyecto: ésta es la de alguien sin cuenta.
 const ANONYMOUS = { locale: 'es-MX', storageState: { cookies: [], origins: [] } };
 
@@ -75,6 +77,9 @@ test('al publicar, el visitante ve el producto y puede pedirlo por WhatsApp', as
   await expect(site.getByRole('heading', { level: 1, name: productName })).toBeVisible();
   await site.getByRole('button', { name: 'Agregar al pedido' }).click();
   await site.getByRole('button', { name: /^Ver pedido/ }).click();
+  await site.getByLabel('Tu nombre (opcional)').fill('Ana E2E');
+  // La bandeja está activa por defecto: se le avisa al cliente.
+  await expect(site.getByText(`${businessName} también recibe una copia de tu pedido en su panel para darle seguimiento.`)).toBeVisible();
   const href = await site.getByRole('link', { name: 'Enviar pedido por WhatsApp' }).getAttribute('href');
   expect(new URL(href!).searchParams.get('text')).toContain(`Hola ${businessName}, quiero hacer este pedido:\n\n• 1 × ${productName} (precio por confirmar)`);
 
@@ -84,7 +89,13 @@ test('al publicar, el visitante ve el producto y puede pedirlo por WhatsApp', as
   const popup = visitor.waitForEvent('page');
   await site.getByRole('link', { name: 'Enviar pedido por WhatsApp' }).click();
   const beacon = await tracked;
-  expect(beacon.postDataJSON()).toEqual({ slug, items: [{ id: expect.any(String), qty: 1 }] });
+  const sent = beacon.postDataJSON();
+  expect(sent).toEqual({
+    slug,
+    items: [{ id: expect.any(String), qty: 1 }],
+    order: expect.objectContaining({ reference: expect.stringMatching(/^[A-Z0-9]{4}$/), customerName: 'Ana E2E', lines: [expect.objectContaining({ name: productName, qty: 1, unitPrice: null })] }),
+  });
+  firstReference = sent.order.reference;
   await (await popup).close();
   await visitor.close();
 });
@@ -118,6 +129,29 @@ test('el inicio del panel cuenta las visitas del sitio publicado y lo más visto
     await expect(card).toBeVisible({ timeout: 1000 });
     await expect(page.getByRole('main').getByRole('listitem').filter({ hasText: new RegExp(`${productName} · \\d+ visitas?`) })).toBeVisible({ timeout: 1000 });
   }).toPass({ timeout: 15_000 });
+});
+
+test('bandeja de pedidos: el pedido enviado llega con su folio, se confirma y se descarga', async ({ page }) => {
+  await page.goto('/dashboard');
+  await page.getByRole('link', { name: '1 nuevos' }).click();
+  await expect(page).toHaveURL(/\/dashboard\/pedidos$/);
+  const card = page.getByRole('listitem', { name: `Pedido ${firstReference}` });
+  await expect(card.getByText('Ana E2E', { exact: false })).toBeVisible();
+  await expect(card.getByText(`1 × ${productName}`)).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Nuevos (1)' })).toBeVisible();
+
+  await card.getByRole('button', { name: 'Confirmar' }).click();
+  await expect(card).toHaveCount(0);
+  await page.getByRole('tab', { name: 'En curso' }).click();
+  await expect(page.getByRole('listitem', { name: `Pedido ${firstReference}` }).getByText('Confirmado')).toBeVisible();
+
+  // Buscar por folio y descargar en CSV.
+  await page.getByLabel('Buscar folio o nombre').fill(firstReference);
+  await page.getByLabel('Buscar folio o nombre').press('Enter');
+  await expect(page).toHaveURL(new RegExp(`q=${firstReference}`));
+  const csv = await page.request.get('/api/orders/export?estado=todos&dias=30');
+  expect(csv.status()).toBe(200);
+  expect(await csv.text()).toContain(`${firstReference},`);
 });
 
 test('importar productos desde CSV y volver a importarlos actualiza en vez de duplicar', async ({ page }) => {
@@ -1115,7 +1149,7 @@ test('Garfield en el panel (sin IA): dice dónde está cada cosa, lleva ahí y p
 
 test('accesibilidad del panel y la administración (axe)', async ({ page }) => {
   test.setTimeout(120_000); // 13 páginas, cada una con su análisis
-  for (const path of ['/dashboard', '/dashboard/catalog/products', '/dashboard/catalog/items/new?type=product', '/dashboard/catalog/categories', '/dashboard/settings/contacto', '/dashboard/settings/negocio', '/dashboard/resenas', '/dashboard/media', '/dashboard/sitio', '/dashboard/export/pdf', '/admin', '/admin/usuarios', '/cuenta']) {
+  for (const path of ['/dashboard', '/dashboard/pedidos', '/dashboard/catalog/products', '/dashboard/catalog/items/new?type=product', '/dashboard/catalog/categories', '/dashboard/settings/contacto', '/dashboard/settings/negocio', '/dashboard/resenas', '/dashboard/media', '/dashboard/sitio', '/dashboard/export/pdf', '/admin', '/admin/usuarios', '/cuenta']) {
     await page.goto(path);
     await expect(page.getByRole('main').first()).toBeVisible();
     await expectAccessible(page, path);

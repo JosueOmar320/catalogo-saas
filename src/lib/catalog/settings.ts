@@ -124,6 +124,10 @@ export const orderSchema = z.object({
   intro: z.string().trim().max(200).default('Hola {negocio}, quiero hacer este pedido:'),
   /** Pide (opcional) el nombre de quien hace el pedido. */
   askName: z.boolean().default(true),
+  /** Bandeja de pedidos: cada pedido enviado queda también en el panel (para darle seguimiento). */
+  inbox: z.boolean().default(true),
+  /** Al confirmar un pedido de la bandeja se descuentan las existencias (y se devuelven si se cancela). */
+  inboxStock: z.boolean().default(false),
   /** Cómo se entrega. Sin ninguna, el pedido no pregunta (como antes). */
   pickup: z.boolean().default(false),
   delivery: z.boolean().default(false),
