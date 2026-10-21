@@ -1,7 +1,7 @@
-import { sanitizeCustomHtml } from '@/lib/site/custom-code';
+import { customHtmlFxCss, customHtmlId, renderCustomHtml } from '@/lib/site/custom-code';
+import { CustomHtml } from '../CustomHtml';
 import { Placeholder, SectionFrame } from '../SectionFrame';
 import { siteTranslator } from '../site-i18n';
-import styles from '../site.module.css';
 import type { SectionProps } from './types';
 
 /**
@@ -10,13 +10,14 @@ import type { SectionProps } from './types';
  */
 export function HtmlSection({ section, site, env }: SectionProps<'html'>) {
   const t = siteTranslator(site.settings.language);
-  const html = site.customCode ? sanitizeCustomHtml(section.content.html) : '';
+  // HTML limpio + su <style> limitado a esta sección + los efectos fx.
+  const { markup: html, css } = site.customCode ? renderCustomHtml(section.content.html, section.id) : { markup: '', css: '' };
   if (!html && env.mode === 'public') return null;
   return (
     <SectionFrame section={section} theme={site.theme}>
       <Placeholder show={!site.customCode}>{t('El código propio no está habilitado para este sitio: esta sección no se publica.')}</Placeholder>
       <Placeholder show={site.customCode && !html}>{t('Escribe tu HTML en el editor.')}</Placeholder>
-      {html && <div className={styles.customHtml} dangerouslySetInnerHTML={{ __html: html }} />}
+      {html && <CustomHtml id={customHtmlId(section.id)} html={html} css={`${customHtmlFxCss()}\n${css}`} />}
     </SectionFrame>
   );
 }

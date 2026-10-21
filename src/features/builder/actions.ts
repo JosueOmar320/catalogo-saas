@@ -5,7 +5,7 @@ import { getT } from '@/i18n/server';
 import { msg } from '@/i18n/translate';
 import { canManageCatalog, requireBusinessContext } from '@/lib/auth/session';
 import { invalidatePublicCatalog } from '@/lib/catalog/cache';
-import { sanitizeCustomHtml } from '@/lib/site/custom-code';
+import { cleanCustomHtmlSource } from '@/lib/site/custom-code';
 import { pageToRow, type SitePage } from '@/lib/site/pages';
 import { sectionSchema, type Section } from '@/lib/site/section-schemas';
 import { dbErrorMessage, fail, ok, type ActionResult } from '@/lib/utils/result';
@@ -17,7 +17,7 @@ import { saveSiteSchema, type SaveSiteInput } from './schema';
 
 /** El HTML propio se guarda ya limpio (y se vuelve a limpiar al mostrarlo). */
 function cleanCustomHtml(page: SitePage): SitePage {
-  return { ...page, sections: page.sections.map((section) => (section.type === 'html' ? { ...section, content: { ...section.content, html: sanitizeCustomHtml(section.content.html) } } : section)) };
+  return { ...page, sections: page.sections.map((section) => (section.type === 'html' ? { ...section, content: { ...section.content, html: cleanCustomHtmlSource(section.content.html) } } : section)) };
 }
 
 /**

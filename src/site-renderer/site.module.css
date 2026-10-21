@@ -4183,6 +4183,20 @@ details[open] > .faqQuestion .faqChevron {
   }
 }
 
+@keyframes revealBlur {
+  from {
+    opacity: 0;
+    filter: blur(14px);
+  }
+}
+
+@keyframes revealFlip {
+  from {
+    opacity: 0;
+    transform: perspective(900px) rotateX(18deg) translateY(24px);
+  }
+}
+
 @keyframes revealRight {
   from {
     opacity: 0;
@@ -4212,6 +4226,15 @@ details[open] > .faqQuestion .faqChevron {
 
     .section[data-anim='right'] > .container {
       animation-name: revealRight;
+    }
+
+    .section[data-anim='blur'] > .container {
+      animation-name: revealBlur;
+    }
+
+    .section[data-anim='flip'] > .container {
+      animation-name: revealFlip;
+      transform-origin: 50% 100%;
     }
 
     /* El desplazamiento lateral no debe crear scroll horizontal. */
