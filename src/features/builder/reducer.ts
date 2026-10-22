@@ -2,6 +2,7 @@ import type { ThemeConfig } from '@/lib/design/theme';
 import type { NavigationConfig } from '@/lib/site/navigation';
 import type { SitePage } from '@/lib/site/pages';
 import type { Section } from '@/lib/site/section-schemas';
+import type { SiteSnapshot } from '@/lib/site/versions';
 
 /**
  * Estado del builder: un borrador local del sitio. Todo se edita en memoria
@@ -43,7 +44,9 @@ export type BuilderAction =
   | { type: 'reorderSections'; ids: string[]; pageId?: string }
   /** `saved` es el estado que se envió: lo editado mientras se guardaba sigue pendiente. */
   | { type: 'saved'; saved: Pick<BuilderState, 'theme' | 'navigation' | 'pages' | 'deletedPageIds'> }
-  | { type: 'reset'; state: BuilderState };
+  | { type: 'reset'; state: BuilderState }
+  /** Abre una versión del historial como borrador: se aplica al guardar. */
+  | { type: 'restoreVersion'; snapshot: SiteSnapshot };
 
 function mapPage(state: BuilderState, pageId: string, fn: (page: SitePage) => SitePage): SitePage[] {
   return state.pages.map((p) => (p.id === pageId ? fn(p) : p));
@@ -173,6 +176,23 @@ export function builderReducer(state: BuilderState, action: BuilderAction): Buil
     }
     case 'reset':
       return action.state;
+    case 'restoreVersion': {
+      const { pages } = action.snapshot;
+      const kept = new Set(pages.map((p) => p.id));
+      const home = pages.find((p) => p.isHome) ?? pages[0];
+      return {
+        ...state,
+        theme: action.snapshot.theme,
+        navigation: action.snapshot.navigation,
+        pages,
+        // Las páginas guardadas que no están en la versión se borran al guardar; las de la versión vuelven.
+        deletedPageIds: state.persistedPageIds.filter((id) => !kept.has(id)),
+        selectedPageId: home.id,
+        selectedSectionId: null,
+        editingPageSettings: false,
+        dirty: { theme: true, navigation: true, pages: true },
+      };
+    }
   }
 }
 

@@ -1,7 +1,7 @@
 'use client';
 
-import { Box, Button, Chip, IconButton, Paper, Stack, Tab, Tabs, Tooltip, Typography, useMediaQuery, useTheme } from '@mui/material';
-import { Redo2, Undo2 } from 'lucide-react';
+import { Alert, Box, Button, Chip, IconButton, Paper, Stack, Tab, Tabs, Tooltip, Typography, useMediaQuery, useTheme } from '@mui/material';
+import { History, Redo2, Undo2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useDeferredValue, useEffect, useMemo, useReducer, useState } from 'react';
 import { useConfirm } from '@/components/feedback/ConfirmProvider';
@@ -21,6 +21,7 @@ import { PageSettings } from './PageSettings';
 import { PagesPanel } from './PagesPanel';
 import { SectionEditor } from './SectionEditor';
 import { SectionTemplatesProvider } from './SectionTemplates';
+import { SiteVersionsDialog } from './SiteVersionsDialog';
 import type { SectionTemplate } from '../queries';
 import type { SiteKind } from '@/lib/business/site-kind';
 import { useT } from '@/i18n/client';
@@ -97,6 +98,9 @@ export function Builder(props: Props) {
   const [assistantPreview, setAssistantPreview] = useState<BuilderState | null>(null);
   // Versión con la que se guardó por última vez: el servidor rechaza el guardado si otra persona la cambió.
   const [version, setVersion] = useState<string | null>(props.version ?? null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  // Versión del historial abierta como borrador (se aplica al guardar).
+  const [restored, setRestored] = useState<{ name: string; missingImages: number } | null>(null);
   const shown = assistantPreview ?? state;
   const router = useRouter();
   const confirm = useConfirm();
@@ -130,6 +134,7 @@ export function Builder(props: Props) {
       {
         onSuccess: (result) => {
           setVersion(result.version);
+          setRestored(null);
           dispatch({ type: 'saved', saved });
           router.refresh();
         },
@@ -139,7 +144,10 @@ export function Builder(props: Props) {
 
   const discard = async () => {
     const ok = await confirm({ title: t('¿Descartar los cambios?'), description: t('Se perderán los cambios que no guardaste.'), confirmLabel: t('Descartar'), destructive: true });
-    if (ok) dispatch({ type: 'reset', state: initialState(props) });
+    if (ok) {
+      setRestored(null);
+      dispatch({ type: 'reset', state: initialState(props) });
+    }
   };
 
   const left = (
@@ -203,11 +211,25 @@ export function Builder(props: Props) {
                   </span>
                 </Tooltip>
               </Stack>
+              {props.canManage && (
+                <Tooltip title={t('Historial del sitio')}>
+                  <IconButton onClick={() => setHistoryOpen(true)} aria-label={t('Historial del sitio')}>
+                    <History size={18} />
+                  </IconButton>
+                </Tooltip>
+              )}
               <Button color="inherit" onClick={discard} disabled={!dirty || pending}>{t('Descartar')}</Button>
               <Button variant="contained" onClick={save} disabled={!dirty || pending || !props.canManage}>
                 {pending ? t('Guardando…') : t('Guardar cambios')}
               </Button>
             </Stack>
+
+            {restored && dirty && (
+              <Alert severity="info" onClose={() => setRestored(null)} sx={{ mb: 2 }}>
+                {t('Estás viendo la versión «{name}». Guarda para restaurarla, o descarta para volver a tu sitio.', { name: restored.name })}
+                {restored.missingImages > 0 && ` ${t('Algunas imágenes ya no están en tu biblioteca y se quitaron.')}`}
+              </Alert>
+            )}
 
             {wide ? (
               <Box sx={{ display: 'grid', gridTemplateColumns: '380px minmax(0, 1fr)', gap: 2, flex: 1, minHeight: 0 }}>
@@ -226,6 +248,7 @@ export function Builder(props: Props) {
           </Box>
           {props.canManage && (
             <>
+              <SiteVersionsDialog open={historyOpen} onClose={() => setHistoryOpen(false)} onRestored={(name, missingImages) => setRestored({ name, missingImages })} />
               <GarfieldLauncher />
               <GarfieldPanel />
             </>

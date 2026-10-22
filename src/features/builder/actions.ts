@@ -65,6 +65,10 @@ export async function saveSite(input: SaveSiteInput, expectedVersion: string | n
     return fail(dbErrorMessage(error, msg('No se pudo guardar el sitio.')));
   }
 
+  // Historial: copia de lo que quedó guardado. Si falla, el sitio igual se guardó.
+  const { error: versionError } = await ctx.supabase.rpc('record_site_version', { p_catalog_id: ctx.catalog.id });
+  if (versionError) console.error('[site-versions]', { code: versionError.code ?? null });
+
   afterCatalogChange(ctx);
   return ok({ version: await getSiteVersion(ctx) }, msg('Sitio guardado'));
 }
