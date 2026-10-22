@@ -88,6 +88,19 @@ describe('Escribir con Garfield', () => {
     assert.match(writeWithoutModel(write({ kind: 'seo_description', language: 'en', business: { ...write().business, description: '' } })).join(' '), /Café Aurora in Puebla: bebidas and panadería\. See the catalog/);
   });
 
+  it('respuesta a una reseña: con los datos de la reseña y, sin IA, según la calificación', () => {
+    const review = { name: 'Sofía Ruiz', rating: 2, body: 'Llegó frío', item: 'Latte de vainilla' };
+    const { system, prompt } = writerPrompt(write({ kind: 'review_reply', item: undefined, review }));
+    assert.match(system, /No prometas descuentos/);
+    assert.match(prompt, /"resena":\{"cliente":"Sofía Ruiz","estrellas":2,"texto":"Llegó frío"/);
+    const bad = writeWithoutModel(write({ kind: 'review_reply', review }));
+    assert.match(bad.join(' '), /Sofía.*Lamentamos/);
+    assert.ok(!/Sofía Ruiz/.test(bad.join(' ')));
+    assert.match(writeWithoutModel(write({ kind: 'review_reply', review: { ...review, rating: 5 }, language: 'en' }))[0], /^Thank you, Sofía!/);
+    assert.ok(writeRequestSchema.safeParse({ kind: 'review_reply', review: { name: 'Ana', rating: 5 } }).success);
+    assert.ok(!writeRequestSchema.safeParse({ kind: 'review_reply', review: { name: 'Ana', rating: 6 } }).success);
+  });
+
   it('valida el pedido', () => {
     assert.ok(writeRequestSchema.safeParse({ kind: 'seo_title' }).success);
     assert.ok(!writeRequestSchema.safeParse({ kind: 'html' }).success);

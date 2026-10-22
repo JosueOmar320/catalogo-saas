@@ -370,6 +370,8 @@ const catalog: Catalog = {
   'El código propio no está habilitado para este sitio: esta sección no se publica.': 'Custom code is not enabled for this site: this section is not published.',
   'Escribe tu HTML en el editor.': 'Write your HTML in the editor.',
   '{business} también recibe una copia de tu pedido en su panel para darle seguimiento.': '{business} also gets a copy of your order in their dashboard to follow it up.',
+  '¿Qué te pareció {business}?': 'How was your experience with {business}?',
+  'Respuesta de {business}': 'Reply from {business}',
 };
 
 export default catalog;

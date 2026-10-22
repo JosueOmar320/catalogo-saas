@@ -11,10 +11,10 @@ type State = 'idle' | 'sending' | 'sent' | 'error';
  * "Deja tu opinión": estrellas, nombre y comentario. Llega al negocio como
  * pendiente y se publica cuando la aprueba. En la demo no se envía.
  */
-export function ReviewForm({ slug, item, demo }: { slug: string; item: string | null; demo?: boolean }) {
+export function ReviewForm({ slug, item, demo, startOpen = false }: { slug: string; item: string | null; demo?: boolean; startOpen?: boolean }) {
   const t = useSiteT();
   const id = useId();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(startOpen);
   const [rating, setRating] = useState(0);
   const [name, setName] = useState('');
   const [body, setBody] = useState('');

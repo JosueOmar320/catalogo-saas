@@ -5,7 +5,7 @@ import { z } from 'zod';
  * panel. Garfield sólo PROPONE (2–3 opciones); el usuario elige, edita y
  * guarda con el formulario de siempre (sus validaciones y permisos).
  */
-export const WRITE_KINDS = ['item_short', 'item_description', 'business_slogan', 'business_description', 'seo_title', 'seo_description'] as const;
+export const WRITE_KINDS = ['item_short', 'item_description', 'business_slogan', 'business_description', 'seo_title', 'seo_description', 'review_reply'] as const;
 export type WriteKind = (typeof WRITE_KINDS)[number];
 
 /** Largo máximo (el del campo) y el ideal que se le pide al modelo. */
@@ -16,6 +16,7 @@ export const WRITE_LIMITS: Record<WriteKind, { max: number; ideal: number }> = {
   business_description: { max: 500, ideal: 350 },
   seo_title: { max: 70, ideal: 60 },
   seo_description: { max: 160, ideal: 155 },
+  review_reply: { max: 1000, ideal: 320 },
 };
 
 const text = (max: number) => z.string().trim().max(max).default('');
@@ -26,6 +27,15 @@ export const writeRequestSchema = z.object({
   current: text(5000),
   /** Pedido opcional: "más corto", "tono formal", "menciona que es artesanal"… */
   instruction: text(200),
+  /** Reseña a la que se responde (review_reply). */
+  review: z
+    .object({
+      name: text(60),
+      rating: z.number().int().min(1).max(5),
+      body: text(600),
+      item: text(160),
+    })
+    .optional(),
   /** Datos del producto o servicio del formulario (aún sin guardar). */
   item: z
     .object({
@@ -45,7 +55,7 @@ export const writeResultSchema = z.object({ options: z.array(z.string().min(1).m
 /** Limpia una opción: sin comillas envolventes ni espacios de más, y dentro del largo del campo. */
 export function cleanOption(kind: WriteKind, value: string): string {
   const { max } = WRITE_LIMITS[kind];
-  const single = kind !== 'item_description' && kind !== 'business_description';
+  const single = kind !== 'item_description' && kind !== 'business_description' && kind !== 'review_reply';
   let out = value.trim().replace(/^["“«']+|["”»']+$/g, '').trim();
   if (single) out = out.replace(/\s*\n+\s*/g, ' ');
   if (out.length <= max) return out;

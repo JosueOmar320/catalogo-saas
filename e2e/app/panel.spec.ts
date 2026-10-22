@@ -647,6 +647,29 @@ test('reseñas: el visitante opina, el negocio la aprueba y se publica con su ca
   await expect(reviews.getByText('1 opinión')).toBeVisible();
   const ld = JSON.parse((await site.locator('script[type="application/ld+json"]').first().textContent())!);
   expect(ld[0].aggregateRating).toMatchObject({ ratingValue: 4, reviewCount: 1 });
+
+  // El negocio responde en público (Garfield ofrece redactarla).
+  const published = main.getByRole('listitem').filter({ hasText: 'Ana E2E' });
+  await published.getByRole('button', { name: 'Responder a Ana E2E' }).click();
+  await expect(published.getByRole('button', { name: 'Escribir con Garfield' })).toBeVisible();
+  await published.getByLabel('Tu respuesta (pública)').fill('¡Gracias, Ana! Te esperamos pronto.');
+  await published.getByRole('button', { name: 'Publicar respuesta' }).click();
+  await expect(page.getByText('Respuesta publicada')).toBeVisible();
+  await expect(published.getByText('Tu respuesta', { exact: true })).toBeVisible();
+  await expect(async () => {
+    await site.reload();
+    await expect(reviews.getByText(`Respuesta de ${businessName}`)).toBeVisible({ timeout: 1000 });
+  }).toPass({ timeout: 15_000 });
+  await expect(reviews.getByText('¡Gracias, Ana! Te esperamos pronto.')).toBeVisible();
+
+  // Pide reseñas: el enlace ?opinar abre el formulario sobre el negocio en cualquier página.
+  const link = await main.getByRole('textbox', { name: 'Enlace para opinar' }).inputValue();
+  expect(link).toMatch(new RegExp(`/catalogo/${slug}\\?opinar$`));
+  await site.goto(`/catalogo/${slug}?opinar`);
+  const invite = site.getByRole('dialog', { name: `¿Qué te pareció ${businessName}?` });
+  await expect(invite.getByLabel('Tu nombre')).toBeVisible();
+  await invite.getByRole('button', { name: 'Cerrar' }).click();
+  await expect(invite).toBeHidden();
   await visitor.close();
 });
 

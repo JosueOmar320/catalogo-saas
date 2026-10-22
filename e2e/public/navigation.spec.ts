@@ -77,6 +77,8 @@ test.describe('reseñas de clientes', () => {
     await expect(reviews.getByText('2 opiniones')).toBeVisible();
     await expect(reviews.getByText('Luis R.')).toBeVisible();
     await expect(reviews.getByText('Muy rico, aunque me gusta un poco más caliente.')).toBeVisible();
+    await expect(reviews.getByText(/^Respuesta de /)).toBeVisible();
+    await expect(reviews.getByText('¡Gracias, Sofía! Pídelo «extra caliente» y te lo preparamos así.')).toBeVisible();
 
     await reviews.getByRole('button', { name: 'Deja tu opinión' }).click();
     const send = reviews.getByRole('button', { name: 'Enviar opinión' });

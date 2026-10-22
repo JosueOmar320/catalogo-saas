@@ -15,8 +15,8 @@ export function TestimonialsSection({ section, site, env }: SectionProps<'testim
   // Reseñas de clientes aprobadas (las más recientes): la de un producto lleva su nombre.
   const itemNames = new Map(site.items.map((i) => [i.id, i.name]));
   const items = fromReviews
-    ? (site.reviews ?? []).slice(0, 9).map((r) => ({ id: r.id, name: r.name, role: r.itemId ? (itemNames.get(r.itemId) ?? '') : '', text: r.body, photo: null, rating: r.rating }))
-    : content.items.filter((item) => item.text.trim());
+    ? (site.reviews ?? []).slice(0, 9).map((r) => ({ id: r.id, name: r.name, role: r.itemId ? (itemNames.get(r.itemId) ?? '') : '', text: r.body, photo: null, rating: r.rating, reply: r.reply ?? null }))
+    : content.items.filter((item) => item.text.trim()).map((item) => ({ ...item, reply: null }));
   if (env.mode === 'public' && (fromReviews ? !reviewsOn : items.length === 0)) return null;
   const single = content.layout === 'single';
   const shown = single ? items.slice(0, 1) : items;
@@ -44,6 +44,11 @@ export function TestimonialsSection({ section, site, env }: SectionProps<'testim
                 </div>
               )}
               {item.text && <blockquote className={styles.quote}>“{item.text}”</blockquote>}
+              {item.reply && (
+                <p className={styles.reviewReply}>
+                  <strong>{t('Respuesta de {business}', { business: site.business.name })}</strong> {item.reply}
+                </p>
+              )}
               <figcaption className={styles.author}>
                 <span className={styles.avatar}>{photo ? <SiteImage src={photo} alt="" sizes="44px" /> : item.name.charAt(0).toUpperCase()}</span>
                 <span>

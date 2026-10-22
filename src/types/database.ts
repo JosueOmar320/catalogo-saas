@@ -184,7 +184,8 @@ type BusinessMemberRow = Timestamps & {
 
 /** Reseña de un cliente (pendiente hasta que el negocio la aprueba). */
 export type ReviewStatus = 'pending' | 'approved' | 'rejected';
-type ReviewRow = { id: string; business_id: string; item_id: string | null; name: string; rating: number; body: string; status: ReviewStatus; created_at: string; reviewed_at: string | null };
+/** reply: respuesta pública del negocio (null = sin respuesta). */
+type ReviewRow = { id: string; business_id: string; item_id: string | null; name: string; rating: number; body: string; status: ReviewStatus; created_at: string; reviewed_at: string | null; reply: string | null; replied_at: string | null };
 
 /** Páginas vistas del sitio publicado (contadores por día UTC; los escribe record_view). */
 type SiteViewStatsDailyRow = { business_id: string; day: string; views: number };
@@ -339,7 +340,7 @@ export type Database = {
       record_view: { Args: { p_business_slug: string; p_item_slug?: string | null }; Returns: boolean };
       record_search_miss: { Args: { p_business_slug: string; p_term: string }; Returns: boolean };
       submit_review: { Args: { p_business_slug: string; p_item_slug: string | null; p_name: string; p_rating: number; p_body: string }; Returns: boolean };
-      get_public_reviews: { Args: { p_business_slug: string }; Returns: { id: string; item_id: string | null; name: string; rating: number; body: string; created_at: string }[] };
+      get_public_reviews: { Args: { p_business_slug: string }; Returns: { id: string; item_id: string | null; name: string; rating: number; body: string; created_at: string; reply?: string | null; replied_at?: string | null }[] };
       media_references: { Args: { p_business: string; p_path: string }; Returns: { place: string; ref_id: string; label: string }[] };
       replace_media_references: { Args: { p_business: string; p_old: string; p_new: string; p_new_thumb?: string | null }; Returns: number };
       save_site: {

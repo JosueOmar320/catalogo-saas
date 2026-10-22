@@ -35,6 +35,7 @@ export async function POST(request: NextRequest) {
       categories: (categories ?? []).map((c) => c.name),
     },
     item: data.item,
+    review: data.review,
   };
 
   try {
