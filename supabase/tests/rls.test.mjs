@@ -820,5 +820,57 @@ await expectOk('owner removes the reply', () => q(`update public.reviews set rep
 await as(null);
 await expectEq('no reply after removing it', publicReply, null);
 
+/* ------------------------------------------------------------ Historial de versiones del sitio */
+const livePages = () => q(`select count(*)::int n from public.catalog_pages where catalog_id=$1 and deleted_at is null`, [catA.id]).then((r) => r[0].n);
+const recordVersion = (label = null) => q(`select public.record_site_version($1, $2) id`, [catA.id, label]).then((r) => r[0].id);
+await as(A);
+let version1;
+await expectOk('owner records the saved site as a version', async () => (version1 = await recordVersion()));
+await expectEq('nothing changed → the same version (no duplicates)', async () => (await recordVersion()) === version1, true);
+await expectEq('the copy has every live page with its sections', async () => {
+  const [row] = await q(`select page_count, jsonb_array_length(snapshot->'pages') n, (snapshot->'pages'->0) ? 'sections' s, snapshot ? 'theme' t from public.site_versions where id=$1`, [version1]);
+  return row.page_count === (await livePages()) && row.n === row.page_count && row.s && row.t;
+}, true);
+await expectOk('save_site still works', () => saveSite(catA.id, threePages('Borrador versiones')));
+await expectEq('after a change, a new version', async () => (await recordVersion()) !== version1, true);
+await expectEq('the new copy has the change', () => q(`select snapshot->'pages' @> '[{"title":"Borrador versiones"}]' ok from public.site_versions where catalog_id=$1 order by created_at desc limit 1`, [catA.id]).then((r) => r[0].ok), true);
+let named;
+await expectOk('version with a name', async () => (named = await recordVersion('  Antes del rediseño ')));
+await expectEq('the name is trimmed', () => q(`select label from public.site_versions where id=$1`, [named]).then((r) => r[0].label), 'Antes del rediseño');
+await expectErr('name too long', () => recordVersion('x'.repeat(81)), 'label_too_long');
+await expectOk('owner renames a version', () => q(`update public.site_versions set label='Rediseño de otoño' where id=$1`, [named]));
+await expectErr('the copy itself cannot be edited', () => q(`update public.site_versions set snapshot='{}' where id=$1`, [named]), 'permission denied');
+await expectErr('no direct inserts (only record_site_version)', () => q(`insert into public.site_versions(business_id, catalog_id, snapshot) values ($1,$2,'{}')`, [bizA, catA.id]), 'permission denied');
+await expectErr('site_snapshot is internal', () => q(`select public.site_snapshot($1)`, [catA.id]), 'permission denied');
+await as(JUAN);
+await expectErr('an editor cannot record versions', () => recordVersion(), 'not_allowed');
+await expectEq('an editor does not see the history', () => q(`select count(*)::int n from public.site_versions where catalog_id=$1`, [catA.id]).then((r) => r[0].n), 0);
+await as(B);
+await expectErr('another business cannot record versions of A', () => recordVersion(), 'not_allowed');
+await expectEq('another business does not see A history', () => q(`select count(*)::int n from public.site_versions where catalog_id=$1`, [catA.id]).then((r) => r[0].n), 0);
+
+// Retención: 30 recientes + la última de cada día (60 días); las que tienen nombre se quedan.
+await db.exec('reset role');
+await q(`insert into public.site_versions(business_id, catalog_id, snapshot, created_at)
+         select $1, $2, jsonb_build_object('n', g), now() - make_interval(secs => g) from generate_series(1, 40) g`, [bizA, catA.id]);
+await q(`insert into public.site_versions(business_id, catalog_id, snapshot, created_at) values
+         ($1, $2, '{"old":1}', now() - interval '10 days'),
+         ($1, $2, '{"old":2}', date_trunc('day', now()) - interval '20 days' + interval '1 hour'),
+         ($1, $2, '{"old":3}', date_trunc('day', now()) - interval '20 days' + interval '2 hours'),
+         ($1, $2, '{"old":4}', now() - interval '90 days')`, [bizA, catA.id]);
+await as(A);
+await expectOk('save_site with another change', () => saveSite(catA.id, threePages('Borrador retención')));
+await expectOk('recording prunes old versions', () => recordVersion());
+await expectEq('30 recent + last of each older day (≤ 60 days); named ones kept', () =>
+  q(`select count(*) filter (where label is null)::int auto, count(*) filter (where label is not null)::int named,
+            count(*) filter (where snapshot = '{"old":1}' or snapshot = '{"old":3}')::int kept,
+            count(*) filter (where snapshot = '{"old":2}' or snapshot = '{"old":4}')::int dropped
+     from public.site_versions where catalog_id=$1`, [catA.id]).then((r) => r[0]), { auto: 32, named: 1, kept: 2, dropped: 0 });
+await db.exec('reset role');
+await q(`insert into public.site_versions(business_id, catalog_id, label, snapshot) select $1, $2, 'v' || g, '{}' from generate_series(1, 19) g`, [bizA, catA.id]);
+await as(A);
+await expectErr('at most 20 named versions', () => recordVersion('Una más'), 'version_limit');
+await expectOk('owner deletes a version', () => q(`delete from public.site_versions where id=$1`, [named]));
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);

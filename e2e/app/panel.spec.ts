@@ -600,6 +600,63 @@ test('editor del sitio: deshacer y rehacer con botones y con el teclado', async 
   await expect(pending).toHaveCount(0);
 });
 
+test('historial del sitio: versión con nombre, borrar una página y restaurarla desde el historial', async ({ page }) => {
+  await page.goto('/dashboard/sitio');
+  const save = page.getByRole('button', { name: 'Guardar cambios' });
+  if (await save.isEnabled()) {
+    await save.click();
+    await expect(save).toBeDisabled();
+  }
+  const openHistory = async () => {
+    await page.getByRole('button', { name: 'Historial del sitio' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Historial del sitio' });
+    await expect(dialog.getByRole('list', { name: 'Versiones' })).toBeVisible();
+    return dialog;
+  };
+
+  // Cada guardado deja una versión; se le pone nombre a la actual.
+  let history = await openHistory();
+  await expect(history.getByText('Última guardada')).toBeVisible();
+  await history.getByLabel('Nombre de la versión').fill('Antes E2E');
+  await history.getByRole('button', { name: 'Guardar versión' }).click();
+  await expect(page.getByText('Versión guardada')).toBeVisible();
+  await expect(history.getByRole('listitem', { name: 'Antes E2E' })).toBeVisible();
+  await history.getByRole('button', { name: 'Cerrar' }).click();
+
+  // Se borra una página y se guarda.
+  await page.getByRole('button', { name: 'Opciones de Nosotros' }).click();
+  await page.getByRole('menuitem', { name: 'Eliminar' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Eliminar' }).click();
+  await save.click();
+  await expect(save).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Opciones de Nosotros' })).toHaveCount(0);
+
+  // Se abre la versión con nombre: vuelve como borrador y se aplica al guardar.
+  history = await openHistory();
+  await history.getByRole('button', { name: 'Abrir la versión Antes E2E' }).click();
+  await expect(page.getByText('Estás viendo la versión «Antes E2E». Guarda para restaurarla, o descarta para volver a tu sitio.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Opciones de Nosotros' })).toBeVisible();
+  await save.click();
+  await expect(save).toBeDisabled();
+  await expect(page.getByText(/^Estás viendo la versión/)).toHaveCount(0);
+
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Opciones de Nosotros' })).toBeVisible();
+  await page.getByRole('tab', { name: 'Navegación' }).click();
+  await expect(page.getByRole('group', { name: 'Nosotros', exact: true })).toBeVisible();
+  // La versión con nombre se puede renombrar y borrar.
+  history = await openHistory();
+  const named = history.getByRole('listitem', { name: 'Antes E2E' });
+  await named.getByRole('button', { name: 'Cambiar nombre' }).click();
+  await history.getByLabel('Nombre de la versión').last().fill('Sitio original E2E');
+  await history.getByRole('button', { name: 'Guardar nombre' }).click();
+  await expect(page.getByText('Nombre guardado')).toBeVisible();
+  const renamed = history.getByRole('listitem', { name: 'Sitio original E2E' });
+  await renamed.getByRole('button', { name: 'Borrar la versión Sitio original E2E' }).click();
+  await page.getByRole('dialog', { name: '¿Borrar la versión «Sitio original E2E»?' }).getByRole('button', { name: 'Borrar' }).click();
+  await expect(renamed).toHaveCount(0);
+});
+
 test('reseñas: el visitante opina, el negocio la aprueba y se publica con su calificación', async ({ page, browser }) => {
   await page.goto('/dashboard/resenas');
   const main = page.getByRole('main');

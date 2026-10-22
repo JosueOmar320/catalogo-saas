@@ -41,6 +41,7 @@ const CONTENT_ACTIONS = new Set<BuilderAction['type']>([
   'removeSection',
   'duplicateSection',
   'reorderSections',
+  'restoreVersion',
 ]);
 
 /** A qué "cosa" afecta la acción: dos cambios seguidos a lo mismo se agrupan. */

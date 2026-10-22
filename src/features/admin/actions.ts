@@ -213,6 +213,11 @@ export async function createBusiness(input: CreateBusinessValues): Promise<Actio
     const starter = buildStarterSite(website ? 'website' : values.offering);
     const { error: siteError } = await supabase.rpc('save_site', { p_catalog_id: catalog.id, p_navigation: starter.navigation as Json, p_pages: starter.pages.map(pageToRow) as unknown as Json, p_deleted_page_ids: [] });
     starterSaved = !siteError;
+    // Primera versión del historial: el sitio inicial.
+    if (starterSaved) {
+      const { error: versionError } = await supabase.rpc('record_site_version', { p_catalog_id: catalog.id });
+      if (versionError) console.error('[admin] no se pudo guardar la primera versión del sitio', { code: versionError.code });
+    }
   }
   refresh('/admin/negocios', '/admin/catalogos');
   // El negocio existe igual; sin sitio inicial, el editor arranca con uno de ejemplo sin guardar.
