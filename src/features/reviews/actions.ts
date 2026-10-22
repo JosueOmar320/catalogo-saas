@@ -40,3 +40,23 @@ export async function deleteReview(id: string): Promise<ActionResult> {
   afterCatalogChange(ctx);
   return ok(undefined, msg('Reseña eliminada'));
 }
+
+const replySchema = z.object({ id: z.uuid(), reply: z.string().trim().max(1000, msg('Máximo 1000 caracteres')) });
+
+/** Responde una reseña (vacío = quitar la respuesta). Se ve en el sitio debajo de la reseña aprobada. */
+export async function replyToReview(input: z.input<typeof replySchema>): Promise<ActionResult> {
+  const ctx = await requireBusinessContext();
+  const parsed = parseInput(replySchema, input);
+  if (!parsed.success) return parsed.result;
+  const { id, reply } = parsed.data;
+  const { data, error } = await ctx.supabase
+    .from('reviews')
+    .update({ reply: reply || null, replied_at: reply ? new Date().toISOString() : null })
+    .eq('id', id)
+    .eq('business_id', ctx.business.id)
+    .select('id');
+  if (error) return fail(dbErrorMessage(error));
+  if (!data.length) return fail(msg('La reseña ya no existe.'));
+  afterCatalogChange(ctx);
+  return ok(undefined, reply ? msg('Respuesta publicada') : msg('Respuesta quitada'));
+}

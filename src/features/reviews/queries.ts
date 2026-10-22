@@ -11,6 +11,8 @@ export type PanelReview = {
   createdAt: string;
   /** Producto reseñado (null = del negocio en general). */
   item: { id: string; name: string } | null;
+  /** Respuesta pública del negocio (null = sin responder). */
+  reply: string | null;
 };
 
 /** Tope de filas por consulta (la bandeja avisa cuando llega a él). */
@@ -24,7 +26,7 @@ export const PAGE = 200;
 export async function listReviews(ctx: BusinessContext, status: ReviewStatus): Promise<PanelReview[] | null> {
   const { data, error } = await ctx.supabase
     .from('reviews')
-    .select('id, item_id, name, rating, body, status, created_at')
+    .select('id, item_id, name, rating, body, status, created_at, reply')
     .eq('business_id', ctx.business.id)
     .eq('status', status)
     .order('created_at', { ascending: false })
@@ -47,6 +49,7 @@ export async function listReviews(ctx: BusinessContext, status: ReviewStatus): P
     status: r.status,
     createdAt: r.created_at,
     item: r.item_id ? { id: r.item_id, name: names.get(r.item_id) ?? '' } : null,
+    reply: r.reply ?? null,
   }));
 }
 

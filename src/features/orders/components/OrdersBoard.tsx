@@ -1,11 +1,12 @@
 'use client';
 
 import { Alert, Box, Button, Chip, IconButton, MenuItem, Stack, Tab, Tabs, TextField, Tooltip, Typography } from '@mui/material';
-import { Download, MapPin, ShoppingBag, Store, Trash2, Utensils } from 'lucide-react';
+import { Download, MapPin, MessageSquareText, ShoppingBag, Store, Trash2, Utensils } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useConfirm } from '@/components/feedback/ConfirmProvider';
+import { reviewInviteMessage } from '@/features/reviews/invite';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { useT } from '@/i18n/client';
@@ -37,9 +38,11 @@ type Props = {
   now: number;
   /** Tope de filas de la consulta: al llegar a él se avisa que hay más. */
   pageSize: number;
+  /** Con reseñas activas: enlace `?opinar` para pedirle una al cliente cuando recibe su pedido. */
+  reviewInvite: { url: string; businessName: string } | null;
 };
 
-export function OrdersBoard({ tab, days, query, orders: initial, newCount, enabled, canManage, locale, priceLocale, now, pageSize }: Props) {
+export function OrdersBoard({ tab, days, query, orders: initial, newCount, enabled, canManage, locale, priceLocale, now, pageSize, reviewInvite }: Props) {
   const t = useT();
   const router = useRouter();
   const pathname = usePathname();
@@ -175,6 +178,11 @@ export function OrdersBoard({ tab, days, query, orders: initial, newCount, enabl
                     {next && <Button size="small" variant="contained" disabled={pending} onClick={() => setStatus(order, next.status)}>{t(next.label)}</Button>}
                     {order.status !== 'cancelled' && order.status !== 'delivered' && <Button size="small" color="inherit" disabled={pending} onClick={() => setStatus(order, 'cancelled')}>{t('Cancelar pedido')}</Button>}
                     {(order.status === 'cancelled' || order.status === 'delivered') && <Button size="small" color="inherit" disabled={pending} onClick={() => setStatus(order, 'new')}>{t('Volver a nuevo')}</Button>}
+                    {order.status === 'delivered' && reviewInvite && (
+                      <Button size="small" color="inherit" startIcon={<MessageSquareText size={14} />} href={`https://wa.me/?text=${encodeURIComponent(reviewInviteMessage(t, reviewInvite.businessName, reviewInvite.url))}`} target="_blank" rel="noopener noreferrer">
+                        {t('Pedir reseña')}
+                      </Button>
+                    )}
                     <Box sx={{ flex: 1 }} />
                     {canManage && (
                       <IconButton size="small" onClick={() => void remove(order)} aria-label={t('Borrar el pedido {reference}', { reference: order.reference })}><Trash2 size={16} /></IconButton>

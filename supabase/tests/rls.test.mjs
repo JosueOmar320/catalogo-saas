@@ -802,5 +802,23 @@ await as(null);
 await expectEq('public catalog exposes business.site_kind', () => q(`select public.get_public_catalog('tienda-a') -> 'business' ->> 'site_kind' k`).then((r) => r[0].k), 'catalog');
 await expectErr('create_business no longer exists', () => q(`select public.create_business('x','y')`), 'does not exist');
 
+/* ------------------------------------------------------------ Respuestas a reseñas */
+await db.exec('reset role');
+await q(`update public.catalogs set status='published', is_active=true, deleted_at=null, settings = coalesce(settings,'{}') || '{"reviews":{"enabled":true}}' where id=$1`, [catA.id]);
+const replyReview = (await q(`insert into public.reviews(business_id, name, rating, body, status, reviewed_at) values ($1,'Carla',2,'Tardó mucho','approved',now()) returning id`, [bizA]))[0].id;
+const publicReply = () => q(`select reply from public.get_public_reviews('tienda-a') where id=$1`, [replyReview]).then((r) => r[0]?.reply ?? null);
+await as(B);
+await expectEq('other business cannot reply to A reviews', async () => (await db.query(`update public.reviews set reply='Hola', replied_at=now() where id=$1`, [replyReview])).affectedRows, 0);
+await as(A);
+await expectOk('owner replies to a review', () => q(`update public.reviews set reply='Gracias, Carla: ya reforzamos el turno de la tarde.', replied_at=now() where id=$1`, [replyReview]));
+await expectErr('reply cannot be empty or too long', () => q(`update public.reviews set reply=$2 where id=$1`, [replyReview, 'x'.repeat(1001)]), 'check constraint');
+await expectErr('still cannot edit what the customer wrote', () => q(`update public.reviews set body='Excelente' where id=$1`, [replyReview]), 'permission denied');
+await as(null);
+await expectEq('the reply is public with the review', publicReply, 'Gracias, Carla: ya reforzamos el turno de la tarde.');
+await as(A);
+await expectOk('owner removes the reply', () => q(`update public.reviews set reply=null, replied_at=null where id=$1`, [replyReview]));
+await as(null);
+await expectEq('no reply after removing it', publicReply, null);
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);

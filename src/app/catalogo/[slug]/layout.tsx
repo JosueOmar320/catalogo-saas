@@ -7,6 +7,7 @@ import { getPublicSite } from '@/features/catalog/public-queries';
 import { siteMetadata } from '@/lib/catalog/metadata';
 import { siteStatusTexts } from '@/site-renderer/status';
 import { orderConfig } from '@/site-renderer/order/config';
+import { ReviewInvite } from '@/site-renderer/ReviewInvite';
 import { ViewTracker } from '@/site-renderer/ViewTracker';
 import { SiteCustomCss } from '@/site-renderer/SiteCustomCss';
 
@@ -35,6 +36,7 @@ export default async function PublicSiteLayout({ children, params }: LayoutProps
       <FooterGate hiddenPaths={header.footerHiddenPaths}>
         <SiteFooter site={site} navItems={header.items} columns={footerColumns(site, env)} />
       </FooterGate>
+      {site.siteKind === 'catalog' && site.settings.reviews.enabled && <ReviewInvite slug={site.business.slug} businessName={site.business.name} />}
       <ViewTracker slug={site.business.slug} />
     </SiteShell>
   );

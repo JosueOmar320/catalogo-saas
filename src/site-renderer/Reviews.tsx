@@ -59,13 +59,13 @@ export function ItemReviews({ site, item }: { site: SiteViewModel; item: Catalog
       ) : (
         <p className={styles.muted}>{t('Todavía no hay opiniones. ¡Sé el primero!')}</p>
       )}
-      <ReviewList reviews={reviews.slice(0, 10)} t={t} locale={site.settings.locale} />
+      <ReviewList reviews={reviews.slice(0, 10)} t={t} locale={site.settings.locale} businessName={site.business.name} />
       <ReviewForm slug={site.business.slug} item={item.slug} demo={site.business.slug === 'demo'} />
     </section>
   );
 }
 
-export function ReviewList({ reviews, t, locale }: { reviews: PublicReview[]; t: Translator; locale: string }) {
+export function ReviewList({ reviews, t, locale, businessName }: { reviews: PublicReview[]; t: Translator; locale: string; businessName: string }) {
   if (!reviews.length) return null;
   const date = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long', year: 'numeric' });
   return (
@@ -78,6 +78,12 @@ export function ReviewList({ reviews, t, locale }: { reviews: PublicReview[]; t:
             <time dateTime={review.createdAt}>{date.format(new Date(review.createdAt))}</time>
           </div>
           {review.body && <p>{review.body}</p>}
+          {review.reply && (
+            <div className={styles.reviewReply}>
+              <strong>{t('Respuesta de {business}', { business: businessName })}</strong>
+              <p>{review.reply}</p>
+            </div>
+          )}
         </li>
       ))}
     </ul>

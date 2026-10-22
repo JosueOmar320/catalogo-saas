@@ -17,6 +17,8 @@ import type { ReviewStatus } from '@/types/database';
 import { deleteReview, moderateReview } from '../actions';
 import { REVIEW_TABS } from '../tabs';
 import type { PanelReview } from '../queries';
+import { ReviewInviteCard } from './ReviewInviteCard';
+import { ReviewReply } from './ReviewReply';
 
 const EMPTY: Record<ReviewStatus, string> = {
   pending: msg('No hay reseñas por revisar.'),
@@ -35,10 +37,12 @@ type Props = {
   now: number;
   /** Tope de filas de la consulta: al llegar a él se avisa que hay más. */
   pageSize: number;
+  /** Enlace `?opinar` del sitio y datos para su QR. */
+  invite: { url: string; businessName: string; slug: string; published: boolean };
 };
 
 
-export function ReviewsBoard({ status, reviews: initial, pending, enabled: initialEnabled, canManage, locale, now, pageSize }: Props) {
+export function ReviewsBoard({ status, reviews: initial, pending, enabled: initialEnabled, canManage, locale, now, pageSize, invite }: Props) {
   const t = useT();
   const router = useRouter();
   const confirm = useConfirm();
@@ -83,6 +87,8 @@ export function ReviewsBoard({ status, reviews: initial, pending, enabled: initi
     });
   };
 
+  const setReply = (review: PanelReview, reply: string | null) => setReviews((list) => list.map((r) => (r.id === review.id ? { ...r, reply } : r)));
+
   return (
     <Stack spacing={2.5}>
       <SectionCard title={t('Recibir reseñas')} description={t('Tus clientes califican con estrellas y dejan un comentario en tu sitio. Sólo se publican las que apruebes.')}>
@@ -102,6 +108,8 @@ export function ReviewsBoard({ status, reviews: initial, pending, enabled: initi
           </Typography>
         </Stack>
       </SectionCard>
+
+      {enabled && <ReviewInviteCard {...invite} />}
 
       <SectionCard flush>
         <Tabs value={status} variant="scrollable" sx={{ px: 1.5, borderBottom: 1, borderColor: 'divider' }} aria-label={t('Estado de las reseñas')}>
@@ -159,6 +167,7 @@ export function ReviewsBoard({ status, reviews: initial, pending, enabled: initi
                         {t('Sin comentario')}
                       </Typography>
                     )}
+                    {status !== 'rejected' && <ReviewReply key={review.reply ?? ''} review={review} onSaved={(reply) => setReply(review, reply)} />}
                   </Box>
                   <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
                     {status !== 'approved' && (

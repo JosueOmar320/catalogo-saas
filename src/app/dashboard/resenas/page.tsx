@@ -6,7 +6,9 @@ import { countPendingReviews, listReviews, PAGE } from '@/features/reviews/queri
 import { REVIEW_TABS } from '@/features/reviews/tabs';
 import { getLocale, getT } from '@/i18n/server';
 import { canManageCatalog, requireCatalogSite } from '@/lib/auth/session';
+import { reviewInviteUrl } from '@/lib/catalog/reviews';
 import { parseCatalogSettings } from '@/lib/catalog/settings';
+import { catalogUrl } from '@/lib/catalog/view-model';
 
 /** Momento del render (ms) para "hace 5 min". Server Component: una vez por petición, y el cliente lo reutiliza al hidratar. */
 const requestNow = () => Date.now();
@@ -29,7 +31,11 @@ export default async function ReviewsPage({ searchParams }: PageProps<'/dashboar
       {reviews === null ? (
         <Alert severity="warning">{t('No se pudieron cargar las reseñas. Intenta de nuevo en unos minutos.')}</Alert>
       ) : (
-        <ReviewsBoard status={status} reviews={reviews} pending={pending ?? 0} enabled={settings.reviews.enabled} canManage={canManageCatalog(ctx)} locale={locale} now={requestNow()} pageSize={PAGE} />
+        <ReviewsBoard
+          status={status} reviews={reviews} pending={pending ?? 0} enabled={settings.reviews.enabled} canManage={canManageCatalog(ctx)} locale={locale} now={requestNow()}
+          pageSize={PAGE}
+          invite={{ url: reviewInviteUrl(catalogUrl(ctx.business.slug)), businessName: ctx.business.name, slug: ctx.business.slug, published: ctx.catalog.status === 'published' }}
+        />
       )}
     </>
   );

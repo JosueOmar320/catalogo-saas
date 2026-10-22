@@ -5,7 +5,9 @@ import { OrdersBoard } from '@/features/orders/components/OrdersBoard';
 import { countNewOrders, listOrders, PAGE } from '@/features/orders/inbox-queries';
 import { getLocale, getT } from '@/i18n/server';
 import { canManageCatalog, requireCatalogSite } from '@/lib/auth/session';
+import { reviewInviteUrl } from '@/lib/catalog/reviews';
 import { parseCatalogSettings } from '@/lib/catalog/settings';
+import { catalogUrl } from '@/lib/catalog/view-model';
 import { findTab, parseRange } from '@/lib/orders/inbox';
 
 /** Momento del render (ms) para "hace 5 min". Server Component: una vez por petición, y el cliente lo reutiliza al hidratar. */
@@ -44,6 +46,7 @@ export default async function OrdersPage({ searchParams }: PageProps<'/dashboard
           priceLocale={settings.locale}
           now={requestNow()}
           pageSize={PAGE}
+          reviewInvite={settings.reviews.enabled ? { url: reviewInviteUrl(catalogUrl(ctx.business.slug)), businessName: ctx.business.name } : null}
         />
       )}
     </>

@@ -784,6 +784,22 @@ const catalog: Catalog = {
   'La página de inicio debe estar publicada.': 'The home page must be published.',
   'El sitio ya tiene el máximo de {max} páginas. Borra alguna para crear otra.': 'The site already has the maximum of {max} pages. Delete one to create another.',
   'Demasiadas solicitudes. Intenta de nuevo en unos minutos.': 'Too many requests. Try again in a few minutes.',
+  'Pedir reseña': 'Ask for a review',
+  'Máximo 1000 caracteres': '1000 characters max',
+  'Respuesta publicada': 'Reply published',
+  'Respuesta quitada': 'Reply removed',
+  'Pide reseñas': 'Ask for reviews',
+  'Comparte este enlace con tus clientes: abre tu sitio con el formulario de opinión listo.': 'Share this link with your customers: it opens your site with the review form ready.',
+  'Enlace para opinar': 'Review link',
+  'Copiar mensaje': 'Copy message',
+  'Tu respuesta (pública)': 'Your reply (public)',
+  'Publicar respuesta': 'Publish reply',
+  'Tu respuesta': 'Your reply',
+  'Editar respuesta': 'Edit reply',
+  'Quitar respuesta': 'Remove reply',
+  'Responder a {name}': 'Reply to {name}',
+  'Responder': 'Reply',
+  '¡Gracias por tu compra en {business}! ¿Nos dejas tu opinión? Te toma un minuto: {url}': 'Thanks for your purchase at {business}! Would you leave us a review? It takes a minute: {url}',
 };
 
 export default catalog;

@@ -5624,3 +5624,30 @@ input.qtyValue:focus-visible {
   color: var(--c-muted);
   text-align: center;
 }
+
+/* Respuesta del negocio a una reseña */
+.reviewReply {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border-left: 3px solid var(--c-accent);
+  border-radius: 0 calc(var(--radius) * 0.6) calc(var(--radius) * 0.6) 0;
+  background: color-mix(in srgb, var(--c-accent) 8%, transparent);
+  font-size: var(--fs-small);
+  text-align: left;
+}
+
+.reviewReply strong {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--c-heading);
+}
+
+.reviewReply p {
+  margin: 0;
+}
+
+.popupPanel .reviewForm {
+  border: 0;
+  padding: 0;
+  text-align: left;
+}
