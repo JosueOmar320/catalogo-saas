@@ -2,9 +2,11 @@ import { Alert } from '@mui/material';
 import type { Metadata } from 'next';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { OrdersBoard } from '@/features/orders/components/OrdersBoard';
+import { orderCountsByCustomer } from '@/features/customers/queries';
 import { countNewOrders, listOrders, PAGE } from '@/features/orders/inbox-queries';
 import { getLocale, getT } from '@/i18n/server';
 import { canManageCatalog, requireCatalogSite } from '@/lib/auth/session';
+import { parseContact } from '@/lib/business/profile';
 import { reviewInviteUrl } from '@/lib/catalog/reviews';
 import { parseCatalogSettings } from '@/lib/catalog/settings';
 import { catalogUrl } from '@/lib/catalog/view-model';
@@ -26,6 +28,7 @@ export default async function OrdersPage({ searchParams }: PageProps<'/dashboard
   const query = typeof q === 'string' ? q.slice(0, 60) : '';
   const [t, locale, orders, newCount] = await Promise.all([getT(), getLocale(), listOrders(ctx, { statuses: tab.statuses, days, query }), countNewOrders(ctx)]);
   const settings = parseCatalogSettings(ctx.catalog.settings);
+  const customerOrders = orders ? await orderCountsByCustomer(ctx, orders.map((order) => order.customer_key)) : {};
 
   return (
     <>
@@ -46,6 +49,9 @@ export default async function OrdersPage({ searchParams }: PageProps<'/dashboard
           priceLocale={settings.locale}
           now={requestNow()}
           pageSize={PAGE}
+          businessName={ctx.business.name}
+          businessWhatsapp={parseContact(ctx.business.contact).whatsapp}
+          customerOrders={customerOrders}
           reviewInvite={settings.reviews.enabled ? { url: reviewInviteUrl(catalogUrl(ctx.business.slug)), businessName: ctx.business.name } : null}
         />
       )}

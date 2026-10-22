@@ -75,9 +75,9 @@ describe('Bandeja de pedidos', () => {
       { reference: 'K7Q2', created_at: '2026-10-20T18:30:00Z', status: 'confirmed', customer_name: 'Ana, "la del 5"', fulfillment: 'delivery', address: 'Calle 5', zone: 'Centro', branch: null, table_label: null, scheduled_for: null, payment: 'cash', coupon: null, note: null, lines: [{ itemId: null, name: 'Croissant', variant: '', qty: 2, unitPrice: 48, note: '' }, { itemId: null, name: 'Café', variant: '', qty: 1, unitPrice: 30, note: '' }], subtotal: 126, discount: null, delivery_fee: 35, tip: null, total: 161, currency: 'MXN' },
     ], 'America/Mexico_City');
     const [header, row] = csv.replace(/^﻿/, '').trim().split('\r\n');
-    assert.match(header, /^Folio,Fecha,Estado,Cliente,Entrega/);
+    assert.match(header, /^Folio,Fecha,Estado,Cliente,WhatsApp,Entrega/);
     // Excel en español separa con ";": esa celda va entre comillas.
-    assert.match(row, /^K7Q2,2026-10-20 12:30,Confirmado,"Ana, ""la del 5""",A domicilio,Calle 5,Centro,,,,Efectivo,,"2 × Croissant; 1 × Café",126\.00,,35\.00,,161\.00,MXN,$/);
+    assert.match(row, /^K7Q2,2026-10-20 12:30,Confirmado,"Ana, ""la del 5""",,A domicilio,Calle 5,Centro,,,,Efectivo,,"2 × Croissant; 1 × Café",126\.00,,35\.00,,161\.00,MXN,$/);
     assert.equal(linesText([{ itemId: null, name: 'Pan', variant: '', qty: 3, unitPrice: null, note: '' }]), '3 × Pan');
   });
 });

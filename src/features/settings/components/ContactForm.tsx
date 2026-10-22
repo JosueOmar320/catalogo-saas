@@ -144,6 +144,12 @@ export function ContactForm({ contact, actions, order, businessName, catalogUrl,
           <SwitchControl control={orderForm.control} name="askName" label={t('Pedir el nombre del cliente')} description={t('Campo opcional en el pedido.')} />
           <SwitchControl
             control={orderForm.control}
+            name="askPhone"
+            label={t('Pedir el WhatsApp del cliente')}
+            description={t('Campo opcional. Sólo se guarda en tu bandeja de pedidos (para tu lista de clientes y avisarle), no va en el mensaje.')}
+          />
+          <SwitchControl
+            control={orderForm.control}
             name="inbox"
             label={t('Guardar los pedidos en el panel')}
             description={t('Cada pedido enviado queda en Pedidos para confirmarlo y darle seguimiento (al cliente se le avisa). Los datos del cliente se borran solos a los 180 días.')}

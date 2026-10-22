@@ -23,6 +23,8 @@ const amount = z.number().min(0).max(99_999_999).nullable();
 const orderSchema = z.object({
   reference: z.string().regex(/^[A-Z0-9]{4,8}$/),
   customerName: text(80),
+  // Opcional: los sitios en caché de antes de los clientes no lo mandan. La base lo normaliza.
+  customerPhone: text(20).default(''),
   fulfillment: z.enum(['pickup', 'delivery', 'table', '']),
   address: text(300),
   zone: text(60),

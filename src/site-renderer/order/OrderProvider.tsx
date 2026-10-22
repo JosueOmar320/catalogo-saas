@@ -48,6 +48,8 @@ type When = { date: string; time: string };
 type OrderState = {
   lines: OrderLine[];
   name: string;
+  /** WhatsApp del cliente (opcional): sólo va en la copia de la bandeja. */
+  phone: string;
   note: string;
   fulfillment: Fulfillment | null;
   address: string;
@@ -63,7 +65,7 @@ type OrderState = {
   reference: string;
 };
 
-const EMPTY: OrderState = { lines: [], name: '', note: '', fulfillment: null, address: '', zone: '', branch: '', tip: 0, payment: null, coupon: '', when: null, reference: '' };
+const EMPTY: OrderState = { lines: [], name: '', phone: '', note: '', fulfillment: null, address: '', zone: '', branch: '', tip: 0, payment: null, coupon: '', when: null, reference: '' };
 
 /** Sin letras ni números que se confundan (0/O, 1/I/L). */
 const REFERENCE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -102,7 +104,7 @@ function sanitize(raw: unknown): OrderState {
     rawWhen && typeof rawWhen.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rawWhen.date) && typeof rawWhen.time === 'string' && /^\d{2}:\d{2}$/.test(rawWhen.time)
       ? { date: rawWhen.date, time: rawWhen.time }
       : null;
-  return { lines, name: str(input.name, 80), note: str(input.note, 500), fulfillment, address: str(input.address, 300), zone: str(input.zone, 60), branch: str(input.branch, 60), tip: TIP_OPTIONS.find((value) => value === input.tip) ?? 0, payment, coupon: str(input.coupon, 24), when, reference: typeof input.reference === 'string' && REFERENCE.test(input.reference) ? input.reference : '' };
+  return { lines, name: str(input.name, 80), phone: str(input.phone, 20), note: str(input.note, 500), fulfillment, address: str(input.address, 300), zone: str(input.zone, 60), branch: str(input.branch, 60), tip: TIP_OPTIONS.find((value) => value === input.tip) ?? 0, payment, coupon: str(input.coupon, 24), when, reference: typeof input.reference === 'string' && REFERENCE.test(input.reference) ? input.reference : '' };
 }
 
 function read(key: string): OrderState {
@@ -124,7 +126,7 @@ function notify(key: string) {
 function write(key: string, state: OrderState) {
   cache.set(key, state);
   try {
-    if (state.lines.length || state.name || state.note || state.address) localStorage.setItem(key, JSON.stringify(state));
+    if (state.lines.length || state.name || state.phone || state.note || state.address) localStorage.setItem(key, JSON.stringify(state));
     else localStorage.removeItem(key);
   } catch {}
   notify(key);
@@ -529,9 +531,9 @@ function OrderDock() {
  * localStorage ni re-renderiza todos los botones "Agregar" del sitio. El
  * mensaje y el resumen se arman con el borrador, y al enviar se guarda todo.
  */
-type Drafts = { name?: string; note?: string; address?: string; lines: Record<string, string> };
+type Drafts = { name?: string; phone?: string; note?: string; address?: string; lines: Record<string, string> };
 const NO_DRAFTS: Drafts = { lines: {} };
-type DraftField = 'name' | 'note' | 'address';
+type DraftField = 'name' | 'phone' | 'note' | 'address';
 
 function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
   const t = useSiteT();
@@ -547,6 +549,7 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
   const { options, pricing } = config;
   // Valores vigentes: el borrador si se está escribiendo; si no, lo guardado (vuelve al reabrir el panel).
   const name = drafts.name ?? state.name;
+  const phone = drafts.phone ?? state.phone;
   const note = drafts.note ?? state.note;
   const address = drafts.address ?? state.address;
   const lines = Object.keys(drafts.lines).length ? state.lines.map((line) => (drafts.lines[line.id] === undefined ? line : { ...line, note: drafts.lines[line.id] })) : state.lines;
@@ -641,7 +644,7 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
     const key = JSON.stringify(lines.map((line) => [line.id, line.qty]));
     if (tracked.current === key) return;
     tracked.current = key;
-    const copy = config.inbox ? inboxOrder({ lines, pricing, customerName: name, note, options, choices, reference: state.reference || undefined }) : null;
+    const copy = config.inbox ? inboxOrder({ lines, pricing, customerName: name, customerPhone: config.askPhone ? phone : '', note, options, choices, reference: state.reference || undefined }) : null;
     trackOrder(config.trackSlug, lines, copy);
   };
   const close = (event: SyntheticEvent) => (event.currentTarget.closest('dialog') as HTMLDialogElement | null)?.close();
@@ -933,6 +936,13 @@ function OrderDialog({ ref }: { ref: Ref<HTMLDialogElement> }) {
                 <label>
                   <span>{t('Tu nombre (opcional)')}</span>
                   <input type="text" value={name} maxLength={80} autoComplete="name" onChange={(event) => setDraft('name', event.target.value)} onBlur={() => commitDraft('name')} />
+                </label>
+              )}
+              {config.askPhone && (
+                <label>
+                  <span>{t('Tu WhatsApp (opcional)')}</span>
+                  <input type="tel" value={phone} maxLength={20} autoComplete="tel" inputMode="tel" aria-describedby={`${titleId}-phone`} onChange={(event) => setDraft('phone', event.target.value)} onBlur={() => commitDraft('phone')} />
+                  <small id={`${titleId}-phone`} className={styles.orderHint}>{t('Para que {business} te avise cuando tu pedido esté listo.', { business: config.businessName })}</small>
                 </label>
               )}
               <label>

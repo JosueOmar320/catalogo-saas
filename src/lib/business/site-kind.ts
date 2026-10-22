@@ -18,5 +18,5 @@ export const parseSiteKind = (value: unknown): SiteKind => (value === 'website' 
 export const isCatalogSite = (kind: SiteKind) => kind === 'catalog';
 
 /** Secciones del panel que sólo existen en un negocio con catálogo (también se bloquean por URL). */
-export const CATALOG_ONLY_PATHS = ['/dashboard/catalog', '/dashboard/pedidos', '/dashboard/resenas', '/dashboard/export/pdf'];
+export const CATALOG_ONLY_PATHS = ['/dashboard/catalog', '/dashboard/pedidos', '/dashboard/clientes', '/dashboard/resenas', '/dashboard/export/pdf'];
 export const isCatalogOnlyPath = (pathname: string) => CATALOG_ONLY_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));

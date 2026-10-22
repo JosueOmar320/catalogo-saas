@@ -78,10 +78,13 @@ test('al publicar, el visitante ve el producto y puede pedirlo por WhatsApp', as
   await site.getByRole('button', { name: 'Agregar al pedido' }).click();
   await site.getByRole('button', { name: /^Ver pedido/ }).click();
   await site.getByLabel('Tu nombre (opcional)').fill('Ana E2E');
+  // El WhatsApp es opcional y sólo va en la copia de la bandeja, no en el mensaje.
+  await site.getByLabel('Tu WhatsApp (opcional)').fill('55 1234 5678');
   // La bandeja está activa por defecto: se le avisa al cliente.
   await expect(site.getByText(`${businessName} también recibe una copia de tu pedido en su panel para darle seguimiento.`)).toBeVisible();
   const href = await site.getByRole('link', { name: 'Enviar pedido por WhatsApp' }).getAttribute('href');
   expect(new URL(href!).searchParams.get('text')).toContain(`Hola ${businessName}, quiero hacer este pedido:\n\n• 1 × ${productName} (precio por confirmar)`);
+  expect(new URL(href!).searchParams.get('text')).not.toContain('5678');
 
   // Enviar: WhatsApp se intercepta (no sale a internet) y el sitio avisa al servidor.
   await visitor.route('https://wa.me/**', (route) => route.fulfill({ status: 200, contentType: 'text/plain', body: 'WhatsApp' }));
@@ -93,7 +96,7 @@ test('al publicar, el visitante ve el producto y puede pedirlo por WhatsApp', as
   expect(sent).toEqual({
     slug,
     items: [{ id: expect.any(String), qty: 1 }],
-    order: expect.objectContaining({ reference: expect.stringMatching(/^[A-Z0-9]{4}$/), customerName: 'Ana E2E', lines: [expect.objectContaining({ name: productName, qty: 1, unitPrice: null })] }),
+    order: expect.objectContaining({ reference: expect.stringMatching(/^[A-Z0-9]{4}$/), customerName: 'Ana E2E', customerPhone: '55 1234 5678', lines: [expect.objectContaining({ name: productName, qty: 1, unitPrice: null })] }),
   });
   firstReference = sent.order.reference;
   await (await popup).close();
@@ -137,7 +140,12 @@ test('bandeja de pedidos: el pedido enviado llega con su folio, se confirma y se
   await expect(page).toHaveURL(/\/dashboard\/pedidos$/);
   const card = page.getByRole('listitem', { name: `Pedido ${firstReference}` });
   await expect(card.getByText('Ana E2E', { exact: false })).toBeVisible();
+  await expect(card.getByText('5512345678', { exact: false })).toBeVisible();
   await expect(card.getByText(`1 × ${productName}`)).toBeVisible();
+  // Avisarle al cliente por WhatsApp, con un mensaje según el estado.
+  const notify = new URL((await card.getByRole('link', { name: 'Avisar por WhatsApp' }).getAttribute('href'))!);
+  expect(notify.pathname).toMatch(/5512345678$/);
+  expect(notify.searchParams.get('text')).toBe(`¡Hola, Ana! Recibimos tu pedido #${firstReference} en ${businessName}. En un momento te lo confirmamos.`);
   await expect(page.getByRole('tab', { name: 'Nuevos (1)' })).toBeVisible();
 
   await card.getByRole('button', { name: 'Confirmar' }).click();
@@ -152,6 +160,35 @@ test('bandeja de pedidos: el pedido enviado llega con su folio, se confirma y se
   const csv = await page.request.get('/api/orders/export?estado=todos&dias=30');
   expect(csv.status()).toBe(200);
   expect(await csv.text()).toContain(`${firstReference},`);
+});
+
+test('clientes: el pedido con WhatsApp arma la lista; se busca, se le escribe y se descarga', async ({ page }) => {
+  await page.goto('/dashboard/clientes');
+  const main = page.getByRole('main');
+  const ana = main.getByRole('listitem', { name: 'Ana E2E' });
+  await expect(ana.getByText(/5512345678 · 1 pedido · /)).toBeVisible();
+  const chat = new URL((await ana.getByRole('link', { name: 'Escribirle a Ana E2E por WhatsApp' }).getAttribute('href'))!);
+  expect(chat.pathname).toMatch(/5512345678$/);
+  expect(chat.searchParams.get('text')).toBe('¡Hola, Ana!');
+
+  // Buscar por parte del número.
+  await main.getByLabel('Buscar nombre o WhatsApp').fill('1234 56');
+  await main.getByLabel('Buscar nombre o WhatsApp').press('Enter');
+  await expect(page).toHaveURL(/q=1234/);
+  await expect(main.getByRole('listitem', { name: 'Ana E2E' })).toBeVisible();
+  await main.getByLabel('Buscar nombre o WhatsApp').fill('Nadie así');
+  await main.getByLabel('Buscar nombre o WhatsApp').press('Enter');
+  await expect(main.getByText('Ningún cliente coincide con «Nadie así».')).toBeVisible();
+
+  const csv = await page.request.get('/api/customers/export');
+  expect(csv.status()).toBe(200);
+  expect(await csv.text()).toContain('Ana E2E,5512345678,1,0,');
+
+  // «Pedidos» lleva a la bandeja filtrada por su WhatsApp.
+  await page.goto('/dashboard/clientes');
+  await main.getByRole('listitem', { name: 'Ana E2E' }).getByRole('link', { name: 'Ver los pedidos de Ana E2E' }).click();
+  await expect(page).toHaveURL(/\/dashboard\/pedidos\?estado=todos&dias=90&q=5512345678/);
+  await expect(page.getByRole('listitem', { name: `Pedido ${firstReference}` })).toBeVisible();
 });
 
 test('importar productos desde CSV y volver a importarlos actualiza en vez de duplicar', async ({ page }) => {
@@ -1258,7 +1295,7 @@ test('tipo de sitio: un sitio web nace sin catálogo y el panel no muestra produ
   await page.goto('/dashboard');
   const menu = page.getByRole('navigation', { name: 'Menú principal' });
   await expect(menu.getByRole('link', { name: 'Medios' })).toBeVisible();
-  for (const name of ['Pedidos', 'Reseñas', 'Catálogo PDF']) await expect(menu.getByRole('link', { name })).toHaveCount(0);
+  for (const name of ['Pedidos', 'Clientes', 'Reseñas', 'Catálogo PDF']) await expect(menu.getByRole('link', { name })).toHaveCount(0);
   await expect(menu.getByRole('button', { name: 'Contenido' })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Páginas de tu sitio' })).toBeVisible();
   // Por URL tampoco: vuelve al inicio del panel.
@@ -1283,8 +1320,8 @@ test('tipo de sitio: un sitio web nace sin catálogo y el panel no muestra produ
 });
 
 test('accesibilidad del panel y la administración (axe)', async ({ page }) => {
-  test.setTimeout(120_000); // 13 páginas, cada una con su análisis
-  for (const path of ['/dashboard', '/dashboard/pedidos', '/dashboard/catalog/products', '/dashboard/catalog/items/new?type=product', '/dashboard/catalog/categories', '/dashboard/settings/contacto', '/dashboard/settings/negocio', '/dashboard/resenas', '/dashboard/media', '/dashboard/sitio', '/dashboard/export/pdf', '/admin', '/admin/usuarios', '/cuenta']) {
+  test.setTimeout(120_000); // 14 páginas, cada una con su análisis
+  for (const path of ['/dashboard', '/dashboard/pedidos', '/dashboard/clientes', '/dashboard/catalog/products', '/dashboard/catalog/items/new?type=product', '/dashboard/catalog/categories', '/dashboard/settings/contacto', '/dashboard/settings/negocio', '/dashboard/resenas', '/dashboard/media', '/dashboard/sitio', '/dashboard/export/pdf', '/admin', '/admin/usuarios', '/cuenta']) {
     await page.goto(path);
     await expect(page.getByRole('main').first()).toBeVisible();
     await expectAccessible(page, path);

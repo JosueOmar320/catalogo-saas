@@ -15,6 +15,8 @@ export type OrderConfig = {
   businessName: string;
   intro: string;
   askName: boolean;
+  /** Pide el WhatsApp del cliente (sólo con la bandeja de pedidos: no va en el mensaje). */
+  askPhone: boolean;
   siteUrl: string;
   pricing: OrderPricing;
   /** Entrega, envío, pedido mínimo y formas de pago. */
@@ -60,6 +62,7 @@ export function orderConfig(site: SiteViewModel, { track = false }: { track?: bo
     businessName: site.business.name,
     intro: defaultText(order.intro, siteTranslator(language)),
     askName: order.askName,
+    askPhone: order.askPhone && order.inbox,
     siteUrl: site.url,
     pricing: { currency, locale, format: priceFormat },
     options: {

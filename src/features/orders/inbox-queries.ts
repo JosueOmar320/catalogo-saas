@@ -15,7 +15,9 @@ export const since = (days: number, now = Date.now()) => new Date(now - days * 8
 export async function listOrders(ctx: BusinessContext, { statuses, days, query = '' }: { statuses: readonly OrderStatus[]; days: number; query?: string }): Promise<PanelOrder[] | null> {
   let request = ctx.supabase.from('orders').select('*').eq('business_id', ctx.business.id).in('status', [...statuses]).gte('created_at', since(days)).order('created_at', { ascending: false }).limit(PAGE);
   const term = query.trim().replace(/[%,()]/g, '').slice(0, 60);
-  if (term) request = request.or(`reference.ilike.%${term}%,customer_name.ilike.%${term}%`);
+  // El WhatsApp se busca por sus dígitos ("55 1234" encuentra +52 55 1234 5678).
+  const digits = term.replace(/\D/g, '');
+  if (term) request = request.or(`reference.ilike.%${term}%,customer_name.ilike.%${term}%${digits.length >= 4 ? `,customer_phone.ilike.%${digits}%` : ''}`);
   const { data, error } = await request;
   if (error) {
     console.error('[orders] no se pudieron leer los pedidos', { code: error.code });

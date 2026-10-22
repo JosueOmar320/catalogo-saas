@@ -872,5 +872,44 @@ await as(A);
 await expectErr('at most 20 named versions', () => recordVersion('Una más'), 'version_limit');
 await expectOk('owner deletes a version', () => q(`delete from public.site_versions where id=$1`, [named]));
 
+/* ------------------------------------------------------------ Clientes */
+await db.exec('reset role');
+await q(`update public.catalogs set status='published', is_active=true, deleted_at=null where id=$1`, [catA.id]);
+await setOrderSettings({ enabled: true, inbox: true, paused: false });
+const orderRow = (reference) => asSuper(() => q(`select customer_name, customer_phone, customer_key from public.orders where business_id=$1 and reference=$2`, [bizA, reference]).then((r) => r[0] ?? null));
+const customers = () => q(`select key, name, phone, orders, delivered, spent::text from public.customer_summaries where business_id=$1 order by key`, [bizA]);
+await sendOrder({ ...baseOrder, reference: 'PH01', customerName: 'Luis', customerPhone: '+52 1 (55) 1234-5678', total: 10 });
+await sendOrder({ ...baseOrder, reference: 'PH02', customerName: 'Luis R.', customerPhone: '55 1234 5678', total: 20 });
+await sendOrder({ ...baseOrder, reference: 'PH03', customerName: 'Marta', customerPhone: 'no tengo', total: 7 });
+await sendOrder({ ...baseOrder, reference: 'PH04', customerName: '  ', customerPhone: '', total: 3 });
+await asSuper(() => q(`update public.orders set created_at = now() - interval '1 minute' where reference='PH01'`));
+await expectEq('phone is stored with only digits and a leading +', () => orderRow('PH01'), { customer_name: 'Luis', customer_phone: '+5215512345678', customer_key: 'tel:5512345678' });
+await expectEq('same number without country code → same customer', () => orderRow('PH02').then((r) => r.customer_key), 'tel:5512345678');
+await expectEq('something that is not a phone is not stored; the name is the key', () => orderRow('PH03'), { customer_name: 'Marta', customer_phone: null, customer_key: 'name:marta' });
+await expectEq('no name and no phone → no customer', () => orderRow('PH04').then((r) => r.customer_key), null);
+await as(A);
+await expectEq('customers: one row per person, latest name and phone, orders and total', () => customers().then((rows) => rows.filter((r) => ['tel:5512345678', 'name:marta'].includes(r.key))), [
+  { key: 'name:marta', name: 'Marta', phone: null, orders: 1, delivered: 0, spent: '7.00' },
+  { key: 'tel:5512345678', name: 'Luis R.', phone: '5512345678', orders: 2, delivered: 0, spent: '30.00' },
+]);
+const orderPH02 = await asSuper(() => q(`select id from public.orders where reference='PH02'`).then((r) => r[0].id), 'authenticated');
+const orderPH01 = await asSuper(() => q(`select id from public.orders where reference='PH01'`).then((r) => r[0].id), 'authenticated');
+await expectOk('cancel one order', () => q(`select public.set_order_status($1, 'cancelled')`, [orderPH02]));
+await expectOk('deliver the other', () => q(`select public.set_order_status($1, 'delivered')`, [orderPH01]));
+await expectEq('cancelled orders do not count; delivered ones do', () => customers().then((rows) => rows.find((r) => r.key === 'tel:5512345678')), { key: 'tel:5512345678', name: 'Luis R.', phone: '5512345678', orders: 1, delivered: 1, spent: '10.00' });
+await expectErr('members cannot edit the phone', () => q(`update public.orders set customer_phone='5500000000' where id=$1`, [orderPH01]), 'permission denied');
+await as(JUAN);
+await expectEq('an editor (member) sees the customers', () => customers().then((rows) => rows.some((r) => r.key === 'tel:5512345678')), true);
+await as(B);
+await expectEq('another business does not see A customers', () => customers().then((rows) => rows.length), 0);
+await as(null);
+await expectErr('anon cannot read customers', () => customers(), 'permission denied');
+await db.exec('reset role');
+await q(`update public.orders set created_at = now() - interval '181 days' where reference in ('PH01', 'PH02')`);
+await sendOrder({ ...baseOrder, reference: 'PH05', customerName: 'Nora', total: 4 });
+await expectEq('after 180 days the phone is erased with the name (and the customer disappears)', () => orderRow('PH01'), { customer_name: null, customer_phone: null, customer_key: null });
+await as(A);
+await expectEq('the old customer is no longer listed', () => customers().then((rows) => rows.some((r) => r.key === 'tel:5512345678')), false);
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);
