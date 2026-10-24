@@ -9,19 +9,22 @@ import { ProviderError, QuotaExceededError, type AssistantModel, type TaskModel 
 export type { ChatMessage, ModelInput, ModelResult } from './types';
 export { resolveProvider } from './config';
 
+/** Cuánto puede tardar el modelo en total (todos los modelos de la cadena), en ms. */
+export type ModelBudget = { budgetMs?: number };
+
 /** Modelo de lenguaje configurado (o null: sólo intérprete local). */
-function languageModel(env: Env): (AssistantModel & TaskModel) | null {
+function languageModel(env: Env, { budgetMs }: ModelBudget = {}): (AssistantModel & TaskModel) | null {
   const provider = resolveProvider(env);
   const models = list(env.ASSISTANT_MODEL);
   const reasoningEffort = env.ASSISTANT_REASONING_EFFORT?.trim() || undefined;
   switch (provider) {
     case 'gemini':
-      return env.GEMINI_API_KEY ? new OpenAICompatibleModel({ provider: 'gemini', baseUrl: env.ASSISTANT_BASE_URL || GEMINI_BASE_URL, apiKey: env.GEMINI_API_KEY, models: models.length ? models : GEMINI_DEFAULT_MODELS, reasoningEffort }) : null;
+      return env.GEMINI_API_KEY ? new OpenAICompatibleModel({ provider: 'gemini', baseUrl: env.ASSISTANT_BASE_URL || GEMINI_BASE_URL, apiKey: env.GEMINI_API_KEY, models: models.length ? models : GEMINI_DEFAULT_MODELS, reasoningEffort, budgetMs }) : null;
     case 'anthropic':
-      return env.ANTHROPIC_API_KEY ? new ClaudeModel(env.ANTHROPIC_API_KEY, models[0] ?? CLAUDE_DEFAULT_MODEL) : null;
+      return env.ANTHROPIC_API_KEY ? new ClaudeModel(env.ANTHROPIC_API_KEY, models[0] ?? CLAUDE_DEFAULT_MODEL, budgetMs) : null;
     case 'openai-compatible':
       // Ollama local (modelo local) no necesita clave.
-      return env.ASSISTANT_BASE_URL && models.length ? new OpenAICompatibleModel({ provider: env.ASSISTANT_PROVIDER_NAME || 'openai-compatible', baseUrl: env.ASSISTANT_BASE_URL, apiKey: env.ASSISTANT_API_KEY || 'none', models, reasoningEffort }) : null;
+      return env.ASSISTANT_BASE_URL && models.length ? new OpenAICompatibleModel({ provider: env.ASSISTANT_PROVIDER_NAME || 'openai-compatible', baseUrl: env.ASSISTANT_BASE_URL, apiKey: env.ASSISTANT_API_KEY || 'none', models, reasoningEffort, budgetMs }) : null;
     default:
       return null;
   }
@@ -34,9 +37,9 @@ const ROUTINGS: Routing[] = ['local-first', 'llm-first', 'local-only'];
  * costo) y el modelo de lenguaje para lo creativo o lo que no se entendió.
  * ASSISTANT_ROUTING=llm-first manda todo al modelo; local-only nunca lo usa.
  */
-export function getAssistantModel(env: Env = process.env): AssistantModel {
+export function getAssistantModel(env: Env = process.env, budget: ModelBudget = {}): AssistantModel {
   const routing = ROUTINGS.find((r) => r === env.ASSISTANT_ROUTING?.trim()) ?? 'local-first';
-  return new HybridModel(languageModel(env), routing);
+  return new HybridModel(languageModel(env, budget), routing);
 }
 
 /**
@@ -44,9 +47,9 @@ export function getAssistantModel(env: Env = process.env): AssistantModel {
  * null si no hay IA configurada (o ASSISTANT_ROUTING=local-only): entonces
  * cada tarea usa su versión sin IA.
  */
-export function getTaskModel(env: Env = process.env): TaskModel | null {
+export function getTaskModel(env: Env = process.env, budget: ModelBudget = {}): TaskModel | null {
   if (env.ASSISTANT_ROUTING?.trim() === 'local-only') return null;
-  return languageModel(env);
+  return languageModel(env, budget);
 }
 
 /** Mensaje en español (clave del catálogo) + datos: la ruta lo traduce con t(message, params). */

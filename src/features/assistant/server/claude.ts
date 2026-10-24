@@ -27,8 +27,10 @@ export class ClaudeModel implements AssistantModel, TaskModel {
   constructor(
     apiKey: string,
     private model: string,
+    /** Tiempo total del pedido: con él, cada llamada cabe en ese tiempo y no se reintenta. */
+    budgetMs?: number,
   ) {
-    this.client = new Anthropic({ apiKey, maxRetries: 1, timeout: 60_000 });
+    this.client = new Anthropic({ apiKey, maxRetries: budgetMs ? 0 : 1, timeout: budgetMs ?? 60_000 });
   }
 
   respond({ messages, context, locale }: ModelInput): Promise<ModelResult> {

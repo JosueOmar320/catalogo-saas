@@ -12,7 +12,13 @@ import { MAX_TOOL_ROUNDS, ProviderError, QuotaExceededError, userTurn, type Assi
  * Claude, y si algo no es válido se le pide al modelo una corrección.
  *
  * Varios modelos = cadena de respaldo: si el primero agota su cuota (429),
- * se usa el siguiente (p. ej. Gemini Flash → Flash-Lite).
+ * no está disponible o tarda demasiado, se usa el siguiente (p. ej. Gemini
+ * Flash → Flash-Lite).
+ *
+ * Con `budgetMs`, todo el pedido (todos los modelos, herramientas y la
+ * corrección) cabe en ese tiempo: el primer modelo usa una parte y, si no
+ * alcanza, el siguiente tiene el resto. Así la función no se corta (Vercel)
+ * antes de poder responder sin IA.
  */
 
 type Message = { role: 'system' | 'user' | 'assistant'; content: string };
@@ -26,11 +32,18 @@ export type OpenAICompatibleOptions = {
   models: string[];
   /** Esfuerzo de razonamiento (modelos que lo admiten, p. ej. Gemini 3): menos = más rápido. */
   reasoningEffort?: string;
+  /** Tope de cada llamada al proveedor. */
   timeoutMs?: number;
+  /** Tiempo total del pedido para toda la cadena de modelos (sin él, sólo el tope por llamada). */
+  budgetMs?: number;
   fetch?: typeof fetch;
 };
 
 const RETRYABLE_MODEL_ERRORS = new Set([404, 500, 502, 503, 504]);
+/** Parte del tiempo que usa un modelo cuando le sigue otro (el resto queda para el respaldo). */
+const PRIMARY_SHARE = 0.6;
+/** Con menos tiempo que esto no vale la pena llamar al proveedor. */
+const MIN_CALL_MS = 1500;
 
 export class OpenAICompatibleModel implements AssistantModel, TaskModel {
   readonly mode = 'ai' as const;
@@ -45,17 +58,17 @@ export class OpenAICompatibleModel implements AssistantModel, TaskModel {
   }
 
   respond(input: ModelInput): Promise<ModelResult> {
-    return this.withModels((model) => this.respondWith(model, input));
+    return this.withModels((model, until) => this.respondWith(model, input, until));
   }
 
   /** Tarea con respuesta JSON validada (una corrección si no cumple el schema). */
   generate<T>(task: TaskInput<T>): Promise<T> {
-    return this.withModels(async (model) => {
+    return this.withModels(async (model, until) => {
       const conversation: Message[] = [
         { role: 'system', content: `${task.system}\n\nResponde SOLO con un objeto JSON válido.` },
         { role: 'user', content: task.prompt },
       ];
-      const first = await this.complete(model, conversation, true, task.maxTokens);
+      const first = await this.complete(model, conversation, true, task.maxTokens, until);
       const parsed = task.schema.safeParse(extractJson(first.text));
       if (parsed.success) return parsed.data;
       const retry = await this.complete(
@@ -63,6 +76,7 @@ export class OpenAICompatibleModel implements AssistantModel, TaskModel {
         [...conversation, { role: 'assistant', content: first.text.slice(0, 8000) }, { role: 'user', content: `La respuesta no cumple el formato: ${parsed.error.issues.slice(0, 3).map((i) => `${i.path.join('.')}: ${i.message}`).join('; ')}. Responde de nuevo SOLO con el objeto JSON corregido.` }],
         true,
         task.maxTokens,
+        until,
       );
       const second = task.schema.safeParse(extractJson(retry.text));
       if (second.success) return second.data;
@@ -71,12 +85,18 @@ export class OpenAICompatibleModel implements AssistantModel, TaskModel {
   }
 
   /** Cadena de respaldo: si un modelo agota su cuota o no está disponible, se usa el siguiente. */
-  private async withModels<R>(run: (model: string) => Promise<R>): Promise<R> {
+  private async withModels<R>(run: (model: string, until: number) => Promise<R>): Promise<R> {
     let quotaHit = false;
     let lastError: unknown = null;
-    for (const model of this.options.models) {
+    const { models, budgetMs } = this.options;
+    const deadline = budgetMs ? Date.now() + budgetMs : Number.POSITIVE_INFINITY;
+    for (const [index, model] of models.entries()) {
+      const remaining = deadline - Date.now();
+      if (remaining < MIN_CALL_MS) break;
+      // Si hay otro modelo después, éste no puede gastarse todo el tiempo.
+      const until = index < models.length - 1 && Number.isFinite(remaining) ? Date.now() + remaining * PRIMARY_SHARE : deadline;
       try {
-        return await run(model);
+        return await run(model, until);
       } catch (error) {
         lastError = error;
         if (error instanceof QuotaExceededError) quotaHit = true;
@@ -85,17 +105,18 @@ export class OpenAICompatibleModel implements AssistantModel, TaskModel {
       }
     }
     if (quotaHit) throw new QuotaExceededError(`Se agotó la cuota de ${this.options.provider}.`);
+    if (!lastError && models.length) throw new ProviderError(`${this.options.provider} no respondió (tiempo agotado).`, 504);
     throw lastError ?? new ProviderError('No hay modelos configurados.', 500);
   }
 
-  private async respondWith(model: string, { messages, context, tools, locale }: ModelInput): Promise<ModelResult> {
+  private async respondWith(model: string, { messages, context, tools, locale }: ModelInput, until: number): Promise<ModelResult> {
     const conversation: Message[] = [
       { role: 'system', content: jsonSystemPrompt(tools?.specs, context.mode, locale) },
       ...messages.map((m, i) => ({ role: m.role, content: i === messages.length - 1 && m.role === 'user' ? userTurn(m.content, context) : m.content })),
     ];
 
     // Bucle de herramientas: el modelo puede consultar (productos, imágenes…) antes de responder.
-    let completion = await this.complete(model, conversation);
+    let completion = await this.complete(model, conversation, true, undefined, until);
     for (let round = 1; round < MAX_TOOL_ROUNDS && tools; round++) {
       const calls = toolCalls(completion.text);
       if (calls.length === 0) break;
@@ -109,14 +130,15 @@ export class OpenAICompatibleModel implements AssistantModel, TaskModel {
           content: `Resultados de herramientas:\n${JSON.stringify(results).slice(0, 24_000)}\n${last ? 'Responde AHORA con la respuesta final (message, actions, suggestions); ya no hay más herramientas.' : 'Continúa: llama más herramientas si hace falta o responde con la respuesta final.'}`,
         },
       );
-      completion = await this.complete(model, conversation);
+      completion = await this.complete(model, conversation, true, undefined, until);
     }
 
     let parsed = parse(completion.text, context.mode);
     if (completion.truncated) parsed.errors.push('La respuesta fue demasiado larga y se cortó.');
 
     // Una corrección: JSON inválido o acciones que no pasaron la validación.
-    if (parsed.errors.length > 0 && !completion.truncated) {
+    // Sin tiempo para corregir, queda la primera respuesta (con sus avisos).
+    if (parsed.errors.length > 0 && !completion.truncated && until - Date.now() > MIN_CALL_MS) {
       const retry = await this.complete(model, [
         ...conversation,
         { role: 'assistant', content: completion.text.slice(0, 20_000) },
@@ -124,14 +146,19 @@ export class OpenAICompatibleModel implements AssistantModel, TaskModel {
           role: 'user',
           content: `Tu respuesta tuvo estos problemas y esas acciones se descartaron:\n${parsed.errors.join('\n')}\nResponde de nuevo SOLO con el objeto JSON final completo y corregido (message, actions, suggestions), sin tool_calls.`,
         },
-      ]);
-      const second = parse(retry.text, context.mode);
-      if (second.errors.length < parsed.errors.length || (second.result.actions.length > parsed.result.actions.length && second.errors.length <= parsed.errors.length)) parsed = second;
+      ], true, undefined, until).catch((error: unknown) => {
+        if (error instanceof ProviderError && error.status === 504) return null;
+        throw error;
+      });
+      const second = retry ? parse(retry.text, context.mode) : null;
+      if (second && (second.errors.length < parsed.errors.length || (second.result.actions.length > parsed.result.actions.length && second.errors.length <= parsed.errors.length))) parsed = second;
     }
     return { ...parsed.result, mode: this.mode, provider: this.options.provider, model, warnings: parsed.errors };
   }
 
-  private async complete(model: string, messages: Message[], jsonMode = true, maxTokens = 8192): Promise<{ text: string; truncated: boolean }> {
+  private async complete(model: string, messages: Message[], jsonMode = true, maxTokens = 8192, until = Number.POSITIVE_INFINITY): Promise<{ text: string; truncated: boolean }> {
+    const timeout = Math.min(this.options.timeoutMs ?? 60_000, until - Date.now());
+    if (timeout < MIN_CALL_MS) throw new ProviderError(`${this.options.provider} no respondió (tiempo agotado).`, 504);
     const body: Record<string, unknown> = { model, messages, temperature: 0.4, max_tokens: maxTokens };
     if (jsonMode) body.response_format = { type: 'json_object' };
     if (this.options.reasoningEffort) body.reasoning_effort = this.options.reasoningEffort;
@@ -142,7 +169,7 @@ export class OpenAICompatibleModel implements AssistantModel, TaskModel {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.options.apiKey}` },
         body: JSON.stringify(body),
-        signal: AbortSignal.timeout(this.options.timeoutMs ?? 60_000),
+        signal: AbortSignal.timeout(timeout),
       });
     } catch (error) {
       throw new ProviderError(`${this.options.provider} no respondió (${(error as Error).name === 'TimeoutError' ? 'tiempo agotado' : 'sin conexión'}).`, 504);
@@ -151,7 +178,7 @@ export class OpenAICompatibleModel implements AssistantModel, TaskModel {
     if (!response.ok) {
       const detail = (await response.text().catch(() => '')).slice(0, 300);
       // Algunos proveedores no admiten response_format: reintentar sin modo JSON (el prompt ya exige JSON).
-      if (response.status === 400 && jsonMode && /response_format|json/i.test(detail)) return this.complete(model, messages, false, maxTokens);
+      if (response.status === 400 && jsonMode && /response_format|json/i.test(detail)) return this.complete(model, messages, false, maxTokens, until);
       if (response.status === 429) throw new QuotaExceededError(`${this.options.provider}: límite de uso alcanzado (${model}).`);
       if (response.status === 401 || response.status === 403) throw new ProviderError(`La clave de ${this.options.provider} no es válida o no tiene acceso a ${model}.`, 401);
       throw new ProviderError(`${this.options.provider} respondió ${response.status} con ${model}: ${detail}`, response.status);

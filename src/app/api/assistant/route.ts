@@ -10,7 +10,11 @@ import { resolveMediaQueries } from '@/features/assistant/server/resolve-media';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+// El modelo tiene LLM_BUDGET_MS; el resto es para leer el sitio y buscar e importar fotos.
+export const maxDuration = 90;
+const LLM_BUDGET_MS = 55_000;
+/** Después de esto ya no se buscan fotos libres: la respuesta sale sin ellas. */
+const STOCK_UNTIL_MS = 72_000;
 
 /** El editor manda el contexto del sitio (páginas, secciones): más grande que un pedido del panel. */
 const MAX_BODY = 200_000;
@@ -31,6 +35,7 @@ const requestSchema = z.object({
  * aquí es aditiva: importar a la biblioteca las fotos libres que el pedido usa.
  */
 export async function POST(request: NextRequest) {
+  const startedAt = Date.now();
   // Sesión, permiso de edición, límites y cuerpo validado; el idioma de la app del usuario
   // traduce los errores y el modelo le responde en ese idioma.
   const guarded = await guardAssistantRequest(request, requestSchema, {
@@ -50,15 +55,17 @@ export async function POST(request: NextRequest) {
   const { runner, toolContext } = createToolRunner(ctx, messages);
 
   try {
-    const result = await getAssistantModel().respond({ messages, context, tools: runner, locale });
+    const result = await getAssistantModel(process.env, { budgetMs: LLM_BUDGET_MS }).respond({ messages, context, tools: runner, locale });
     // Imágenes pedidas por descripción ("una foto de comida") → rutas reales de la biblioteca.
     // Fotos libres (CC0) cuando la biblioteca no tiene lo pedido. Si la búsqueda es muy específica
     // ("laboratory dark scary") y no hay resultados, se reintenta con menos palabras.
     const stock = async (query: string, count: number) => {
+      if (Date.now() - startedAt > STOCK_UNTIL_MS) return [];
       const words = query.trim().split(/\s+/);
       const attempts = [...new Set([words.join(' '), words.slice(0, 2).join(' '), words[0]])].filter((q) => q.length >= 2);
       let results: { ref: string }[] = [];
       for (const attempt of attempts) {
+        if (Date.now() - startedAt > STOCK_UNTIL_MS) break;
         const search = await runner.run('search_stock_images', { query: attempt.slice(0, 80), limit: Math.min(count + 2, 8) });
         results = search.ok ? (search.result as { results: { ref: string }[] }).results : [];
         if (results.length) break;
