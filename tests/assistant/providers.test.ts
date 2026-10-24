@@ -110,6 +110,44 @@ describe('Garfield AI · proveedor compatible con OpenAI (Gemini)', () => {
     assert.equal(result.actions[0].action, 'create_section');
   });
 
+  it('modelo principal lento: dentro del tiempo total responde el de respaldo', async () => {
+    const calls: string[] = [];
+    // El primero no contesta (se queda esperando hasta que lo cortan); el segundo, al instante.
+    const impl = (async (_url: string, init: RequestInit) => {
+      const model = String(JSON.parse(String(init.body)).model);
+      calls.push(model);
+      if (model === 'gemini-3.8-flash') return new Promise((_, reject) => init.signal?.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'TimeoutError' }))));
+      return Response.json({ choices: [{ message: { role: 'assistant', content: valid }, finish_reason: 'stop' }] });
+    }) as unknown as typeof fetch;
+    const model = new OpenAICompatibleModel({ provider: 'gemini', baseUrl: 'https://ai.test/v1', apiKey: 'k', models: ['gemini-3.8-flash', 'gemini-3.5-flash-lite'], budgetMs: 4000, fetch: impl });
+    const started = Date.now();
+    const result = await model.respond(input('Agrega contacto al final'));
+    const elapsed = Date.now() - started;
+    assert.deepEqual(calls, ['gemini-3.8-flash', 'gemini-3.5-flash-lite']);
+    assert.equal(result.model, 'gemini-3.5-flash-lite');
+    assert.ok(elapsed >= 2000 && elapsed < 3500, `el principal tuvo ~60 % del tiempo (${elapsed} ms)`);
+  });
+
+  it('sin tiempo para ningún modelo: el intérprete local responde y lo avisa (antes de que corten la función)', async () => {
+    const impl = (async (_url: string, init: RequestInit) =>
+      new Promise((_, reject) => init.signal?.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'TimeoutError' }))))) as unknown as typeof fetch;
+    const model = new OpenAICompatibleModel({ provider: 'gemini', baseUrl: 'https://ai.test/v1', apiKey: 'k', models: ['m1', 'm2'], budgetMs: 3500, fetch: impl });
+    const started = Date.now();
+    const result = await new HybridModel(model, 'llm-first').respond(input('Agrega una sección de contacto al final'));
+    assert.ok(Date.now() - started < 3700, 'respeta el tiempo total');
+    assert.equal(result.mode, 'basic');
+    assert.match(result.message, /no respondió/);
+    assert.equal(result.actions[0].action, 'create_section');
+  });
+
+  it('tarea con tiempo total: si no alcanza, la versión sin IA', async () => {
+    const impl = (async (_url: string, init: RequestInit) =>
+      new Promise((_, reject) => init.signal?.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'TimeoutError' }))))) as unknown as typeof fetch;
+    const model = new OpenAICompatibleModel({ provider: 'gemini', baseUrl: 'https://ai.test/v1', apiKey: 'k', models: ['m1'], budgetMs: 2000, fetch: impl });
+    const outcome = await withFallback(model, (m) => m.generate({ system: 's', prompt: 'p', schema: z.object({ ok: z.boolean() }) }), () => ({ ok: false }));
+    assert.deepEqual(outcome, { result: { ok: false }, mode: 'basic', notice: 'El servicio de IA no respondió: te dejo una versión sin IA.' });
+  });
+
   it('el intérprete local funciona sin proveedor', async () => {
     const result = await new HybridModel(null).respond(input('Haz que el encabezado sea más elegante'));
     assert.equal(result.mode, 'basic');

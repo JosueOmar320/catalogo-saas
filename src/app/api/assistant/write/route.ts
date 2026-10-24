@@ -9,7 +9,9 @@ import { parseCatalogSettings } from '@/lib/catalog/settings';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const maxDuration = 30;
+// El modelo tiene LLM_BUDGET_MS (si el principal tarda, responde el de respaldo o la versión sin IA).
+export const maxDuration = 60;
+const LLM_BUDGET_MS = 40_000;
 
 /**
  * "Escribir con Garfield": propone textos para un campo de un formulario del
@@ -39,7 +41,7 @@ export async function POST(request: NextRequest) {
   };
 
   try {
-    const { result, mode, notice } = await withFallback(getTaskModel(), (model) => writeWithModel(model, context), () => writeWithoutModel(context));
+    const { result, mode, notice } = await withFallback(getTaskModel(process.env, { budgetMs: LLM_BUDGET_MS }), (model) => writeWithModel(model, context), () => writeWithoutModel(context));
     if (result.length === 0) return NextResponse.json({ error: t('Me faltan datos para escribir algo útil. Completa el nombre o la descripción y vuelve a intentarlo.') }, { status: 422 });
     return NextResponse.json({ options: result, mode, notice: notice && t(notice) }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
