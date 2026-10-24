@@ -372,6 +372,8 @@ const catalog: Catalog = {
   '{business} también recibe una copia de tu pedido en su panel para darle seguimiento.': '{business} also gets a copy of your order in their dashboard to follow it up.',
   '¿Qué te pareció {business}?': 'How was your experience with {business}?',
   'Respuesta de {business}': 'Reply from {business}',
+  'Tu WhatsApp (opcional)': 'Your WhatsApp (optional)',
+  'Para que {business} te avise cuando tu pedido esté listo.': 'So {business} can let you know when your order is ready.',
 };
 
 export default catalog;

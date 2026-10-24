@@ -1,7 +1,7 @@
 'use client';
 
 import { Alert, Box, Button, Chip, IconButton, MenuItem, Stack, Tab, Tabs, TextField, Tooltip, Typography } from '@mui/material';
-import { Download, MapPin, MessageSquareText, ShoppingBag, Store, Trash2, Utensils } from 'lucide-react';
+import { Download, MapPin, MessageCircle, MessageSquareText, ShoppingBag, Store, Trash2, Utensils } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -12,6 +12,7 @@ import { SectionCard } from '@/components/ui/SectionCard';
 import { useT } from '@/i18n/client';
 import { msg } from '@/i18n/translate';
 import { useAction } from '@/lib/hooks/use-action';
+import { customerWhatsappLink, FREQUENT_FROM, orderUpdateMessage } from '@/lib/orders/customers';
 import { FULFILLMENT_LABELS, NEXT_STATUS, ORDER_RANGES, ORDER_STATUS_LABELS, ORDER_TABS, paymentLabel, type OrderTab } from '@/lib/orders/inbox';
 import { formatPrice, formatRelative } from '@/lib/utils/format';
 import type { OrderStatus } from '@/types/database';
@@ -40,9 +41,14 @@ type Props = {
   pageSize: number;
   /** Con reseñas activas: enlace `?opinar` para pedirle una al cliente cuando recibe su pedido. */
   reviewInvite: { url: string; businessName: string } | null;
+  businessName: string;
+  /** WhatsApp del negocio: su lada completa el número del cliente si lo escribió sin ella. */
+  businessWhatsapp: string;
+  /** Pedidos (no cancelados) de cada cliente de la lista, por customer_key. */
+  customerOrders: Record<string, number>;
 };
 
-export function OrdersBoard({ tab, days, query, orders: initial, newCount, enabled, canManage, locale, priceLocale, now, pageSize, reviewInvite }: Props) {
+export function OrdersBoard({ tab, days, query, orders: initial, newCount, enabled, canManage, locale, priceLocale, now, pageSize, reviewInvite, businessName, businessWhatsapp, customerOrders }: Props) {
   const t = useT();
   const router = useRouter();
   const pathname = usePathname();
@@ -130,6 +136,10 @@ export function OrdersBoard({ tab, days, query, orders: initial, newCount, enabl
           {orders.map((order) => {
             const next = NEXT_STATUS[order.status];
             const FulfillmentIcon = order.fulfillment ? FULFILLMENT_ICON[order.fulfillment] : null;
+            const visits = order.customer_key ? (customerOrders[order.customer_key] ?? 0) : 0;
+            const notify = customerWhatsappLink(order.customer_phone, businessWhatsapp, orderUpdateMessage(t, order.status, { name: order.customer_name, reference: order.reference, business: businessName }));
+            const reviewText = reviewInvite && reviewInviteMessage(t, reviewInvite.businessName, reviewInvite.url);
+            const reviewHref = reviewText && (customerWhatsappLink(order.customer_phone, businessWhatsapp, reviewText) ?? `https://wa.me/?text=${encodeURIComponent(reviewText)}`);
             const details = [
               order.fulfillment && `${t(FULFILLMENT_LABELS[order.fulfillment])}${order.zone ? ` · ${order.zone}` : ''}`,
               order.address,
@@ -148,8 +158,20 @@ export function OrdersBoard({ tab, days, query, orders: initial, newCount, enabl
                     <Chip size="small" color={STATUS_COLOR[order.status]} label={t(ORDER_STATUS_LABELS[order.status])} />
                     {FulfillmentIcon && <FulfillmentIcon size={15} aria-hidden />}
                     <Typography variant="body2" color="text.secondary" sx={{ flex: 1 }}>
-                      {order.customer_name || (order.personal_data_cleared ? t('Datos del cliente borrados (180 días)') : t('Sin nombre'))} · {formatRelative(order.created_at, locale, now)}
+                      {order.customer_name || (order.personal_data_cleared ? t('Datos del cliente borrados (180 días)') : t('Sin nombre'))}
+                      {order.customer_phone && ` · ${order.customer_phone}`} · {formatRelative(order.created_at, locale, now)}
                     </Typography>
+                    {visits >= FREQUENT_FROM && (
+                      <Chip
+                        size="small"
+                        variant="outlined"
+                        color="primary"
+                        component={Link}
+                        href={`/dashboard/clientes?q=${encodeURIComponent(order.customer_phone ?? order.customer_name ?? '')}`}
+                        clickable
+                        label={t('Cliente frecuente · {count} pedidos', { count: visits })}
+                      />
+                    )}
                     <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                       {money(order, order.total)}
                       {order.partial && <Typography component="span" variant="caption" color="text.secondary"> {t('+ por confirmar')}</Typography>}
@@ -178,8 +200,13 @@ export function OrdersBoard({ tab, days, query, orders: initial, newCount, enabl
                     {next && <Button size="small" variant="contained" disabled={pending} onClick={() => setStatus(order, next.status)}>{t(next.label)}</Button>}
                     {order.status !== 'cancelled' && order.status !== 'delivered' && <Button size="small" color="inherit" disabled={pending} onClick={() => setStatus(order, 'cancelled')}>{t('Cancelar pedido')}</Button>}
                     {(order.status === 'cancelled' || order.status === 'delivered') && <Button size="small" color="inherit" disabled={pending} onClick={() => setStatus(order, 'new')}>{t('Volver a nuevo')}</Button>}
-                    {order.status === 'delivered' && reviewInvite && (
-                      <Button size="small" color="inherit" startIcon={<MessageSquareText size={14} />} href={`https://wa.me/?text=${encodeURIComponent(reviewInviteMessage(t, reviewInvite.businessName, reviewInvite.url))}`} target="_blank" rel="noopener noreferrer">
+                    {notify && order.status !== 'delivered' && (
+                      <Button size="small" color="inherit" startIcon={<MessageCircle size={14} />} href={notify} target="_blank" rel="noopener noreferrer">
+                        {t('Avisar por WhatsApp')}
+                      </Button>
+                    )}
+                    {order.status === 'delivered' && reviewHref && (
+                      <Button size="small" color="inherit" startIcon={<MessageSquareText size={14} />} href={reviewHref} target="_blank" rel="noopener noreferrer">
                         {t('Pedir reseña')}
                       </Button>
                     )}

@@ -120,6 +120,8 @@ export const orderSchema = z.object({
   intro: z.string().trim().max(200).default('Hola {negocio}, quiero hacer este pedido:'),
   /** Pide (opcional) el nombre de quien hace el pedido. */
   askName: z.boolean().default(true),
+  /** Pide (opcional) el WhatsApp del cliente: sólo se guarda en la bandeja (lista de clientes y avisos), no va en el mensaje. */
+  askPhone: z.boolean().default(true),
   /** Bandeja de pedidos: cada pedido enviado queda también en el panel (para darle seguimiento). */
   inbox: z.boolean().default(true),
   /** Al confirmar un pedido de la bandeja se descuentan las existencias (y se devuelven si se cancela). */

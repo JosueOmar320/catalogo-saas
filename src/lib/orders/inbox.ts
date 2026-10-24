@@ -50,6 +50,7 @@ type CsvOrder = {
   created_at: string;
   status: OrderStatus;
   customer_name: string | null;
+  customer_phone?: string | null;
   fulfillment: keyof typeof FULFILLMENT_LABELS | null;
   address: string | null;
   zone: string | null;
@@ -74,12 +75,13 @@ const amount = (value: number | null) => (value === null ? '' : Number(value).to
 export function ordersCsv(t: Translator, orders: CsvOrder[], timeZone = 'UTC'): string {
   const when = new Intl.DateTimeFormat('sv-SE', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
   return toCsv([
-    [t('Folio'), t('Fecha'), t('Estado'), t('Cliente'), t('Entrega'), t('Dirección'), t('Zona'), t('Sucursal'), t('Mesa'), t('Para'), t('Pago'), t('Cupón'), t('Productos'), t('Subtotal'), t('Descuento'), t('Envío'), t('Propina'), t('Total'), t('Moneda'), t('Nota')],
+    [t('Folio'), t('Fecha'), t('Estado'), t('Cliente'), t('WhatsApp'), t('Entrega'), t('Dirección'), t('Zona'), t('Sucursal'), t('Mesa'), t('Para'), t('Pago'), t('Cupón'), t('Productos'), t('Subtotal'), t('Descuento'), t('Envío'), t('Propina'), t('Total'), t('Moneda'), t('Nota')],
     ...orders.map((order) => [
       order.reference,
       when.format(new Date(order.created_at)),
       t(ORDER_STATUS_LABELS[order.status]),
       order.customer_name ?? '',
+      order.customer_phone ?? '',
       order.fulfillment ? t(FULFILLMENT_LABELS[order.fulfillment]) : '',
       order.address ?? '',
       order.zone ?? '',

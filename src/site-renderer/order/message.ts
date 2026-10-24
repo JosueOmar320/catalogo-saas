@@ -463,6 +463,8 @@ export function buildOrderMessage({ lines, pricing, intro, businessName, custome
 export type InboxOrder = {
   reference: string;
   customerName: string;
+  /** WhatsApp que dio el cliente (lo limpia el servidor); no va en el mensaje. */
+  customerPhone: string;
   fulfillment: Fulfillment | 'table' | '';
   address: string;
   zone: string;
@@ -482,7 +484,7 @@ export type InboxOrder = {
   lines: { itemId: string; name: string; qty: number; unitPrice: number | null; note: string }[];
 };
 
-export function inboxOrder({ lines, pricing, customerName, note, options = NO_OPTIONS, choices = NO_CHOICES, now, reference }: Omit<OrderMessageInput, 'intro' | 'businessName' | 'siteUrl' | 't'>): InboxOrder | null {
+export function inboxOrder({ lines, pricing, customerName, customerPhone = '', note, options = NO_OPTIONS, choices = NO_CHOICES, now, reference }: Omit<OrderMessageInput, 'intro' | 'businessName' | 'siteUrl' | 't'> & { customerPhone?: string }): InboxOrder | null {
   if (!reference || lines.length === 0) return null;
   const summary = summarizeOrder(lines, pricing, options, choices, now);
   const table = summary.table;
@@ -491,6 +493,7 @@ export function inboxOrder({ lines, pricing, customerName, note, options = NO_OP
   return {
     reference,
     customerName: customerName?.trim() ?? '',
+    customerPhone: customerPhone.trim().slice(0, 20),
     fulfillment,
     address: fulfillment === 'delivery' ? choices.address.trim() : '',
     zone: summary.zone?.name ?? '',

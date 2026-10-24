@@ -211,6 +211,10 @@ type OrderRow = {
   reference: string;
   status: OrderStatus;
   customer_name: string | null;
+  /** WhatsApp que dio el cliente (dígitos y "+" inicial); se borra a los 180 días. */
+  customer_phone: string | null;
+  /** A quién pertenece el pedido (columna generada): "tel:<10 dígitos>" o "name:<nombre>". */
+  customer_key: string | null;
   fulfillment: 'pickup' | 'delivery' | 'table' | null;
   address: string | null;
   zone: string | null;
@@ -266,6 +270,19 @@ type NotificationLogRow = {
 /** Inserción: columnas con default son opcionales. */
 type InsertOf<Row, Required extends keyof Row> = Pick<Row, Required> & Partial<Omit<Row, Required>>;
 
+type CustomerSummaryRow = {
+  business_id: string;
+  key: string;
+  name: string | null;
+  phone: string | null;
+  orders: number;
+  delivered: number;
+  spent: number;
+  currency: string;
+  first_order_at: string;
+  last_order_at: string;
+};
+
 type Table<Row, Required extends keyof Row> = {
   Row: Row;
   Insert: InsertOf<Row, Required>;
@@ -310,7 +327,10 @@ export type Database = {
       orders: Table<OrderRow, 'business_id' | 'reference' | 'lines'>;
       notification_log: Table<NotificationLogRow, 'user_id' | 'business_id' | 'kind'>;
     };
-    Views: { [_ in never]: never };
+    Views: {
+      /** Clientes del negocio armados con los pedidos (RLS de orders). */
+      customer_summaries: { Row: CustomerSummaryRow; Relationships: [] };
+    };
     Functions: {
       is_business_slug_available: { Args: { p_slug: string }; Returns: boolean };
       is_platform_admin: { Args: Record<string, never>; Returns: boolean };
