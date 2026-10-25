@@ -58,8 +58,7 @@ describe('Dominio propio', () => {
       pages: [{ catalog_id: 'c1', slug: 'menu', is_home: false, seo: {}, updated_at: '2026-10-01' }],
       items: [{ catalog_id: 'c1', slug: 'latte', updated_at: '2026-10-01' }],
     }).map((e) => e.url);
-    assert.ok(urls.includes('https://mitienda.com') && urls.includes('https://mitienda.com/menu') && urls.includes('https://mitienda.com/p/latte'));
-    assert.ok(urls.some((u) => u.endsWith('/catalogo/pan')));
-    assert.ok(!urls.some((u) => u.includes('/catalogo/cafe')));
+    // Las del negocio con dominio, en su dominio; las del otro, en la plataforma.
+    assert.deepEqual(urls, ['https://mitienda.com', catalogUrl('pan'), 'https://mitienda.com/menu', 'https://mitienda.com/p/latte']);
   });
 });
