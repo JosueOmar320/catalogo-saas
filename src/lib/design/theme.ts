@@ -223,7 +223,7 @@ function buildThemeSchema(lenient: boolean) {
         showAvailability: bool(true),
         showSku: bool(false),
         button: f(z.enum(['none', 'solid', 'link', 'icon']), 'solid'),
-        hover: f(z.enum(['none', 'lift', 'zoom', 'shadow']), 'zoom'),
+        hover: f(z.enum(['none', 'lift', 'zoom', 'shadow', 'swap']), 'zoom'),
       })
       .prefault({}),
     badges: z

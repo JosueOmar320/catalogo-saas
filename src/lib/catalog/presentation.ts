@@ -8,7 +8,7 @@ import { msg } from '@/i18n/translate';
  * La comparten las secciones web (Productos, Servicios, Catálogo) y los
  * bloques del PDF. Cada destino la dibuja con su propio renderer.
  */
-export const PRODUCT_LAYOUTS = ['grid', 'largeCards', 'compactList', 'editorial', 'imageFocus', 'priceList', 'zigzag', 'detail', 'magazine', 'compactGrid', 'minimal', 'comparison'] as const;
+export const PRODUCT_LAYOUTS = ['grid', 'largeCards', 'compactList', 'editorial', 'imageFocus', 'priceList', 'zigzag', 'detail', 'magazine', 'compactGrid', 'minimal', 'comparison', 'serviceCards'] as const;
 export type ProductLayout = (typeof PRODUCT_LAYOUTS)[number];
 
 export const IMAGE_SHAPES = ['rect', 'rounded', 'circle', 'arch'] as const;
@@ -26,6 +26,7 @@ export const PRODUCT_LAYOUT_META: Record<ProductLayout, { label: string; descrip
   compactGrid: { label: msg('Cuadrícula compacta'), description: msg('Muchas tarjetas pequeñas por fila. Catálogos grandes.') },
   minimal: { label: msg('Minimalista'), description: msg('Sólo foto, nombre y precio, sin tarjeta.') },
   comparison: { label: msg('Comparación'), description: msg('Tabla con precio y atributos lado a lado.') },
+  serviceCards: { label: msg('Tarjetas de servicio'), description: msg('Cada servicio con lo que incluye en lista, su precio y botón. Ideal para servicios.') },
 };
 
 /** Qué opciones tienen sentido en cada layout (la interfaz sólo muestra éstas). */
@@ -44,6 +45,7 @@ export const LAYOUT_OPTIONS: Record<ProductLayout, PresentationOption[]> = {
   compactGrid: ['columns', 'gap', 'ratio', 'shape', 'align', 'cardStyle'],
   minimal: ['columns', 'gap', 'ratio', 'shape', 'align'],
   comparison: ['imageSize', 'shape'],
+  serviceCards: ['columns', 'gap', 'imageSize', 'shape', 'align', 'cardStyle'],
 };
 
 function build(lenient: boolean) {

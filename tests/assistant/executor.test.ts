@@ -329,6 +329,22 @@ describe('Garfield AI · imágenes y catálogo', () => {
     assert.deepEqual(manual.content.collection.itemIds, items.map((i) => i.id));
   });
 
+  it('la sección Producto entiende el producto por su nombre (y si no existe, queda en automático)', () => {
+    const site = buildSampleSite();
+    const item = site.items[1];
+    const plan = planAssistantActions(
+      sampleState(),
+      actions([
+        { action: 'create_section', section: { type: 'product', content: { itemId: item.name, layout: 'card' } } },
+        { action: 'create_section', section: { type: 'product', content: { itemId: 'No existe' } } },
+      ]),
+      { categories: site.categories, items: site.items },
+    );
+    const [named, missing] = page(plan.next).sections.filter((x) => x.type === 'product');
+    assert.ok(named.type === 'product' && named.content.itemId === item.id && named.content.layout === 'card');
+    assert.ok(missing.type === 'product' && missing.content.itemId === '');
+  });
+
   it('borrar productos pide confirmación', () => {
     const plan = planAssistantActions(sampleState(), actions([{ action: 'delete_product', product: 'Frappé' }]));
     assert.equal(plan.steps[0].risk, 'confirm');

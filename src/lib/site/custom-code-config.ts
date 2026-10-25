@@ -36,6 +36,8 @@ export function isFullDocument(code: string) {
  * «Widget con código» a pantalla completa.
  */
 export const needsFullPageWidget = (code: string) => isFullDocument(code) || /<\s*(script|head|body)\b/i.test(code) || /cdn\.tailwindcss\.com|<link\b[^>]*stylesheet/i.test(code);
+/** Trae su propio menú o pie (entonces puede reemplazar a los del sitio a pantalla completa). */
+export const hasOwnChrome = (code: string) => /<\s*(nav|header|footer)\b/i.test(code);
 export const MAX_CSS_LENGTH = 20_000;
 /** Atributo de la raíz del sitio: el CSS propio queda limitado a ella. */
 export const SITE_SCOPE = '[data-site]';
@@ -59,7 +61,13 @@ export function removedByCleaning(html: string): ('scripts' | 'events' | 'forms'
 }
 
 export const EMBED_MESSAGE = 'vitrina:embed-height';
+/** Del sitio al widget en línea: qué parte de él se ve (`top`: desde dónde, `height`: alto de la ventana visible). */
+export const EMBED_VIEWPORT = 'vitrina:embed-viewport';
+/** Del widget al sitio: desplazar la página hasta `top` (px desde el inicio del widget). Sólo tras un clic en el widget. */
+export const EMBED_SCROLL = 'vitrina:embed-scroll';
+/** Alto máximo del widget en línea (una página completa dentro de la página del sitio puede ser larga). */
+export const MAX_EMBED_HEIGHT = 30_000;
 /** Permisos del iframe: scripts y ventanas nuevas, NUNCA allow-same-origin ni allow-top-navigation. */
 export const EMBED_SANDBOX = 'allow-scripts allow-popups allow-popups-to-escape-sandbox allow-forms';
 
-export const clampEmbedHeight = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) ? Math.min(4000, Math.max(40, Math.round(value))) : null);
+export const clampEmbedHeight = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) ? Math.min(MAX_EMBED_HEIGHT, Math.max(40, Math.round(value))) : null);

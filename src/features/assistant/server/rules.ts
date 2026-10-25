@@ -108,6 +108,7 @@ const PAGE_WORDS: [string[], PageBlueprintId, string][] = [
 type SectionIntent = { type: SectionType; content: Record<string, unknown>; style?: Record<string, unknown> };
 
 const SECTION_WORDS: [string[], () => SectionIntent[]][] = [
+  [['producto del mes', 'producto destacado', 'producto estrella', 'servicio estrella', 'servicio destacado', 'un solo producto', 'producto en especifico', 'un producto especifico'], () => [{ type: 'product', content: { eyebrow: 'Producto del mes' } }]],
   [['imagen y texto', 'imagen con texto', 'texto e imagen', 'texto con imagen', 'foto y texto', 'foto con texto'], () => [{ type: 'columns', content: columnPreset('imageText') }]],
   [['tres tarjetas', '3 tarjetas', 'tarjetas de servicios', 'tarjetas con iconos'], () => [{ type: 'columns', content: columnPreset('threeCards') }]],
   [['proceso', 'pasos', 'como trabajamos', 'como funciona'], () => [{ type: 'columns', content: { title: '¿Cómo trabajamos?', ...columnPreset('steps') } }]],
@@ -145,6 +146,7 @@ const SECTION_WORDS: [string[], () => SectionIntent[]][] = [
 const LAYOUT_WORDS: [string[], string][] = [
   [['lista de precios', 'menu con precios', 'tarifario'], 'priceList'],
   [['zigzag', 'alternad'], 'zigzag'],
+  [['tarjetas de servicio', 'tarjetas de servicios', 'lo que incluye'], 'serviceCards'],
   [['tarjetas grandes'], 'largeCards'],
   [['revista'], 'magazine'],
   [['comparacion', 'comparativa', 'tabla comparativa', 'comparar'], 'comparison'],

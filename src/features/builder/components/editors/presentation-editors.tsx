@@ -1,8 +1,9 @@
 'use client';
 
-import { Autocomplete, Box, ButtonBase, Chip, Stack, TextField, Typography } from '@mui/material';
+import { Autocomplete, Avatar, Box, ButtonBase, Chip, IconButton, Stack, TextField, Typography } from '@mui/material';
+import { ArrowDown, ArrowUp, X } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { COLLECTION_LABELS, COLLECTION_SOURCES, SORT_LABELS, SORT_OPTIONS, type Collection } from '@/lib/catalog/collections';
+import { COLLECTION_LABELS, COLLECTION_SOURCES, resolveCollection, SORT_LABELS, SORT_OPTIONS, type Collection } from '@/lib/catalog/collections';
 import { layoutUses, PRODUCT_LAYOUT_META, PRODUCT_LAYOUTS, type Presentation, type ProductLayout } from '@/lib/catalog/presentation';
 import { CARD_STYLE_META, CARD_STYLES } from '@/lib/design/styles-registry';
 import type { SiteViewModel } from '@/lib/site/view-model';
@@ -80,6 +81,15 @@ const THUMBS: Record<ProductLayout, ReactNode> = {
       <B x={5 + c * 15.5} y={30} w={7} h={2} o={0.35} r={1} />
     </g>
   )),
+  serviceCards: [0, 1, 2].map((c) => (
+    <g key={c}>
+      <B x={2 + c * 15.5} y={2} w={13} h={32} o={0.18} />
+      <B x={4 + c * 15.5} y={4.5} w={5} h={5} o={0.5} r={1} />
+      <B x={4 + c * 15.5} y={12} w={9} h={2} o={0.6} r={1} />
+      {[0, 1, 2].map((r) => <B key={r} x={4 + c * 15.5} y={17 + r * 3.5} w={8} h={1.5} o={0.35} r={0.75} />)}
+      <B x={4 + c * 15.5} y={29} w={9} h={3} o={0.55} r={1} />
+    </g>
+  )),
   comparison: (
     <>
       <B x={2} y={3} w={44} h={5} o={0.25} r={1} />
@@ -126,6 +136,30 @@ export function LayoutPicker({ value, onChange, layouts = PRODUCT_LAYOUTS }: { v
   );
 }
 
+/** Estilos rápidos: varias opciones de una vez (luego se ajusta lo que se quiera). */
+const PRESETS: { id: string; label: string; patch: (p: Presentation) => Partial<Presentation> }[] = [
+  { id: 'shop', label: msg('Tienda'), patch: (p) => ({ layout: 'grid', arrangement: 'grid', columns: { ...p.columns, desktop: 4, tablet: 3, mobile: 2 }, ratio: 'square', align: 'left', fields: { ...p.fields, image: true, price: true, button: true } }) },
+  { id: 'boutique', label: msg('Boutique'), patch: (p) => ({ layout: 'minimal', columns: { ...p.columns, desktop: 3, tablet: 3, mobile: 2 }, ratio: 'portrait', shape: 'rect', align: 'center', gap: 'loose' }) },
+  { id: 'menu', label: msg('Menú'), patch: (p) => ({ layout: 'priceList', columns: { ...p.columns, desktop: 2 }, imageSize: 'sm', separators: true, fields: { ...p.fields, description: true } }) },
+  { id: 'services', label: msg('Servicios'), patch: (p) => ({ layout: 'serviceCards', columns: { ...p.columns, desktop: 3, tablet: 2, mobile: 1 }, imageSize: 'md', shape: 'rounded', align: 'left', fields: { ...p.fields, attributes: 'all', price: true, button: true } }) },
+  { id: 'showcase', label: msg('Vitrina'), patch: (p) => ({ layout: 'magazine', columns: { ...p.columns, desktop: 3 }, ratio: 'landscape' }) },
+  { id: 'carousel', label: msg('Carrusel'), patch: (p) => ({ layout: 'grid', arrangement: 'carousel', columns: { ...p.columns, desktop: 4, tablet: 3, mobile: 2 } }) },
+];
+
+function QuickStyles({ value, onChange }: { value: Presentation; onChange: (value: Presentation) => void }) {
+  const t = useT();
+  return (
+    <Box>
+      <Typography variant="caption" color="text.secondary" component="p" sx={{ mb: 0.75 }}>{t('Estilos rápidos')}</Typography>
+      <Stack direction="row" useFlexGap sx={{ flexWrap: 'wrap', gap: 0.75 }} role="group" aria-label={t('Estilos rápidos')}>
+        {PRESETS.map((preset) => (
+          <Chip key={preset.id} size="small" variant="outlined" label={t(preset.label)} onClick={() => onChange({ ...value, ...preset.patch(value) })} />
+        ))}
+      </Stack>
+    </Box>
+  );
+}
+
 /**
  * Editor de presentación: sólo muestra las opciones que el layout usa
  * (LAYOUT_OPTIONS). `target` decide si se editan columnas web o de PDF.
@@ -141,6 +175,7 @@ export function PresentationEditor({ value, onChange, target = 'web' }: { value:
   return (
     <>
       <Group title={t('Presentación')}>
+        {!pdf && <QuickStyles value={p} onChange={onChange} />}
         <LayoutPicker value={p.layout} onChange={(layout) => set({ layout })} />
         {!pdf && p.layout === 'grid' && <Segmented label={t('Disposición')} value={p.arrangement} onChange={(arrangement) => set({ arrangement })} options={[{ value: 'grid', label: t('Cuadrícula') }, { value: 'carousel', label: t('Carrusel') }]} />}
         {uses('columns') &&
@@ -216,6 +251,7 @@ export function CollectionEditor({ value, onChange, site, title }: { value: Coll
   const attrDef = site.attributeDefs.find((d) => d.id === c.attributeId);
   const attrValues = attrDef ? (attrDef.options.length > 0 ? attrDef.options : [...new Set(site.items.flatMap((i) => { const v = i.attributes[attrDef.id]; return v === undefined ? [] : Array.isArray(v) ? v : [String(v)]; }))]) : [];
   const sources = COLLECTION_SOURCES.filter((s) => s !== 'attribute' || site.attributeDefs.length > 0);
+  const shown = resolveCollection(c, site.items).length;
 
   return (
     <Group title={title ?? t('Qué mostrar')}>
@@ -238,23 +274,80 @@ export function CollectionEditor({ value, onChange, site, title }: { value: Coll
         </>
       )}
       {c.source === 'manual' && (
-        <Autocomplete
-          multiple
-          options={pool.map((i) => i.id)}
-          value={c.itemIds.filter((id) => pool.some((i) => i.id === id))}
-          getOptionLabel={(id) => pool.find((i) => i.id === id)?.name ?? t('Ítem')}
-          onChange={(_, itemIds) => set({ itemIds })}
-          renderValue={(ids, getItemProps) =>
-            ids.map((id, index) => {
-              const { key, ...rest } = getItemProps({ index });
-              return <Chip key={key} label={pool.find((i) => i.id === id)?.name} {...rest} />;
-            })
-          }
-          renderInput={(params) => <TextField {...params} label={t('Ítems (en este orden)')} />}
-        />
+        <>
+          <ItemSelect key={c.itemIds.length} label={t('Agregar un ítem')} items={pool.filter((i) => !c.itemIds.includes(i.id))} value="" onChange={(id) => id && set({ itemIds: [...c.itemIds, id] })} />
+          <ChosenItems ids={c.itemIds} items={pool} onChange={(itemIds) => set({ itemIds })} />
+        </>
       )}
       {c.source !== 'manual' && c.source !== 'latest' && <SelectInput label={t('Orden')} value={c.sort} onChange={(sort) => set({ sort })} options={SORT_OPTIONS.map((s) => ({ value: s, label: t(SORT_LABELS[s]) }))} />}
       {c.source !== 'manual' && <SliderInput label={t('Cantidad máxima')} value={c.limit} min={0} max={48} format={(v) => (v === 0 ? t('Sin límite') : String(v))} onChange={(limit) => set({ limit })} />}
+      <Typography variant="caption" color={shown ? 'text.secondary' : 'warning.main'} role="status">
+        {shown ? t('Se muestran {count} de {total}.', { count: shown, total: pool.length }) : t('Ningún ítem coincide todavía: en el sitio publicado la sección no aparece.')}
+      </Typography>
     </Group>
+  );
+}
+
+type ItemView = SiteViewModel['items'][number];
+
+/** Un ítem con su foto (o su inicial), nombre y precio. */
+function ItemOption({ item }: { item: ItemView }) {
+  const t = useT();
+  return (
+    <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', minWidth: 0, flex: 1 }}>
+      <Avatar variant="rounded" src={item.images[0]?.url} alt="" sx={{ width: 36, height: 36, bgcolor: 'action.hover', color: 'text.secondary', fontSize: 15 }}>{[...item.name.trim()][0]}</Avatar>
+      <Box sx={{ minWidth: 0 }}>
+        <Typography variant="body2" noWrap>{item.name}</Typography>
+        <Typography variant="caption" color="text.secondary" noWrap component="p">{[item.type === 'service' ? t('Servicio') : t('Producto'), item.priceLabel].filter(Boolean).join(' · ')}</Typography>
+      </Box>
+    </Stack>
+  );
+}
+
+/** Elegir un ítem del catálogo buscando por nombre, con foto y precio. `value` '' = ninguno. */
+export function ItemSelect({ label, items, value, onChange, emptyLabel, helper }: { label: string; items: ItemView[]; value: string; onChange: (id: string) => void; emptyLabel?: string; helper?: string }) {
+  const t = useT();
+  const options = emptyLabel ? ['', ...items.map((i) => i.id)] : items.map((i) => i.id);
+  const byId = new Map(items.map((i) => [i.id, i]));
+  return (
+    <Autocomplete
+      options={options}
+      value={value && byId.has(value) ? value : emptyLabel ? '' : null}
+      onChange={(_, id) => onChange(id ?? '')}
+      getOptionLabel={(id) => (id ? (byId.get(id)?.name ?? t('Ítem')) : (emptyLabel ?? ''))}
+      renderOption={({ key, ...props }, id) => (
+        <li key={key || 'auto'} {...props}>
+          {id ? <ItemOption item={byId.get(id)!} /> : <Typography variant="body2">{emptyLabel}</Typography>}
+        </li>
+      )}
+      noOptionsText={t('Sin resultados')}
+      disableClearable={Boolean(emptyLabel)}
+      renderInput={(params) => <TextField {...params} label={label} helperText={helper} />}
+    />
+  );
+}
+
+/** Los ítems elegidos a mano, en su orden: subir, bajar o quitar. */
+function ChosenItems({ ids, items, onChange }: { ids: string[]; items: ItemView[]; onChange: (ids: string[]) => void }) {
+  const t = useT();
+  const chosen = ids.flatMap((id) => items.filter((i) => i.id === id));
+  if (!chosen.length) return <Typography variant="caption" color="text.secondary">{t('Busca y agrega los ítems que quieres mostrar, en el orden que quieras.')}</Typography>;
+  const move = (from: number, to: number) => {
+    const next = chosen.map((i) => i.id);
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    onChange(next);
+  };
+  return (
+    <Stack component="ol" spacing={0.5} sx={{ listStyle: 'none', p: 0, m: 0 }} aria-label={t('Ítems elegidos')}>
+      {chosen.map((item, i) => (
+        <Stack component="li" key={item.id} direction="row" spacing={0.5} sx={{ alignItems: 'center', p: 0.5, borderRadius: 1.5, border: 1, borderColor: 'divider' }}>
+          <ItemOption item={item} />
+          <IconButton size="small" aria-label={t('Subir {name}', { name: item.name })} disabled={i === 0} onClick={() => move(i, i - 1)}><ArrowUp size={16} /></IconButton>
+          <IconButton size="small" aria-label={t('Bajar {name}', { name: item.name })} disabled={i === chosen.length - 1} onClick={() => move(i, i + 1)}><ArrowDown size={16} /></IconButton>
+          <IconButton size="small" aria-label={t('Quitar {name}', { name: item.name })} onClick={() => onChange(chosen.filter((x) => x.id !== item.id).map((x) => x.id))}><X size={16} /></IconButton>
+        </Stack>
+      ))}
+    </Stack>
   );
 }

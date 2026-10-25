@@ -1,4 +1,3 @@
-import { ImageIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { visibleAttributes } from '@/lib/catalog/attributes-core';
 import type { CatalogItemView } from '@/lib/catalog/view-model';
@@ -76,16 +75,23 @@ export function ItemLink({ item, env, className, children }: { item: CatalogItem
   );
 }
 
-export function ItemMedia({ item, className, sizes, priority, shape, frame, index = 0 }: { item: CatalogItemView; className: string; sizes: string; priority?: boolean; shape?: CardOptions['shape']; frame?: boolean; index?: number }) {
+/** `alternate`: la segunda foto, encima, para mostrarla al pasar el mouse. */
+export function ItemMedia({ item, className, sizes, priority, shape, frame, index = 0, alternate }: { item: CatalogItemView; className: string; sizes: string; priority?: boolean; shape?: CardOptions['shape']; frame?: boolean; index?: number; alternate?: boolean }) {
   const image = item.images[index] ?? item.images[0];
+  const second = alternate ? item.images[index + 1] : undefined;
   return (
     <div className={className} data-shape={shape} data-frame={frame || undefined}>
       {image ? (
         <SiteImage src={image.url} alt={image.alt} sizes={sizes} priority={priority} />
       ) : (
-        <div className={styles.mediaPlaceholder}>
-          <ImageIcon size={30} strokeWidth={1.5} aria-hidden />
+        <div className={styles.mediaInitial} aria-hidden>
+          <span>{[...item.name.trim()][0] ?? '·'}</span>
         </div>
+      )}
+      {second && (
+        <span className={styles.mediaAlt} aria-hidden>
+          <SiteImage src={second.url} alt="" sizes={sizes} />
+        </span>
       )}
     </div>
   );
@@ -126,7 +132,7 @@ export function ItemCard({ item, site, env, options = {} }: { item: CatalogItemV
       <ItemLink item={item} env={env} className={styles.cardLink}>
         {f.image && (
           <div className={styles.mediaWrap}>
-            <ItemMedia item={item} className={styles.cardMedia} sizes={options.sizes ?? '(max-width: 600px) 50vw, 300px'} priority={options.priority} shape={options.shape} frame={options.frame} />
+            <ItemMedia item={item} className={styles.cardMedia} sizes={options.sizes ?? '(max-width: 600px) 50vw, 300px'} priority={options.priority} shape={options.shape} frame={options.frame} alternate={cards.hover === 'swap'} />
             {f.badges && <Badges item={item} theme={site.theme} t={t} />}
           </div>
         )}

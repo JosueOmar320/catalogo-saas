@@ -20,6 +20,12 @@ export function resolveSectionItems(content: ItemSourceContent, items: CatalogIt
   return resolveCollection(content.collection, items, options);
 }
 
+/** El ítem de la sección Producto: el elegido o, en automático, el primer destacado (o el primero). */
+export function resolveSpotlightItem(content: Pick<SectionOf<'product'>['content'], 'itemId'>, items: CatalogItemView[]): CatalogItemView | null {
+  if (content.itemId) return items.find((i) => i.id === content.itemId) ?? null;
+  return items.find((i) => i.isFeatured) ?? items[0] ?? null;
+}
+
 /** `params`: valores del texto ("¡Quedan {count}!"). */
 export type ResolvedBadge = { key: string; label: string; color: string; params?: Record<string, number> };
 

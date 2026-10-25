@@ -4,6 +4,7 @@ import { Autocomplete, Button, Stack, TextField, Typography } from '@mui/materia
 import { Images } from 'lucide-react';
 import { useState, type ComponentType } from 'react';
 import { ColumnsSectionEditor } from './columns-editor';
+import { ProductEditor } from './product-editor';
 import { TableEditor } from './table-editor';
 import { MediaLibraryDialog } from '@/features/media/components/MediaLibraryDialog';
 import { SORT_LABELS, SORT_OPTIONS } from '@/lib/catalog/collections';
@@ -504,6 +505,7 @@ export const CONTENT_EDITORS: { [T in SectionType]: ComponentType<EditorProps<T>
   text: TextEditor,
   products: ProductsEditor,
   services: ServicesEditor,
+  product: ProductEditor,
   catalog: CatalogEditor,
   categories: CategoriesEditor,
   banner: BannerEditor,

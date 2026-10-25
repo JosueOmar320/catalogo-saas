@@ -475,6 +475,7 @@ export function productRows(doc: PdfDoc, items: CatalogItemView[], p: Presentati
   const cols = p.columns.pdf;
   switch (p.layout) {
     case 'grid':
+    case 'serviceCards':
       return gridRows(c, items, width, cols, (item, w) => <Card c={c} item={item} width={w} />);
     case 'largeCards':
       return gridRows(c, items, width, Math.min(cols, 2), (item, w) => <Card c={c} item={item} width={w} large />);
