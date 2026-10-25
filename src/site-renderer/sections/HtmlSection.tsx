@@ -1,4 +1,5 @@
 import { customHtmlFxCss, customHtmlId, renderCustomHtml } from '@/lib/site/custom-code';
+import { mediaUrl } from '@/lib/utils/storage';
 import { CustomHtml } from '../CustomHtml';
 import { Placeholder, SectionFrame } from '../SectionFrame';
 import { siteTranslator } from '../site-i18n';
@@ -11,7 +12,7 @@ import type { SectionProps } from './types';
 export function HtmlSection({ section, site, env }: SectionProps<'html'>) {
   const t = siteTranslator(site.settings.language);
   // HTML limpio + su <style> limitado a esta sección + los efectos fx.
-  const { markup: html, css } = site.customCode ? renderCustomHtml(section.content.html, section.id) : { markup: '', css: '' };
+  const { markup: html, css } = site.customCode ? renderCustomHtml(section.content.html, section.id, { mediaUrl }) : { markup: '', css: '' };
   if (!html && env.mode === 'public') return null;
   return (
     <SectionFrame section={section} theme={site.theme}>

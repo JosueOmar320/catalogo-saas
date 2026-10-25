@@ -19,9 +19,10 @@ describe('Código propio: HTML', () => {
     assert.match(clean, /<td colspan="2">1<\/td>/);
   });
 
-  it('enlaces a otra pestaña sin acceso a esta ventana; sin id', () => {
-    const clean = sanitizeCustomHtml('<a id="logout" href="https://ejemplo.com" target="_blank" rel="opener">Ir</a>');
-    assert.equal(clean, '<a href="https://ejemplo.com" target="_blank" rel="noopener noreferrer">Ir</a>');
+  it('enlaces a otra pestaña sin acceso a esta ventana; el id se guarda tal cual y al mostrarse lleva el de la sección', () => {
+    const clean = sanitizeCustomHtml('<a id="logout" href="https://ejemplo.com" target="_blank" rel="opener">Ir</a><p id="1malo">x</p>');
+    assert.equal(clean, '<a id="logout" href="https://ejemplo.com" target="_blank" rel="noopener noreferrer">Ir</a><p>x</p>');
+    assert.equal(renderCustomHtml(clean, 'sec-1').markup, '<a id="h-sec-1-logout" href="https://ejemplo.com" target="_blank" rel="noopener noreferrer">Ir</a><p>x</p>');
   });
 
   it('texto plano para el PDF', () => {
@@ -59,6 +60,52 @@ describe('Código propio: HTML con su CSS, variables y más etiquetas', () => {
     const { markup, css } = renderCustomHtml('<style>.a{content:"x"}</style><img src=x onerror=alert(1)><style>.b{color:red}</style>', 'id"]{}*{');
     assert.equal(markup, '<img loading="lazy" src="x" />');
     assert.match(css, /\[data-custom-html="id"\] \.b\{color:red\}/);
+  });
+});
+
+describe('Código propio: HTML más completo (SVG, pestañas con CSS, iframes, imágenes de la biblioteca)', () => {
+  const PATH = '11111111-2222-4333-8444-555555555555/media/foto.webp';
+  const mediaUrl = (path: string) => `https://cdn.test/storage/${path}`;
+
+  it('SVG para íconos e ilustraciones: degradados con id propio; sin scripts, SMIL ni referencias externas', () => {
+    const saved = cleanCustomHtmlSource('<svg viewBox="0 0 24 24"><defs><linearGradient id="g"><stop offset="0" stop-color="#f00"/></linearGradient></defs><path d="M0 0h24v24H0z" fill="url(#g)" onclick="x()"/><script>alert(1)</script><use href="https://evil.test/a.svg#x"/><use href="#g"/><animate attributeName="href" values="javascript:alert(1)"/><circle r="4" fill="url(https://evil.test/x)"/></svg>');
+    assert.doesNotMatch(saved, /script|onclick|animate|evil|javascript/i);
+    assert.match(saved, /<linearGradient id="g"><stop offset="0" stop-color="#f00"><\/stop><\/linearGradient>/);
+    const { markup } = renderCustomHtml(saved, 'sec-1');
+    assert.match(markup, /<linearGradient id="h-sec-1-g">/);
+    assert.match(markup, /fill="url\(#h-sec-1-g\)"/);
+    assert.match(markup, /<use href="#h-sec-1-g"><\/use>/);
+    assert.match(markup, /<circle r="4"><\/circle>/);
+  });
+
+  it('pestañas y acordeones sólo con CSS: casillas y radios (otros campos no); ids, nombres y referencias con el prefijo de la sección', () => {
+    const saved = cleanCustomHtmlSource('<input type="radio" name="t" id="t1" checked><label for="t1">Uno</label><input type="text" name="q"><input name="p"><input type="checkbox" id="c"><div aria-labelledby="t1"><a href="#t1">ir</a></div><style>#t1:checked ~ .panel { display: block }</style>');
+    assert.doesNotMatch(saved, /type="text"|name="q"|name="p"/);
+    const { markup, css } = renderCustomHtml(saved, 'sec-1');
+    assert.equal(markup, '<input type="radio" name="h-sec-1-t" id="h-sec-1-t1" checked /><label for="h-sec-1-t1">Uno</label><input type="checkbox" id="h-sec-1-c" /><div aria-labelledby="h-sec-1-t1"><a href="#h-sec-1-t1">ir</a></div>');
+    assert.match(css, /\[data-custom-html="sec-1"\] #h-sec-1-t1:checked ~ \.panel \{ display: block \}/);
+    // Un id dentro de [atributo="#x"] o de un texto no se toca.
+    assert.match(renderCustomHtml('<style>a[href="#t1"] { color: red }</style>', 's').css, /a\[href="#t1"\]/);
+  });
+
+  it('iframes sólo de servicios conocidos, por https y aislados', () => {
+    const saved = cleanCustomHtmlSource('<iframe src="https://www.youtube.com/embed/abc" title="Video" allowfullscreen sandbox="allow-top-navigation"></iframe><iframe src="https://evil.test/x"></iframe><iframe src="http://www.youtube.com/embed/abc"></iframe><iframe src="//www.youtube.com/embed/abc"></iframe>');
+    assert.equal((saved.match(/<iframe/g) ?? []).length, 1);
+    assert.match(saved, /sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-presentation allow-forms"/);
+    assert.doesNotMatch(saved, /allow-top-navigation|evil/);
+    assert.match(saved, /loading="lazy"/);
+  });
+
+  it('imágenes de la biblioteca por su ruta: se guardan así y al mostrarse son su URL (también en el CSS)', () => {
+    const saved = cleanCustomHtmlSource(`<img src="${PATH}" alt="Foto"><div style="background-image:url(${PATH})"></div><style>.hero{background:url('${PATH}') center/cover} .y{background:url(http://x.test/a.png)}</style>`);
+    assert.match(saved, new RegExp(`src="${PATH}"`));
+    assert.doesNotMatch(saved, /http:\/\/x\.test/);
+    const { markup, css } = renderCustomHtml(saved, 'sec-1', { mediaUrl });
+    assert.match(markup, new RegExp(`src="https://cdn\\.test/storage/${PATH}"`));
+    assert.match(markup, /background-image:url\(&quot;https:\/\/cdn\.test\/storage\//);
+    assert.match(css, /\.hero\{background:url\("https:\/\/cdn\.test\/storage\/.+"\) center\/cover\}/);
+    // Algo que no es una ruta de la biblioteca sigue sin pasar.
+    assert.doesNotMatch(cleanInlineStyle('background:url(../../secreto.png)'), /url/);
   });
 });
 
