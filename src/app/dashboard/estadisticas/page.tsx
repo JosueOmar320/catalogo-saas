@@ -7,7 +7,6 @@ import { getLocale, getT } from '@/i18n/server';
 import { parseAnalyticsRange } from '@/lib/analytics/summary';
 import { requireCatalogFeature } from '@/lib/auth/session';
 import { parseCatalogSettings } from '@/lib/catalog/settings';
-import { catalogUrl } from '@/lib/catalog/view-model';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
@@ -30,7 +29,7 @@ export default async function AnalyticsPage({ searchParams }: PageProps<'/dashbo
         <AnalyticsBoard
           summary={data.summary}
           products={data.products}
-          siteUrl={catalogUrl(ctx.business.slug)}
+          siteUrl={ctx.publicUrl}
           published={ctx.catalog.status === 'published'}
           ordersEnabled={settings.order.enabled}
           currency={settings.currency}

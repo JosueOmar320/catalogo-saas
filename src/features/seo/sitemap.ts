@@ -1,7 +1,10 @@
 import 'server-only';
 import type { MetadataRoute } from 'next';
 import { catalogSitemapEntries, type SitemapData } from '@/lib/catalog/sitemap';
+import { activeDomain } from '@/lib/catalog/view-model';
 import { isSupabaseConfigured } from '@/lib/env';
+import { parseEntitlements } from '@/lib/plans/entitlements';
+import { effectiveFeatures, parseFeatureOverrides } from '@/lib/plans/features';
 import { createAdminClient, isServiceRoleConfigured } from '@/lib/supabase/admin';
 import { fetchAllRows } from '@/lib/supabase/paginate';
 
@@ -12,11 +15,24 @@ const chunk = <T,>(list: T[], size: number) => Array.from({ length: Math.ceil(li
  * en el servidor: slugs y fechas, nada privado) y arma el sitemap. Sin base
  * configurada, o si falla, devuelve [] y el sitemap queda con la plataforma.
  */
-export async function publishedCatalogsSitemap(): Promise<MetadataRoute.Sitemap> {
+/** businessSlug: sólo ese negocio (el sitemap de su dominio propio). */
+export async function publishedCatalogsSitemap({ businessSlug }: { businessSlug?: string } = {}): Promise<MetadataRoute.Sitemap> {
   if (!isSupabaseConfigured || !isServiceRoleConfigured()) return [];
   try {
     const db = createAdminClient();
-    const businesses = await fetchAllRows((from, to) => db.from('businesses').select('id, slug').eq('status', 'active').is('deleted_at', null).order('id').range(from, to));
+    // «*»: el dominio propio llega con su migración; antes, las columnas no existen y se ignoran.
+    const rows = await fetchAllRows((from, to) => {
+      const query = db.from('businesses').select('*').eq('status', 'active').is('deleted_at', null);
+      return (businessSlug ? query.eq('slug', businessSlug) : query).order('id').range(from, to);
+    });
+    // El dominio propio sólo cuenta con la función encendida (decisión del administrador o plan), como en get_site_by_domain.
+    const { data: plans } = await db.from('plans').select('*');
+    const planFeatures = new Map((plans ?? []).map((p) => [p.id, parseEntitlements(p).features]));
+    const domainOf = (b: (typeof rows)[number]) => {
+      const plan = planFeatures.get(b.plan_id);
+      return plan && effectiveFeatures(parseFeatureOverrides(b.feature_overrides), plan).custom_domain ? activeDomain(b) : null;
+    };
+    const businesses = rows.map((b) => ({ id: b.id, slug: b.slug, domain: domainOf(b) }));
     const active = new Set(businesses.map((b) => b.id));
     const catalogs = (
       await fetchAllRows((from, to) =>

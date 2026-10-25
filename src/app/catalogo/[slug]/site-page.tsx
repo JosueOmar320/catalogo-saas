@@ -4,15 +4,15 @@ import { getPublicSite } from '@/features/catalog/public-queries';
 import { openingHoursSpecification, specialOpeningHoursSpecification } from '@/lib/business/schedule';
 import { findHome } from '@/lib/site/pages';
 
-/** Renderiza la página pedida (o la de inicio). Compartido por / y /[pageSlug]. */
-export async function renderPublicPage(slug: string, pageSlug?: string) {
+/** Renderiza la página pedida (o la de inicio). Compartido por / y /[pageSlug], en /catalogo/<negocio> y en el dominio propio. */
+export async function renderPublicPage(slug: string, pageSlug?: string, basePath = `/catalogo/${slug}`) {
   const site = await getPublicSite(slug);
   if (!site) notFound();
   const home = findHome(site.pages);
   const page = pageSlug ? site.pages.find((p) => p.slug === pageSlug) : home;
   if (!page) notFound();
-  // La página de inicio vive en la raíz: /catalogo/negocio/inicio → /catalogo/negocio
-  if (pageSlug && page.id === home?.id) permanentRedirect(`/catalogo/${slug}`);
+  // La página de inicio vive en la raíz: /catalogo/negocio/inicio → /catalogo/negocio (o mitienda.com/inicio → mitienda.com)
+  if (pageSlug && page.id === home?.id) permanentRedirect(basePath || '/');
 
   const { schedule } = site.business.contact;
   const special = schedule.enabled ? specialOpeningHoursSpecification(schedule, new Date()) : [];
@@ -37,7 +37,7 @@ export async function renderPublicPage(slug: string, pageSlug?: string) {
   return (
     <>
       {jsonLd && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }} />}
-      <PageView page={page} site={site} env={{ mode: 'public', basePath: `/catalogo/${slug}`, currentPageId: page.id }} />
+      <PageView page={page} site={site} env={{ mode: 'public', basePath, currentPageId: page.id }} />
     </>
   );
 }

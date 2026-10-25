@@ -1006,5 +1006,42 @@ await as(A);
 await expectErr('members cannot purge', () => q(`select public.purge_analytics_data()`), 'permission denied');
 await db.exec('reset role');
 
+// --- Dominio propio ---------------------------------------------------------
+const siteByDomain = (host) => q(`select public.get_site_by_domain($1) s`, [host]).then((r) => r[0].s);
+const publicDomain = () => q(`select public.get_public_catalog('tienda-a') -> 'business' ->> 'custom_domain' d`).then((r) => r[0].d);
+await as(A);
+await expectErr('owner cannot set the custom domain (only the server, after Vercel)', () => q(`update public.businesses set custom_domain='mitienda.com', custom_domain_status='active' where id=$1`, [bizA]), 'permission denied');
+await db.exec('reset role'); // el servidor escribe con la service role (aquí, superusuario)
+await expectErr('domain format is checked', () => q(`update public.businesses set custom_domain='Mi Tienda.com', custom_domain_status='pending' where id=$1`, [bizA]), 'businesses_custom_domain_format');
+await expectErr('domain and status go together', () => q(`update public.businesses set custom_domain='mitienda.com' where id=$1`, [bizA]), 'businesses_custom_domain_state');
+await expectOk('server saves a pending domain', () => q(`update public.businesses set custom_domain='mitienda.com', custom_domain_status='pending' where id=$1`, [bizA]));
+await expectErr('a domain belongs to one business', () => q(`update public.businesses set custom_domain='mitienda.com', custom_domain_status='pending' where id=$1`, [bizB]), 'duplicate key');
+await as(null);
+await expectEq('a pending domain does not serve the site yet', () => siteByDomain('mitienda.com'), null);
+await expectEq('nor is it the public canonical', publicDomain, null);
+await db.exec('reset role');
+await q(`update public.businesses set custom_domain_status='active' where id=$1`, [bizA]);
+await q(`update public.businesses set custom_domain='otra-tienda.com', custom_domain_status='active', feature_overrides='{"custom_domain": true}' where id=$1`, [bizB]);
+await as(null);
+await expectEq('an active domain on a plan without the feature does not serve the site', () => siteByDomain('mitienda.com'), null);
+await expectEq('nor is it the canonical', publicDomain, null);
+await as(A);
+await expectOk('admin turns the custom domain on for A', () => q(`select public.admin_set_business_features($1, '{"custom_domain": true}')`, [bizA]));
+await as(null);
+await expectEq('an active domain serves its business (any case)', () => siteByDomain('MiTienda.com'), 'tienda-a');
+await expectEq('the public catalog exposes the active domain', publicDomain, 'mitienda.com');
+await expectEq('unknown domain: nothing', () => siteByDomain('nadie.com'), null);
+await expectEq('a suspended business does not serve its domain', () => siteByDomain('otra-tienda.com'), null);
+await as(A);
+await expectOk('admin turns it off again', () => q(`select public.admin_set_business_features($1, '{"custom_domain": false}')`, [bizA]));
+await as(null);
+await expectEq('turned off: the domain stops serving the site', () => siteByDomain('mitienda.com'), null);
+await as(A);
+await expectOk('and back to the plan', () => q(`select public.admin_set_business_features($1, '{}')`, [bizA]));
+await db.exec('reset role');
+await q(`update public.businesses set custom_domain=null, custom_domain_status='none', feature_overrides='{}' where id=$1`, [bizB]);
+await q(`update public.businesses set custom_domain=null, custom_domain_status='none' where id=$1`, [bizA]);
+await db.exec('reset role');
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);

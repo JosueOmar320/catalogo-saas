@@ -101,6 +101,7 @@ export async function getSiteForAdmin(ctx: BusinessContext, { inSeasonOnly = fal
     pages: [],
     removeBranding: ctx.entitlements.features.remove_branding,
     customCode: ctx.customCode,
+    customDomain: ctx.customDomain,
   });
   return { ...site, pages };
 }

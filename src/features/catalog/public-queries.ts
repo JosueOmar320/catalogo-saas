@@ -16,6 +16,8 @@ type PublicCatalogPayload = {
     custom_code: boolean;
     /** Tipo de sitio (migración site_kind); ausente = negocio con catálogo. */
     site_kind?: string;
+    /** Dominio propio activo (migración custom_domains); ausente o null = sin dominio. */
+    custom_domain?: string | null;
   };
   catalog: Tables<'catalogs'>;
   categories: Tables<'categories'>[];
@@ -72,6 +74,7 @@ export const getPublicSite = cache(async (slug: string): Promise<SiteViewModel |
     removeBranding: payload.business.remove_branding,
     customCode: payload.business.custom_code === true,
     siteKind: parseSiteKind(payload.business.site_kind),
+    customDomain: payload.business.custom_domain ?? null,
   }, { public: true });
   site.reviews = site.settings.reviews.enabled ? reviews : [];
   return site;

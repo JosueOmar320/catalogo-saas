@@ -11,6 +11,8 @@ export const publicCatalogTag = (businessSlug: string) => `public-catalog:${busi
 export function invalidatePublicCatalog(businessSlug: string) {
   revalidateTag(publicCatalogTag(businessSlug), { expire: 0 });
   revalidatePath(`/catalogo/${businessSlug}`, 'layout');
+  // El mismo sitio servido en su dominio propio (el proxy lo reescribe a /dominio/<negocio>).
+  revalidatePath(`/dominio/${businessSlug}`, 'layout');
 }
 
 /**

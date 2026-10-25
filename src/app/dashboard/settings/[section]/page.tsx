@@ -1,18 +1,22 @@
+import { Stack } from '@mui/material';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { SETTINGS_SECTIONS } from '@/components/dashboard/navigation';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { listItemsWithImages } from '@/features/catalog/queries';
 import { BusinessProfileForm } from '@/features/settings/components/BusinessProfileForm';
+import { CustomDomainCard } from '@/features/settings/components/CustomDomainCard';
 import { ContactForm } from '@/features/settings/components/ContactForm';
 import { OrderSettingsForm } from '@/features/settings/components/OrderSettingsForm';
 import { PublishingPanel } from '@/features/settings/components/PublishingPanel';
 import { SeoForm } from '@/features/settings/components/SeoForm';
 import { SocialLinksForm } from '@/features/settings/components/SocialLinksForm';
-import { requireBusinessContext } from '@/lib/auth/session';
+import { canManageCatalog, requireBusinessContext } from '@/lib/auth/session';
 import { parseContact, parseSocialLinks } from '@/lib/business/profile';
-import { parseCatalogSettings, parseSeo } from '@/lib/catalog/settings';
 import { catalogUrl } from '@/lib/catalog/view-model';
+import { parseCatalogSettings, parseSeo } from '@/lib/catalog/settings';
+import { isVercelConfigured } from '@/lib/domains/vercel';
+import { isServiceRoleConfigured } from '@/lib/supabase/admin';
 import { getT } from '@/i18n/server';
 
 export async function generateMetadata({ params }: PageProps<'/dashboard/settings/[section]'>): Promise<Metadata> {
@@ -29,7 +33,7 @@ export default async function SettingsPage({ params }: PageProps<'/dashboard/set
   const ctx = await requireBusinessContext();
   const t = await getT();
   const settings = parseCatalogSettings(ctx.catalog.settings);
-  const url = catalogUrl(ctx.business.slug);
+  const url = ctx.publicUrl;
 
   let content: React.ReactNode;
   switch (meta.id) {
@@ -68,7 +72,16 @@ export default async function SettingsPage({ params }: PageProps<'/dashboard/set
       const items = await listItemsWithImages(ctx);
       const visible = items.filter((i) => i.is_visible).length;
       content = (
-        <PublishingPanel status={ctx.catalog.status} url={url} publishedAt={ctx.catalog.published_at} visibleItems={visible} hiddenItems={items.length - visible} businessName={ctx.business.name} slug={ctx.business.slug} catalog={ctx.siteKind === 'catalog'} />
+        <Stack spacing={2.5}>
+          <PublishingPanel status={ctx.catalog.status} url={url} publishedAt={ctx.catalog.published_at} visibleItems={visible} hiddenItems={items.length - visible} businessName={ctx.business.name} slug={ctx.business.slug} catalog={ctx.siteKind === 'catalog'} />
+          <CustomDomainCard
+            domain={ctx.business.custom_domain}
+            status={ctx.business.custom_domain_status}
+            availability={!ctx.features.custom_domain ? 'plan' : isVercelConfigured() && isServiceRoleConfigured() ? 'ok' : 'platform'}
+            canManage={canManageCatalog(ctx)}
+            platformUrl={catalogUrl(ctx.business.slug)}
+          />
+        </Stack>
       );
       break;
     }

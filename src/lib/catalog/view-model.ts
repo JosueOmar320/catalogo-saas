@@ -93,12 +93,18 @@ export type ItemInput = Omit<Tables<'catalog_items'>, 'business_id' | 'catalog_i
 };
 export type CategoryInput = Pick<Tables<'categories'>, 'id' | 'name' | 'description' | 'image_path' | 'position'>;
 
-export function catalogUrl(businessSlug: string): string {
-  return `${env.siteUrl}/catalogo/${businessSlug}`;
+/** Raíz pública del sitio: su dominio propio si está activo; si no, la dirección de la plataforma. */
+export function catalogUrl(businessSlug: string, customDomain?: string | null): string {
+  return customDomain ? `https://${customDomain}` : `${env.siteUrl}/catalogo/${businessSlug}`;
 }
 
-export function itemUrl(businessSlug: string, itemSlug: string): string {
-  return `${catalogUrl(businessSlug)}/p/${itemSlug}`;
+export function itemUrl(businessSlug: string, itemSlug: string, customDomain?: string | null): string {
+  return `${catalogUrl(businessSlug, customDomain)}/p/${itemSlug}`;
+}
+
+/** El dominio propio que ya se sirve (activo), o null. */
+export function activeDomain(business: { custom_domain?: string | null; custom_domain_status?: string | null }): string | null {
+  return business.custom_domain_status === 'active' && business.custom_domain ? business.custom_domain : null;
 }
 
 export function mapCategories(categories: CategoryInput[]): CatalogCategoryView[] {
@@ -110,7 +116,7 @@ export function mapCategories(categories: CategoryInput[]): CatalogCategoryView[
 /** Ítems ordenados por categoría (orden del admin) y luego por posición. */
 type MapOptions = { locale: string; attributeDefs?: AttributeDef[]; priceFormat?: PriceFormat; /** Para decidir si una oferta ya terminó (pruebas). */ now?: Date };
 
-export function mapItems(items: ItemInput[], categories: CatalogCategoryView[], businessSlug: string, options: MapOptions): CatalogItemView[] {
+export function mapItems(items: ItemInput[], categories: CatalogCategoryView[], businessSlug: string, options: MapOptions & { customDomain?: string | null }): CatalogItemView[] {
   const order = new Map(categories.map((c, index) => [c.id, index]));
   const rank = (id: string | null) => (id ? (order.get(id) ?? Number.MAX_SAFE_INTEGER) : Number.MAX_SAFE_INTEGER);
   return items
@@ -118,7 +124,7 @@ export function mapItems(items: ItemInput[], categories: CatalogCategoryView[], 
     .sort((a, b) => rank(a.categoryId) - rank(b.categoryId));
 }
 
-function toItemView(item: ItemInput, businessSlug: string, { locale, attributeDefs = [], priceFormat, now = new Date() }: MapOptions): CatalogItemView {
+function toItemView(item: ItemInput, businessSlug: string, { locale, attributeDefs = [], priceFormat, now = new Date(), customDomain = null }: MapOptions & { customDomain?: string | null }): CatalogItemView {
   const attributes = parseItemAttributes(item.attributes);
   // Con precio programado que ya empezó, vale ése (sin opciones: las opciones tienen el suyo).
   const price = effectivePrice(item.price === null ? null : Number(item.price), attributes.variants ? null : attributes.nextPrice, now);
@@ -161,7 +167,7 @@ function toItemView(item: ItemInput, businessSlug: string, { locale, attributeDe
     customBadge: attributes.customBadge,
     attributes: parseAttributeValues((item.attributes as { values?: unknown } | null)?.values, attributeDefs),
     createdAt: item.created_at,
-    url: itemUrl(businessSlug, item.slug),
+    url: itemUrl(businessSlug, item.slug, customDomain),
     variants: attributes.variants && {
       label: attributes.variants.label,
       options: attributes.variants.options.map((o) => {

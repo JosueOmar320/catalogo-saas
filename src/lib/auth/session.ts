@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { cache } from 'react';
 import { isSupabaseConfigured } from '@/lib/env';
 import { customCodeEnabled, parseEntitlements, type Entitlements } from '@/lib/plans/entitlements';
+import { activeDomain, catalogUrl } from '@/lib/catalog/view-model';
 import { effectiveFeatures, parseFeatureOverrides, type BusinessFeature, type BusinessFeatures } from '@/lib/plans/features';
 import { parseSiteKind, type SiteKind } from '@/lib/business/site-kind';
 import { createClient, type ServerSupabase } from '@/lib/supabase/server';
@@ -55,6 +56,10 @@ export type BusinessContext = {
   siteKind: SiteKind;
   /** Funciones encendidas para este negocio (plan + decisión del administrador). */
   features: BusinessFeatures;
+  /** Dominio propio activo (y con la función encendida), o null. */
+  customDomain: string | null;
+  /** Raíz pública del sitio: su dominio propio activo o /catalogo/<negocio>. */
+  publicUrl: string;
 };
 
 /**
@@ -99,6 +104,9 @@ export const getBusinessContext = cache(async (): Promise<BusinessContext | null
   ]);
   if (!catalog.data) return null;
   const entitlements = parseEntitlements(plan.data ?? { id: business.plan_id, name: business.plan_id, limits: {}, features: {} });
+  const features = effectiveFeatures(parseFeatureOverrides(business.feature_overrides), entitlements.features);
+  // Como get_site_by_domain: con la función apagada, el dominio no sirve el sitio.
+  const customDomain = features.custom_domain ? activeDomain(business) : null;
 
   return {
     supabase,
@@ -113,7 +121,9 @@ export const getBusinessContext = cache(async (): Promise<BusinessContext | null
     entitlements,
     customCode: customCodeEnabled(business, entitlements.features),
     siteKind: parseSiteKind(business.site_kind),
-    features: effectiveFeatures(parseFeatureOverrides(business.feature_overrides), entitlements.features),
+    features,
+    customDomain,
+    publicUrl: catalogUrl(business.slug, customDomain),
   };
 });
 

@@ -7,7 +7,7 @@ import { AuditTable } from '@/features/admin/components/AuditTable';
 import { StatCard, StatusChip } from '@/features/admin/components/common';
 import { adminStats, listBusinesses, listPlans } from '@/features/admin/queries';
 import { parseEntitlements } from '@/lib/plans/entitlements';
-import { BUSINESS_FEATURE_META, BUSINESS_FEATURES, effectiveFeatures, parseFeatureOverrides } from '@/lib/plans/features';
+import { BUSINESS_FEATURE_META, effectiveFeatures, featuresOff, parseFeatureOverrides } from '@/lib/plans/features';
 import { getT } from '@/i18n/server';
 import { requirePlatformAdmin } from '@/lib/auth/session';
 
@@ -21,8 +21,9 @@ export default async function AdminDashboard() {
   const [stats, businesses, plans, t] = await Promise.all([adminStats(supabase), listBusinesses(supabase), listPlans(supabase), getT()]);
   const planFeatures = new Map(plans.map((p) => [p.id, parseEntitlements(p).features]));
   const recent = businesses.slice(0, 6).map((b) => {
-    const effective = effectiveFeatures(parseFeatureOverrides(b.feature_overrides), planFeatures.get(b.plan_id) ?? parseEntitlements({ id: b.plan_id, name: b.plan_id, limits: {}, features: {} }).features);
-    return { ...b, off: BUSINESS_FEATURES.filter((f) => !effective[f]) };
+    const overrides = parseFeatureOverrides(b.feature_overrides);
+    const effective = effectiveFeatures(overrides, planFeatures.get(b.plan_id) ?? parseEntitlements({ id: b.plan_id, name: b.plan_id, limits: {}, features: {} }).features);
+    return { ...b, off: featuresOff(effective, overrides) };
   });
   return (
     <>

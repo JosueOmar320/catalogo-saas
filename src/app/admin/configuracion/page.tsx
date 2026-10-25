@@ -13,6 +13,7 @@ import { msg } from '@/i18n/translate';
 import { requirePlatformAdmin } from '@/lib/auth/session';
 import { emailSettings } from '@/lib/email/resend';
 import { isServiceRoleConfigured } from '@/lib/supabase/admin';
+import { isVercelConfigured } from '@/lib/domains/vercel';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
@@ -59,6 +60,14 @@ export default async function AdminSettingsPage() {
             )}
             <EmailSettings previewHtml={sample.html} subject={sample.subject} canSend={Boolean(mail.apiKey && mail.from && profile.email)} />
             {!profile.email && <Typography variant="caption" color="text.secondary">{t('Para enviarte una prueba, agrega un email de contacto a tu usuario.')}</Typography>}
+          </Stack>
+        </SectionCard>
+        <SectionCard title={t('Dominios propios')} description={t('Para que cada negocio conecte su dominio, la plataforma agrega el dominio al proyecto de Vercel. Crea un token en Vercel › Account Settings › Tokens con acceso al proyecto.')}>
+          <Stack spacing={1.5} sx={{ pb: 2 }}>
+            <Status label={t('Token de Vercel (VERCEL_API_TOKEN)')} ok={Boolean(process.env.VERCEL_API_TOKEN)} />
+            <Status label={t('Proyecto (VERCEL_PROJECT_ID)')} ok={Boolean(process.env.VERCEL_PROJECT_ID)} />
+            <Status label={t('Equipo (VERCEL_TEAM_ID, sólo si el proyecto es de un equipo)')} value={process.env.VERCEL_TEAM_ID ? t('Configurado') : t('Sin equipo')} />
+            {!isVercelConfigured() && <Alert severity="info">{t('Mientras falte el token o el proyecto, los negocios ven el dominio propio como «todavía no disponible».')}</Alert>}
           </Stack>
         </SectionCard>
         <SectionCard title={t('Planes')} description={t('Límites por negocio. Preparado para suscripciones y facturación. «Código propio» habilita HTML, widgets y CSS en el editor del sitio. Cada negocio puede tener su propia decisión sobre el código propio y sobre sus funciones (en Negocios › Funciones).')} flush>

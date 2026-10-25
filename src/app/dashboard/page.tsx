@@ -25,7 +25,6 @@ import { parseContact } from '@/lib/business/profile';
 import { parseItemAttributes } from '@/lib/catalog/item-attributes';
 import { isSaleOver } from '@/lib/catalog/sale';
 import { parseCatalogSettings } from '@/lib/catalog/settings';
-import { catalogUrl } from '@/lib/catalog/view-model';
 import { formatDate, formatPrice, formatRelative } from '@/lib/utils/format';
 import { ordersPer100Views } from '@/lib/views/stats';
 import { effectivePrice } from '@/lib/catalog/next-price';
@@ -62,7 +61,7 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
   const services = items.length - products.length;
   const published = ctx.catalog.status === 'published';
   const now = new Date();
-  const url = catalogUrl(ctx.business.slug);
+  const url = ctx.publicUrl;
   // Sitio web (sin catálogo): sin productos, pedidos, reseñas ni PDF.
   const catalog = ctx.siteKind === 'catalog';
   // Llegó a una función apagada por el administrador (requireCatalogFeature lo trae aquí).
