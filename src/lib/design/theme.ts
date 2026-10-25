@@ -116,6 +116,18 @@ function buildThemeSchema(lenient: boolean) {
         cta: f(z.enum(['none', 'contact', 'whatsapp']), 'whatsapp'),
         ctaLabel: f(z.string().trim().max(30), 'Contáctanos'),
         background: buildBackgroundSchema(lenient).prefault({}),
+        /** Barra arriba o menú lateral (en el celular, el lateral se vuelve barra con botón de menú). */
+        layout: f(z.enum(['horizontal', 'vertical']), 'horizontal'),
+        verticalWidth: f(z.enum(['narrow', 'normal', 'wide']), 'normal'),
+        /** Cómo se marca la página actual y el paso del mouse en el menú. */
+        linkStyle: f(z.enum(['underline', 'pill', 'plain', 'boxed']), 'underline'),
+        linkCase: f(z.enum(['normal', 'uppercase']), 'normal'),
+        /** Menú del celular: lista bajo la barra, panel lateral o pantalla completa. */
+        mobileMenu: f(z.enum(['dropdown', 'drawer', 'fullscreen']), 'dropdown'),
+        /** El contenido de la barra ocupa todo el ancho (sin el margen del sitio). */
+        fullWidth: bool(false),
+        /** Se esconde al bajar y vuelve al subir (sólo fijo y horizontal). */
+        hideOnScroll: bool(false),
       })
       .prefault({}),
     /** Barra de anuncios arriba del header ("Envío gratis este fin de semana"). */

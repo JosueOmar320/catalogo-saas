@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { buildHeaderProps, footerColumns, SiteFooter, SiteHeader, SiteShell } from '@/site-renderer';
+import { buildHeaderProps, footerColumns, SiteFooter, SiteFrame, SiteHeader, SiteShell } from '@/site-renderer';
 import { FooterGate } from '@/site-renderer/ChromeGate';
 import siteStyles from '@/site-renderer/site.module.css';
 import { getPublicSite } from '@/features/catalog/public-queries';
@@ -31,11 +31,12 @@ export default async function PublicSiteLayout({ children, params }: LayoutProps
   return (
     <SiteShell theme={site.theme} language={site.settings.language} order={orderConfig(site, { track: true })} showBranding={site.showBranding} htmlLang>
       <SiteCustomCss site={site} />
-      <SiteHeader {...header} />
-      <main className={siteStyles.main}>{children}</main>
-      <FooterGate hiddenPaths={header.footerHiddenPaths}>
-        <SiteFooter site={site} navItems={header.items} columns={footerColumns(site, env)} />
-      </FooterGate>
+      <SiteFrame theme={site.theme} header={<SiteHeader {...header} />}>
+        <main className={siteStyles.main}>{children}</main>
+        <FooterGate hiddenPaths={header.footerHiddenPaths}>
+          <SiteFooter site={site} navItems={header.items} columns={footerColumns(site, env)} />
+        </FooterGate>
+      </SiteFrame>
       {site.siteKind === 'catalog' && site.settings.reviews.enabled && <ReviewInvite slug={site.business.slug} businessName={site.business.name} />}
       <ViewTracker slug={site.business.slug} />
     </SiteShell>

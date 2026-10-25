@@ -167,6 +167,19 @@ describe('Secciones y presentaciones v4', () => {
     assert.ok(JSON.stringify(ask('Muestra los productos como tarjetas de servicio').actions).includes('"serviceCards"'));
   });
 
+  it('menú lateral, estilos nuevos del encabezado y disposiciones del catálogo', () => {
+    const vertical = ask('Quiero el menú lateral');
+    assert.equal(vertical.plan.next.theme.header.layout, 'vertical');
+    assert.equal(ask('Pon el encabezado tipo cristal').plan.next.theme.header.style, 'glass');
+    const menuPage = (s: BuilderState) => ({ selectedPageId: s.pages.find((p) => p.slug === 'menu')!.id });
+    const sidebar = ask('Pon los filtros a un lado', stateWith(menuPage));
+    const catalog = sidebar.plan.next.pages.find((p) => p.slug === 'menu')!.sections.find((x) => x.type === 'catalog')!;
+    assert.ok(catalog.type === 'catalog' && catalog.content.browse.layout === 'sidebar' && catalog.content.browse.counts);
+    const jump = ask('Que el catálogo funcione como menú de restaurante', stateWith(menuPage));
+    const tabs = jump.plan.next.pages.find((p) => p.slug === 'menu')!.sections.find((x) => x.type === 'catalog')!;
+    assert.ok(tabs.type === 'catalog' && tabs.content.browse.categoryMode === 'jump' && tabs.content.browse.categoryNav === 'tabs');
+  });
+
   it('agrega un producto en específico', () => {
     const { actions } = ask('Agrega una sección con el producto del mes');
     assert.ok(JSON.stringify(actions).includes('"type":"product"'));

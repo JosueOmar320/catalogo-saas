@@ -94,7 +94,7 @@ function zodMessage(error: { issues: { path: PropertyKey[]; message: string }[] 
 const MEDIA_KEYS = new Set(['path', 'photo', 'imagePath', 'ogImagePath']);
 
 /** Partes de una sección de productos (para la etiqueta del paso; se traducen al armarla). */
-const DISPLAY_FIELDS: Record<string, string> = { presentation: msg('presentación'), collection: msg('qué mostrar'), filters: msg('filtros'), sort: msg('orden'), pagination: msg('paginación') };
+const DISPLAY_FIELDS: Record<string, string> = { presentation: msg('presentación'), collection: msg('qué mostrar'), filters: msg('filtros'), sort: msg('orden'), pagination: msg('paginación'), browse: msg('cómo se recorre') };
 
 export function planAssistantActions(initial: BuilderState, actions: AssistantAction[], env: ExecutorEnv = {}): AssistantPlan {
   let s = initial;

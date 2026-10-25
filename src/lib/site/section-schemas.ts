@@ -42,6 +42,10 @@ export const SECTION_TYPES = [
 ] as const;
 export type SectionType = (typeof SECTION_TYPES)[number];
 
+/** Catálogo completo: dónde van los filtros y cómo se ven las categorías. */
+export const CATALOG_BROWSE_LAYOUTS = ['bar', 'sidebar', 'drawer'] as const;
+export const CATALOG_CATEGORY_NAVS = ['chips', 'tabs', 'select', 'images'] as const;
+
 /** Cómo se ve la sección Producto: foto y ficha lado a lado, foto de fondo o tarjeta. */
 export const PRODUCT_SPOTLIGHT_LAYOUTS = ['split', 'banner', 'card'] as const;
 
@@ -311,6 +315,22 @@ function build(lenient: boolean) {
           .object({
             mode: f(z.enum(['all', 'pages', 'loadMore', 'infinite']), 'all'),
             perPage: f(z.number().int().min(4).max(100), 24),
+          })
+          .prefault({}),
+        /** Cómo se recorre: dónde van los filtros, cómo se ven las categorías y qué hacen. */
+        browse: z
+          .object({
+            /** Barra arriba, columna lateral con todo a la vista o un botón que abre un panel. */
+            layout: f(z.enum(CATALOG_BROWSE_LAYOUTS), 'bar'),
+            categoryNav: f(z.enum(CATALOG_CATEGORY_NAVS), 'chips'),
+            /** filter: muestra sólo esa categoría · jump: todas a la vista y el menú lleva a cada una (estilo menú de restaurante). */
+            categoryMode: f(z.enum(['filter', 'jump']), 'filter'),
+            /** La barra de búsqueda y categorías se queda arriba al bajar. */
+            sticky: bool(true),
+            /** Cuántos ítems tiene cada categoría. */
+            counts: bool(false),
+            /** El visitante cambia entre cuadrícula y lista. */
+            viewSwitch: bool(false),
           })
           .prefault({}),
       }),

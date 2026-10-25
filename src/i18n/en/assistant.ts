@@ -109,6 +109,7 @@ const catalog: Catalog = {
   'Valor inválido': 'Invalid value',
   presentación: 'layout',
   'qué mostrar': 'what to show',
+  'cómo se recorre': 'browsing',
   filtros: 'filters',
   orden: 'sorting',
   paginación: 'pagination',

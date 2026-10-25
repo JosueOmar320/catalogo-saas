@@ -380,6 +380,16 @@ const catalog: Catalog = {
   'Agrega productos a tu catálogo para mostrarlos aquí.': 'Add products to your catalog to show them here.',
   'Elegir opciones': 'Choose options',
   'Ver detalles': 'View details',
+  'Tipo': 'Type',
+  'Ver 1 resultado': 'See 1 result',
+  'Ver {count} resultados': 'See {count} results',
+  'Buscar y filtrar': 'Search and filter',
+  'Todas las categorías': 'All categories',
+  'Vista': 'View',
+  'Ver en cuadrícula': 'View as grid',
+  'Ver en lista': 'View as list',
+  'Precio mínimo': 'Minimum price',
+  'Precio máximo': 'Maximum price',
 };
 
 export default catalog;

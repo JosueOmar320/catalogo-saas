@@ -8,6 +8,7 @@ import { PageView } from './PageView';
 import { SiteFooter } from './SiteFooter';
 import { SiteHeader } from './SiteHeader';
 import { SiteCustomCss } from './SiteCustomCss';
+import { SiteFrame } from './SiteFrame';
 import { SiteShell } from './SiteShell';
 import styles from './site.module.css';
 
@@ -23,9 +24,10 @@ export function SiteView({ site, page, env, children }: { site: SiteViewModel; p
   return (
     <SiteShell theme={site.theme} language={site.settings.language} order={orderConfig(site)} showBranding={site.showBranding} htmlLang={env.mode === 'public'}>
       <SiteCustomCss site={site} />
-      <SiteHeader {...header} />
-      <main className={styles.main}>{children ?? (current && <PageView page={current} site={site} env={{ ...env, currentPageId: current.id }} />)}</main>
-      {!(current && !children && current.style.hideFooter) && <SiteFooter site={site} navItems={header.items} columns={footerColumns(site, env)} />}
+      <SiteFrame theme={site.theme} header={<SiteHeader {...header} />}>
+        <main className={styles.main}>{children ?? (current && <PageView page={current} site={site} env={{ ...env, currentPageId: current.id }} />)}</main>
+        {!(current && !children && current.style.hideFooter) && <SiteFooter site={site} navItems={header.items} columns={footerColumns(site, env)} />}
+      </SiteFrame>
     </SiteShell>
   );
 }

@@ -1435,6 +1435,66 @@ test('sección Producto y tarjetas de servicio: un producto en específico y una
   await visitor.close();
 });
 
+test('menú lateral y catálogo como tienda en línea: columna de filtros, panel en el celular y vista en lista', async ({ page, browser }) => {
+  await page.goto('/dashboard/sitio');
+  await page.getByRole('tab', { name: 'Navegación' }).click();
+  await page.getByRole('group', { name: 'Disposición' }).getByRole('button', { name: 'Menú lateral' }).click();
+  await page.getByRole('group', { name: 'Menú en el celular' }).getByRole('button', { name: 'Panel lateral' }).click();
+  await page.getByRole('tab', { name: 'Páginas' }).click();
+  await page.getByRole('button', { name: 'Sección', exact: true }).click();
+  await page.getByRole('group', { name: 'Agregar sección' }).getByRole('button', { name: /^Catálogo completo/ }).click();
+  await page.getByLabel('Título', { exact: true }).fill('Tienda E2E');
+  await page.getByRole('group', { name: 'Recetas' }).getByRole('button', { name: 'Tienda en línea' }).click();
+  await expect(page.getByRole('radio', { name: 'Columna lateral' })).toBeChecked();
+  await page.getByRole('button', { name: 'Volver a las secciones' }).click();
+  const save = page.getByRole('button', { name: 'Guardar cambios' });
+  await save.click();
+  await expect(save).toBeDisabled();
+
+  // Escritorio: el menú en una columna a la izquierda y la página a la derecha.
+  const visitor = await browser.newContext({ ...ANONYMOUS, viewport: { width: 1280, height: 800 } });
+  const site = await visitor.newPage();
+  const shop = site.getByRole('heading', { name: 'Tienda E2E' });
+  await expect(async () => {
+    await site.goto(`/catalogo/${slug}`);
+    await expect(shop).toBeVisible({ timeout: 2000 });
+  }).toPass({ timeout: 20_000 });
+  const welcome = site.getByRole('dialog', { name: '¡Bienvenido E2E!' });
+  if (await welcome.isVisible()) await welcome.getByRole('button', { name: 'Cerrar' }).click();
+  const menu = site.locator('header[data-layout="vertical"]');
+  const menuBox = (await menu.boundingBox())!;
+  expect(menuBox.x).toBe(0);
+  expect(menuBox.height).toBeGreaterThan(700);
+  await expect(menu.getByRole('navigation', { name: 'Principal' }).getByRole('link').first()).toBeVisible();
+  expect((await site.locator('main').boundingBox())!.x).toBeGreaterThanOrEqual(menuBox.width - 1);
+  // El catálogo: búsqueda y filtros en su columna, cuántos hay y cuadrícula ↔ lista.
+  const aside = site.getByRole('complementary', { name: 'Buscar y filtrar' });
+  await shop.scrollIntoViewIfNeeded();
+  await expect(aside.getByRole('searchbox')).toBeVisible();
+  await expect(site.getByText(/^\d+ resultados?$/).first()).toBeVisible();
+  await site.getByRole('button', { name: 'Ver en lista' }).click();
+  await expect(site.getByRole('button', { name: 'Ver en lista' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(site.locator('[class*="compactList"]').first()).toBeVisible();
+  await aside.getByRole('searchbox').fill('Croiss');
+  await expect(site.getByText('1 resultado').first()).toBeVisible();
+
+  // Celular: barra arriba con botón de menú que abre el panel lateral; los filtros, en su panel.
+  await site.setViewportSize({ width: 390, height: 800 });
+  await expect(aside).toBeHidden();
+  await site.getByRole('button', { name: 'Abrir menú' }).click();
+  const drawer = site.getByRole('navigation', { name: 'Menú móvil' });
+  await expect(drawer).toBeVisible();
+  expect((await drawer.boundingBox())!.height).toBeGreaterThan(700);
+  await drawer.getByRole('button', { name: 'Cerrar menú' }).click();
+  await expect(drawer).toBeHidden();
+  await site.getByRole('button', { name: /^Filtros/ }).click();
+  const sheet = site.getByRole('dialog', { name: 'Buscar y filtrar' });
+  await expect(sheet).toBeVisible();
+  await sheet.getByRole('button', { name: 'Cerrar' }).click();
+  await expect(sheet).toBeHidden();
+  await visitor.close();
+});
+
 test('Garfield en el panel (sin IA): dice dónde está cada cosa, lleva ahí y propone textos', async ({ page }) => {
   await page.goto('/dashboard');
   await page.getByRole('button', { name: 'Preguntar a Garfield' }).click();

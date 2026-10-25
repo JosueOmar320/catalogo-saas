@@ -100,7 +100,7 @@ export const assistantActionSchema = z.discriminatedUnion('action', [
     page: ref.optional(),
     presentation: obj.optional().describe('Cambios de presentación: layout, columns {desktop,tablet,mobile,pdf}, gap, imageSize, ratio, shape, frame, imagePosition, separators, align, cardStyle, gallery, arrangement, fields {...}.'),
     collection: obj.optional().describe('Cambios de colección (products/services): source, itemType, categoryId, attributeId, attributeValue, itemIds, limit, sort.'),
-    catalog: obj.optional().describe('Sólo catalog: itemType, groupByCategory, showFeatured, filters {...}, sort {default, allowUserSort}, pagination {mode, perPage}.'),
+    catalog: obj.optional().describe('Sólo catalog: itemType, groupByCategory, showFeatured, filters {...}, sort {default, allowUserSort}, pagination {mode, perPage}, browse {layout: bar|sidebar|drawer, categoryNav: chips|tabs|select|images, categoryMode: filter|jump, sticky, counts, viewSwitch}.'),
   }),
 
   /* ---------------- Diseño */
@@ -112,7 +112,7 @@ export const assistantActionSchema = z.discriminatedUnion('action', [
     spacing: obj.optional(),
     shape: obj.optional(),
     buttons: obj.optional(),
-    header: obj.optional(),
+    header: obj.optional().describe('style, layout (horizontal|vertical = menú lateral), verticalWidth, logoPosition, menuPosition, linkStyle (underline|pill|plain|boxed), linkCase, mobileMenu (dropdown|drawer|fullscreen), sticky, hideOnScroll, fullWidth, showLogo, showName, showSocial, cta, ctaLabel…'),
     footer: obj.optional(),
     cards: obj.optional(),
     badges: obj.optional(),
