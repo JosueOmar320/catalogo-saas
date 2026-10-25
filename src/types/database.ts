@@ -236,9 +236,14 @@ type OrderRow = {
   /** Existencias descontadas por producto al confirmar ({ itemId: qty }); se devuelven tal cual al cancelar. */
   stock_deltas: Json;
   personal_data_cleared: boolean;
+  /** Cuándo se mandó el aviso push del pedido (una sola vez). */
+  push_notified_at: string | null;
   created_at: string;
   status_changed_at: string;
 };
+
+/** Dispositivo de un usuario con avisos push. Las claves sólo las lee el servidor (service role). */
+type PushSubscriptionRow = { id: string; user_id: string; endpoint: string; p256dh: string; auth: string; device: string | null; created_at: string; last_success_at: string | null; failures: number };
 
 /** Pedidos por WhatsApp enviados (contadores por día UTC; los escribe record_order). */
 type OrderStatsDailyRow = {
@@ -326,6 +331,7 @@ export type Database = {
       site_versions: Table<SiteVersionRow, 'business_id' | 'catalog_id' | 'snapshot'>;
       orders: Table<OrderRow, 'business_id' | 'reference' | 'lines'>;
       notification_log: Table<NotificationLogRow, 'user_id' | 'business_id' | 'kind'>;
+      push_subscriptions: Table<PushSubscriptionRow, 'user_id' | 'endpoint' | 'p256dh' | 'auth'>;
     };
     Views: {
       /** Clientes del negocio armados con los pedidos (RLS de orders). */
@@ -379,6 +385,15 @@ export type Database = {
         };
         Returns: undefined;
       };
+      /** Registra (o reasigna al usuario actual) el dispositivo para avisos push. */
+      register_push_subscription: { Args: { p_endpoint: string; p_p256dh: string; p_auth: string; p_device?: string | null }; Returns: string };
+      /** Sólo service_role: marca el pedido como avisado (una vez) y devuelve su resumen. */
+      claim_order_push: {
+        Args: { p_business_slug: string; p_reference: string };
+        Returns: { order_id: string; business_id: string; business_name: string; reference: string; customer_name: string | null; items: number; total: number | null; currency: string; partial: boolean }[];
+      };
+      /** Sólo service_role: dispositivos de los miembros activos del negocio. */
+      push_targets: { Args: { p_business: string }; Returns: { id: string; endpoint: string; p256dh: string; auth: string; locale: string }[] };
       /** Copia el sitio guardado al historial (sin nombre: no repite si nada cambió). null si no tiene páginas. */
       record_site_version: { Args: { p_catalog_id: string; p_label?: string | null }; Returns: string | null };
       /** Última modificación del catálogo o de sus páginas (control de concurrencia de save_site). */

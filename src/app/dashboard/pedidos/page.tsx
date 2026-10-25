@@ -1,7 +1,9 @@
-import { Alert } from '@mui/material';
+import { Alert, Box } from '@mui/material';
 import type { Metadata } from 'next';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { OrdersBoard } from '@/features/orders/components/OrdersBoard';
+import { OrderAlertsCard } from '@/features/push/components/OrderAlertsCard';
+import { isPushConfigured } from '@/features/push/server';
 import { orderCountsByCustomer } from '@/features/customers/queries';
 import { countNewOrders, listOrders, PAGE } from '@/features/orders/inbox-queries';
 import { getLocale, getT } from '@/i18n/server';
@@ -33,6 +35,11 @@ export default async function OrdersPage({ searchParams }: PageProps<'/dashboard
   return (
     <>
       <PageHeader title={t('Pedidos')} description={t('Cada pedido que tus clientes envían por WhatsApp desde tu sitio. Confírmalo, márcalo listo y entregado.')} />
+      {settings.order.enabled && settings.order.inbox && (
+        <Box sx={{ mb: 2 }}>
+          <OrderAlertsCard vapidPublicKey={isPushConfigured() ? (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY?.trim() ?? null) : null} />
+        </Box>
+      )}
       {orders === null ? (
         <Alert severity="warning">{t('No se pudieron cargar los pedidos. Intenta de nuevo en unos minutos.')}</Alert>
       ) : (

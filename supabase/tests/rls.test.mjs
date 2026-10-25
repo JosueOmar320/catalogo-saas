@@ -911,5 +911,48 @@ await expectEq('after 180 days the phone is erased with the name (and the custom
 await as(A);
 await expectEq('the old customer is no longer listed', () => customers().then((rows) => rows.some((r) => r.key === 'tel:5512345678')), false);
 
+/* ------------------------------------------------------------ Avisos push */
+const EP = (n) => `https://fcm.googleapis.com/fcm/send/device-${n}`;
+const KEY = 'B'.repeat(87), AUTH = 'a'.repeat(22);
+const register = (n, device = 'Chrome en Mac') => q(`select public.register_push_subscription($1, $2, $3, $4) id`, [EP(n), KEY, AUTH, device]).then((r) => r[0].id);
+await as(null);
+await expectErr('anon cannot register a device', () => register(1), 'permission denied');
+await as(A);
+await expectOk('owner registers this device', () => register(1));
+await expectEq('the owner sees only safe columns of their devices', () => q(`select endpoint, device from public.push_subscriptions`).then((r) => r.map((x) => [x.endpoint, x.device])), [[EP(1), 'Chrome en Mac']]);
+await expectErr('the keys are not readable', () => q(`select p256dh from public.push_subscriptions`), 'permission denied');
+await expectErr('no direct inserts', () => q(`insert into public.push_subscriptions(user_id, endpoint, p256dh, auth) values ($1,$2,$3,$4)`, [A, EP(9), KEY, AUTH]), 'permission denied');
+await expectErr('an http endpoint is rejected', () => q(`select public.register_push_subscription('http://evil.test/x', $1, $2)`, [KEY, AUTH]), 'check constraint');
+await as(JUAN);
+await expectOk('the same device signed in as Juan passes to Juan', () => register(1, 'Chrome de la tienda'));
+await expectEq('Juan sees it', () => q(`select count(*)::int n from public.push_subscriptions`).then((r) => r[0].n), 1);
+await as(A);
+await expectEq('A no longer has it', () => q(`select count(*)::int n from public.push_subscriptions`).then((r) => r[0].n), 0);
+await expectOk('A registers another device', () => register(2));
+await as(B);
+await expectEq('B does not see other users devices', () => q(`select count(*)::int n from public.push_subscriptions`).then((r) => r[0].n), 0);
+await expectEq('B cannot delete them', async () => (await db.query(`delete from public.push_subscriptions where endpoint=$1`, [EP(2)])).affectedRows, 0);
+await expectErr('members cannot claim order pushes', () => q(`select * from public.claim_order_push('tienda-a', 'K7Q2')`), 'permission denied');
+await expectErr('members cannot list push targets', () => q(`select * from public.push_targets($1)`, [bizA]), 'permission denied');
+await as(A);
+for (let n = 3; n <= 11; n++) await register(n);
+await expectErr('at most 10 devices per user', () => register(12), 'push_limit');
+await expectOk('owner removes a device', () => q(`delete from public.push_subscriptions where endpoint=$1`, [EP(11)]));
+
+await db.exec('reset role');
+await setOrderSettings({ enabled: true, inbox: true, paused: false });
+await sendOrder({ ...baseOrder, reference: 'PU01', customerName: 'Rosa', total: 96 });
+await db.exec('reset role; set role service_role');
+await expectEq('the server claims the new order once, with its summary', () => q(`select reference, customer_name, items, total::text, currency from public.claim_order_push('tienda-a', 'PU01')`).then((r) => r), [{ reference: 'PU01', customer_name: 'Rosa', items: 101, total: '96.00', currency: 'MXN' }]);
+await expectEq('a second claim (same order sent twice) returns nothing', () => q(`select * from public.claim_order_push('tienda-a', 'PU01')`).then((r) => r.length), 0);
+await expectEq('another business slug does not claim it', () => q(`select * from public.claim_order_push('tienda-b', 'PU01')`).then((r) => r.length), 0);
+await expectEq('targets: devices of the members of the business (A and Juan), with their language', () => q(`select endpoint, locale from public.push_targets($1) order by endpoint`, [bizA]).then((r) => r.length >= 10 && r.every((x) => x.locale === 'es' || x.locale === 'en') && r.some((x) => x.endpoint === EP(1))), true);
+await expectEq('targets of B business do not include A devices', () => q(`select count(*)::int n from public.push_targets($1) where endpoint = any($2)`, [bizB, [EP(1), EP(2)]]).then((r) => r[0].n), 0);
+await db.exec('reset role');
+await q(`update public.orders set created_at = now() - interval '1 hour', push_notified_at = null where reference='PU01'`);
+await db.exec('set role service_role');
+await expectEq('an old order is not notified', () => q(`select * from public.claim_order_push('tienda-a', 'PU01')`).then((r) => r.length), 0);
+await db.exec('reset role');
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);
