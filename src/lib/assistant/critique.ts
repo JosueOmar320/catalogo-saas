@@ -3,6 +3,8 @@
  * (pocas secciones, poco texto, sin imágenes, HTML muy simple) se le pide UNA
  * versión más completa. Puro: lo usa el proveedor y las pruebas.
  */
+import { htmlToText, splitStyles } from '@/lib/site/custom-code';
+
 type Plain = Record<string, unknown>;
 
 /** Campos que son texto para el visitante (no ids, tipos, colores ni enlaces). */
@@ -15,11 +17,12 @@ export const MIN_PAGE_IMAGES = 2;
 export const MIN_HTML_MARKUP = 700;
 
 const words = (text: string) => text.split(/\s+/).filter(Boolean).length;
-const stripTags = (html: string) => html.replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ');
+/** Texto visible del HTML propio (con el mismo parser que lo limpia; sin su CSS). */
+const htmlText = (html: string) => htmlToText(splitStyles(html).markup);
 
 function collect(value: unknown, key: string, acc: { words: number; images: number }) {
   if (typeof value === 'string') {
-    if (key === 'html') acc.words += words(stripTags(value));
+    if (key === 'html') acc.words += words(htmlText(value));
     else if (TEXT_KEYS.has(key)) acc.words += words(value);
     if (key === 'html') acc.images += (value.match(/media:|<img\b|<svg\b/gi) ?? []).length;
     return;
@@ -41,7 +44,7 @@ export function measurePages(actions: unknown[]): { title: string; sections: num
     for (const section of a.sections as Plain[]) {
       collect({ content: section.content, style: section.style }, '', acc);
       const html = (section.content as Plain | undefined)?.html;
-      if (section.type === 'html' && typeof html === 'string' && html.replace(/<style[\s\S]*?<\/style>/gi, '').length < MIN_HTML_MARKUP) thinHtml++;
+      if (section.type === 'html' && typeof html === 'string' && splitStyles(html).markup.length < MIN_HTML_MARKUP) thinHtml++;
     }
     return [{ title: String(a.title ?? ''), sections: a.sections.length, words: acc.words, images: acc.images, thinHtml }];
   });
