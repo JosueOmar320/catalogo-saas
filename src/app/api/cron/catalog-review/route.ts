@@ -26,7 +26,11 @@ function authorized(request: NextRequest): boolean {
 
 /** Limpieza de datos viejos (migración 20261102). Sólo la service role puede ejecutarla. */
 async function purgeOldData(): Promise<boolean> {
-  const { error } = await createAdminClient().rpc('purge_old_data');
+  const admin = createAdminClient();
+  // Analítica (migración 20261107): mismo plazo de 400 días; si aún no existe, no frena lo demás.
+  const analytics = await admin.rpc('purge_analytics_data');
+  if (analytics.error && !MISSING_FUNCTION.has(analytics.error.code ?? '')) console.error('[catalog-review] no se pudo limpiar la analítica', { code: analytics.error.code });
+  const { error } = await admin.rpc('purge_old_data');
   if (!error) return true;
   if (MISSING_FUNCTION.has(error.code ?? '')) console.warn('[catalog-review] purge_old_data no existe en esta base (falta la migración 20261102)');
   else console.error('[catalog-review] no se pudo limpiar datos viejos', { code: error.code });

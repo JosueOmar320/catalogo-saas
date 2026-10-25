@@ -4,10 +4,12 @@ import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, 
 import { Download, Printer, QrCode } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useT } from '@/i18n/client';
+import { trackedLink } from '@/lib/analytics/source';
 import { qrMatrix, qrPath, qrSvg } from '@/lib/qr';
 import { escapeHtml } from '@/lib/utils/text';
 
-type Props = { url: string; businessName: string; slug: string; published: boolean };
+/** source: el código lleva ?ref=<source> para que la analítica cuente esas visitas como de QR (el texto visible sigue limpio). */
+type Props = { url: string; businessName: string; slug: string; published: boolean; source?: string };
 
 const MARGIN = 4;
 
@@ -21,10 +23,11 @@ function save(name: string, blob: Blob) {
 }
 
 /** Botón "Código QR" del catálogo: vista previa, descarga en PNG/SVG y cartel para imprimir. */
-export function QrCodeButton({ url, businessName, slug, published }: Props) {
+export function QrCodeButton({ url, businessName, slug, published, source = 'qr' }: Props) {
   const t = useT();
   const [open, setOpen] = useState(false);
-  const matrix = useMemo(() => (open ? qrMatrix(url) : null), [open, url]);
+  const target = useMemo(() => trackedLink(url, source), [url, source]);
+  const matrix = useMemo(() => (open ? qrMatrix(target) : null), [open, target]);
   const size = matrix ? matrix.length + MARGIN * 2 : 0;
 
   const downloadPng = () => {
@@ -42,14 +45,14 @@ export function QrCodeButton({ url, businessName, slug, published }: Props) {
     canvas.toBlob((blob) => blob && save(`qr-${slug}.png`, blob), 'image/png');
   };
 
-  const downloadSvg = () => save(`qr-${slug}.svg`, new Blob([qrSvg(url)], { type: 'image/svg+xml' }));
+  const downloadSvg = () => save(`qr-${slug}.svg`, new Blob([qrSvg(target)], { type: 'image/svg+xml' }));
 
   const printPoster = () => {
     const win = window.open('', '_blank');
     if (!win) return;
     win.document.write(`<!doctype html><html lang="${document.documentElement.lang}"><head><meta charset="utf-8"><title>${escapeHtml(businessName)}</title>
 <style>@page{size:auto;margin:16mm}body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;text-align:center;color:#111;margin:0;padding:24px}h1{font-size:34px;margin:0 0 8px}p{font-size:18px;margin:0 0 24px;color:#444}svg{width:min(80vw,110mm);height:auto}.url{margin-top:16px;font-size:14px;color:#555;word-break:break-all}</style></head>
-<body><h1>${escapeHtml(businessName)}</h1><p>${escapeHtml(t('Escanea para ver nuestro catálogo'))}</p>${qrSvg(url)}<div class="url">${escapeHtml(url)}</div></body></html>`);
+<body><h1>${escapeHtml(businessName)}</h1><p>${escapeHtml(t('Escanea para ver nuestro catálogo'))}</p>${qrSvg(target)}<div class="url">${escapeHtml(url)}</div></body></html>`);
     win.document.close();
     win.focus();
     win.print();

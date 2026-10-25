@@ -312,7 +312,7 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
             )}
 
             {viewStats && (
-              <SectionCard title={t('Visitas a tu sitio')} description={t('Últimos 30 días')}>
+              <SectionCard title={t('Visitas a tu sitio')} description={t('Últimos 30 días')} action={<LinkButton href="/dashboard/estadisticas" size="small" color="inherit">{t('Ver estadísticas')}</LinkButton>}>
                 {!published ? (
                   <Typography variant="body2" color="text.secondary">
                     {t('Publica tu catálogo para empezar a contar las visitas.')}

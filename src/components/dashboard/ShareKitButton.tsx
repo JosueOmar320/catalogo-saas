@@ -5,6 +5,7 @@ import { Copy, Download, Megaphone, MessageCircle } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CopyField } from '@/components/ui/CopyField';
 import { useT } from '@/i18n/client';
+import { trackedLink } from '@/lib/analytics/source';
 import { qrMatrix } from '@/lib/qr';
 import { displayUrl, readableOn, shareMessages, wrapText } from '@/lib/share/kit';
 
@@ -194,7 +195,8 @@ function drawStory(canvas: HTMLCanvasElement, { businessName, slogan, color, url
   ctx.fillStyle = '#ffffff';
   roundRect(ctx, cardX, cardY, card, cardH, 48);
   ctx.fill();
-  const matrix = qrMatrix(url);
+  // Con ?ref=qr: la analítica cuenta esas visitas como llegadas por el código QR.
+  const matrix = qrMatrix(trackedLink(url, 'qr'));
   const cell = Math.floor((card - 120) / matrix.length);
   const qrSize = cell * matrix.length;
   const qrX = cardX + (card - qrSize) / 2;

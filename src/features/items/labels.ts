@@ -1,3 +1,4 @@
+import { trackedLink } from '@/lib/analytics/source';
 import { qrSvg } from '@/lib/qr';
 import { escapeHtml } from '@/lib/utils/text';
 
@@ -11,7 +12,7 @@ export type LabelItem = { name: string; priceLabel: string | null; url: string }
 export function labelsHtml({ items, businessName, title, scanText, lang }: { items: LabelItem[]; businessName: string; title: string; scanText: string; lang: string }): string {
   const labels = items
     .map(
-      (item) => `<section><div class="text"><h2>${escapeHtml(item.name)}</h2>${item.priceLabel ? `<p class="price">${escapeHtml(item.priceLabel)}</p>` : ''}<p class="scan">${escapeHtml(scanText)}</p><p class="brand">${escapeHtml(businessName)}</p></div>${qrSvg(item.url)}</section>`,
+      (item) => `<section><div class="text"><h2>${escapeHtml(item.name)}</h2>${item.priceLabel ? `<p class="price">${escapeHtml(item.priceLabel)}</p>` : ''}<p class="scan">${escapeHtml(scanText)}</p><p class="brand">${escapeHtml(businessName)}</p></div>${qrSvg(trackedLink(item.url, 'qr'))}</section>`,
     )
     .join('');
   return `<!doctype html><html lang="${escapeHtml(lang)}"><head><meta charset="utf-8"><title>${escapeHtml(title)}</title>

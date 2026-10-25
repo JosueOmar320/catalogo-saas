@@ -954,5 +954,41 @@ await db.exec('set role service_role');
 await expectEq('an old order is not notified', () => q(`select * from public.claim_order_push('tienda-a', 'PU01')`).then((r) => r.length), 0);
 await db.exec('reset role');
 
+/* ------------------------------------------------------------ Analítica: recorrido y orígenes */
+await db.exec('reset role');
+await q(`update public.catalogs set status='published', is_active=true, deleted_at=null where id=$1`, [catA.id]);
+await q(`update public.catalog_items set is_visible=true, deleted_at=null where id=$1`, [itemA]);
+const funnel = (event, source, item = null, start = false, slug = 'tienda-a') => q(`select public.record_funnel($1, $2, $3, $4, $5) ok`, [slug, event, source, item, start]).then((r) => r[0].ok);
+const funnelRows = () => asSuper(() => q(`select source, sessions, viewed_product, started_cart, sent_order from public.funnel_stats_daily where business_id=$1 order by source`, [bizA]));
+await as(null);
+await expectErr('anon cannot record funnel events', () => funnel('session', 'qr'), 'permission denied');
+await expectErr('anon cannot read funnel stats', () => q(`select * from public.funnel_stats_daily`), 'permission denied');
+await as(A);
+await expectErr('members cannot record funnel events', () => funnel('session', 'qr'), 'permission denied');
+await db.exec('reset role; set role service_role');
+await expectEq('a visit from a QR, its first product and a cart', async () => [await funnel('session', 'qr'), await funnel('product', 'qr'), await funnel('add', 'qr', itemA, true)], [true, true, true]);
+await expectEq('more products in the same cart count for the product, not as a new cart', () => funnel('add', 'qr', itemA, false), true);
+await expectEq('the order is counted for its source', () => funnel('order', 'qr'), true);
+await expectEq('an unknown source counts as other; an unknown event is rejected', async () => [await funnel('session', 'myspace'), await funnel('purchase', 'qr')], [true, false]);
+await expectEq('another business item does not count as added', () => funnel('add', 'instagram', itemB, true), true);
+await expectEq('an unpublished or unknown site does not count', async () => [await funnel('session', 'qr', null, false, 'no-existe')], [false]);
+await expectEq('counters per source', funnelRows, [
+  { source: 'instagram', sessions: 0, viewed_product: 0, started_cart: 1, sent_order: 0 },
+  { source: 'other', sessions: 1, viewed_product: 0, started_cart: 0, sent_order: 0 },
+  { source: 'qr', sessions: 1, viewed_product: 1, started_cart: 1, sent_order: 1 },
+]);
+await expectEq('adds per product (only items of this catalog)', () => asSuper(() => q(`select item_id, adds from public.item_cart_stats_daily where business_id=$1`, [bizA])), [{ item_id: itemA, adds: 2 }]);
+await as(A);
+await expectEq('members read their funnel', () => q(`select count(*)::int n from public.funnel_stats_daily where business_id=$1`, [bizA]).then((r) => r[0].n), 3);
+await as(B);
+await expectEq('other businesses do not', () => q(`select count(*)::int n from public.funnel_stats_daily where business_id=$1`, [bizA]).then((r) => r[0].n), 0);
+await db.exec('reset role');
+await q(`insert into public.funnel_stats_daily(business_id, day, source, sessions) values ($1, current_date - 500, 'direct', 9)`, [bizA]);
+await db.exec('set role service_role');
+await expectEq('retention: 400 days', () => q(`select public.purge_analytics_data() r`).then((r) => r[0].r), { funnel_stats: 1, item_cart_stats: 0 });
+await as(A);
+await expectErr('members cannot purge', () => q(`select public.purge_analytics_data()`), 'permission denied');
+await db.exec('reset role');
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);

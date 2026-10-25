@@ -50,6 +50,8 @@ const bodySchema = z.object({
   items: z.array(z.object({ id: z.uuid(), qty: z.number().int().min(1).max(99) })).min(1).max(50),
   /** Copia para la bandeja (sólo si el negocio la usa). Si no es válida, se cuenta el pedido sin copia. */
   order: z.unknown().optional(),
+  /** De dónde llegó la visita que envió el pedido (analítica; lo normaliza la base). */
+  source: z.string().regex(/^[a-z]{1,20}$/).optional(),
 });
 
 // Con la copia del pedido: hasta 50 líneas con nombre y nota (~25 KB).
@@ -70,9 +72,20 @@ export async function POST(request: NextRequest) {
   }
 
   const order = orderSchema.safeParse(body.order);
-  const { error } = await createAdminClient().rpc('record_order_v2', { p_business_slug: body.slug, p_items: body.items, p_order: order.success ? (order.data as Json) : null });
-  if (error) console.error('[orders] no se pudo registrar el pedido', { code: error.code });
+  const admin = createAdminClient();
+  const { data: counted, error } = await admin.rpc('record_order_v2', { p_business_slug: body.slug, p_items: body.items, p_order: order.success ? (order.data as Json) : null });
+  if (error) {
+    console.error('[orders] no se pudo registrar el pedido', { code: error.code });
+    return noContent();
+  }
+  // Analítica: el pedido cuenta para el origen de la visita (si la función aún no existe, no pasa nada).
+  if (counted) {
+    after(async () => {
+      const { error: funnelError } = await admin.rpc('record_funnel', { p_business_slug: body.slug, p_event: 'order', p_source: body.source ?? 'direct' });
+      if (funnelError && funnelError.code !== 'PGRST202') console.error('[funnel] no se pudo registrar el pedido', { code: funnelError.code });
+    });
+  }
   // Aviso push a los miembros del negocio, después de responder (cada pedido se avisa una vez).
-  else if (order.success) after(() => notifyNewOrder(body.slug, order.data.reference));
+  if (order.success) after(() => notifyNewOrder(body.slug, order.data.reference));
   return noContent();
 }
