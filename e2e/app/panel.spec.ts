@@ -98,6 +98,8 @@ test('al publicar, el visitante ve el producto y puede pedirlo por WhatsApp', as
     slug,
     items: [{ id: expect.any(String), qty: 1 }],
     order: expect.objectContaining({ reference: expect.stringMatching(/^[A-Z0-9]{4}$/), customerName: 'Ana E2E', customerPhone: '55 1234 5678', lines: [expect.objectContaining({ name: productName, qty: 1, unitPrice: null })] }),
+    // Analítica: llegó directo a la ficha (sin enlace con seguimiento ni página anterior).
+    source: 'direct',
   });
   firstReference = sent.order.reference;
   await (await popup).close();
@@ -196,6 +198,44 @@ test('clientes: el pedido con WhatsApp arma la lista; se busca, se le escribe y 
   await main.getByRole('listitem', { name: 'Ana E2E' }).getByRole('link', { name: 'Ver los pedidos de Ana E2E' }).click();
   await expect(page).toHaveURL(/\/dashboard\/pedidos\?estado=todos&dias=90&q=5512345678/);
   await expect(page.getByRole('listitem', { name: `Pedido ${firstReference}` })).toBeVisible();
+});
+
+test('estadísticas: una visita desde Instagram que ve un producto, lo agrega y envía el pedido', async ({ page, browser }) => {
+  const visitor = await browser.newContext(ANONYMOUS);
+  const site = await visitor.newPage();
+  await site.goto(`/catalogo/${slug}?ref=instagram`);
+  await site.goto(`/catalogo/${slug}/p/croissant-e2e`);
+  await site.getByRole('button', { name: 'Agregar al pedido' }).click();
+  await site.getByRole('button', { name: /^Ver pedido/ }).click();
+  await visitor.route('https://wa.me/**', (route) => route.fulfill({ status: 200, contentType: 'text/plain', body: 'WhatsApp' }));
+  const sent = site.waitForRequest((request) => request.url().endsWith('/api/orders') && request.method() === 'POST');
+  const popup = visitor.waitForEvent('page');
+  await site.getByRole('link', { name: 'Enviar pedido por WhatsApp' }).click();
+  // El pedido lleva el origen de la visita (la sesión recuerda que llegó desde Instagram).
+  expect((await sent).postDataJSON().source).toBe('instagram');
+  await (await popup).close();
+  await visitor.close();
+
+  await page.goto('/dashboard');
+  await page.getByRole('link', { name: 'Ver estadísticas' }).click();
+  await expect(page).toHaveURL(/\/dashboard\/estadisticas$/);
+  const sources = page.getByRole('list', { name: 'De dónde llegan' });
+  await expect(async () => {
+    await page.reload();
+    await expect(sources.getByRole('listitem').filter({ hasText: 'Instagram' })).toContainText('1 pedido (100 %)', { timeout: 1000 });
+  }).toPass({ timeout: 15_000 });
+  // Cada paso del recorrido se contó (también la visita directa del primer pedido).
+  const journey = page.getByRole('list', { name: 'Recorrido de las visitas' });
+  for (const step of ['Visitas', 'Vieron un producto', 'Agregaron al pedido', 'Enviaron el pedido']) {
+    await expect(journey.getByRole('listitem').filter({ hasText: new RegExp(`^${step}`) })).toContainText(/[1-9]/);
+  }
+  await expect(journey.getByRole('listitem').filter({ hasText: 'Enviaron el pedido' })).toContainText(/% de las visitas/);
+  // Otros periodos y los enlaces con seguimiento.
+  await page.getByRole('tab', { name: '7 días' }).click();
+  await expect(page).toHaveURL(/dias=7/);
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.getByRole('button', { name: 'Copiar el enlace para Instagram' }).click();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(new RegExp(`/catalogo/${slug}\\?ref=instagram$`));
 });
 
 test('importar productos desde CSV y volver a importarlos actualiza en vez de duplicar', async ({ page }) => {
@@ -1322,7 +1362,7 @@ test('tipo de sitio: un sitio web nace sin catálogo y el panel no muestra produ
   await page.goto('/dashboard');
   const menu = page.getByRole('navigation', { name: 'Menú principal' });
   await expect(menu.getByRole('link', { name: 'Medios' })).toBeVisible();
-  for (const name of ['Pedidos', 'Clientes', 'Reseñas', 'Catálogo PDF']) await expect(menu.getByRole('link', { name })).toHaveCount(0);
+  for (const name of ['Pedidos', 'Clientes', 'Estadísticas', 'Reseñas', 'Catálogo PDF']) await expect(menu.getByRole('link', { name })).toHaveCount(0);
   await expect(menu.getByRole('button', { name: 'Contenido' })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Páginas de tu sitio' })).toBeVisible();
   // Por URL tampoco: vuelve al inicio del panel.
@@ -1347,8 +1387,8 @@ test('tipo de sitio: un sitio web nace sin catálogo y el panel no muestra produ
 });
 
 test('accesibilidad del panel y la administración (axe)', async ({ page }) => {
-  test.setTimeout(120_000); // 14 páginas, cada una con su análisis
-  for (const path of ['/dashboard', '/dashboard/pedidos', '/dashboard/clientes', '/dashboard/catalog/products', '/dashboard/catalog/items/new?type=product', '/dashboard/catalog/categories', '/dashboard/settings/contacto', '/dashboard/settings/negocio', '/dashboard/resenas', '/dashboard/media', '/dashboard/sitio', '/dashboard/export/pdf', '/admin', '/admin/usuarios', '/cuenta']) {
+  test.setTimeout(120_000); // 15 páginas, cada una con su análisis
+  for (const path of ['/dashboard', '/dashboard/pedidos', '/dashboard/clientes', '/dashboard/estadisticas', '/dashboard/catalog/products', '/dashboard/catalog/items/new?type=product', '/dashboard/catalog/categories', '/dashboard/settings/contacto', '/dashboard/settings/negocio', '/dashboard/resenas', '/dashboard/media', '/dashboard/sitio', '/dashboard/export/pdf', '/admin', '/admin/usuarios', '/cuenta']) {
     await page.goto(path);
     await expect(page.getByRole('main').first()).toBeVisible();
     await expectAccessible(page, path);

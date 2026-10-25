@@ -187,6 +187,10 @@ export type ReviewStatus = 'pending' | 'approved' | 'rejected';
 /** reply: respuesta pública del negocio (null = sin respuesta). */
 type ReviewRow = { id: string; business_id: string; item_id: string | null; name: string; rating: number; body: string; status: ReviewStatus; created_at: string; reviewed_at: string | null; reply: string | null; replied_at: string | null };
 
+/** Recorrido de las visitas por día y origen (los escribe record_funnel). */
+type FunnelStatsDailyRow = { business_id: string; day: string; source: string; sessions: number; viewed_product: number; started_cart: number; sent_order: number };
+/** Veces que se agregó cada producto a un pedido, por día (record_funnel). */
+type ItemCartStatsDailyRow = { business_id: string; day: string; item_id: string; adds: number };
 /** Páginas vistas del sitio publicado (contadores por día UTC; los escribe record_view). */
 type SiteViewStatsDailyRow = { business_id: string; day: string; views: number };
 /** Fichas de producto o servicio vistas (por día UTC). */
@@ -325,6 +329,8 @@ export type Database = {
       site_view_stats_daily: Table<SiteViewStatsDailyRow, 'business_id' | 'day'>;
       reviews: Table<ReviewRow, 'business_id' | 'name' | 'rating'>;
       item_view_stats_daily: Table<ItemViewStatsDailyRow, 'business_id' | 'day' | 'item_id'>;
+      funnel_stats_daily: Table<FunnelStatsDailyRow, 'business_id' | 'day' | 'source'>;
+      item_cart_stats_daily: Table<ItemCartStatsDailyRow, 'business_id' | 'day' | 'item_id'>;
       search_miss_stats_daily: Table<SearchMissStatsDailyRow, 'business_id' | 'day' | 'term'>;
       item_costs: Table<ItemCostRow, 'item_id' | 'business_id' | 'cost'>;
       section_templates: Table<SectionTemplateRow, 'business_id' | 'name' | 'section'>;
@@ -368,6 +374,10 @@ export type Database = {
       record_order_v2: { Args: { p_business_slug: string; p_items: { id: string; qty: number }[]; p_order: Json | null }; Returns: boolean };
       set_order_status: { Args: { p_order: string; p_status: OrderStatus }; Returns: string };
       record_view: { Args: { p_business_slug: string; p_item_slug?: string | null }; Returns: boolean };
+      /** Sólo service_role: un paso del recorrido (session, product, add, order) por origen. */
+      record_funnel: { Args: { p_business_slug: string; p_event: string; p_source: string; p_item_id?: string | null; p_cart_start?: boolean }; Returns: boolean };
+      /** Sólo service_role: borra los contadores de analítica de más de 400 días. */
+      purge_analytics_data: { Args: Record<string, never>; Returns: Json };
       record_search_miss: { Args: { p_business_slug: string; p_term: string }; Returns: boolean };
       submit_review: { Args: { p_business_slug: string; p_item_slug: string | null; p_name: string; p_rating: number; p_body: string }; Returns: boolean };
       get_public_reviews: { Args: { p_business_slug: string }; Returns: { id: string; item_id: string | null; name: string; rating: number; body: string; created_at: string; reply?: string | null; replied_at?: string | null }[] };

@@ -40,6 +40,7 @@ import {
   type OrderLine,
   type TierIndex,
 } from './message';
+import { trackAddToOrder, visitSource } from '../visit';
 
 /* ------------------------------------------------------------------ Estado */
 
@@ -245,7 +246,8 @@ function writeLast(key: string, lines: OrderLine[]) {
  */
 function trackOrder(slug: string, lines: OrderLine[], order: InboxOrder | null) {
   try {
-    const body = JSON.stringify({ slug, items: lines.map((line) => ({ id: line.itemId ?? line.id, qty: line.qty })), ...(order ? { order } : {}) });
+    const source = visitSource(slug);
+    const body = JSON.stringify({ slug, items: lines.map((line) => ({ id: line.itemId ?? line.id, qty: line.qty })), ...(order ? { order } : {}), ...(source ? { source } : {}) });
     navigator.sendBeacon?.('/api/orders', new Blob([body], { type: 'application/json' }));
   } catch {}
 }
@@ -378,6 +380,8 @@ export function OrderProvider({ config, children }: { config: OrderConfig; child
           ? lines.map((line) => (line.id === item.id ? { ...line, ...item, qty: clampQty(line.qty + 1) } : line))
           : [...lines, { ...item, qty: 1 }];
         write(key, { ...rest, lines: next, reference: rest.reference || newReference() });
+        // Analítica: un producto nuevo en el pedido (y si es el primero, un pedido empezado).
+        if (!existing && config.trackSlug) trackAddToOrder(config.trackSlug, item.itemId ?? item.id, lines.length === 0);
         // Con la cantidad: agregar dos veces lo mismo cambia el texto y el lector de pantalla lo vuelve a leer.
         setAnnouncement(t('Agregado al pedido: {name} ({count} en total)', { name: item.name, count: next.find((line) => line.id === item.id)?.qty ?? 1 }));
       },

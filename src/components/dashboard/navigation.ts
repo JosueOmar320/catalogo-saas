@@ -1,4 +1,4 @@
-import { Building2, Contact, FileDown, Globe, History, Home, Image as ImageIcon, LayoutDashboard, LibraryBig, MessageSquareText, Package, ReceiptText, Settings, SlidersHorizontal, Users, type LucideIcon } from 'lucide-react';
+import { BarChart3, Building2, Contact, FileDown, Globe, History, Home, Image as ImageIcon, LayoutDashboard, LibraryBig, MessageSquareText, Package, ReceiptText, Settings, SlidersHorizontal, Users, type LucideIcon } from 'lucide-react';
 import { msg } from '@/i18n/translate';
 import type { SiteKind } from '@/lib/business/site-kind';
 
@@ -21,6 +21,7 @@ export const NAVIGATION: NavEntry[] = [
   { label: msg('Inicio'), icon: Home, href: '/dashboard' },
   { label: msg('Pedidos'), icon: ReceiptText, href: '/dashboard/pedidos', catalogOnly: true },
   { label: msg('Clientes'), icon: Contact, href: '/dashboard/clientes', catalogOnly: true },
+  { label: msg('Estadísticas'), icon: BarChart3, href: '/dashboard/estadisticas', catalogOnly: true },
   {
     label: msg('Contenido'),
     icon: Package,

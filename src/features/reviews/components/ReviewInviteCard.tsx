@@ -36,7 +36,7 @@ export function ReviewInviteCard({ url, businessName, slug, published }: { url: 
           <Button size="small" variant="outlined" startIcon={<Send size={14} />} href={`https://wa.me/?text=${encodeURIComponent(message)}`} target="_blank" rel="noopener noreferrer">
             {t('Enviar por WhatsApp')}
           </Button>
-          <QrCodeButton url={url} businessName={businessName} slug={slug} published={published} />
+          <QrCodeButton url={url} businessName={businessName} slug={slug} published={published} source="reviews" />
         </Stack>
       </Stack>
     </SectionCard>

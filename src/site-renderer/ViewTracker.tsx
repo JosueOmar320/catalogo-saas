@@ -2,11 +2,13 @@
 
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef } from 'react';
+import { markProductView, startVisit } from './visit';
 
 /**
  * Cuenta las páginas vistas del sitio publicado (sólo el publicado: la demo y
  * las vistas previas no lo montan). Envía el negocio y, en una ficha, el slug
- * del ítem; nada del visitante. sendBeacon no bloquea la navegación.
+ * del ítem; nada del visitante. sendBeacon no bloquea la navegación. También
+ * los pasos del recorrido de la visita (llegada con su origen y primera ficha).
  */
 export function ViewTracker({ slug }: { slug: string }) {
   const pathname = usePathname();
@@ -21,6 +23,8 @@ export function ViewTracker({ slug }: { slug: string }) {
     try {
       navigator.sendBeacon?.('/api/views', new Blob([JSON.stringify({ slug, item })], { type: 'application/json' }));
     } catch {}
+    startVisit(slug);
+    if (item) markProductView(slug);
   }, [pathname, slug]);
 
   return null;
