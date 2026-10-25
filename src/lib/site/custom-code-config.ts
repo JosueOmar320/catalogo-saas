@@ -8,6 +8,18 @@ export type CustomCodeSection = (typeof CUSTOM_CODE_SECTIONS)[number];
 export const isCustomCodeSection = (type: string): type is CustomCodeSection => (CUSTOM_CODE_SECTIONS as readonly string[]).includes(type);
 
 export const MAX_HTML_LENGTH = 50_000;
+/** Un widget puede ser una página completa (con su <head>, estilos y scripts). */
+export const MAX_EMBED_LENGTH = 150_000;
+
+/** Documento completo (<!doctype>, <html>…): se usa tal cual dentro del widget. */
+export const isFullDocument = (code: string) => /^\s*(?:<!--[\s\S]*?-->\s*)*(?:<!doctype[^>]*>\s*)?(?:<!--[\s\S]*?-->\s*)*<html[\s>]/i.test(code);
+
+/**
+ * Código que sólo funciona como página completa (scripts, Tailwind por CDN,
+ * <html>/<head>/<body>): en la sección HTML se perdería; se ofrece pasarlo a
+ * «Widget con código» a pantalla completa.
+ */
+export const needsFullPageWidget = (code: string) => isFullDocument(code) || /<\s*(script|head|body)\b/i.test(code) || /cdn\.tailwindcss\.com|<link\b[^>]*stylesheet/i.test(code);
 export const MAX_CSS_LENGTH = 20_000;
 /** Atributo de la raíz del sitio: el CSS propio queda limitado a ella. */
 export const SITE_SCOPE = '[data-site]';

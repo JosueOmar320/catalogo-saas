@@ -4,7 +4,7 @@ import { ICON_IDS } from '@/lib/design/icons';
 import { fieldFactory, hexColor } from '@/lib/design/schema-utils';
 import { collectionSchema, lenientCollectionSchema, SORT_OPTIONS } from '@/lib/catalog/collections';
 import { lenientPresentationSchema, presentationSchema } from '@/lib/catalog/presentation';
-import { MAX_HTML_LENGTH } from './custom-code-config';
+import { MAX_EMBED_LENGTH, MAX_HTML_LENGTH } from './custom-code-config';
 
 /**
  * Secciones de página. Cada tipo = schema de contenido con defaults.
@@ -35,10 +35,15 @@ export const SECTION_TYPES = [
   'logos',
   'columns',
   'quickorder',
+  'table',
   'html',
   'embed',
 ] as const;
 export type SectionType = (typeof SECTION_TYPES)[number];
+
+/** Tope de la sección Tabla (lo respetan el editor, Garfield y el guardado). */
+export const TABLE_MAX_COLUMNS = 10;
+export const TABLE_MAX_ROWS = 60;
 
 /** Distribuciones de la sección Columnas (fracciones del ancho). */
 export const COLUMN_LAYOUTS = ['1', '1-1', '1-2', '2-1', '1-3', '3-1', '1-1-1', '1-2-1', '1-1-1-1'] as const;
@@ -488,6 +493,44 @@ function build(lenient: boolean) {
         showImages: bool(true),
       }),
     ),
+    /**
+     * Tabla (comparativas, horarios, tallas, precios por volumen…). Las celdas de
+     * cada fila van en el orden de las columnas; en celular se desliza o se
+     * vuelve tarjetas.
+     */
+    table: base(
+      'table',
+      z.object({
+        ...heading,
+        columns: f(
+          z.array(z.object({ id: z.string().max(64), label: text(80), align: f(z.enum(['left', 'center', 'right']), 'left') })).min(1).max(TABLE_MAX_COLUMNS),
+          [
+            { id: 'c1', label: 'Servicio', align: 'left' },
+            { id: 'c2', label: 'Básico', align: 'center' },
+            { id: 'c3', label: 'Completo', align: 'center' },
+          ],
+        ),
+        rows: f(
+          z.array(z.object({ id: z.string().max(64), cells: f(z.array(text(300)).max(TABLE_MAX_COLUMNS), []) })).max(TABLE_MAX_ROWS),
+          [
+            { id: 'r1', cells: ['Precio', '$299', '$499'] },
+            { id: 'r2', cells: ['Duración', '1 hora', '2 horas'] },
+            { id: 'r3', cells: ['Incluye materiales', '—', '✓'] },
+          ],
+        ),
+        /** La primera columna nombra cada fila (en negritas y fija al deslizar en celular). */
+        rowHeaders: bool(true),
+        variant: f(z.enum(['simple', 'striped', 'bordered']), 'striped'),
+        header: f(z.enum(['plain', 'accent', 'dark']), 'accent'),
+        /** Columna resaltada (1 = la primera; 0 = ninguna), p. ej. el plan recomendado. */
+        highlight: f(z.number().int().min(0).max(TABLE_MAX_COLUMNS), 0),
+        compact: bool(false),
+        /** En celular: deslizar la tabla o mostrar cada fila como tarjeta. */
+        mobile: f(z.enum(['scroll', 'cards']), 'scroll'),
+        /** Nota debajo de la tabla ("Precios en MXN, IVA incluido"). */
+        note: text(200),
+      }),
+    ),
     /** HTML propio (se limpia al guardar y al mostrar). Sólo se muestra con código propio habilitado. */
     html: base(
       'html',
@@ -501,9 +544,11 @@ function build(lenient: boolean) {
       z.object({
         /** Nombre accesible del iframe ("Reservas", "Mapa de sucursales"…). */
         title: text(80),
-        code: text(MAX_HTML_LENGTH),
+        code: text(MAX_EMBED_LENGTH),
         /** Alto en px; 0 = automático (el widget avisa su altura). */
         height: f(z.number().int().min(0).max(2000), 0),
+        /** Pantalla completa: del alto de la ventana y con su propio scroll (páginas completas con menú fijo, modales…). */
+        fullScreen: bool(false),
       }),
     ),
     columns: base(
@@ -549,6 +594,7 @@ function build(lenient: boolean) {
     sections.logos,
     sections.columns,
     sections.quickorder,
+    sections.table,
     sections.html,
     sections.embed,
   ]);

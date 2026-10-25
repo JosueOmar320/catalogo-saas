@@ -116,6 +116,7 @@ const SECTION_WORDS: [string[], () => SectionIntent[]][] = [
   [['columnas', 'composicion libre'], () => [{ type: 'columns', content: columnPreset('imageText') }]],
   [['preguntas frecuentes', 'faq', 'dudas frecuentes'], () => [{ type: 'faq', content: { title: 'Preguntas frecuentes', items: [{ question: '¿Hacen envíos?', answer: 'Sí, escríbenos y te cotizamos el envío a tu zona.' }, { question: '¿Qué formas de pago aceptan?', answer: 'Efectivo, transferencia y tarjeta.' }] } }]],
   [['planes', 'paquetes', 'membresia', 'tabla de precios'], () => [{ type: 'pricing', content: { title: 'Planes', plans: [{ name: 'Básico', price: '$199', period: '/mes', features: ['Beneficio 1', 'Beneficio 2'] }, { name: 'Pro', price: '$399', period: '/mes', features: ['Todo lo del Básico', 'Beneficio extra'], highlighted: true, badge: 'Más elegido' }] } }]],
+  [['tabla comparativa', 'comparativa', 'tabla de tallas', 'tallas', 'tabla de horarios', 'tabla'], () => [{ type: 'table', content: { title: 'Comparativa' } }]],
   [['equipo', 'quienes somos'], () => [{ type: 'team', content: { title: 'Nuestro equipo' } }]],
   [['estadistica', 'cifras', 'numeros', 'logros'], () => [{ type: 'stats', content: { items: [{ value: '+10', label: 'años de experiencia' }, { value: '+500', label: 'clientes felices' }, { value: '24 h', label: 'tiempo de respuesta' }] } }]],
   [['logos', 'marcas aliadas', 'aliados', 'patrocinador', 'confian en nosotros'], () => [{ type: 'logos', content: { title: 'Confían en nosotros' } }]],

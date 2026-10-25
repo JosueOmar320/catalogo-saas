@@ -216,7 +216,7 @@ export function planAssistantActions(initial: BuilderState, actions: AssistantAc
   function withItemIds(content: PlainObject): PlainObject {
     const ids = (list: unknown) => (Array.isArray(list) ? list.map((item) => (isPlainObject(item) && !item.id ? { ...item, id: crypto.randomUUID() } : item)) : list);
     const out = { ...content };
-    for (const key of ['items', 'plans', 'members'] as const) if (Array.isArray(out[key])) out[key] = ids(out[key]);
+    for (const key of ['items', 'plans', 'members', 'rows'] as const) if (Array.isArray(out[key])) out[key] = ids(out[key]);
     if (Array.isArray(out.columns)) {
       out.columns = (ids(out.columns) as unknown[]).map((column) =>
         isPlainObject(column) && Array.isArray(column.blocks)

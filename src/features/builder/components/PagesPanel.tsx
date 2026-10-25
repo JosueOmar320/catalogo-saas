@@ -221,7 +221,7 @@ export function PagesPanel({ customCode = false, catalog = true }: { customCode?
 function SectionPicker({ onPick, onClose, customCode, catalog }: { onPick: (section: Section) => void; onClose: () => void; customCode: boolean; catalog: boolean }) {
   const t = useT();
   return (
-    <Box sx={{ mb: 1.5, p: 1, border: 1, borderColor: 'divider', borderRadius: 1.5 }}>
+    <Box role="group" aria-label={t('Agregar sección')} sx={{ mb: 1.5, p: 1, border: 1, borderColor: 'divider', borderRadius: 1.5 }}>
       <Stack direction="row" sx={{ alignItems: 'center' }}>
         <Typography variant="caption" sx={{ fontWeight: 600, flex: 1 }}>{t('Agregar sección')}</Typography>
         <IconButton size="small" onClick={onClose} aria-label={t('Cerrar')}><X size={14} /></IconButton>

@@ -26,6 +26,7 @@ export const SECTION_META: Record<SectionType, { label: string; description: str
   logos: { label: msg('Logos'), description: msg('Marcas, clientes o certificaciones.'), icon: 'badge-check', group: 'Contenido' },
   quickorder: { label: msg('Pedido rápido'), description: msg('Todos tus productos en una lista compacta con su cantidad: para pedir muchos de una vez (mayoreo, clientes frecuentes).'), icon: 'clipboard-list', group: 'Catálogo' },
   columns: { label: msg('Columnas (libre)'), description: msg('Arma tu composición: imagen + texto, tarjetas, listas con íconos, varios botones, cifras…'), icon: 'columns', group: 'Principal' },
+  table: { label: msg('Tabla'), description: msg('Filas y columnas: comparativas, horarios, tallas, precios por volumen.'), icon: 'table', group: 'Contenido' },
   html: { label: msg('HTML propio'), description: msg('Tu propio HTML con los estilos del sitio (sin scripts). Para lo que las otras secciones no hacen.'), icon: 'laptop', group: 'Código' },
   embed: { label: msg('Widget con código'), description: msg('Código de otro servicio (reservas, formularios, mapas, chats) aislado en un marco seguro.'), icon: 'zap', group: 'Código' },
 };

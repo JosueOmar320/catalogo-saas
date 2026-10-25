@@ -2,6 +2,7 @@ import { Placeholder, SectionFrame } from '../SectionFrame';
 import { EmbedFrame } from '../EmbedFrame';
 import { siteTranslator } from '../site-i18n';
 import { themeToVars } from '../theme-vars';
+import styles from '../site.module.css';
 import type { SectionProps } from './types';
 
 /**
@@ -10,14 +11,15 @@ import type { SectionProps } from './types';
  */
 export function EmbedSection({ section, site, env }: SectionProps<'embed'>) {
   const t = siteTranslator(site.settings.language);
-  const { code, title, height } = section.content;
+  const { code, title, height, fullScreen } = section.content;
   const show = site.customCode && code.trim() !== '';
   if (!show && env.mode === 'public') return null;
   return (
-    <SectionFrame section={section} theme={site.theme}>
+    // A pantalla completa: de borde a borde y sin relleno (es una página entera).
+    <SectionFrame section={fullScreen ? { ...section, style: { ...section.style, width: 'full', paddingTop: 'none', paddingBottom: 'none' } } : section} theme={site.theme} className={fullScreen ? styles.embedFullScreen : undefined}>
       <Placeholder show={!site.customCode}>{t('El código propio no está habilitado para este sitio: esta sección no se publica.')}</Placeholder>
       <Placeholder show={site.customCode && !show}>{t('Pega el código del widget en el editor.')}</Placeholder>
-      {show && <EmbedFrame code={code} title={title || t('Contenido externo')} height={height} vars={colorVars(site.theme)} />}
+      {show && <EmbedFrame code={code} title={title || t('Contenido externo')} height={height} fullScreen={fullScreen} vars={colorVars(site.theme)} />}
     </SectionFrame>
   );
 }

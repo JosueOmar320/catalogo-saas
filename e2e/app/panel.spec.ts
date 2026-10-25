@@ -1271,6 +1271,27 @@ test('código propio: el administrador lo habilita; HTML limpio, widget aislado 
     .fill('<p id="w">cargando</p><script>var r; try { r = parent.document.title ? "sin aislar" : "sin aislar"; } catch (e) { r = "aislado"; } document.getElementById("w").textContent = "Widget listo: " + r;</script>');
   await page.getByRole('button', { name: 'Volver a las secciones' }).click();
 
+  // Una página con scripts pegada en la sección HTML: se ofrece convertirla en widget a pantalla completa.
+  await page.getByRole('button', { name: 'Sección', exact: true }).click();
+  await page.getByRole('group', { name: 'Agregar sección' }).getByRole('button', { name: /^HTML propio/ }).click();
+  await page.getByLabel('HTML', { exact: true }).fill('<nav><a href="#fin">Ir al final</a></nav><p id="st">cargando</p><div style="height:2400px"></div><p id="fin">Final de la página</p><script>localStorage.setItem("tema", "oscuro"); document.cookie = "visto=1"; document.getElementById("st").textContent = "Guardado: " + localStorage.getItem("tema") + " · " + document.cookie;</script>');
+  await page.getByRole('alert').filter({ hasText: 'Esto es una página completa o lleva scripts' }).getByRole('button', { name: 'Convertir' }).click();
+  await expect(page.getByLabel('Código', { exact: true })).toHaveValue(/localStorage\.setItem/);
+  await page.getByLabel('Nombre del widget').fill('Landing E2E');
+  await page.getByRole('switch', { name: 'Pantalla completa' }).click();
+  await page.getByRole('button', { name: 'Volver a las secciones' }).click();
+
+  // Tabla nativa: pegada desde una hoja de cálculo, con la columna del plan recomendado destacada.
+  await page.getByRole('button', { name: 'Sección', exact: true }).click();
+  await page.getByRole('group', { name: 'Agregar sección' }).getByRole('button', { name: /^Tabla/ }).click();
+  await page.getByRole('button', { name: 'Pegar desde Excel o Google Sheets' }).click();
+  await page.getByLabel('Celdas copiadas').fill('Talla\tPecho (cm)\tLargo (cm)\nCH\t88\t68\nM\t96\t71\nG\t104\t74');
+  await page.getByRole('button', { name: 'Usar estas celdas' }).click();
+  await page.getByLabel('Título', { exact: true }).fill('Guía de tallas E2E');
+  await page.getByRole('combobox', { name: 'Columna destacada' }).click();
+  await page.getByRole('option', { name: 'Pecho (cm)' }).click();
+  await page.getByRole('button', { name: 'Volver a las secciones' }).click();
+
   await page.getByRole('tab', { name: 'Diseño' }).click();
   await page.getByRole('tab', { name: 'CSS propio' }).click();
   await page.getByLabel('CSS', { exact: true }).fill('.promo-e2e h2 { color: rgb(200, 0, 0) } body { outline: 3px solid rgb(0, 128, 0) }');
@@ -1316,6 +1337,32 @@ test('código propio: el administrador lo habilita; HTML limpio, widget aislado 
   await frame.scrollIntoViewIfNeeded();
   expect(await frame.getAttribute('sandbox')).not.toContain('allow-same-origin');
   await expect(site.frameLocator('iframe[title="Reservas E2E"]').getByText('Widget listo: aislado')).toBeVisible();
+
+  // Widget a pantalla completa: del alto de la ventana, con almacenamiento y #anclas que funcionan dentro del aislamiento.
+  const landing = site.locator('iframe[title="Landing E2E"]');
+  await landing.scrollIntoViewIfNeeded();
+  expect((await landing.boundingBox())!.height).toBe(site.viewportSize()!.height);
+  const inside = site.frameLocator('iframe[title="Landing E2E"]');
+  await expect(inside.getByText('Guardado: oscuro · visto=1')).toBeVisible();
+  let popups = 0;
+  visitor.on('page', () => popups++);
+  const goToEnd = inside.getByRole('link', { name: 'Ir al final' });
+  // Playwright acerca el enlace antes del clic: la posición de la página se toma después de eso.
+  await goToEnd.hover();
+  const pageScroll = await site.evaluate(() => scrollY);
+  await goToEnd.click();
+  // Se desplaza el widget (su propio scroll) hasta el destino.
+  const landingFrame = (await (await landing.elementHandle())!.contentFrame())!;
+  await expect.poll(() => landingFrame.evaluate(() => { const top = document.getElementById('fin')!.getBoundingClientRect().top; return top >= 0 && top < innerHeight; })).toBe(true);
+  expect(popups, 'el #ancla no abre otra pestaña').toBe(0);
+  expect(await site.evaluate(() => scrollY), 'ni mueve la página del sitio').toBe(pageScroll);
+
+  // La tabla: encabezados de columna y de fila, y la columna destacada.
+  const sizes = site.getByRole('table', { name: 'Guía de tallas E2E' });
+  await sizes.scrollIntoViewIfNeeded();
+  await expect(sizes.getByRole('columnheader', { name: 'Pecho (cm)' })).toHaveAttribute('data-highlight', 'true');
+  await expect(sizes.getByRole('rowheader', { name: 'M' })).toBeVisible();
+  await expect(sizes.getByRole('row', { name: /^G 104 74/ })).toBeVisible();
   await visitor.close();
 });
 

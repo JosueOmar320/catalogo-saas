@@ -4,7 +4,7 @@ import {
   Handshake, Headphones, Heart, House, Info, Laptop, Leaf, Lightbulb, Mail, Map, MapPin, MessageCircle, Music, Package,
   Paintbrush, Percent, Phone, Pizza, Plane, Quote, Recycle, Rocket, Scissors, Shirt, ShieldCheck, ShoppingBag, ShoppingCart,
   Smartphone, Smile, Sparkles, Star, Stethoscope, Store, Sun, Tag, Target, ThumbsUp, Timer, Truck, User, Users, Utensils,
-  Wallet, Wifi, Wrench, Zap, Play, CircleHelp, ChartColumn, Image as ImageIcon, Megaphone, TrendingUp, Columns3,
+  Wallet, Wifi, Wrench, Zap, Play, CircleHelp, ChartColumn, Image as ImageIcon, Megaphone, TrendingUp, Columns3, Table,
 } from 'lucide';
 import { msg } from '@/i18n/translate';
 
@@ -35,7 +35,7 @@ const ICON_LIST = [
   ['laptop', msg('Computadora'), Laptop], ['smartphone', msg('Teléfono celular'), Smartphone], ['clipboard-list', msg('Lista'), ClipboardList], ['timer', msg('Tiempo'), Timer],
   ['arrow-right', msg('Flecha'), ArrowRight], ['info', msg('Información'), Info], ['quote', msg('Cita'), Quote],
   ['play', msg('Video'), Play], ['circle-help', msg('Pregunta'), CircleHelp], ['chart', msg('Estadística'), ChartColumn], ['image', msg('Imagen'), ImageIcon],
-  ['megaphone', msg('Anuncio'), Megaphone], ['trending-up', msg('Crecimiento'), TrendingUp], ['columns', msg('Columnas'), Columns3],
+  ['megaphone', msg('Anuncio'), Megaphone], ['trending-up', msg('Crecimiento'), TrendingUp], ['columns', msg('Columnas'), Columns3], ['table', msg('Tabla'), Table],
 ] as const;
 
 export type IconId = (typeof ICON_LIST)[number][0];
