@@ -1432,7 +1432,10 @@ test('sección Producto y tarjetas de servicio: un producto en específico y una
     await expect(spotlight).toBeVisible({ timeout: 2000 });
   }).toPass({ timeout: 20_000 });
   const welcome = site.getByRole('dialog', { name: '¡Bienvenido E2E!' });
-  if (await welcome.isVisible()) await welcome.getByRole('button', { name: 'Cerrar' }).click();
+  // La bienvenida sale una vez por visitante, unos segundos después de entrar: se espera y se cierra (si no, tapa los botones).
+  await expect(welcome).toBeVisible();
+  await welcome.getByRole('button', { name: 'Cerrar' }).click();
+  await expect(welcome).toBeHidden();
   const card = site.locator('article', { has: spotlight });
   await expect(card.getByRole('link', { name: 'Ver detalles' })).toHaveAttribute('href', `/catalogo/${slug}/p/croissant-e2e`);
   await expect(card.getByRole('button', { name: 'Agregar al pedido' })).toBeVisible();
@@ -1443,6 +1446,7 @@ test('sección Producto y tarjetas de servicio: un producto en específico y una
 });
 
 test('menú lateral y catálogo como tienda en línea: columna de filtros, panel en el celular y vista en lista', async ({ page, browser }) => {
+  test.setTimeout(60_000); // dos pantallas (escritorio y celular) y el editor
   await page.goto('/dashboard/sitio');
   await page.getByRole('tab', { name: 'Navegación' }).click();
   await page.getByRole('group', { name: 'Disposición' }).getByRole('button', { name: 'Menú lateral' }).click();
@@ -1467,7 +1471,10 @@ test('menú lateral y catálogo como tienda en línea: columna de filtros, panel
     await expect(shop).toBeVisible({ timeout: 2000 });
   }).toPass({ timeout: 20_000 });
   const welcome = site.getByRole('dialog', { name: '¡Bienvenido E2E!' });
-  if (await welcome.isVisible()) await welcome.getByRole('button', { name: 'Cerrar' }).click();
+  // La bienvenida sale una vez por visitante, unos segundos después de entrar: se espera y se cierra (si no, tapa los botones).
+  await expect(welcome).toBeVisible();
+  await welcome.getByRole('button', { name: 'Cerrar' }).click();
+  await expect(welcome).toBeHidden();
   const menu = site.locator('header[data-layout="vertical"]');
   const menuBox = (await menu.boundingBox())!;
   expect(menuBox.x).toBe(0);
