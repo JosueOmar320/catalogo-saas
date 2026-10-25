@@ -5,7 +5,7 @@ import { AnalyticsBoard } from '@/features/analytics/components/AnalyticsBoard';
 import { getAnalytics } from '@/features/analytics/queries';
 import { getLocale, getT } from '@/i18n/server';
 import { parseAnalyticsRange } from '@/lib/analytics/summary';
-import { requireCatalogSite } from '@/lib/auth/session';
+import { requireCatalogFeature } from '@/lib/auth/session';
 import { parseCatalogSettings } from '@/lib/catalog/settings';
 import { catalogUrl } from '@/lib/catalog/view-model';
 
@@ -15,7 +15,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function AnalyticsPage({ searchParams }: PageProps<'/dashboard/estadisticas'>) {
-  const ctx = await requireCatalogSite();
+  const ctx = await requireCatalogFeature('analytics');
   const { dias } = await searchParams;
   const range = parseAnalyticsRange(dias);
   const [t, locale, data] = await Promise.all([getT(), getLocale(), getAnalytics(ctx, range)]);

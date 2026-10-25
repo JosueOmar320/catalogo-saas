@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { cache } from 'react';
 import { isSupabaseConfigured } from '@/lib/env';
 import { customCodeEnabled, parseEntitlements, type Entitlements } from '@/lib/plans/entitlements';
+import { effectiveFeatures, parseFeatureOverrides, type BusinessFeature, type BusinessFeatures } from '@/lib/plans/features';
 import { parseSiteKind, type SiteKind } from '@/lib/business/site-kind';
 import { createClient, type ServerSupabase } from '@/lib/supabase/server';
 import type { MemberRole, Tables } from '@/types/database';
@@ -52,6 +53,8 @@ export type BusinessContext = {
   customCode: boolean;
   /** Negocio con catálogo o sitio web sin productos (lo decide el administrador). */
   siteKind: SiteKind;
+  /** Funciones encendidas para este negocio (plan + decisión del administrador). */
+  features: BusinessFeatures;
 };
 
 /**
@@ -110,6 +113,7 @@ export const getBusinessContext = cache(async (): Promise<BusinessContext | null
     entitlements,
     customCode: customCodeEnabled(business, entitlements.features),
     siteKind: parseSiteKind(business.site_kind),
+    features: effectiveFeatures(parseFeatureOverrides(business.feature_overrides), entitlements.features),
   };
 });
 
@@ -140,5 +144,12 @@ export function canManageCatalog(ctx: BusinessContext): boolean {
 export async function requireCatalogSite(): Promise<BusinessContext> {
   const ctx = await requireBusinessContext();
   if (ctx.siteKind !== 'catalog') redirect('/dashboard');
+  return ctx;
+}
+
+/** Páginas de un negocio con catálogo y de una función que el administrador puede apagar: apagada, al inicio del panel con el aviso. */
+export async function requireCatalogFeature(feature: BusinessFeature): Promise<BusinessContext> {
+  const ctx = await requireCatalogSite();
+  if (!ctx.features[feature]) redirect(`/dashboard?funcion=${feature}`);
   return ctx;
 }

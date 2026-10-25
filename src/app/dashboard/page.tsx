@@ -1,3 +1,4 @@
+import { BUSINESS_FEATURE_META, BUSINESS_FEATURES, type BusinessFeature } from '@/lib/plans/features';
 import { Alert, Avatar, Box, Button, Grid, LinearProgress, Stack, Typography } from '@mui/material';
 import { AlertCircle, ArrowRight, CheckCircle2, Circle, Download, ExternalLink, FileText, FolderTree, ImageIcon, LayoutTemplate, MessageCircle, Package, Palette, Plus, Wrench } from 'lucide-react';
 import type { Metadata } from 'next';
@@ -42,7 +43,7 @@ const RECENT_COUNT = 5;
 
 export default async function DashboardHome({ searchParams }: PageProps<'/dashboard'>) {
   const ctx = await requireBusinessContext();
-  const [{ welcome }, categories, items, pages, t, locale, orderStats, viewStats, pendingReviews, searchMisses, newOrders] = await Promise.all([
+  const [{ welcome, funcion }, categories, items, pages, t, locale, orderStats, viewStats, pendingReviews, searchMisses, newOrders] = await Promise.all([
     searchParams,
     listCategories(ctx),
     listItemsWithImages(ctx),
@@ -64,6 +65,8 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
   const url = catalogUrl(ctx.business.slug);
   // Sitio web (sin catálogo): sin productos, pedidos, reseñas ni PDF.
   const catalog = ctx.siteKind === 'catalog';
+  // Llegó a una función apagada por el administrador (requireCatalogFeature lo trae aquí).
+  const blocked = typeof funcion === 'string' && (BUSINESS_FEATURES as readonly string[]).includes(funcion) && !ctx.features[funcion as BusinessFeature] ? (funcion as BusinessFeature) : null;
 
   const steps = [
     { done: Boolean(ctx.business.logo_path), label: t('Sube tu logo'), href: '/dashboard/sitio?panel=design' },
@@ -169,6 +172,11 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
         }
       />
 
+      {blocked && (
+        <Alert severity="info" sx={{ mb: 3 }}>
+          {t('«{feature}» no está disponible para tu cuenta. Si lo necesitas, pídeselo al administrador de la plataforma.', { feature: t(BUSINESS_FEATURE_META[blocked].label) })}
+        </Alert>
+      )}
       {welcome && (
         <Alert severity="success" sx={{ mb: 3 }}>
           {catalog ? t('¡Tu negocio está listo! Sigue los pasos de abajo para completar tu catálogo.') : t('¡Tu sitio está listo! Sigue los pasos de abajo para completarlo.')}
@@ -250,7 +258,7 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
               </SectionCard>
             )}
 
-            {catalog && orderStats && (
+            {catalog && ctx.features.orders && orderStats && (
               <SectionCard
                 title={t('Pedidos por WhatsApp')}
                 description={t('Últimos 30 días')}
@@ -267,7 +275,7 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
                     <Typography variant="body2" color="text.secondary">
                       {t('Activa los pedidos para que tus clientes armen su lista y te la envíen por WhatsApp. Aquí verás cuántos recibes y qué es lo más pedido.')}
                     </Typography>
-                    <LinkButton href="/dashboard/settings/contacto" variant="outlined" color="inherit" startIcon={<MessageCircle size={14} />}>
+                    <LinkButton href="/dashboard/settings/pedidos" variant="outlined" color="inherit" startIcon={<MessageCircle size={14} />}>
                       {t('Activar pedidos por WhatsApp')}
                     </LinkButton>
                   </Stack>
@@ -311,7 +319,7 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
               </SectionCard>
             )}
 
-            {viewStats && (
+            {ctx.features.analytics && viewStats && (
               <SectionCard title={t('Visitas a tu sitio')} description={t('Últimos 30 días')} action={<LinkButton href="/dashboard/estadisticas" size="small" color="inherit">{t('Ver estadísticas')}</LinkButton>}>
                 {!published ? (
                   <Typography variant="body2" color="text.secondary">
@@ -529,13 +537,13 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
                 <LinkButton href="/dashboard/sitio" variant="contained" startIcon={<Palette size={14} />} fullWidth>
                   {t('Abrir el editor')}
                 </LinkButton>
-                {catalog && ctx.entitlements.features.pdf_export && (
+                {catalog && ctx.features.pdf_export && (
                   <LinkButton href="/dashboard/export/pdf" variant="outlined" color="inherit" startIcon={<FileText size={14} />} fullWidth>
                     {t('Catálogo en PDF')}
                   </LinkButton>
                 )}
                 {catalog && (
-                  <LinkButton href="/dashboard/settings/contacto" variant="outlined" color="inherit" startIcon={<MessageCircle size={14} />} fullWidth>
+                  <LinkButton href="/dashboard/settings/pedidos" variant="outlined" color="inherit" startIcon={<MessageCircle size={14} />} fullWidth>
                     {ordersOn ? t('Pedidos por WhatsApp: activos') : t('Activar pedidos por WhatsApp')}
                   </LinkButton>
                 )}

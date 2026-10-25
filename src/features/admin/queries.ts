@@ -81,14 +81,17 @@ export async function listBusinesses(supabase: ServerSupabase): Promise<AdminBus
 }
 
 export async function getBusinessDetail(supabase: ServerSupabase, id: string) {
-  const [{ data: business }, { data: members }, { data: catalogs }, { data: profiles }] = await Promise.all([
+  const [{ data: business }, { data: members }, { data: catalogs }, { data: profiles }, { data: counts }] = await Promise.all([
     supabase.from('businesses').select('*').eq('id', id).single(),
     supabase.from('business_members').select('user_id, role, created_at').eq('business_id', id),
     supabase.from('catalogs').select('*').eq('business_id', id).is('deleted_at', null).order('created_at'),
     // El selector "agregar miembro" necesita a todos los usuarios: por páginas.
     fetchAllRows((from, to) => supabase.from('profiles').select('id, username, full_name, status').order('id').range(from, to)).then((data) => ({ data })),
+    supabase.rpc('admin_catalog_counts'),
   ]);
   if (!business) return null;
+  const ownCatalogs = new Set((catalogs ?? []).map((c) => c.id));
+  const totals = (counts ?? []).filter((c) => ownCatalogs.has(c.catalog_id));
   const people = new Map((profiles ?? []).map((p) => [p.id, p]));
   return {
     business,
@@ -99,6 +102,8 @@ export async function getBusinessDetail(supabase: ServerSupabase, id: string) {
     }),
     catalogs: catalogs ?? [],
     users: (profiles ?? []).map((p) => ({ id: p.id, username: p.username, fullName: p.full_name, status: p.status })),
+    /** Productos/servicios y páginas de todos sus catálogos. */
+    totals: { items: totals.reduce((n, c) => n + Number(c.items ?? 0), 0), pages: totals.reduce((n, c) => n + Number(c.pages ?? 0), 0) },
   };
 }
 

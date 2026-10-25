@@ -42,6 +42,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
             maxImagesPerItem: ctx.entitlements.limits.max_images_per_item,
             canManage: canManageCatalog(ctx),
             siteKind: ctx.siteKind,
+            features: ctx.features,
           }}
         >
           <AppShell
@@ -53,9 +54,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
               planName: ctx.entitlements.planName,
             }}
             siteKind={ctx.siteKind}
+            features={ctx.features}
           >
             {children}
-            {ctx.siteKind === 'catalog' && <NewOrdersTitle />}
+            {ctx.siteKind === 'catalog' && ctx.features.orders && <NewOrdersTitle />}
           </AppShell>
         </DashboardProvider>
       </AppProviders>

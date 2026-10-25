@@ -730,7 +730,6 @@ const catalog: Catalog = {
   'Temporada terminada el {date}': 'Season ended on {date}',
   'Debe ser igual o posterior a la fecha de inicio': 'Must be on or after the start date',
   'Elige hasta 4': 'Choose up to 4',
-  'Agrega tu número de WhatsApp arriba (o el de tus sucursales) para recibir pedidos.': 'Add your WhatsApp number above (or your branches’ numbers) to receive orders.',
   'Agregar sucursal': 'Add branch',
   'Opcional: si tienes varias, tu cliente elige a cuál pide y el pedido llega al WhatsApp de esa sucursal. Sin sucursales, llega al WhatsApp del negocio.': 'Optional: if you have several, customers choose which one to order from and the order goes to that branch’s WhatsApp. Without branches, it goes to the business WhatsApp.',
   'Quitar la sucursal {index}': 'Remove branch {index}',
@@ -803,7 +802,6 @@ const catalog: Catalog = {
   'Clientes': 'Customers',
   'Quién te compra, cuántas veces y cuánto: se arma solo con los pedidos de tu bandeja.': 'Who buys from you, how often and how much: built automatically from the orders in your inbox.',
   'No se pudieron cargar los clientes. Intenta de nuevo en unos minutos.': 'Couldn’t load the customers. Try again in a few minutes.',
-  'La lista se arma con los pedidos de tu bandeja, y la bandeja está apagada. Actívala en Contacto y pedidos.': 'The list is built from the orders in your inbox, and the inbox is off. Turn it on in Contact and orders.',
   'Pide el WhatsApp del cliente en el pedido para poder escribirle y reconocerlo aunque cambie su nombre.': 'Ask for the customer’s WhatsApp in the order so you can message them and recognize them even if they change their name.',
   'Buscar nombre o WhatsApp': 'Search name or WhatsApp',
   'Ordenar por': 'Sort by',
@@ -911,6 +909,15 @@ const catalog: Catalog = {
   'Correo': 'Email',
   'Otros sitios': 'Other sites',
   'Ver estadísticas': 'See statistics',
+  'La lista se arma con los pedidos de tu bandeja, y la bandeja está apagada. Actívala en Configuración › Pedidos por WhatsApp.': 'The list is built from your inbox orders, and the inbox is off. Turn it on in Settings › WhatsApp orders.',
+  'Pago y descuentos': 'Payment and discounts',
+  'Secciones de pedidos': 'Order sections',
+  'Agrega tu número de WhatsApp en Contacto y horario (o el de tus sucursales) para recibir pedidos.': 'Add your WhatsApp number in Contact and hours (or your branches’) to receive orders.',
+  'Cómo recibe su pedido el cliente y cuánto cuesta.': 'How the customer gets their order and what it costs.',
+  'Pedidos para más tarde o para otro día.': 'Orders for later or for another day.',
+  'Formas de pago, propina, promociones automáticas y cupones.': 'Payment methods, tips, automatic promotions and coupons.',
+  'Tienes cambios sin guardar.': 'You have unsaved changes.',
+  'Todo guardado.': 'All saved.',
 };
 
 export default catalog;

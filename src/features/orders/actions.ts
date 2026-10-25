@@ -20,6 +20,7 @@ const ALLOWED_TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
 /** Cambia el estado de un pedido (la base descuenta o devuelve existencias si el negocio lo activó). */
 export async function changeOrderStatus(id: string, status: OrderStatus): Promise<ActionResult> {
   const ctx = await requireBusinessContext();
+  if (!ctx.features.orders) return fail(msg('La bandeja de pedidos no está disponible para tu cuenta.'));
   if (!uuidSchema.safeParse(id).success || !ORDER_STATUSES.includes(status)) return fail(msg('Datos inválidos.'));
   const { data: current } = await ctx.supabase.from('orders').select('status').eq('id', id).eq('business_id', ctx.business.id).maybeSingle();
   if (!current) return fail(msg('Ese pedido ya no existe.'));
@@ -34,6 +35,7 @@ export async function changeOrderStatus(id: string, status: OrderStatus): Promis
 /** Borra un pedido de la bandeja (los contadores de estadísticas no cambian). */
 export async function deleteOrder(id: string): Promise<ActionResult> {
   const ctx = await requireBusinessContext();
+  if (!ctx.features.orders) return fail(msg('La bandeja de pedidos no está disponible para tu cuenta.'));
   if (!canManageCatalog(ctx)) return fail(msg('Sólo el dueño o un administrador puede borrar pedidos.'));
   if (!uuidSchema.safeParse(id).success) return fail(msg('Datos inválidos.'));
   const { error } = await ctx.supabase.from('orders').delete().eq('id', id).eq('business_id', ctx.business.id);

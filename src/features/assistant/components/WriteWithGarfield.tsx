@@ -6,6 +6,7 @@ import { useId, useState } from 'react';
 import type { WriteKind, WriteRequest } from '@/lib/assistant/writer';
 import { GarfieldAvatar } from './GarfieldAvatar';
 import { useT } from '@/i18n/client';
+import { useFeatureEnabled } from '@/components/dashboard/DashboardContext';
 
 type Input = Omit<WriteRequest, 'kind' | 'instruction'>;
 type State = { status: 'idle' } | { status: 'loading' } | { status: 'done'; options: string[]; basic: boolean; notice: string | null } | { status: 'error'; message: string };
@@ -16,6 +17,7 @@ type State = { status: 'idle' } | { status: 'loading' } | { status: 'done'; opti
  */
 export function WriteWithGarfield({ kind, getInput, onPick, label }: { kind: WriteKind; getInput: () => Input; onPick: (text: string) => void; label?: string }) {
   const t = useT();
+  const enabled = useFeatureEnabled('assistant');
   const titleId = useId();
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const [instruction, setInstruction] = useState('');
@@ -42,6 +44,7 @@ export function WriteWithGarfield({ kind, getInput, onPick, label }: { kind: Wri
     if (state.status === 'idle') void generate();
   };
 
+  if (!enabled) return null;
   return (
     <>
       <Button size="small" onClick={open} startIcon={<Sparkles size={14} />} sx={{ alignSelf: 'flex-start', textTransform: 'none' }} aria-haspopup="dialog">

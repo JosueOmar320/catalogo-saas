@@ -8,6 +8,6 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const ctx = await getBusinessContext();
   if (!ctx) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-  const count = ctx.siteKind === 'catalog' ? await countNewOrders(ctx) : 0;
+  const count = ctx.siteKind === 'catalog' && ctx.features.orders ? await countNewOrders(ctx) : 0;
   return NextResponse.json({ count }, { headers: { 'Cache-Control': 'no-store' } });
 }

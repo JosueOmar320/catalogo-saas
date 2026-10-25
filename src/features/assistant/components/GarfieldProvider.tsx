@@ -1,5 +1,6 @@
 'use client';
 
+import { useFeatureEnabled } from '@/components/dashboard/DashboardContext';
 import { useRouter } from 'next/navigation';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useT } from '@/i18n/client';
@@ -81,7 +82,9 @@ export function useGarfield(): GarfieldValue {
 
 /** Versión opcional (fuera de un editor devuelve null). */
 export function useOptionalGarfield(): GarfieldValue | null {
-  return useContext(GarfieldContext);
+  const value = useContext(GarfieldContext);
+  // Con Garfield apagado para el negocio, nada lo ofrece.
+  return useFeatureEnabled('assistant') ? value : null;
 }
 
 /* ------------------------------------------------------------ Motor genérico */

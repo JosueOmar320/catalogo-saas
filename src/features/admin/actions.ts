@@ -1,5 +1,6 @@
 'use server';
 
+import { parseFeatureOverrides, type FeatureOverrides } from '@/lib/plans/features';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
@@ -263,6 +264,21 @@ export async function setBusinessCustomCode(id: string, mode: CustomCodeMode): P
   if (data) invalidatePublicCatalog(data.slug);
   refresh('/admin/negocios');
   return ok(undefined, msg('Código propio actualizado'));
+}
+
+/**
+ * Funciones del negocio (Garfield, PDF, pedidos, estadísticas, importar):
+ * true/false = decisión sólo para este negocio; sin clave = según el plan.
+ */
+export async function setBusinessFeatures(id: string, overrides: FeatureOverrides): Promise<ActionResult> {
+  const { supabase } = await requirePlatformAdmin();
+  if (!isUuid(id) || !overrides || typeof overrides !== 'object') return fail(msg('Datos inválidos.'));
+  const clean = parseFeatureOverrides(overrides);
+  if (Object.keys(overrides).some((key) => !(key in clean))) return fail(msg('Datos inválidos.'));
+  const { error } = await supabase.rpc('admin_set_business_features', { p_business: id, p_features: clean });
+  if (error) return fail(dbErrorMessage(error));
+  refresh('/admin/negocios', '/dashboard');
+  return ok(undefined, msg('Funciones actualizadas'));
 }
 
 /** Código propio para todos los negocios de un plan (los que no tienen una decisión propia). */

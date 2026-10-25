@@ -26,6 +26,8 @@ type BusinessRow = Timestamps & {
   custom_code: boolean | null;
   /** catalog = negocio con catálogo; website = sitio web sin productos (lo decide el administrador). */
   site_kind: 'catalog' | 'website';
+  /** Funciones apagadas/encendidas por el administrador para este negocio (lib/plans/features). */
+  feature_overrides: Json;
   deleted_at: string | null;
 };
 
@@ -353,6 +355,7 @@ export type Database = {
       admin_set_site_kind: { Args: { p_business: string; p_kind: 'catalog' | 'website' }; Returns: undefined };
       admin_set_custom_code: { Args: { p_business: string; p_value: boolean | null }; Returns: undefined };
       admin_set_plan_custom_code: { Args: { p_plan: string; p_value: boolean }; Returns: undefined };
+      admin_set_business_features: { Args: { p_business: string; p_features: Json }; Returns: undefined };
       admin_update_business: { Args: { p_business: string; p_name: string; p_slug: string; p_plan_id: string; p_status: BusinessStatus }; Returns: undefined };
       admin_set_business_member: { Args: { p_business: string; p_user: string; p_role: MemberRole }; Returns: undefined };
       admin_remove_business_member: { Args: { p_business: string; p_user: string }; Returns: undefined };

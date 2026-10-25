@@ -28,7 +28,7 @@ async function authorize(catalogId: string): Promise<BusinessContext | NextRespo
   if (!ctx) return NextResponse.json({ error: t('No autorizado') }, { status: 401 });
   // El catálogo debe pertenecer al negocio resuelto en el servidor; un sitio web sin catálogo no tiene PDF.
   if (ctx.catalog.id !== catalogId || ctx.siteKind !== 'catalog') return NextResponse.json({ error: t('No encontrado') }, { status: 404 });
-  if (!ctx.entitlements.features.pdf_export) {
+  if (!ctx.features.pdf_export) {
     return NextResponse.json({ error: t('La exportación a PDF no está incluida en tu plan.') }, { status: 403 });
   }
   if (!(await consumeRateLimit(`pdf:${ctx.userId}`, RATE_LIMIT, RATE_WINDOW_SECONDS))) {

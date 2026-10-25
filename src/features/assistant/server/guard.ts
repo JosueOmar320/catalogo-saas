@@ -31,6 +31,7 @@ export async function guardAssistantRequest<S extends z.ZodType>(request: NextRe
   const fail = (status: number, error: string, headers?: Record<string, string>) => ({ ok: false as const, response: NextResponse.json({ error }, { status, headers }) });
   const ctx = await getBusinessContext();
   if (!ctx) return fail(401, t('Inicia sesión para usar a Garfield.'));
+  if (!ctx.features.assistant) return fail(403, t('Garfield no está disponible para tu cuenta. Pídeselo al administrador de la plataforma.'));
   const forbidden = forbid?.(ctx, t);
   if (forbidden) return fail(403, forbidden);
 

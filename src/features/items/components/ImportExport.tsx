@@ -1,5 +1,6 @@
 'use client';
 
+import { useFeatureEnabled } from '@/components/dashboard/DashboardContext';
 import {
   Alert,
   Box,
@@ -54,14 +55,17 @@ function download(name: string, content: string) {
 export function ImportExport({ existingKeys, existingNameKeys, categoryNames, defaultType }: Props) {
   const t = useT();
   const [open, setOpen] = useState(false);
+  const canImport = useFeatureEnabled('import');
   return (
     <>
       <Button variant="outlined" color="inherit" startIcon={<Download size={15} />} href="/api/catalog/export">
         {t('Exportar')}
       </Button>
-      <Button variant="outlined" color="inherit" startIcon={<Upload size={15} />} onClick={() => setOpen(true)}>
-        {t('Importar')}
-      </Button>
+      {canImport && (
+        <Button variant="outlined" color="inherit" startIcon={<Upload size={15} />} onClick={() => setOpen(true)}>
+          {t('Importar')}
+        </Button>
+      )}
       {open && <ImportDialog existingKeys={existingKeys} existingNameKeys={existingNameKeys} categoryNames={categoryNames} defaultType={defaultType} onClose={() => setOpen(false)} />}
     </>
   );

@@ -63,6 +63,7 @@ export type PendingImages = { itemId: string; name: string; urls: string[] };
 
 export async function importItems(input: ImportItemsInput): Promise<ActionResult<{ created: number; updated: number; categories: number; images: PendingImages[] }>> {
   const ctx = await requireBusinessContext();
+  if (!ctx.features.import) return fail(msg('Importar productos no está disponible para tu cuenta.'));
   const parsed = parseInput(importSchema, input);
   if (!parsed.success) return parsed.result;
   const { createCategories, columns } = parsed.data;
@@ -194,6 +195,7 @@ const imagesSchema = z.object({ itemId: z.uuid(), urls: z.array(z.url({ protocol
  */
 export async function importItemImages(input: z.input<typeof imagesSchema>): Promise<ActionResult<{ added: number; failed: string[] }>> {
   const ctx = await requireBusinessContext();
+  if (!ctx.features.import) return fail(msg('Importar productos no está disponible para tu cuenta.'));
   const parsed = parseInput(imagesSchema, input);
   if (!parsed.success) return parsed.result;
   const { itemId, urls } = parsed.data;
