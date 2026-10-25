@@ -76,7 +76,28 @@ export async function resolveMediaQueries(scope: MediaScope, actions: AnyAction[
    *   images: [{media: {latest: 6}}]    → 6 imágenes {path, caption}
    */
   const isQuery = (v: unknown): v is MediaQuery => Boolean(v) && typeof v === 'object' && !Array.isArray(v) && ('query' in (v as object) || 'latest' in (v as object) || 'folder' in (v as object));
+  /**
+   * HTML propio que escribió el modelo: `src="media:dark forest"` y
+   * `url('media:dark forest')` → ruta de la biblioteca (al mostrarse es su
+   * URL). Sin resultado: la imagen se quita (nunca queda una URL inventada).
+   */
+  const resolveHtml = async (html: string): Promise<string> => {
+    const queries = [...new Set([...html.matchAll(/media:([^"')<>]{2,80})/g)].map((m) => m[1].trim()))];
+    const paths = new Map<string, string | null>();
+    for (const query of queries.slice(0, 8)) {
+      const [hit] = await pick({ query }, 1);
+      if (!hit) notes.push(t('No encontré {what} en tu biblioteca.', { what: describe({ query }, t) }));
+      paths.set(query, hit?.path ?? null);
+    }
+    const path = (query: string) => paths.get(query.trim()) ?? null;
+    return html
+      .replace(/<img\b[^>]*\bsrc\s*=\s*(["'])media:([^"']{2,80})\1[^>]*>/gi, (tag, _q: string, query: string) => (path(query) ? tag.replace(`media:${query}`, path(query)!) : ''))
+      .replace(/url\(\s*(["']?)media:([^"')]{2,80})\1\s*\)/gi, (_whole, quote: string, query: string) => (path(query) ? `url(${quote}${path(query)}${quote})` : 'none'))
+      .replace(/media:([^"')<>]{2,80})/g, (whole, query: string) => path(query) ?? whole.replace(/media:[^"')<>]*/, ''));
+  };
+
   const nested = async (value: unknown, key = ''): Promise<unknown> => {
+    if (key === 'html' && typeof value === 'string') return value.includes('media:') ? resolveHtml(value) : value;
     if (Array.isArray(value)) {
       const list: unknown[] = [];
       for (const item of value) {

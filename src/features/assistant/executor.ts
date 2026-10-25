@@ -65,6 +65,8 @@ export type ExecutorEnv = {
   items?: { id: string; name: string }[];
   /** Traductor de la app para las etiquetas y errores de los pasos (por defecto, español). */
   t?: Translator;
+  /** El administrador habilitó el código propio: Garfield puede crear secciones HTML. */
+  customCode?: boolean;
 };
 
 class StepError extends Error {}
@@ -234,6 +236,7 @@ export function planAssistantActions(initial: BuilderState, actions: AssistantAc
   }
 
   function buildSection(spec: SectionSpec): Section {
+    if (spec.type === 'html' && !env.customCode) fail(t('El código propio no está habilitado para este sitio: no puedo crear secciones HTML. Pídele al administrador que lo active.'));
     const content = withItemIds((sanitize(spec.content ?? {}) as PlainObject) ?? {});
     let section: Section;
     try {

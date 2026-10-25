@@ -349,10 +349,10 @@ export function GarfieldProvider({ state, dispatch, site, onPreview, endpoint, c
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
-  // Para resolver "la categoría Bebidas" o "el Café americano" sin ids.
-  const names = useMemo<Pick<ExecutorEnv, 'categories' | 'items'>>(
-    () => ({ categories: site.categories.map((c) => ({ id: c.id, name: c.name })), items: site.items.map((i) => ({ id: i.id, name: i.name })) }),
-    [site.categories, site.items],
+  // Para resolver "la categoría Bebidas" o "el Café americano" sin ids (y si puede crear secciones HTML).
+  const names = useMemo<Pick<ExecutorEnv, 'categories' | 'items' | 'customCode'>>(
+    () => ({ categories: site.categories.map((c) => ({ id: c.id, name: c.name })), items: site.items.map((i) => ({ id: i.id, name: i.name })), customCode: site.customCode }),
+    [site.categories, site.items, site.customCode],
   );
   // Las sugerencias sólo dependen del panel, la página y la sección elegidas (no de cada
   // tecla en el editor): así los consumidores de Garfield no se re-renderizan al escribir.

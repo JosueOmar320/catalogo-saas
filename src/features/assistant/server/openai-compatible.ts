@@ -1,5 +1,6 @@
 import type { AssistantMode } from '@/lib/assistant/context';
 import { parseModeActions, type AnyAction } from '@/lib/assistant/modes';
+import { pageCritique, pageWords } from '@/lib/assistant/critique';
 import { jsonSystemPrompt } from './prompt';
 import { MAX_TOOL_ROUNDS, ProviderError, QuotaExceededError, userTurn, type AssistantModel, type ModelInput, type ModelResult, type TaskInput, type TaskModel } from './types';
 
@@ -153,10 +154,28 @@ export class OpenAICompatibleModel implements AssistantModel, TaskModel {
       const second = retry ? parse(retry.text, context.mode) : null;
       if (second && (second.errors.length < parsed.errors.length || (second.result.actions.length > parsed.result.actions.length && second.errors.length <= parsed.errors.length))) parsed = second;
     }
+    // Revisión de calidad: una página nueva pobre se pide una vez más completa (si hay tiempo).
+    const critique = parsed.errors.length === 0 && !completion.truncated ? pageCritique(parsed.result.actions) : [];
+    if (critique.length > 0 && until - Date.now() > MIN_CALL_MS * 4) {
+      const richer = await this.complete(model, [
+        ...conversation,
+        { role: 'assistant', content: completion.text.slice(0, 20_000) },
+        {
+          role: 'user',
+          content: `Revisión de calidad: la respuesta es válida pero quedó pobre.\n${critique.join('\n')}\nResponde de nuevo SOLO con el objeto JSON final COMPLETO (message, actions, suggestions), con la misma idea pero más rica: textos más largos y específicos del negocio, más secciones e imágenes. Sin tool_calls.`,
+        },
+      ], true, undefined, until).catch((error: unknown) => {
+        if (error instanceof ProviderError && error.status === 504) return null;
+        throw error;
+      });
+      const second = richer && !richer.truncated ? parse(richer.text, context.mode) : null;
+      if (second && second.errors.length === 0 && pageWords(second.result.actions) > pageWords(parsed.result.actions)) parsed = second;
+    }
     return { ...parsed.result, mode: this.mode, provider: this.options.provider, model, warnings: parsed.errors };
   }
 
-  private async complete(model: string, messages: Message[], jsonMode = true, maxTokens = 8192, until = Number.POSITIVE_INFINITY): Promise<{ text: string; truncated: boolean }> {
+  // Páginas completas (y secciones HTML) pueden ser largas: 16k tokens de salida.
+  private async complete(model: string, messages: Message[], jsonMode = true, maxTokens = 16_384, until = Number.POSITIVE_INFINITY): Promise<{ text: string; truncated: boolean }> {
     const timeout = Math.min(this.options.timeoutMs ?? 60_000, until - Date.now());
     if (timeout < MIN_CALL_MS) throw new ProviderError(`${this.options.provider} no respondió (tiempo agotado).`, 504);
     const body: Record<string, unknown> = { model, messages, temperature: 0.4, max_tokens: maxTokens };

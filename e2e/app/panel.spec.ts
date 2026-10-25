@@ -61,7 +61,8 @@ test('un producto sin foto ni precio aparece en "Revisa tu catálogo"', async ({
   await page.getByRole('link', { name: 'Revisar: Sin foto' }).click();
   await expect(page).toHaveURL(/\/dashboard\/catalog\/products\?revisar=sin-foto$/);
   await expect(page.getByText('1 de 1')).toBeVisible();
-  await expect(page.getByText(productName)).toBeVisible();
+  // El enlace de la lista (al navegar, el inicio puede seguir un instante en la página con el mismo nombre).
+  await expect(page.getByRole('link', { name: `${productName} Sin categoría` })).toBeVisible();
 });
 
 test('al publicar, el visitante ve el producto y puede pedirlo por WhatsApp', async ({ page, browser }) => {
@@ -1200,10 +1201,23 @@ test('código propio: el administrador lo habilita; HTML limpio, widget aislado 
   await page.getByRole('button', { name: /^HTML propio/ }).click();
   // Con su propio <style> (sólo alcanza a esta sección) y un ejemplo con efectos.
   await page.getByLabel('HTML', { exact: true }).fill('<div class="promo-e2e"><h2>Promo E2E</h2><p onclick="alert(1)">2×1 los martes</p><script>window.__pwned = true</script></div><style>.promo-e2e p { letter-spacing: 3px }</style>');
-  await expect(page.getByText(/Los scripts, iframes, formularios/)).toBeVisible();
+  await expect(page.getByText('Al publicar se quita: scripts, eventos (onclick…). Para código de otro servicio usa la sección «Widget con código».')).toBeVisible();
   await page.getByRole('button', { name: 'Insertar ejemplo' }).click();
   await page.getByRole('menuitem', { name: 'Tarjeta 3D con reflejo' }).click();
   await expect(page.getByLabel('HTML', { exact: true })).toHaveValue(/class="holo fx-fade-up" data-fx="tilt"/);
+  // Editor grande: código y la sección en vivo; pestañas sólo con CSS.
+  await page.getByRole('button', { name: 'Editor grande' }).click();
+  const studio = page.getByRole('dialog', { name: 'Editor de HTML' });
+  await studio.getByRole('button', { name: 'Insertar ejemplo' }).click();
+  await page.getByRole('menuitem', { name: 'Pestañas (sólo CSS)' }).click();
+  await expect(studio.getByLabel('HTML', { exact: true })).toHaveValue(/id="tab-2"/);
+  const preview = studio.locator('[data-custom-html]');
+  await expect(preview.getByText('Chilaquiles, molletes y fruta de temporada de 8 a 12.')).toBeVisible();
+  await preview.locator('label', { hasText: 'Comidas' }).click();
+  await expect(preview.getByText('Menú del día con sopa, plato fuerte y agua fresca.')).toBeVisible();
+  await expect(preview.getByText('Chilaquiles, molletes y fruta de temporada de 8 a 12.')).toBeHidden();
+  await studio.getByRole('button', { name: 'Cerrar' }).click();
+  await expect(studio).toBeHidden();
   await page.getByRole('button', { name: 'Volver a las secciones' }).click();
   await page.getByRole('button', { name: 'Sección', exact: true }).click();
   await page.getByRole('button', { name: /^Widget con código/ }).click();
@@ -1247,6 +1261,13 @@ test('código propio: el administrador lo habilita; HTML limpio, widget aislado 
   await site.mouse.move(box.x + box.width * 0.9, box.y + box.height * 0.2);
   await expect(card).toHaveAttribute('style', /--fx-ry: [1-9]/);
   expect(await site.evaluate(() => (window as unknown as { __pwned?: boolean }).__pwned)).toBeUndefined();
+  // Pestañas del ejemplo: ids con el prefijo de la sección (no chocan con el sitio) y funcionan sin JavaScript.
+  const postres = site.locator('label', { hasText: 'Postres' });
+  await postres.scrollIntoViewIfNeeded();
+  await expect(site.locator('input[id^="h-"][id$="-tab-3"]')).toHaveCount(1);
+  await postres.click();
+  await expect(site.getByText('Pastel de elote, flan napolitano y galletas recién horneadas.')).toBeVisible();
+  await expect(site.getByText('Chilaquiles, molletes y fruta de temporada de 8 a 12.')).toBeHidden();
 
   const frame = site.locator('iframe[title="Reservas E2E"]');
   await frame.scrollIntoViewIfNeeded();

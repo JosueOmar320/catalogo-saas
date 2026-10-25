@@ -4,6 +4,7 @@ import type { NavigationConfig } from '@/lib/site/navigation';
 import type { SitePage } from '@/lib/site/pages';
 import type { Section } from '@/lib/site/section-schemas';
 import type { SiteViewModel } from '@/lib/site/view-model';
+import { MAX_HTML_LENGTH } from '@/lib/site/custom-code-config';
 
 /**
  * Contexto del editor que recibe Garfield: una FOTO COMPACTA del borrador
@@ -37,6 +38,10 @@ export const pdfContextSchema = z.object({
 export type PdfAssistantContext = z.infer<typeof pdfContextSchema>;
 
 export const assistantContextSchema = z.object({
+  /** El administrador habilitó el código propio: Garfield puede crear y editar secciones HTML. */
+  customCode: z.boolean().default(false),
+  /** HTML completo de la sección seleccionada si es de tipo html (para editarla). */
+  selectedHtml: z.string().max(MAX_HTML_LENGTH).optional(),
   /** Dónde está el usuario: editor del sitio o estudio de PDF. Cambia qué acciones existen. */
   mode: z.enum(['site', 'pdf']).default('site'),
   pdf: pdfContextSchema.optional(),
@@ -127,8 +132,11 @@ export function buildAssistantContext(input: {
   const { site, theme } = input;
   const inNav = (pageId: string) => input.navigation.items.some((i) => i.kind === 'page' && i.pageId === pageId && i.visible);
   const bg = theme.background;
+  const selected = input.selectedSectionId ? input.pages.flatMap((p) => p.sections).find((s) => s.id === input.selectedSectionId) : undefined;
   return {
     mode: input.mode ?? 'site',
+    customCode: Boolean(site.customCode),
+    ...(selected?.type === 'html' ? { selectedHtml: (selected.content as { html: string }).html.slice(0, MAX_HTML_LENGTH) } : {}),
     ...(input.pdf ? { pdf: input.pdf } : {}),
     business: { name: site.business.name.slice(0, 120), slogan: (site.business.slogan ?? '').slice(0, 200), description: (site.business.description ?? '').slice(0, 400) },
     panel: input.panel,

@@ -6,7 +6,7 @@ import { parseModeActions, responseSchemaFor, type AnyAction } from '@/lib/assis
 import { systemBlocks } from './prompt';
 import { MAX_TOOL_ROUNDS, ProviderError, QuotaExceededError, userTurn, type AssistantModel, type ModelInput, type ModelResult, type TaskInput, type TaskModel } from './types';
 
-const MAX_TOKENS = 8000;
+const MAX_TOKENS = 16_000;
 
 // JSON Schema de la herramienta, generado del MISMO schema Zod que valida la respuesta (uno por modo).
 const RESPOND_SCHEMAS = new Map<AssistantMode, Record<string, unknown>>();
