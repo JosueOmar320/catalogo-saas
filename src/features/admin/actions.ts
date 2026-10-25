@@ -277,6 +277,9 @@ export async function setBusinessFeatures(id: string, overrides: FeatureOverride
   if (Object.keys(overrides).some((key) => !(key in clean))) return fail(msg('Datos inválidos.'));
   const { error } = await supabase.rpc('admin_set_business_features', { p_business: id, p_features: clean });
   if (error) return fail(dbErrorMessage(error));
+  // El dominio propio cambia las direcciones del sitio público.
+  const { data } = await supabase.from('businesses').select('slug').eq('id', id).single();
+  if (data) invalidatePublicCatalog(data.slug);
   refresh('/admin/negocios', '/dashboard');
   return ok(undefined, msg('Funciones actualizadas'));
 }

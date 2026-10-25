@@ -11,7 +11,6 @@ import { canManageCatalog, requireCatalogFeature } from '@/lib/auth/session';
 import { parseContact } from '@/lib/business/profile';
 import { reviewInviteUrl } from '@/lib/catalog/reviews';
 import { parseCatalogSettings } from '@/lib/catalog/settings';
-import { catalogUrl } from '@/lib/catalog/view-model';
 import { findTab, parseRange } from '@/lib/orders/inbox';
 
 /** Momento del render (ms) para "hace 5 min". Server Component: una vez por petición, y el cliente lo reutiliza al hidratar. */
@@ -59,7 +58,7 @@ export default async function OrdersPage({ searchParams }: PageProps<'/dashboard
           businessName={ctx.business.name}
           businessWhatsapp={parseContact(ctx.business.contact).whatsapp}
           customerOrders={customerOrders}
-          reviewInvite={settings.reviews.enabled ? { url: reviewInviteUrl(catalogUrl(ctx.business.slug)), businessName: ctx.business.name } : null}
+          reviewInvite={settings.reviews.enabled ? { url: reviewInviteUrl(ctx.publicUrl), businessName: ctx.business.name } : null}
         />
       )}
     </>

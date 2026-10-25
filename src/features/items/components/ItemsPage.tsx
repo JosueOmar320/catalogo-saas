@@ -77,7 +77,7 @@ export async function ItemsPage({ type, review }: { type: ItemType; review?: Rev
       hasDescription: Boolean(i.short_description || i.description),
       stock: parseItemAttributes(i.attributes).stock,
       season: seasonOf(i),
-      url: itemUrl(ctx.business.slug, i.slug),
+      url: itemUrl(ctx.business.slug, i.slug, ctx.customDomain),
       cost: costs.get(i.id) ?? null,
       margin: marginOf(priceOf(i), costs.get(i.id) ?? null)?.percent ?? null,
       views: performance.views ? (performance.views[i.id] ?? 0) : null,

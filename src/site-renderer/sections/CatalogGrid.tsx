@@ -103,7 +103,8 @@ export function CatalogGrid({ section, site, env }: CatalogGridProps) {
   const isSearching = filtered.length !== items.length || query.trim() !== '';
 
   // Búsquedas sin resultados (sólo el sitio publicado): el negocio ve qué le piden y no tiene.
-  const trackMisses = env.mode === 'public' && env.basePath === `/catalogo/${site.business.slug}`;
+  // El sitio publicado: /catalogo/<negocio> o su dominio propio (raíz «»).
+  const trackMisses = env.mode === 'public' && (env.basePath === `/catalogo/${site.business.slug}` || env.basePath === '');
   const reported = useRef(new Set<string>());
   useEffect(() => {
     const term = query.trim().toLowerCase();

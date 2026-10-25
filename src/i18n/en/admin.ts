@@ -310,6 +310,15 @@ const catalog: Catalog = {
   'no': 'no',
   'Encender': 'Turn on',
   'Apagar': 'Turn off',
+
+  // Dominios propios
+  'Dominios propios': 'Custom domains',
+  'Para que cada negocio conecte su dominio, la plataforma agrega el dominio al proyecto de Vercel. Crea un token en Vercel › Account Settings › Tokens con acceso al proyecto.': 'For each business to connect its domain, the platform adds the domain to the Vercel project. Create a token in Vercel › Account Settings › Tokens with access to the project.',
+  'Token de Vercel (VERCEL_API_TOKEN)': 'Vercel token (VERCEL_API_TOKEN)',
+  'Proyecto (VERCEL_PROJECT_ID)': 'Project (VERCEL_PROJECT_ID)',
+  'Equipo (VERCEL_TEAM_ID, sólo si el proyecto es de un equipo)': 'Team (VERCEL_TEAM_ID, only if the project belongs to a team)',
+  'Sin equipo': 'No team',
+  'Mientras falte el token o el proyecto, los negocios ven el dominio propio como «todavía no disponible».': 'While the token or the project is missing, businesses see custom domains as “not available yet”.',
 };
 
 export default catalog;

@@ -1686,3 +1686,69 @@ test('estudio de PDF: un bloque a la vez, agregar por grupos y estado de guardad
   await page.getByRole('button', { name: 'Guardar', exact: true }).click();
   await expect(page.getByText('Todo guardado')).toBeVisible();
 });
+
+test('dominio propio: según el plan, el administrador lo enciende y el sitio se sirve en el dominio del negocio', async ({ page, browser }) => {
+  const card = page.locator('.MuiPaper-root').filter({ has: page.getByText('Dominio propio', { exact: true }) });
+  await page.goto('/dashboard/settings/publicacion');
+  await expect(card.getByText('El dominio propio no está incluido en tu plan.')).toBeVisible();
+  await expect(card.getByRole('button', { name: 'Conectar' })).toBeDisabled();
+
+  // Lo que hace el servidor tras verificar en Vercel (en las pruebas no hay token de Vercel).
+  const db = (body: Record<string, unknown>) =>
+    fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/businesses?slug=eq.${slug}`, {
+      method: 'PATCH',
+      headers: { apikey: process.env.SUPABASE_SECRET_KEY!, Authorization: `Bearer ${process.env.SUPABASE_SECRET_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }).then((r) => expect(r.status).toBeLessThan(300));
+  await db({ custom_domain: 'mitienda.test', custom_domain_status: 'active' });
+
+  // (Con la función apagada no se serviría: lo prueba supabase/tests/rls.test.mjs. Aquí no se pide antes,
+  // porque el proxy recuerda 30 s que un dominio no es de nadie.)
+  const visitor = await browser.newContext(ANONYMOUS);
+  const asDomain = (path: string, host = 'mitienda.test') => visitor.request.get(path, { headers: { host }, maxRedirects: 0 });
+
+  await page.goto(businessPath);
+  await page.getByRole('tab', { name: /^Funciones/ }).click();
+  await page.getByRole('group', { name: 'Dominio propio' }).getByRole('button', { name: 'Encender' }).click();
+  await expect(page.getByText('Funciones actualizadas').last()).toBeVisible();
+
+  await page.goto('/dashboard/settings/publicacion');
+  await expect(card.getByText('Conectado')).toBeVisible();
+  await expect(card.getByText('Tu sitio ya se ve en mitienda.test. El certificado de seguridad (https) es automático.')).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Enlace público' })).toHaveValue('https://mitienda.test');
+
+  // El visitante en el dominio: el sitio, sus fichas, robots y sitemap, con direcciones del dominio.
+  const home = await asDomain('/');
+  expect(home.status()).toBe(200);
+  const html = await home.text();
+  expect(html).toContain(businessName);
+  expect(html).toMatch(/<link rel="canonical" href="https:\/\/mitienda\.test\/?"/);
+  expect(html).not.toContain(`href="/catalogo/${slug}`);
+  expect((await asDomain('/p/smoothie-e2e')).status()).toBe(200);
+  expect(await (await asDomain('/robots.txt')).text()).toContain('Sitemap: https://mitienda.test/sitemap.xml');
+  const sitemap = await (await asDomain('/sitemap.xml')).text();
+  expect(sitemap).toContain('<loc>https://mitienda.test/p/smoothie-e2e</loc>');
+  expect(sitemap).not.toContain('/catalogo/');
+  expect((await asDomain('/api/health')).status()).toBe(200);
+  // Un dominio que no es de nadie, y /dominio directo en la plataforma: no existen.
+  expect((await asDomain('/', 'nadie.test')).status()).toBe(404);
+  expect((await visitor.request.get(`/dominio/${slug}`)).status()).toBe(404);
+  // La dirección de la plataforma sigue funcionando, con el dominio como canónico.
+  const platform = await visitor.request.get(`/catalogo/${slug}`);
+  expect(platform.status()).toBe(200);
+  expect(await platform.text()).toMatch(/<link rel="canonical" href="https:\/\/mitienda\.test\/?"/);
+  await visitor.close();
+
+  // Desconectar: vuelve la dirección de la plataforma.
+  await card.getByRole('button', { name: 'Desconectar' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Desconectar' }).click();
+  await expect(page.getByText('Dominio desconectado').last()).toBeVisible();
+  await expect(card.getByRole('textbox', { name: 'Dominio' })).toBeVisible();
+  await expect(card.getByText('El dominio propio todavía no está disponible en la plataforma.')).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Enlace público' })).toHaveValue(new RegExp(`/catalogo/${slug}$`));
+
+  await page.goto(businessPath);
+  await page.getByRole('tab', { name: /^Funciones/ }).click();
+  await page.getByRole('group', { name: 'Dominio propio' }).getByRole('button', { name: /^Plan / }).click();
+  await expect(page.getByRole('group', { name: 'Dominio propio' }).getByRole('button', { name: /^Plan / })).toHaveAttribute('aria-pressed', 'true');
+});

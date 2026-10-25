@@ -16,7 +16,7 @@ import { useAction } from '@/lib/hooks/use-action';
 import { slugify } from '@/lib/utils/slug';
 import type { MemberRole } from '@/types/database';
 import { createBusiness, createCatalog, openBusiness, removeMembership, setBusinessCustomCode, setBusinessFeatures, setBusinessSiteKind, setMembership, updateBusiness, updateCatalog, type CustomCodeMode } from '../actions';
-import { BUSINESS_FEATURE_META, BUSINESS_FEATURES, type BusinessFeature, type BusinessFeatures, type FeatureOverrides } from '@/lib/plans/features';
+import { BUSINESS_FEATURE_META, BUSINESS_FEATURES, featuresOff, type BusinessFeature, type BusinessFeatures, type FeatureOverrides } from '@/lib/plans/features';
 import { SITE_KIND_LABELS, SITE_KINDS, type SiteKind } from '@/lib/business/site-kind';
 import { createBusinessSchema, MEMBER_ROLE_LABELS, MEMBER_ROLES, updateBusinessSchema, type CreateBusinessValues, type UpdateBusinessValues } from '../schema';
 import { matches, SearchField, StatusChip, useDateFormat } from './common';
@@ -213,7 +213,7 @@ export function EditBusinessPanel({ business, users, plans, planDefaults, activi
   const t = useT();
   const [tab, setTab] = useState<Tab>('general');
   const effective = effectiveFrom(business.featureOverrides, planDefaults);
-  const off = BUSINESS_FEATURES.filter((f) => !effective[f]);
+  const off = featuresOff(effective, business.featureOverrides);
   const plan = plans.find((p) => p.id === business.planId);
   const published = business.catalogs.some((c) => c.isDefault && c.status === 'published' && c.isActive);
   return (

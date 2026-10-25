@@ -28,6 +28,10 @@ type BusinessRow = Timestamps & {
   site_kind: 'catalog' | 'website';
   /** Funciones apagadas/encendidas por el administrador para este negocio (lib/plans/features). */
   feature_overrides: Json;
+  /** Dominio propio (minúsculas) y su estado; lo escribe el servidor tras registrarlo en Vercel. */
+  custom_domain: string | null;
+  custom_domain_status: 'none' | 'pending' | 'active';
+  custom_domain_checked_at: string | null;
   deleted_at: string | null;
 };
 
@@ -356,6 +360,7 @@ export type Database = {
       admin_set_custom_code: { Args: { p_business: string; p_value: boolean | null }; Returns: undefined };
       admin_set_plan_custom_code: { Args: { p_plan: string; p_value: boolean }; Returns: undefined };
       admin_set_business_features: { Args: { p_business: string; p_features: Json }; Returns: undefined };
+      get_site_by_domain: { Args: { p_host: string }; Returns: string | null };
       admin_update_business: { Args: { p_business: string; p_name: string; p_slug: string; p_plan_id: string; p_status: BusinessStatus }; Returns: undefined };
       admin_set_business_member: { Args: { p_business: string; p_user: string; p_role: MemberRole }; Returns: undefined };
       admin_remove_business_member: { Args: { p_business: string; p_user: string }; Returns: undefined };

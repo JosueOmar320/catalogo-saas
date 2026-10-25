@@ -7,7 +7,6 @@ import { NewOrdersTitle } from '@/features/push/components/NewOrdersTitle';
 import { AppI18n } from '@/i18n/AppI18n';
 import { getT } from '@/i18n/server';
 import { canManageCatalog, requireBusinessContext } from '@/lib/auth/session';
-import { catalogUrl } from '@/lib/catalog/view-model';
 import { env } from '@/lib/env';
 import { publicStorageUrl } from '@/lib/utils/storage';
 
@@ -38,7 +37,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
             businessSlug: ctx.business.slug,
             catalogId: ctx.catalog.id,
             catalogStatus: ctx.catalog.status,
-            publicUrl: catalogUrl(ctx.business.slug),
+            publicUrl: ctx.publicUrl,
             maxImagesPerItem: ctx.entitlements.limits.max_images_per_item,
             canManage: canManageCatalog(ctx),
             siteKind: ctx.siteKind,

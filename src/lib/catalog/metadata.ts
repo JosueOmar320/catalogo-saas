@@ -1,16 +1,14 @@
 import type { Metadata } from 'next';
+import { env } from '@/lib/env';
 import { richTextToPlain } from '@/lib/design/rich-text';
 import { pagePath } from '@/lib/site/links';
 import type { SitePage } from '@/lib/site/pages';
 import type { SiteViewModel } from '@/lib/site/view-model';
 import { mediaUrl } from '@/lib/utils/storage';
 
-/** Origen de la app ("https://…") a partir de la URL pública del sitio. */
-const appOrigin = (site: SiteViewModel) => site.url.replace(/\/catalogo\/[^/]+$/, '');
-
-/** Imágenes para compartir generadas (features/og): la del catálogo y la de cada producto. */
-export const catalogOgImage = (site: SiteViewModel) => `${appOrigin(site)}/og/catalogo/${site.business.slug}`;
-export const itemOgImage = (site: SiteViewModel, itemSlug: string) => `${appOrigin(site)}/og/catalogo/${site.business.slug}/p/${itemSlug}`;
+/** Imágenes para compartir generadas (features/og): la del catálogo y la de cada producto. Siempre en la plataforma (también con dominio propio). */
+export const catalogOgImage = (site: SiteViewModel) => `${env.siteUrl}/og/catalogo/${site.business.slug}`;
+export const itemOgImage = (site: SiteViewModel, itemSlug: string) => `${env.siteUrl}/og/catalogo/${site.business.slug}/p/${itemSlug}`;
 
 /** SEO global del sitio (se hereda en todas las páginas). Sin imagen propia, se usa la generada. */
 export function siteMetadata(site: SiteViewModel): Metadata {
@@ -28,7 +26,8 @@ export function siteMetadata(site: SiteViewModel): Metadata {
 /** SEO por página: sobrescribe al del sitio. La página de inicio usa el título del sitio. */
 export function pageMetadata(site: SiteViewModel, page: SitePage): Metadata {
   const base = siteMetadata(site);
-  const url = page.isHome ? site.url : `${appOrigin(site)}${pagePath(`/catalogo/${site.business.slug}`, page)}`;
+  // site.url es la raíz pública (dominio propio o /catalogo/<negocio>).
+  const url = page.isHome ? site.url : `${site.url}${pagePath('', page)}`;
   const heroText = page.sections.find((s) => s.type === 'text' && s.content.body);
   const description =
     page.seo.description ||

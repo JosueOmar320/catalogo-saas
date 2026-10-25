@@ -62,6 +62,8 @@ export type SiteInput = {
   customCode?: boolean;
   /** Por defecto, negocio con catálogo (demo, vista previa y PDF no lo pasan). */
   siteKind?: SiteKind;
+  /** Dominio propio activo: la raíz pública y los enlaces de cada ítem usan ese dominio. */
+  customDomain?: string | null;
 };
 
 /**
@@ -98,13 +100,14 @@ export function buildSiteViewModel(input: SiteInput, { public: isPublic = false,
       attributeDefs,
       priceFormat: settings.priceFormat,
       now,
+      customDomain: input.customDomain ?? null,
     }),
     attributeDefs,
     pages: input.pages.map(pageFromRow),
     navigation: parseNavigation(input.catalog.navigation),
     showBranding: !input.removeBranding,
     customCode: input.customCode ?? false,
-    url: catalogUrl(input.business.slug),
+    url: catalogUrl(input.business.slug, input.customDomain),
     publishedAt: input.catalog.published_at,
   };
 }
