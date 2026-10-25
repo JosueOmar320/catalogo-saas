@@ -12,7 +12,23 @@ export const MAX_HTML_LENGTH = 50_000;
 export const MAX_EMBED_LENGTH = 150_000;
 
 /** Documento completo (<!doctype>, <html>…): se usa tal cual dentro del widget. */
-export const isFullDocument = (code: string) => /^\s*(?:<!--[\s\S]*?-->\s*)*(?:<!doctype[^>]*>\s*)?(?:<!--[\s\S]*?-->\s*)*<html[\s>]/i.test(code);
+export function isFullDocument(code: string) {
+  // Se saltan comentarios y el <!doctype> del inicio sin regex anidadas (tiempo lineal).
+  let rest = code.trimStart();
+  for (;;) {
+    if (rest.startsWith('<!--')) {
+      const end = rest.indexOf('-->', 4);
+      if (end < 0) return false;
+      rest = rest.slice(end + 3).trimStart();
+    } else if (/^<!doctype\b/i.test(rest)) {
+      const end = rest.indexOf('>');
+      if (end < 0) return false;
+      rest = rest.slice(end + 1).trimStart();
+    } else {
+      return /^<html[\s>]/i.test(rest);
+    }
+  }
+}
 
 /**
  * Código que sólo funciona como página completa (scripts, Tailwind por CDN,

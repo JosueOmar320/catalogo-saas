@@ -22,6 +22,12 @@ describe('Widget con código: páginas completas', () => {
     assert.ok(isFullDocument(page));
     assert.ok(isFullDocument('<!-- hecho con IA -->\n<html><body>x</body></html>'));
     assert.ok(!isFullDocument('<div><html-like>no</html-like></div>'));
+    assert.ok(isFullDocument('<!doctype html>\n<!-- a --><!-- b -->\n<HTML lang="es"><body>x</body></html>'));
+    assert.ok(!isFullDocument('<!-- sin cerrar <html>'));
+    // Muchos comentarios seguidos no la hacen lenta.
+    const started = performance.now();
+    assert.ok(!isFullDocument('<!--' + '--><!--'.repeat(50_000)));
+    assert.ok(performance.now() - started < 500);
     assert.ok(needsFullPageWidget(page));
     assert.ok(needsFullPageWidget('<div id="x"></div><script>x()</script>'));
     assert.ok(needsFullPageWidget('<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter">'));
