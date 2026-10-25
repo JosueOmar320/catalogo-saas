@@ -1,8 +1,10 @@
 'use client';
 
-import { Alert, Autocomplete, Box, Button, ButtonBase, Chip, CircularProgress, IconButton, Menu, MenuItem, Paper, Stack, Switch, Tab, Tabs, TextField, Tooltip, Typography, useMediaQuery, useTheme } from '@mui/material';
+import { Alert, Autocomplete, Box, Button, ButtonBase, Chip, CircularProgress, Dialog, DialogContent, DialogTitle, IconButton, Paper, Stack, Switch, Tab, Tabs, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography, useMediaQuery, useTheme } from '@mui/material';
 import {
+  ArrowLeft,
   BadgePercent,
+  Copy,
   BookMarked,
   BookOpen,
   Image as ImageIcon,
@@ -20,12 +22,14 @@ import {
   Settings2,
   Table2,
   Trash2,
+  X,
   type LucideIcon,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { SortableList } from '@/components/ui/SortableList';
 import { useToast } from '@/components/feedback/ToastProvider';
 import { useT } from '@/i18n/client';
+import { msg } from '@/i18n/translate';
 import { useAction } from '@/lib/hooks/use-action';
 import { useUnsavedChangesWarning } from '@/lib/hooks/use-unsaved-changes';
 import {
@@ -102,7 +106,9 @@ export function PdfStudio({ catalogId, initial, site, enabled, canManage = true 
   const [saved, setSaved] = useState(JSON.stringify(initial));
   const [tab, setTab] = useState<TabId>('content');
   const [selected, setSelected] = useState<string | null>(null);
-  const [addAnchor, setAddAnchor] = useState<HTMLElement | null>(null);
+  const [adding, setAdding] = useState(false);
+  // En pantallas angostas: editar o ver la vista previa (antes, una debajo de otra en una página larguísima).
+  const [mobileView, setMobileView] = useState<'edit' | 'preview'>('edit');
   const [preview, setPreview] = useState<{ blob: Blob; pages: number; marks: Record<string, number> } | null>(null);
   // Propuesta de Garfield en vista previa: se genera el PDF con ella sin tocar el borrador.
   const [proposal, setProposal] = useState<PdfSettings | null>(null);
@@ -135,8 +141,30 @@ export function PdfStudio({ catalogId, initial, site, enabled, canManage = true 
       return { ...s, blocks };
     });
     setSelected(block.id);
-    setAddAnchor(null);
+    setAdding(false);
   };
+  /** Copia de un bloque, justo debajo (portada e índice son únicos). */
+  const duplicateBlock = (block: PdfBlock) => {
+    const copy = { ...block, id: crypto.randomUUID() } as PdfBlock;
+    setSettings((s) => {
+      const blocks = [...s.blocks];
+      blocks.splice(blocks.findIndex((b) => b.id === block.id) + 1, 0, copy);
+      return { ...s, blocks };
+    });
+    setSelected(copy.id);
+  };
+  const save = useCallback(() => run(() => savePdfSettings(settings), { onSuccess: () => setSaved(JSON.stringify(settings)) }), [run, settings]);
+  // Ctrl/Cmd+S guarda (como en cualquier editor).
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
+        event.preventDefault();
+        if (dirty && !pending) save();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [dirty, pending, save]);
 
   const request = useCallback(
     async (isPreview: boolean, signal?: AbortSignal) => {
@@ -225,16 +253,17 @@ export function PdfStudio({ catalogId, initial, site, enabled, canManage = true 
 
   const panel = (
     <Paper variant="outlined" sx={{ px: 2, pb: 3, height: { lg: '100%' }, overflowY: { lg: 'auto' } }}>
-      <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" scrollButtons={false} sx={{ borderBottom: 1, borderColor: 'divider', position: 'sticky', top: 0, bgcolor: 'background.paper', zIndex: 2 }}>
+      {/* Las cinco pestañas a la vista (antes la última quedaba escondida a la derecha). */}
+      <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" scrollButtons="auto" allowScrollButtonsMobile sx={{ borderBottom: 1, borderColor: 'divider', position: 'sticky', top: 0, bgcolor: 'background.paper', zIndex: 2, '& .MuiTab-root': { minWidth: 0, px: 1.5 } }}>
         <Tab value="content" label={t('Contenido')} />
         <Tab value="template" label={t('Plantilla')} />
         <Tab value="cover" label={t('Portada')} />
         <Tab value="style" label={t('Estilo')} />
-        <Tab value="page" label={t('Página y marco')} />
+        <Tab value="page" label={t('Página')} />
       </Tabs>
 
       {tab === 'template' && (
-        <Group title={t('Plantilla')} description={t('Cada plantilla es una composición distinta (portada, encabezado, pie, decoración y cómo se muestran los productos). Después puedes cambiar cada parte.')}>
+        <Group title={t('Plantilla')} description={t('Cada plantilla es una composición distinta (portada, encabezado, pie, decoración y cómo se muestran los productos). Cambiarla conserva tus bloques, su orden y tus colores; después puedes ajustar cada parte.')}>
           {PDF_TEMPLATES.map((id) => (
             <ButtonBase
               key={id}
@@ -242,67 +271,72 @@ export function PdfStudio({ catalogId, initial, site, enabled, canManage = true 
               aria-pressed={settings.template === id}
               sx={{ display: 'block', textAlign: 'left', p: 1.25, borderRadius: 1.5, border: 1, borderColor: settings.template === id ? 'primary.main' : 'divider', boxShadow: settings.template === id ? (theme) => `0 0 0 1px ${theme.palette.primary.main}` : 'none' }}
             >
-              <Typography variant="body2" sx={{ fontWeight: 600 }}>{t(PDF_TEMPLATE_META[id].label)}</Typography>
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>{t(PDF_TEMPLATE_META[id].label)}</Typography>
+                {settings.template === id && <Chip size="small" color="primary" label={t('Actual')} />}
+              </Stack>
               <Typography variant="caption" color="text.secondary">{t(PDF_TEMPLATE_META[id].description)}</Typography>
             </ButtonBase>
           ))}
         </Group>
       )}
 
-      {tab === 'content' && (
-        <>
-          <Group title={t('Páginas del catálogo')} description={t('Arrastra para ordenar. Haz clic en un bloque para configurarlo y ver su página.')}>
-            <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 1.5, overflow: 'hidden' }}>
-              <SortableList
-                items={settings.blocks}
-                getId={(b) => b.id}
-                onReorder={(blocks) => set('blocks', blocks)}
-                renderItem={(block) => {
-                  const Icon = BLOCK_ICONS[block.type];
-                  const active = block.id === selected;
-                  return (
-                    <Stack direction="row" sx={{ alignItems: 'center', gap: 1, bgcolor: active ? 'action.selected' : undefined, mx: -1, px: 1, borderRadius: 1 }}>
-                      <ButtonBase onClick={() => selectBlock(active ? null : block.id)} sx={{ flex: 1, minWidth: 0, justifyContent: 'flex-start', gap: 1, py: 0.5, borderRadius: 1 }}>
-                        <Icon size={15} />
-                        <Typography variant="body2" sx={{ fontWeight: 500, color: block.enabled ? 'text.primary' : 'text.disabled' }} noWrap>{blockLabel(block)}</Typography>
-                        {preview?.marks[block.id] && <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>{t('p. {page}', { page: preview.marks[block.id] })}</Typography>}
-                      </ButtonBase>
-                      <Switch size="small" checked={block.enabled} onChange={(e) => updateBlock(block.id, { ...block, enabled: e.target.checked })} slotProps={{ input: { 'aria-label': t('Incluir') } }} />
-                    </Stack>
-                  );
-                }}
-              />
-            </Box>
-            <Button startIcon={<Plus size={16} />} onClick={(e) => setAddAnchor(e.currentTarget)} sx={{ alignSelf: 'flex-start' }}>{t('Agregar bloque')}</Button>
-            <Menu anchorEl={addAnchor} open={Boolean(addAnchor)} onClose={() => setAddAnchor(null)}>
-              {PDF_BLOCK_TYPES.filter((type) => (type !== 'cover' && type !== 'toc') || !settings.blocks.some((b) => b.type === type)).map((type) => {
-                const Icon = BLOCK_ICONS[type];
+      {tab === 'content' && !current && (
+        <Group title={t('Páginas del catálogo')} description={t('Arrastra para ordenar. Haz clic en un bloque para configurarlo y ver su página; el interruptor lo incluye o lo deja fuera.')}>
+          <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 1.5, overflow: 'hidden' }}>
+            <SortableList
+              items={settings.blocks}
+              getId={(b) => b.id}
+              onReorder={(blocks) => set('blocks', blocks)}
+              renderItem={(block) => {
+                const Icon = BLOCK_ICONS[block.type];
                 return (
-                  <MenuItem key={type} onClick={() => addBlock(type)} disabled={type === 'page' && site.pages.length === 0} sx={{ gap: 1.25, alignItems: 'flex-start', maxWidth: 340, whiteSpace: 'normal' }}>
-                    <Box sx={{ mt: 0.25 }}><Icon size={16} /></Box>
-                    <Box>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>{t(PDF_BLOCK_META[type].label)}</Typography>
-                      <Typography variant="caption" color="text.secondary">{t(PDF_BLOCK_META[type].description)}</Typography>
-                    </Box>
-                  </MenuItem>
+                  <Stack direction="row" sx={{ alignItems: 'center', gap: 1, mx: -1, px: 1, borderRadius: 1 }}>
+                    <ButtonBase onClick={() => selectBlock(block.id)} sx={{ flex: 1, minWidth: 0, justifyContent: 'flex-start', gap: 1, py: 0.5, borderRadius: 1 }}>
+                      <Icon size={15} />
+                      <Typography variant="body2" sx={{ fontWeight: 500, color: block.enabled ? 'text.primary' : 'text.disabled' }} noWrap>{blockLabel(block)}</Typography>
+                      {preview?.marks[block.id] && block.enabled && <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto', flexShrink: 0, whiteSpace: 'nowrap' }}>{t('p. {page}', { page: preview.marks[block.id] })}</Typography>}
+                      {!block.enabled && <Typography variant="caption" color="text.disabled" sx={{ ml: 'auto', flexShrink: 0, whiteSpace: 'nowrap' }}>{t('Fuera del PDF')}</Typography>}
+                    </ButtonBase>
+                    <Switch size="small" checked={block.enabled} onChange={(e) => updateBlock(block.id, { ...block, enabled: e.target.checked })} slotProps={{ input: { 'aria-label': t('Incluir {block}', { block: blockLabel(block) }) } }} />
+                  </Stack>
                 );
-              })}
-            </Menu>
-          </Group>
-          {current && (
-            <Box sx={{ mt: 1, border: 1, borderColor: 'primary.main', borderRadius: 1.5, px: 1.5 }}>
-              <Stack direction="row" sx={{ alignItems: 'center', pt: 1.5 }}>
-                <Settings2 size={16} />
-                <Typography variant="h4" sx={{ ml: 1, flex: 1 }}>{t(PDF_BLOCK_META[current.type].label)}</Typography>
-                <Tooltip title={t('Quitar bloque')}>
-                  <IconButton size="small" aria-label={t('Quitar bloque')} onClick={() => { removeBlock(current.id); setSelected(null); }}><Trash2 size={16} /></IconButton>
-                </Tooltip>
-              </Stack>
-              <BlockEditor block={current} onChange={(next) => updateBlock(current.id, next)} site={site} onCoverTab={() => setTab('cover')} />
-            </Box>
-          )}
-        </>
+              }}
+            />
+          </Box>
+          <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
+            <Button startIcon={<Plus size={16} />} onClick={() => setAdding(true)}>{t('Agregar bloque')}</Button>
+            <Typography variant="caption" color="text.secondary">
+              {t('{blocks} de {total} bloques incluidos', { blocks: settings.blocks.filter((b) => b.enabled).length, total: settings.blocks.length })}
+            </Typography>
+          </Stack>
+        </Group>
       )}
+      {tab === 'content' && current && (
+        // Un bloque a la vez, con la vuelta a la lista arriba (como las secciones en el editor del sitio).
+        <Box sx={{ pt: 1 }}>
+          <Stack direction="row" sx={{ alignItems: 'center', gap: 0.5 }}>
+            <Button color="inherit" startIcon={<ArrowLeft size={16} />} onClick={() => setSelected(null)}>{t('Todos los bloques')}</Button>
+            <Box sx={{ flex: 1 }} />
+            {current.type !== 'cover' && current.type !== 'toc' && (
+              <Tooltip title={t('Duplicar bloque')}>
+                <IconButton size="small" aria-label={t('Duplicar bloque')} onClick={() => duplicateBlock(current)}><Copy size={16} /></IconButton>
+              </Tooltip>
+            )}
+            <Tooltip title={t('Quitar bloque')}>
+              <IconButton size="small" aria-label={t('Quitar bloque')} onClick={() => { removeBlock(current.id); setSelected(null); }}><Trash2 size={16} /></IconButton>
+            </Tooltip>
+          </Stack>
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mt: 1, mb: 0.5 }}>
+            <Settings2 size={16} />
+            <Typography variant="h4" sx={{ flex: 1, minWidth: 0 }} noWrap>{blockLabel(current)}</Typography>
+            {preview?.marks[current.id] && current.enabled && <Chip size="small" variant="outlined" label={t('p. {page}', { page: preview.marks[current.id] })} />}
+          </Stack>
+          <SwitchRow label={t('Incluir en el PDF')} checked={current.enabled} onChange={(enabled) => updateBlock(current.id, { ...current, enabled })} />
+          <BlockEditor block={current} onChange={(next) => updateBlock(current.id, next)} site={site} onCoverTab={() => setTab('cover')} />
+        </Box>
+      )}
+      <AddBlockDialog open={adding} onClose={() => setAdding(false)} onAdd={addBlock} blocks={settings.blocks} hasPages={site.pages.length > 0} />
 
       {tab === 'cover' && <CoverEditor settings={settings} patch={(v) => patch('cover', v)} />}
 
@@ -391,6 +425,7 @@ export function PdfStudio({ catalogId, initial, site, enabled, canManage = true 
               if (block && !proposal) {
                 setSelected(block.id);
                 setTab(block.type === 'cover' ? 'cover' : 'content');
+                setMobileView('edit');
               }
             }}
           />
@@ -407,8 +442,8 @@ export function PdfStudio({ catalogId, initial, site, enabled, canManage = true 
   return (
     <PdfGarfieldProvider settings={settings} onChange={setSettings} selectedBlockId={selected} onSelectBlock={(id) => { setSelected(id); setTab('content'); }} onPreview={setProposal} site={site}>
     <Box sx={{ display: 'flex', flexDirection: 'column', height: { lg: 'calc(100vh - 56px - 32px)' } }}>
-      <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', mb: 2 }}>
-        <Box sx={{ flex: 1, minWidth: 0 }}>
+      <Stack direction="row" spacing={1.5} useFlexGap sx={{ alignItems: 'center', mb: 2, flexWrap: 'wrap' }}>
+        <Box sx={{ flex: 1, minWidth: 220 }}>
           <Typography variant="h1">{t('Catálogo en PDF')}</Typography>
           <Typography variant="body2" color="text.secondary" noWrap>
             {pages > 0
@@ -416,9 +451,14 @@ export function PdfStudio({ catalogId, initial, site, enabled, canManage = true 
               : t('Arma tu catálogo por bloques. Usa el diseño, los productos y las páginas de tu sitio.')}
           </Typography>
         </Box>
-        <Button color="inherit" onClick={() => run(() => savePdfSettings(settings), { onSuccess: () => setSaved(JSON.stringify(settings)) })} disabled={!dirty || pending}>
-          {t('Guardar configuración')}
-        </Button>
+        <Chip size="small" variant="outlined" color={dirty ? 'warning' : 'success'} label={dirty ? t('Cambios sin guardar') : t('Todo guardado')} />
+        <Tooltip title={t('También con Ctrl+S (⌘S en Mac)')}>
+          <span>
+            <Button variant={dirty ? 'outlined' : 'text'} color={dirty ? 'primary' : 'inherit'} onClick={save} disabled={!dirty || pending}>
+              {t('Guardar')}
+            </Button>
+          </span>
+        </Tooltip>
         <Button variant="contained" startIcon={downloading ? <CircularProgress aria-label={t('Cargando')} size={14} color="inherit" /> : <Download size={15} />} onClick={download} disabled={downloading || !enabled}>
           {t('Descargar PDF')}
         </Button>
@@ -430,8 +470,11 @@ export function PdfStudio({ catalogId, initial, site, enabled, canManage = true 
         </Box>
       ) : (
         <Stack spacing={2}>
-          {previewPane}
-          {panel}
+          <ToggleButtonGroup exclusive fullWidth size="small" value={mobileView} onChange={(_, v: 'edit' | 'preview' | null) => v && setMobileView(v)} aria-label={t('Qué ver')}>
+            <ToggleButton value="edit" sx={{ textTransform: 'none' }}>{t('Editar')}</ToggleButton>
+            <ToggleButton value="preview" sx={{ textTransform: 'none' }}>{pages > 0 ? t('Vista previa ({pages} p.)', { pages }) : t('Vista previa')}</ToggleButton>
+          </ToggleButtonGroup>
+          {mobileView === 'edit' ? panel : previewPane}
         </Stack>
       )}
     </Box>
@@ -718,4 +761,60 @@ function BlockEditor({ block, onChange, site, onCoverTab }: { block: PdfBlock; o
         </Group>
       );
   }
+}
+
+/* ------------------------------------------------------------ Agregar bloque */
+
+const BLOCK_GROUPS: { label: string; types: PdfBlockType[] }[] = [
+  { label: msg('Inicio y cierre'), types: ['cover', 'toc', 'backCover'] },
+  { label: msg('Productos'), types: ['catalog', 'products', 'comparison', 'promo'] },
+  { label: msg('Contenido'), types: ['text', 'gallery', 'image', 'page', 'contact'] },
+  { label: msg('Estructura'), types: ['pageBreak'] },
+];
+
+/** Los tipos de bloque agrupados, con su ícono y para qué sirven (antes: un menú largo sin orden). */
+function AddBlockDialog({ open, onClose, onAdd, blocks, hasPages }: { open: boolean; onClose: () => void; onAdd: (type: PdfBlockType) => void; blocks: PdfBlock[]; hasPages: boolean }) {
+  const t = useT();
+  const unavailable = (type: PdfBlockType) => ((type === 'cover' || type === 'toc') && blocks.some((b) => b.type === type)) || (type === 'page' && !hasPages);
+  // Cada tipo en algún grupo (si se agrega un tipo nuevo y no se ubica, va en «Contenido»).
+  const groups = BLOCK_GROUPS.map((g) => (g.label === BLOCK_GROUPS[2].label ? { ...g, types: [...g.types, ...PDF_BLOCK_TYPES.filter((type) => !BLOCK_GROUPS.some((x) => x.types.includes(type)))] } : g));
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" aria-labelledby="pdf-add-block-title">
+      <DialogTitle id="pdf-add-block-title" sx={{ pr: 6 }}>
+        {t('Agregar bloque')}
+        <IconButton aria-label={t('Cerrar')} onClick={onClose} sx={{ position: 'absolute', right: 12, top: 12 }}><X size={18} /></IconButton>
+      </DialogTitle>
+      <DialogContent>
+        <Stack spacing={2.5}>
+          {groups.map((group) => (
+            <Box key={group.label} component="section" aria-label={t(group.label)}>
+              <Typography variant="overline" color="text.secondary">{t(group.label)}</Typography>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1, mt: 0.5 }}>
+                {group.types.map((type) => {
+                  const Icon = BLOCK_ICONS[type];
+                  const disabled = unavailable(type);
+                  return (
+                    <ButtonBase
+                      key={type}
+                      disabled={disabled}
+                      onClick={() => onAdd(type)}
+                      sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-start', gap: 1.25, textAlign: 'left', p: 1.25, borderRadius: 1.5, border: 1, borderColor: 'divider', opacity: disabled ? 0.5 : 1, '&:hover': { borderColor: 'primary.main', bgcolor: 'action.hover' } }}
+                    >
+                      <Box sx={{ color: 'primary.main', mt: 0.25, display: 'flex' }}><Icon size={18} /></Box>
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>{t(PDF_BLOCK_META[type].label)}</Typography>
+                        <Typography variant="caption" color="text.secondary" component="p">
+                          {disabled ? (type === 'page' ? t('Tu sitio todavía no tiene páginas.') : t('Ya está en tu catálogo.')) : t(PDF_BLOCK_META[type].description)}
+                        </Typography>
+                      </Box>
+                    </ButtonBase>
+                  );
+                })}
+              </Box>
+            </Box>
+          ))}
+        </Stack>
+      </DialogContent>
+    </Dialog>
+  );
 }
