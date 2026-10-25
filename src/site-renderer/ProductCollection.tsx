@@ -1,3 +1,4 @@
+import { Check } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { visibleAttributes } from '@/lib/catalog/attributes-core';
 import type { Presentation } from '@/lib/catalog/presentation';
@@ -26,6 +27,7 @@ type Props = {
 const GAP = { tight: '10px', normal: 'var(--gap-theme)', loose: 'calc(var(--gap-theme) * 1.8)' } as const;
 const THUMB = { sm: '64px', md: '96px', lg: '132px' } as const;
 const ZIGZAG = { sm: '32%', md: '42%', lg: '52%' } as const;
+const SERVICE_THUMB = { sm: '56px', md: '84px', lg: '100%' } as const;
 
 /**
  * Renderer web de una colección de productos según su presentación.
@@ -41,6 +43,7 @@ export function ProductCollection({ items, site, env, presentation: p, categoryN
     '--card-ratio': CARD_RATIOS[p.ratio],
     '--thumb': THUMB[p.imageSize],
     '--zig': ZIGZAG[p.imageSize],
+    '--svc-thumb': SERVICE_THUMB[p.imageSize],
   } as CSSProperties;
   const cardOptions = (item: CatalogItemView, index: number, extra: Partial<CardOptions> = {}): CardOptions => ({
     style: p.cardStyle === 'inherit' ? undefined : p.cardStyle,
@@ -147,8 +150,8 @@ export function ProductCollection({ items, site, env, presentation: p, categoryN
           {items.map((item, i) => {
             const right = p.imagePosition === 'right' || (p.imagePosition === 'alternate' && i % 2 === 1);
             return (
-              <article key={item.id} className={styles.zigzagItem} data-reverse={right}>
-                {f.image && <ItemMedia item={item} className={styles.zigzagMedia} sizes="(max-width: 700px) 100vw, 45vw" shape={p.shape} frame={p.frame} priority={priority && i === 0} />}
+              <article key={item.id} className={styles.zigzagItem} data-reverse={right} data-media={f.image && item.images.length > 0}>
+                {f.image && item.images.length > 0 && <ItemMedia item={item} className={styles.zigzagMedia} sizes="(max-width: 700px) 100vw, 45vw" shape={p.shape} frame={p.frame} priority={priority && i === 0} />}
                 <div className={styles.zigzagBody}>
                   {f.badges && <Badges item={item} theme={site.theme} t={t} inline />}
                   {f.category && item.categoryId && <span className={styles.eyebrow}>{categoryNames.get(item.categoryId)}</span>}
@@ -224,6 +227,48 @@ export function ProductCollection({ items, site, env, presentation: p, categoryN
               {f.availability && !item.isAvailable && <span className={styles.availability}>{t('No disponible')}</span>}
             </ItemLink>
           ))}
+        </div>
+      );
+
+    case 'serviceCards':
+      return (
+        <div className={styles.grid} style={vars}>
+          {items.map((item, i) => {
+            const details = f.attributes === 'none' ? [] : visibleAttributes(item.attributes, site.attributeDefs, f.attributes === 'all' ? 'detail' : 'card', siteYesNo(site.settings.language));
+            return (
+              <article key={item.id} className={`${styles.card} ${styles.serviceCard} ${item.isAvailable ? '' : styles.unavailable}`} data-style={p.cardStyle === 'inherit' ? site.theme.cards.style : p.cardStyle} data-hover={site.theme.cards.hover} data-align={p.align} data-media={p.imageSize === 'lg' ? 'cover' : 'thumb'}>
+                {f.image && item.images.length > 0 && <ItemMedia item={item} className={styles.serviceMedia} sizes={p.imageSize === 'lg' ? cardOptions(item, i).sizes ?? '400px' : '100px'} shape={p.shape} frame={p.frame} priority={priority && i < 3} />}
+                <div className={styles.serviceBody}>
+                  {f.badges && <Badges item={item} theme={site.theme} t={t} inline />}
+                  {f.category && item.categoryId && <span className={styles.cardEyebrow}>{categoryNames.get(item.categoryId)}</span>}
+                  <ItemLink item={item} env={env} className={styles.serviceLink}>
+                    <h3 className={styles.serviceTitle}>{item.name}</h3>
+                  </ItemLink>
+                  {f.description && item.shortDescription && <p className={styles.cardDesc}>{item.shortDescription}</p>}
+                  {details.length > 0 && (
+                    <ul className={styles.serviceIncludes}>
+                      {details.map((d) => (
+                        <li key={d.id}>
+                          <Check size={16} aria-hidden />
+                          <span>
+                            <span className={styles.attrName}>{d.name}:</span> {d.list ? d.list.join(', ') : d.value}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {f.sku && item.sku && <span className={styles.cardMeta}>{t('Código: {sku}', { sku: item.sku })}</span>}
+                  {f.availability && !item.isAvailable && <span className={styles.availability}>{t('No disponible')}</span>}
+                  {(f.price || (f.button && item.isAvailable)) && (
+                    <div className={styles.serviceFoot}>
+                      {f.price && <div className={styles.bigPrice}><PriceTag item={item} t={t} compare={f.compareAt} discount={f.discount} /></div>}
+                      {f.button && item.isAvailable && <ContactActions site={site} item={item} env={env} show="primary" small block appearance={site.theme.cards.button === 'none' ? 'solid' : site.theme.cards.button} />}
+                    </div>
+                  )}
+                </div>
+              </article>
+            );
+          })}
         </div>
       );
 

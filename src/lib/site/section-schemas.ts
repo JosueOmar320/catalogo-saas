@@ -17,6 +17,7 @@ export const SECTION_TYPES = [
   'text',
   'products',
   'services',
+  'product',
   'catalog',
   'categories',
   'banner',
@@ -40,6 +41,9 @@ export const SECTION_TYPES = [
   'embed',
 ] as const;
 export type SectionType = (typeof SECTION_TYPES)[number];
+
+/** Cómo se ve la sección Producto: foto y ficha lado a lado, foto de fondo o tarjeta. */
+export const PRODUCT_SPOTLIGHT_LAYOUTS = ['split', 'banner', 'card'] as const;
 
 /** Tope de la sección Tabla (lo respetan el editor, Garfield y el guardado). */
 export const TABLE_MAX_COLUMNS = 10;
@@ -255,6 +259,25 @@ function build(lenient: boolean) {
         collection: coll({ source: 'all', itemType: 'service' }),
         presentation: pres({ layout: 'zigzag', imageSize: 'md', shape: 'rounded' }),
         button,
+      }),
+    ),
+    product: base(
+      'product',
+      z.object({
+        /** Vacíos: la categoría, el nombre y la descripción corta del producto. */
+        ...heading,
+        /** '' = automático: el primer destacado (o el primero del catálogo). */
+        itemId: f(z.union([z.literal(''), z.uuid()]), ''),
+        layout: f(z.enum(PRODUCT_SPOTLIGHT_LAYOUTS), 'split'),
+        /** Lado de la foto (en el banner, que la lleva de fondo: lado del texto). */
+        imageSide: f(z.enum(['left', 'right']), 'left'),
+        gallery: bool(true),
+        showDescription: bool(true),
+        showSpecs: bool(true),
+        showBadges: bool(true),
+        /** Variantes, extras y botón para pedir o consultar. */
+        showOrder: bool(true),
+        showDetailsLink: bool(true),
       }),
     ),
     catalog: base(
@@ -576,6 +599,7 @@ function build(lenient: boolean) {
     sections.text,
     sections.products,
     sections.services,
+    sections.product,
     sections.catalog,
     sections.categories,
     sections.banner,

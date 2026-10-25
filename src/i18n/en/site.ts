@@ -376,6 +376,10 @@ const catalog: Catalog = {
   'Para que {business} te avise cuando tu pedido esté listo.': 'So {business} can let you know when your order is ready.',
   'Agrega filas a la tabla desde el editor.': 'Add rows to the table from the editor.',
   'Tabla': 'Table',
+  'El producto elegido ya no está en el catálogo: elige otro en el editor.': 'The chosen product is no longer in the catalog: pick another one in the editor.',
+  'Agrega productos a tu catálogo para mostrarlos aquí.': 'Add products to your catalog to show them here.',
+  'Elegir opciones': 'Choose options',
+  'Ver detalles': 'View details',
 };
 
 export default catalog;

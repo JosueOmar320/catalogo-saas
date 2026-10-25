@@ -164,6 +164,12 @@ describe('Secciones y presentaciones v4', () => {
   it('cambia a los layouts de producto nuevos', () => {
     const { actions } = ask('Muestra los productos en tabla comparativa');
     assert.ok(JSON.stringify(actions).includes('"comparison"'));
+    assert.ok(JSON.stringify(ask('Muestra los productos como tarjetas de servicio').actions).includes('"serviceCards"'));
+  });
+
+  it('agrega un producto en específico', () => {
+    const { actions } = ask('Agrega una sección con el producto del mes');
+    assert.ok(JSON.stringify(actions).includes('"type":"product"'));
   });
 
   it('descuento y video', () => {

@@ -9,6 +9,7 @@ import { FeaturesSection } from './FeaturesSection';
 import { GallerySection } from './GallerySection';
 import { HeroSection } from './HeroSection';
 import { ProductsSection } from './ProductsSection';
+import { ProductSection } from './ProductSection';
 import { ServicesSection } from './ServicesSection';
 import { SocialSection } from './SocialSection';
 import { SpacerSection } from './SpacerSection';
@@ -36,6 +37,7 @@ export const SECTION_COMPONENTS: { [T in SectionType]: ComponentType<SectionProp
   text: TextSection,
   products: ProductsSection,
   services: ServicesSection,
+  product: ProductSection,
   catalog: CatalogSection,
   categories: CategoriesSection,
   banner: BannerSection,

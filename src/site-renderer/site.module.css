@@ -5823,3 +5823,286 @@ input.qtyValue:focus-visible {
 .embedFullScreen > .container {
   padding-inline: 0;
 }
+
+/* Tarjetas de servicio: lo que incluye en lista, el precio y el botón al pie. */
+.serviceCard {
+  padding: 22px;
+  gap: 14px;
+}
+
+.card:is([data-style='minimal'], [data-style='borderless'], [data-style='elegant']).serviceCard {
+  padding: 4px 0;
+}
+
+.serviceCard[data-media='cover'] {
+  padding-top: 0;
+}
+
+.serviceMedia {
+  position: relative;
+  flex: none;
+  width: var(--svc-thumb);
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  border-radius: calc(var(--radius) * 0.8);
+  background: var(--c-primary-soft);
+}
+
+.serviceCard[data-media='cover'] .serviceMedia {
+  width: auto;
+  margin-inline: -22px;
+  aspect-ratio: var(--card-ratio);
+  border-radius: 0;
+}
+
+.card:is([data-style='minimal'], [data-style='borderless'], [data-style='elegant'])[data-media='cover'] .serviceMedia {
+  margin-inline: 0;
+  border-radius: var(--radius);
+}
+
+.serviceMedia img {
+  object-fit: cover;
+}
+
+.serviceCard[data-align='center'][data-media='thumb'] .serviceMedia {
+  align-self: center;
+}
+
+.serviceBody {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.serviceCard[data-align='center'] .serviceBody {
+  align-items: center;
+}
+
+.serviceLink {
+  color: inherit;
+  text-decoration: none;
+}
+
+a.serviceLink:hover .serviceTitle {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.serviceTitle {
+  margin: 0;
+  color: var(--c-heading);
+  font-family: var(--f-heading), var(--f-body), sans-serif;
+  font-weight: var(--hw);
+  letter-spacing: var(--hls);
+  text-transform: var(--htt);
+  font-size: calc(var(--fs-base) * 1.2);
+  overflow-wrap: anywhere;
+}
+
+.serviceCard .cardDesc {
+  -webkit-line-clamp: 4;
+}
+
+.serviceIncludes {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: calc(var(--fs-base) * 0.9);
+  color: var(--c-muted);
+  text-align: start;
+}
+
+.serviceIncludes li {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.serviceIncludes svg {
+  flex: none;
+  margin-top: 0.2em;
+  color: var(--c-accent);
+}
+
+.serviceFoot {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid var(--c-border);
+}
+
+.serviceCard[data-align='center'] .serviceFoot {
+  align-items: center;
+}
+
+/* Zigzag: un servicio sin foto no deja un hueco; el texto ocupa el ancho de lectura. */
+.zigzagItem[data-media='false'] {
+  grid-template-columns: minmax(0, 1fr) !important;
+  max-width: 72ch;
+}
+
+.zigzagItem[data-media='false'][data-reverse='true'] {
+  margin-inline-start: auto;
+}
+
+/* Sin foto: la inicial del ítem sobre el color suave del tema (en vez de un ícono genérico). */
+.mediaInitial {
+  container-type: size;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--c-primary-soft), color-mix(in srgb, var(--c-accent) 18%, var(--c-primary-soft)));
+}
+
+.mediaInitial span {
+  font-family: var(--f-heading), var(--f-body), sans-serif;
+  font-weight: 700;
+  font-size: clamp(18px, 38cqmin, 120px);
+  line-height: 1;
+  color: color-mix(in srgb, var(--c-primary) 55%, transparent);
+  text-transform: uppercase;
+}
+
+/* Segunda foto al pasar el mouse (tema › tarjetas › «Segunda foto»). */
+.mediaAlt {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.mediaAlt img {
+  object-fit: cover;
+}
+
+.card[data-hover='swap']:hover .mediaAlt,
+.card[data-hover='swap']:focus-within .mediaAlt {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mediaAlt {
+    transition: none;
+  }
+}
+
+/* Sección Producto: un ítem en específico. */
+.spotSplit,
+.spotCard {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 28px;
+  align-items: center;
+}
+
+@container site (min-width: 820px) {
+  .spotSplit {
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+    gap: clamp(32px, 5cqi, 72px);
+  }
+
+  .spotCard {
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1fr);
+    gap: 36px;
+  }
+
+  :is(.spotSplit, .spotCard)[data-reverse='true'] > :first-child {
+    order: 2;
+  }
+}
+
+.spotCard {
+  max-width: 980px;
+  margin-inline: auto;
+  padding: clamp(16px, 3cqi, 32px);
+  background: var(--c-surface);
+  color: var(--t-text);
+  border: var(--bw) solid var(--t-border);
+  border-radius: max(var(--radius), 12px);
+  box-shadow: var(--shadow);
+  --c-heading: var(--t-heading);
+  --c-muted: var(--t-muted);
+  --c-price: var(--t-price);
+}
+
+.spotCard .galleryMain {
+  aspect-ratio: 4 / 5;
+}
+
+.spotInfo {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+  min-width: 0;
+}
+
+.spotInfo .h2 {
+  margin: 0;
+}
+
+.spotInfo .lead {
+  margin: 0;
+}
+
+.spotInfo .specs {
+  width: 100%;
+}
+
+.spotBanner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: clamp(420px, 70cqi, 620px);
+  overflow: hidden;
+  background: var(--c-primary);
+  color: #fff;
+  --c-heading: #fff;
+  --c-text: #fff;
+  --c-muted: rgba(255, 255, 255, 0.86);
+  --c-price: #fff;
+}
+
+.spotBannerImage {
+  object-fit: cover;
+}
+
+.spotBannerShade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.72), rgba(0, 0, 0, 0.35) 55%, rgba(0, 0, 0, 0.08));
+}
+
+.spotBanner[data-side='right'] .spotBannerShade {
+  background: linear-gradient(270deg, rgba(0, 0, 0, 0.72), rgba(0, 0, 0, 0.35) 55%, rgba(0, 0, 0, 0.08));
+}
+
+.spotBannerInner {
+  position: relative;
+  display: flex;
+  padding-block: clamp(48px, 8cqi, 96px);
+}
+
+.spotBanner[data-side='right'] .spotBannerInner {
+  justify-content: flex-end;
+}
+
+.spotBannerInner .spotInfo {
+  max-width: 560px;
+}
+
+@container site (max-width: 640px) {
+  .spotBannerShade,
+  .spotBanner[data-side='right'] .spotBannerShade {
+    background: linear-gradient(0deg, rgba(0, 0, 0, 0.78), rgba(0, 0, 0, 0.3));
+  }
+}

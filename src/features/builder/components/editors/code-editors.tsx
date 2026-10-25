@@ -8,7 +8,7 @@ import { MediaLibraryDialog } from '@/features/media/components/MediaLibraryDial
 import { msg } from '@/i18n/translate';
 import { FX_CATALOG } from '@/lib/site/fx';
 import { HTML_EXAMPLES } from './html-examples';
-import { isFullDocument, MAX_EMBED_LENGTH, MAX_HTML_LENGTH, needsFullPageWidget, removedByCleaning } from '@/lib/site/custom-code-config';
+import { hasOwnChrome, isFullDocument, MAX_EMBED_LENGTH, MAX_HTML_LENGTH, needsFullPageWidget, removedByCleaning } from '@/lib/site/custom-code-config';
 import { createSection } from '@/lib/site/section-schemas';
 import { useBuilder, useSelectedPage } from '../../state';
 import { PageView, SiteShell } from '@/site-renderer';
@@ -90,22 +90,20 @@ function useHideSiteChrome() {
 
 /**
  * Página completa (scripts, Tailwind por CDN, <head>…) pegada en la sección
- * HTML: ahí se perdería. Con un clic se vuelve «Widget con código» a pantalla
- * completa (mismo lugar, mismo código) y la página oculta el menú y el pie del sitio.
+ * HTML: ahí se perdería. Con un clic se vuelve «Widget con código» en línea
+ * (mismo lugar, mismo código): entre el menú y el pie del sitio.
  */
 function FullPageNotice({ section }: { section: HtmlEditorProps['section'] }) {
   const t = useT();
   const { dispatch } = useBuilder();
-  const hideChrome = useHideSiteChrome();
   if (!needsFullPageWidget(section.content.html)) return null;
   const convert = () => {
-    const widget = createSection('embed', { title: '', code: section.content.html, height: 0, fullScreen: isFullDocument(section.content.html) }, section.style as never);
+    const widget = createSection('embed', { title: '', code: section.content.html, height: 0, fullScreen: false }, section.style as never);
     dispatch({ type: 'updateSection', section: { ...widget, id: section.id, name: section.name } });
-    if (isFullDocument(section.content.html)) hideChrome();
   };
   return (
     <Alert severity="warning" action={<Button color="inherit" size="small" onClick={convert}>{t('Convertir')}</Button>}>
-      {t('Esto es una página completa o lleva scripts (por ejemplo, Tailwind por CDN): en la sección HTML se pierden y se ve mal. Conviértela en «Widget con código» a pantalla completa: funciona tal cual, aislada del resto del sitio.')}
+      {t('Esto es una página completa o lleva scripts (por ejemplo, Tailwind por CDN): en la sección HTML se pierden y se ve mal. Conviértela en «Widget con código»: funciona tal cual, aislada, entre el menú y el pie de tu sitio.')}
     </Alert>
   );
 }
@@ -237,12 +235,9 @@ function EmbedEditor(props: EditorProps<'embed'>) {
       {!props.site.customCode && <CustomCodeDisabled />}
       <TextInput label={t('Nombre del widget')} value={c.title} placeholder={t('ej. Reservas')} helper={t('Lo anuncian los lectores de pantalla.')} onChange={(title) => set({ title })} maxLength={80} />
       <CodeField label={t('Código')} value={c.code} onChange={(code) => set({ code })} maxLength={MAX_EMBED_LENGTH} placeholder={'<div id="widget"></div>\n<script src="https://…"></script>'} />
-      {fullDocument && !c.fullScreen && (
-        <Alert severity="info" action={<Button color="inherit" size="small" onClick={() => { set({ fullScreen: true }); if (chromeShown) hideChrome(); }}>{t('Usar pantalla completa')}</Button>}>
-          {t('Es una página completa: se ve mejor a pantalla completa (con su propio menú y scroll) y sin el menú ni el pie de tu sitio en esta página.')}
-        </Alert>
-      )}
-      <SwitchRow label={t('Pantalla completa')} description={t('Del alto de la ventana y con su propio scroll: para páginas completas con menú fijo, modales o animaciones a pantalla completa.')} checked={c.fullScreen} onChange={(fullScreen) => set({ fullScreen })} />
+      {fullDocument && !c.fullScreen && <Alert severity="info">{t('Página completa en línea: se ve entre el menú y el pie de tu sitio, de borde a borde. Su alto de pantalla (100vh), sus ventanas y botones fijos y sus animaciones al desplazarse se ajustan a la parte visible.')}</Alert>}
+      {hasOwnChrome(c.code) && !c.fullScreen && <Typography variant="caption" color="text.secondary">{t('Trae su propio menú o pie: si deben reemplazar a los de tu sitio, usa «Pantalla completa» y ocúltalos en esta página.')}</Typography>}
+      <SwitchRow label={t('Pantalla completa')} description={t('Ocupa toda la ventana con su propio scroll. Para páginas que traen su propio menú y pie.')} checked={c.fullScreen} onChange={(fullScreen) => set({ fullScreen })} />
       {c.fullScreen && chromeShown && (
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
           <Typography variant="caption" color="text.secondary" sx={{ flex: 1 }}>{t('Esta página todavía muestra el menú o el pie de tu sitio.')}</Typography>
@@ -252,7 +247,7 @@ function EmbedEditor(props: EditorProps<'embed'>) {
       {!c.fullScreen && (
         <>
           <SliderInput label={t('Alto')} value={c.height} min={0} max={1200} step={20} format={(v) => (v === 0 ? t('Automático') : `${v}px`)} onChange={(height) => set({ height })} />
-          <Typography variant="caption" color="text.secondary">{t('Automático: el widget avisa su alto. Si se corta, fija un alto.')}</Typography>
+          <Typography variant="caption" color="text.secondary">{t('Automático: crece con su contenido y se desplaza con la página. Con un alto fijo tiene su propio scroll.')}</Typography>
         </>
       )}
     </Group>

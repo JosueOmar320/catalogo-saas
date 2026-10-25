@@ -1271,14 +1271,23 @@ test('código propio: el administrador lo habilita; HTML limpio, widget aislado 
     .fill('<p id="w">cargando</p><script>var r; try { r = parent.document.title ? "sin aislar" : "sin aislar"; } catch (e) { r = "aislado"; } document.getElementById("w").textContent = "Widget listo: " + r;</script>');
   await page.getByRole('button', { name: 'Volver a las secciones' }).click();
 
-  // Una página con scripts pegada en la sección HTML: se ofrece convertirla en widget a pantalla completa.
+  // Una página completa (con scripts) pegada en la sección HTML: se ofrece convertirla en widget, en línea entre el menú y el pie del sitio.
   await page.getByRole('button', { name: 'Sección', exact: true }).click();
   await page.getByRole('group', { name: 'Agregar sección' }).getByRole('button', { name: /^HTML propio/ }).click();
-  await page.getByLabel('HTML', { exact: true }).fill('<nav><a href="#fin">Ir al final</a></nav><p id="st">cargando</p><div style="height:2400px"></div><p id="fin">Final de la página</p><script>localStorage.setItem("tema", "oscuro"); document.cookie = "visto=1"; document.getElementById("st").textContent = "Guardado: " + localStorage.getItem("tema") + " · " + document.cookie;</script>');
+  await page
+    .getByLabel('HTML', { exact: true })
+    .fill(
+      '<!doctype html><html><head><style>.hero{min-height:100vh}.modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center}.modal.open{display:flex}</style></head><body>' +
+        '<section class="hero"><a href="#fin">Ir al final</a><p id="st">cargando</p></section><div style="height:2400px"></div>' +
+        '<p id="fin">Final de la página</p><p id="seen">sin ver</p><button onclick="document.getElementById(\'m\').classList.add(\'open\')">Abrir ventana</button>' +
+        '<div class="modal" id="m"><div role="dialog" aria-label="Ventana E2E">Hola desde la ventana</div></div>' +
+        '<script>localStorage.setItem("tema", "oscuro"); document.cookie = "visto=1"; document.getElementById("st").textContent = "Guardado: " + localStorage.getItem("tema") + " · " + document.cookie;' +
+        'new IntersectionObserver(function (e) { if (e[0].isIntersecting) document.getElementById("seen").textContent = "visto al desplazar"; }).observe(document.getElementById("fin"));</script></body></html>',
+    );
   await page.getByRole('alert').filter({ hasText: 'Esto es una página completa o lleva scripts' }).getByRole('button', { name: 'Convertir' }).click();
   await expect(page.getByLabel('Código', { exact: true })).toHaveValue(/localStorage\.setItem/);
+  await expect(page.getByRole('switch', { name: 'Pantalla completa' })).not.toBeChecked();
   await page.getByLabel('Nombre del widget').fill('Landing E2E');
-  await page.getByRole('switch', { name: 'Pantalla completa' }).click();
   await page.getByRole('button', { name: 'Volver a las secciones' }).click();
 
   // Tabla nativa: pegada desde una hoja de cálculo, con la columna del plan recomendado destacada.
@@ -1338,24 +1347,34 @@ test('código propio: el administrador lo habilita; HTML limpio, widget aislado 
   expect(await frame.getAttribute('sandbox')).not.toContain('allow-same-origin');
   await expect(site.frameLocator('iframe[title="Reservas E2E"]').getByText('Widget listo: aislado')).toBeVisible();
 
-  // Widget a pantalla completa: del alto de la ventana, con almacenamiento y #anclas que funcionan dentro del aislamiento.
+  // Página completa en línea: el menú del sitio sigue ahí, el widget crece con su contenido y su 100vh es la parte visible.
   const landing = site.locator('iframe[title="Landing E2E"]');
   await landing.scrollIntoViewIfNeeded();
-  expect((await landing.boundingBox())!.height).toBe(site.viewportSize()!.height);
+  await expect(site.locator('header').first()).toBeVisible();
+  const viewportHeight = site.viewportSize()!.height;
+  await expect.poll(async () => (await landing.boundingBox())!.height).toBeGreaterThan(2400 + viewportHeight / 2);
   const inside = site.frameLocator('iframe[title="Landing E2E"]');
   await expect(inside.getByText('Guardado: oscuro · visto=1')).toBeVisible();
+  await expect.poll(async () => (await inside.locator('.hero').boundingBox())!.height).toBeLessThanOrEqual(viewportHeight);
+  await expect(inside.locator('#seen')).toHaveText('sin ver');
   let popups = 0;
   visitor.on('page', () => popups++);
+  // El #ancla desplaza la página del sitio hasta el destino (el widget no tiene scroll propio)…
   const goToEnd = inside.getByRole('link', { name: 'Ir al final' });
-  // Playwright acerca el enlace antes del clic: la posición de la página se toma después de eso.
   await goToEnd.hover();
   const pageScroll = await site.evaluate(() => scrollY);
   await goToEnd.click();
-  // Se desplaza el widget (su propio scroll) hasta el destino.
-  const landingFrame = (await (await landing.elementHandle())!.contentFrame())!;
-  await expect.poll(() => landingFrame.evaluate(() => { const top = document.getElementById('fin')!.getBoundingClientRect().top; return top >= 0 && top < innerHeight; })).toBe(true);
+  await expect.poll(async () => { const box = await inside.locator('#fin').boundingBox(); return box !== null && box.y >= 0 && box.y < viewportHeight; }).toBe(true);
+  expect(await site.evaluate(() => scrollY)).toBeGreaterThan(pageScroll + 1500);
   expect(popups, 'el #ancla no abre otra pestaña').toBe(0);
-  expect(await site.evaluate(() => scrollY), 'ni mueve la página del sitio').toBe(pageScroll);
+  // …y el código de la página se entera: su IntersectionObserver ve el destino.
+  await expect(inside.locator('#seen')).toHaveText('visto al desplazar');
+  // Una ventana fija (position: fixed) aparece en la parte visible, no a la mitad de un widget de miles de px
+  // (aquí casi no se ve el widget: la página se desplaza para mostrarla completa).
+  await inside.getByRole('button', { name: 'Abrir ventana' }).click();
+  const modal = inside.getByRole('dialog', { name: 'Ventana E2E' });
+  await expect(modal).toBeVisible();
+  await expect.poll(async () => { const box = (await modal.boundingBox())!; return box.y >= 0 && box.y + box.height <= viewportHeight; }).toBe(true);
 
   // La tabla: encabezados de columna y de fila, y la columna destacada.
   const sizes = site.getByRole('table', { name: 'Guía de tallas E2E' });
@@ -1363,6 +1382,56 @@ test('código propio: el administrador lo habilita; HTML limpio, widget aislado 
   await expect(sizes.getByRole('columnheader', { name: 'Pecho (cm)' })).toHaveAttribute('data-highlight', 'true');
   await expect(sizes.getByRole('rowheader', { name: 'M' })).toBeVisible();
   await expect(sizes.getByRole('row', { name: /^G 104 74/ })).toBeVisible();
+  await visitor.close();
+});
+
+test('sección Producto y tarjetas de servicio: un producto en específico y una colección elegida a mano', async ({ page, browser }) => {
+  await page.goto('/dashboard/sitio');
+  await page.getByRole('button', { name: 'Sección', exact: true }).click();
+  await page.getByRole('group', { name: 'Agregar sección' }).getByRole('button', { name: /^Producto Un producto/ }).click();
+  const choose = page.getByRole('combobox', { name: 'Producto o servicio' });
+  await choose.click();
+  await choose.fill('Croiss');
+  await page.getByRole('option', { name: /Croissant E2E/ }).click();
+  await page.getByRole('group', { name: 'Diseño' }).getByRole('button', { name: 'Tarjeta' }).click();
+  await page.getByLabel('Título', { exact: true }).fill('El favorito E2E');
+  await page.getByRole('button', { name: 'Volver a las secciones' }).click();
+
+  // Productos elegidos a mano (buscando con foto y precio) y el estilo rápido «Servicios».
+  await page.getByRole('button', { name: 'Sección', exact: true }).click();
+  await page.getByRole('group', { name: 'Agregar sección' }).getByRole('button', { name: /^Productos Selección/ }).click();
+  await page.getByLabel('Título', { exact: true }).fill('Tarjetas E2E');
+  await page.getByRole('combobox', { name: 'Colección' }).click();
+  await page.getByRole('option', { name: 'Elegidos a mano' }).click();
+  await expect(page.getByText('Ningún ítem coincide todavía: en el sitio publicado la sección no aparece.')).toBeVisible();
+  const add = page.getByRole('combobox', { name: 'Agregar un ítem' });
+  await add.click();
+  await add.fill('Croiss');
+  await page.getByRole('option', { name: /Croissant E2E/ }).click();
+  await expect(page.getByRole('list', { name: 'Ítems elegidos' }).getByText(productName)).toBeVisible();
+  await expect(page.getByText(/^Se muestran 1 de \d+\.$/)).toBeVisible();
+  await page.getByRole('group', { name: 'Estilos rápidos' }).getByRole('button', { name: 'Servicios' }).click();
+  await expect(page.getByRole('radio', { name: 'Tarjetas de servicio' })).toBeChecked();
+  await page.getByRole('button', { name: 'Volver a las secciones' }).click();
+  const save = page.getByRole('button', { name: 'Guardar cambios' });
+  await save.click();
+  await expect(save).toBeDisabled();
+
+  const visitor = await browser.newContext(ANONYMOUS);
+  const site = await visitor.newPage();
+  const spotlight = site.getByRole('heading', { name: 'El favorito E2E' });
+  await expect(async () => {
+    await site.goto(`/catalogo/${slug}`);
+    await expect(spotlight).toBeVisible({ timeout: 2000 });
+  }).toPass({ timeout: 20_000 });
+  const welcome = site.getByRole('dialog', { name: '¡Bienvenido E2E!' });
+  if (await welcome.isVisible()) await welcome.getByRole('button', { name: 'Cerrar' }).click();
+  const card = site.locator('article', { has: spotlight });
+  await expect(card.getByRole('link', { name: 'Ver detalles' })).toHaveAttribute('href', `/catalogo/${slug}/p/croissant-e2e`);
+  await expect(card.getByRole('button', { name: 'Agregar al pedido' })).toBeVisible();
+  const services = site.locator('section', { has: site.getByRole('heading', { name: 'Tarjetas E2E' }) });
+  await expect(services.locator('[class*="serviceCard"]')).toHaveCount(1);
+  await expect(services.getByRole('heading', { name: productName })).toBeVisible();
   await visitor.close();
 });
 

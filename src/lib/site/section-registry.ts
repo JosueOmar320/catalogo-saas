@@ -8,6 +8,7 @@ export const SECTION_META: Record<SectionType, { label: string; description: str
   banner: { label: msg('Banner'), description: msg('Franja promocional con texto y botón.'), icon: 'percent', group: 'Principal' },
   products: { label: msg('Productos'), description: msg('Selección de productos: destacados, recientes, de una categoría o elegidos.'), icon: 'shopping-bag', group: 'Catálogo' },
   services: { label: msg('Servicios'), description: msg('Servicios con descripción, precio y botón de contacto.'), icon: 'handshake', group: 'Catálogo' },
+  product: { label: msg('Producto'), description: msg('Un producto o servicio en específico, con sus fotos, precio y botón para pedir.'), icon: 'package', group: 'Catálogo' },
   catalog: { label: msg('Catálogo completo'), description: msg('Todos los ítems con buscador, filtros y categorías.'), icon: 'clipboard-list', group: 'Catálogo' },
   categories: { label: msg('Categorías'), description: msg('Accesos a tus categorías como tarjetas, lista o imagen + texto.'), icon: 'tag', group: 'Catálogo' },
   text: { label: msg('Texto'), description: msg('Título, texto con formato e imagen opcional.'), icon: 'book-open', group: 'Contenido' },

@@ -191,6 +191,8 @@ export function planAssistantActions(initial: BuilderState, actions: AssistantAc
     }
     if (!isPlainObject(value)) {
       if (MEDIA_KEYS.has(key) && typeof value === 'string' && value && !knownMedia.has(value)) return key === 'path' ? '' : null;
+      // Producto de la sección Producto por nombre → id (si no existe: automático).
+      if (key === 'itemId' && typeof value === 'string' && value && !UUID.test(value)) return byName(env.items, value)?.id ?? '';
       // Categoría por nombre ("Bebidas") → id; un $alias aún no creado (vista previa) → sin filtro.
       if (key === 'categoryId' && typeof value === 'string' && value && !UUID.test(value)) return value.startsWith('$') ? '' : (byName(env.categories, value)?.id ?? '');
       if ((key === 'pageId' || key === 'linkPageId') && typeof value === 'string' && value && !s.pages.some((p) => p.id === value)) {

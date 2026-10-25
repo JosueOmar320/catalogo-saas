@@ -5,7 +5,8 @@ import type { PdfBlockOf } from '@/lib/pdf/settings';
 import { htmlToText } from '@/lib/site/custom-code';
 import { resolveLink } from '@/lib/site/links';
 import { parseVideoUrl } from '@/lib/site/video';
-import { heroText, resolveSectionItems, resolveTextMode } from '@/lib/site/resolve';
+import { presentation } from '@/lib/catalog/presentation';
+import { heroText, resolveSectionItems, resolveSpotlightItem, resolveTextMode } from '@/lib/site/resolve';
 import type { ColumnBlock, Section } from '@/lib/site/section-schemas';
 import { mediaUrl } from '@/lib/utils/storage';
 import { CatalogBlock, ContactBlock } from './blocks';
@@ -89,6 +90,17 @@ function PdfSection({ section, doc }: { section: Section; doc: PdfDoc }) {
             {first}
           </View>
           {rest}
+        </View>
+      );
+    }
+    case 'product': {
+      const item = resolveSpotlightItem(section.content, doc.items);
+      if (!item) return null;
+      const rows = productRows(doc, [item], presentation({ layout: 'detail', imagePosition: section.content.imageSide, gallery: section.content.gallery, fields: { description: section.content.showDescription, badges: section.content.showBadges, attributes: section.content.showSpecs ? 'all' : 'none' } }));
+      return (
+        <View wrap={false}>
+          {(section.content.eyebrow || section.content.title) && <SectionTitle ctx={ctx} title={section.content.title || section.content.eyebrow} subtitle={section.content.title ? section.content.subtitle : ''} />}
+          {rows}
         </View>
       );
     }

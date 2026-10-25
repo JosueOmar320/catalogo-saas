@@ -164,7 +164,7 @@ describe('Código propio: widget', () => {
   it('altura informada por el widget, dentro de un rango', () => {
     assert.equal(clampEmbedHeight(320.4), 320);
     assert.equal(clampEmbedHeight(5), 40);
-    assert.equal(clampEmbedHeight(99999), 4000);
+    assert.equal(clampEmbedHeight(99999), 30000);
     assert.equal(clampEmbedHeight('300'), null);
     assert.equal(clampEmbedHeight(Number.NaN), null);
   });
