@@ -4,6 +4,7 @@ import { Autocomplete, Button, Stack, TextField, Typography } from '@mui/materia
 import { Images } from 'lucide-react';
 import { useState, type ComponentType } from 'react';
 import { ColumnsSectionEditor } from './columns-editor';
+import { TableEditor } from './table-editor';
 import { MediaLibraryDialog } from '@/features/media/components/MediaLibraryDialog';
 import { SORT_LABELS, SORT_OPTIONS } from '@/lib/catalog/collections';
 import type { SitePage } from '@/lib/site/pages';
@@ -498,6 +499,7 @@ function SpacerEditor(props: EditorProps<'spacer'>) {
 
 /** Registro de editores: TypeScript exige uno por cada tipo de sección. */
 export const CONTENT_EDITORS: { [T in SectionType]: ComponentType<EditorProps<T>> } = {
+  table: TableEditor,
   hero: HeroEditor,
   text: TextEditor,
   products: ProductsEditor,

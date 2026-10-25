@@ -8,9 +8,11 @@ import { MediaLibraryDialog } from '@/features/media/components/MediaLibraryDial
 import { msg } from '@/i18n/translate';
 import { FX_CATALOG } from '@/lib/site/fx';
 import { HTML_EXAMPLES } from './html-examples';
-import { MAX_HTML_LENGTH, removedByCleaning } from '@/lib/site/custom-code-config';
+import { isFullDocument, MAX_EMBED_LENGTH, MAX_HTML_LENGTH, needsFullPageWidget, removedByCleaning } from '@/lib/site/custom-code-config';
+import { createSection } from '@/lib/site/section-schemas';
+import { useBuilder, useSelectedPage } from '../../state';
 import { PageView, SiteShell } from '@/site-renderer';
-import { Advanced, Group, SliderInput, TextInput } from '../controls';
+import { Advanced, Group, SliderInput, SwitchRow, TextInput } from '../controls';
 import { CodeField, CustomCodeDisabled } from './code-field';
 import { useContent, type EditorProps } from './content-editors';
 import { useT } from '@/i18n/client';
@@ -79,6 +81,35 @@ function AskGarfieldAboutHtml({ onAsked }: { onAsked?: () => void }) {
   );
 }
 
+/** Una página que es un widget a pantalla completa no muestra el menú ni el pie del sitio (la página trae los suyos). */
+function useHideSiteChrome() {
+  const { dispatch } = useBuilder();
+  const page = useSelectedPage();
+  return () => dispatch({ type: 'updatePage', pageId: page.id, patch: { style: { ...page.style, header: 'hidden', hideFooter: true } } });
+}
+
+/**
+ * Página completa (scripts, Tailwind por CDN, <head>…) pegada en la sección
+ * HTML: ahí se perdería. Con un clic se vuelve «Widget con código» a pantalla
+ * completa (mismo lugar, mismo código) y la página oculta el menú y el pie del sitio.
+ */
+function FullPageNotice({ section }: { section: HtmlEditorProps['section'] }) {
+  const t = useT();
+  const { dispatch } = useBuilder();
+  const hideChrome = useHideSiteChrome();
+  if (!needsFullPageWidget(section.content.html)) return null;
+  const convert = () => {
+    const widget = createSection('embed', { title: '', code: section.content.html, height: 0, fullScreen: isFullDocument(section.content.html) }, section.style as never);
+    dispatch({ type: 'updateSection', section: { ...widget, id: section.id, name: section.name } });
+    if (isFullDocument(section.content.html)) hideChrome();
+  };
+  return (
+    <Alert severity="warning" action={<Button color="inherit" size="small" onClick={convert}>{t('Convertir')}</Button>}>
+      {t('Esto es una página completa o lleva scripts (por ejemplo, Tailwind por CDN): en la sección HTML se pierden y se ve mal. Conviértela en «Widget con código» a pantalla completa: funciona tal cual, aislada del resto del sitio.')}
+    </Alert>
+  );
+}
+
 const DEVICE_WIDTH = { desktop: '100%', tablet: 820, mobile: 390 } as const;
 
 /** Vista previa de sólo esta sección, con el tema del sitio. */
@@ -141,6 +172,7 @@ function HtmlEditor(props: HtmlEditorProps) {
   return (
     <Group description={t('Tu HTML con su propio <style> (sólo afecta a esta sección), variables CSS y los colores del sitio (var(--c-primary), var(--c-accent)…). Admite SVG, pestañas y acordeones sólo con CSS, videos de YouTube o Vimeo, mapas e imágenes de tu biblioteca. Sin scripts: para animar usa los efectos de abajo.')}>
       {!props.site.customCode && <CustomCodeDisabled />}
+      <FullPageNotice section={props.section} />
       <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', rowGap: 1 }}>
         <HtmlInsertButtons onInsert={insert} />
         <Button size="small" variant="contained" startIcon={<Expand size={14} />} onClick={() => setStudio(true)}>{t('Editor grande')}</Button>
@@ -195,14 +227,34 @@ function FxHelp() {
 function EmbedEditor(props: EditorProps<'embed'>) {
   const t = useT();
   const set = useContent(props);
+  const hideChrome = useHideSiteChrome();
+  const page = useSelectedPage();
   const c = props.section.content;
+  const fullDocument = isFullDocument(c.code);
+  const chromeShown = page.style.header !== 'hidden' || !page.style.hideFooter;
   return (
-    <Group description={t('Pega el código que te da el otro servicio (reservas, formularios, mapas, chats). Corre aislado: no puede leer tu sitio ni los datos de tus visitantes.')}>
+    <Group description={t('Pega el código que te da el otro servicio (reservas, formularios, mapas, chats) o una página completa con sus scripts. Corre aislado: no puede leer tu sitio ni los datos de tus visitantes.')}>
       {!props.site.customCode && <CustomCodeDisabled />}
       <TextInput label={t('Nombre del widget')} value={c.title} placeholder={t('ej. Reservas')} helper={t('Lo anuncian los lectores de pantalla.')} onChange={(title) => set({ title })} maxLength={80} />
-      <CodeField label={t('Código')} value={c.code} onChange={(code) => set({ code })} maxLength={MAX_HTML_LENGTH} placeholder={'<div id="widget"></div>\n<script src="https://…"></script>'} />
-      <SliderInput label={t('Alto')} value={c.height} min={0} max={1200} step={20} format={(v) => (v === 0 ? t('Automático') : `${v}px`)} onChange={(height) => set({ height })} />
-      <Typography variant="caption" color="text.secondary">{t('Automático: el widget avisa su alto. Si se corta, fija un alto.')}</Typography>
+      <CodeField label={t('Código')} value={c.code} onChange={(code) => set({ code })} maxLength={MAX_EMBED_LENGTH} placeholder={'<div id="widget"></div>\n<script src="https://…"></script>'} />
+      {fullDocument && !c.fullScreen && (
+        <Alert severity="info" action={<Button color="inherit" size="small" onClick={() => { set({ fullScreen: true }); if (chromeShown) hideChrome(); }}>{t('Usar pantalla completa')}</Button>}>
+          {t('Es una página completa: se ve mejor a pantalla completa (con su propio menú y scroll) y sin el menú ni el pie de tu sitio en esta página.')}
+        </Alert>
+      )}
+      <SwitchRow label={t('Pantalla completa')} description={t('Del alto de la ventana y con su propio scroll: para páginas completas con menú fijo, modales o animaciones a pantalla completa.')} checked={c.fullScreen} onChange={(fullScreen) => set({ fullScreen })} />
+      {c.fullScreen && chromeShown && (
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+          <Typography variant="caption" color="text.secondary" sx={{ flex: 1 }}>{t('Esta página todavía muestra el menú o el pie de tu sitio.')}</Typography>
+          <Button size="small" onClick={hideChrome}>{t('Ocultarlos')}</Button>
+        </Stack>
+      )}
+      {!c.fullScreen && (
+        <>
+          <SliderInput label={t('Alto')} value={c.height} min={0} max={1200} step={20} format={(v) => (v === 0 ? t('Automático') : `${v}px`)} onChange={(height) => set({ height })} />
+          <Typography variant="caption" color="text.secondary">{t('Automático: el widget avisa su alto. Si se corta, fija un alto.')}</Typography>
+        </>
+      )}
     </Group>
   );
 }

@@ -374,6 +374,8 @@ const catalog: Catalog = {
   'Respuesta de {business}': 'Reply from {business}',
   'Tu WhatsApp (opcional)': 'Your WhatsApp (optional)',
   'Para que {business} te avise cuando tu pedido esté listo.': 'So {business} can let you know when your order is ready.',
+  'Agrega filas a la tabla desde el editor.': 'Add rows to the table from the editor.',
+  'Tabla': 'Table',
 };
 
 export default catalog;

@@ -369,6 +369,33 @@ function PdfSection({ section, doc }: { section: Section; doc: PdfDoc }) {
         </View>
       );
     }
+    case 'table': {
+      const { columns, header, rowHeaders, variant, note } = section.content;
+      const rows = section.content.rows.filter((row) => row.cells.some((cell) => cell.trim()));
+      if (!rows.length) return null;
+      const width = `${100 / columns.length}%`;
+      const filled = header !== 'plain';
+      return (
+        <View>
+          <SectionTitle ctx={ctx} title={section.content.title} subtitle={section.content.subtitle} color={ink} />
+          <View style={{ borderWidth: 0.5, borderColor: t.colors.border, borderRadius: 4 }}>
+            <View wrap={false} style={{ flexDirection: 'row', backgroundColor: filled ? t.colors.primary : undefined, borderBottomWidth: filled ? 0 : 1, borderBottomColor: t.colors.heading }}>
+              {columns.map((column) => (
+                <Text key={column.id} style={{ width, padding: 6, fontSize: t.size.small, fontWeight: 700, color: filled ? t.colors.onPrimary : (ink ?? t.colors.heading), textAlign: column.align }}>{column.label}</Text>
+              ))}
+            </View>
+            {rows.map((row, r) => (
+              <View key={row.id} wrap={false} style={{ flexDirection: 'row', borderTopWidth: r ? 0.5 : 0, borderTopColor: t.colors.border, backgroundColor: variant === 'striped' && r % 2 ? t.colors.soft : undefined }}>
+                {columns.map((column, i) => (
+                  <Text key={column.id} style={{ width, padding: 6, fontSize: t.size.small, fontWeight: rowHeaders && i === 0 ? 700 : 400, color: ink ?? t.colors.text, textAlign: column.align }}>{row.cells[i] ?? ''}</Text>
+                ))}
+              </View>
+            ))}
+          </View>
+          {note && <Text style={{ fontSize: t.size.tiny, color: ink ?? t.colors.mutedText, marginTop: 4 }}>{note}</Text>}
+        </View>
+      );
+    }
     case 'html': {
       // En el PDF, sólo el texto (sin código propio habilitado, nada).
       const text = ctx.site.customCode ? htmlToText(section.content.html) : '';

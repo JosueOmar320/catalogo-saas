@@ -15,6 +15,7 @@ import { SpacerSection } from './SpacerSection';
 import { TestimonialsSection } from './TestimonialsSection';
 import { TextSection } from './TextSection';
 import { FaqSection } from './FaqSection';
+import { TableSection } from './TableSection';
 import { ImageSection } from './ImageSection';
 import { LogosSection } from './LogosSection';
 import { PricingSection } from './PricingSection';
@@ -47,6 +48,7 @@ export const SECTION_COMPONENTS: { [T in SectionType]: ComponentType<SectionProp
   image: ImageSection,
   video: VideoSection,
   faq: FaqSection,
+  table: TableSection,
   pricing: PricingSection,
   team: TeamSection,
   stats: StatsSection,
