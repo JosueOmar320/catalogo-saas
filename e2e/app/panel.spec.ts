@@ -203,7 +203,10 @@ test('clientes: el pedido con WhatsApp arma la lista; se busca, se le escribe y 
 test('estadísticas: una visita desde Instagram que ve un producto, lo agrega y envía el pedido', async ({ page, browser }) => {
   const visitor = await browser.newContext(ANONYMOUS);
   const site = await visitor.newPage();
+  // La visita se cuenta (con su origen) cuando la página ya cargó: se espera ese aviso antes de seguir.
+  const visitCounted = site.waitForResponse((response) => response.url().endsWith('/api/funnel') && response.status() === 204);
   await site.goto(`/catalogo/${slug}?ref=instagram`);
+  await visitCounted;
   await site.goto(`/catalogo/${slug}/p/croissant-e2e`);
   await site.getByRole('button', { name: 'Agregar al pedido' }).click();
   await site.getByRole('button', { name: /^Ver pedido/ }).click();
