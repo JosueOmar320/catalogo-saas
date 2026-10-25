@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   const ctx = await getBusinessContext();
   if (!ctx) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-  if (ctx.siteKind !== 'catalog') return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  if (ctx.siteKind !== 'catalog' || !ctx.features.orders) return NextResponse.json({ error: 'not_found' }, { status: 404 });
   const params = request.nextUrl.searchParams;
   const customers = await listCustomers(ctx, { sort: findSort(params.get('orden')), query: (params.get('q') ?? '').slice(0, 60) });
   if (customers === null) return NextResponse.json({ error: 'unavailable' }, { status: 503 });

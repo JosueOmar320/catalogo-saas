@@ -1,5 +1,6 @@
 'use client';
 
+import { ALL_FEATURES, type BusinessFeatures } from '@/lib/plans/features';
 import { Box, Dialog, InputBase, ListSubheader, Stack, Typography } from '@mui/material';
 import { ArrowRight, CornerDownLeft, FileText, Package, Plus, Search, Wrench } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -36,7 +37,7 @@ const ACTIONS = [
 /** Para que el botón de la barra superior pueda abrir la búsqueda. */
 export const OPEN_PALETTE_EVENT = 'open-command-palette';
 
-export function CommandPalette({ admin, siteKind = 'catalog' }: { admin: boolean; siteKind?: SiteKind }) {
+export function CommandPalette({ admin, siteKind = 'catalog', features = ALL_FEATURES }: { admin: boolean; siteKind?: SiteKind; features?: BusinessFeatures }) {
   const catalog = siteKind === 'catalog';
   const t = useT();
   const router = useRouter();
@@ -77,7 +78,7 @@ export function CommandPalette({ admin, siteKind = 'catalog' }: { admin: boolean
   }, [open, show]);
 
   const entries = useMemo<Entry[]>(() => {
-    const navigation = (admin ? ADMIN_NAVIGATION : navigationFor(siteKind)).flatMap((entry): { label: string; hint?: string; href: string }[] =>
+    const navigation = (admin ? ADMIN_NAVIGATION : navigationFor(siteKind, features)).flatMap((entry): { label: string; hint?: string; href: string }[] =>
       entry.children
         ? entry.children.map((child) => ({ label: t(child.label), hint: t(entry.label), href: child.href }))
         : entry.href
@@ -106,9 +107,9 @@ export function CommandPalette({ admin, siteKind = 'catalog' }: { admin: boolean
             }))
         : [];
     // Una pregunta ("¿cómo creo un cupón?") va a Garfield; siempre al final, para no tapar los resultados.
-    const ask: Entry[] = !admin && query.trim().length >= 3 ? [{ id: 'ask', group: 'ask', label: t('Preguntar a Garfield: «{query}»', { query: query.trim() }), href: '', icon: <GarfieldAvatar size={18} ring={false} />, run: () => askGarfield(query.trim()) }] : [];
+    const ask: Entry[] = !admin && features.assistant && query.trim().length >= 3 ? [{ id: 'ask', group: 'ask', label: t('Preguntar a Garfield: «{query}»', { query: query.trim() }), href: '', icon: <GarfieldAvatar size={18} ring={false} />, run: () => askGarfield(query.trim()) }] : [];
     return [...found, ...go, ...actions, ...ask];
-  }, [admin, catalog, items, query, siteKind, t]);
+  }, [admin, catalog, features, items, query, siteKind, t]);
 
   const go = (entry: Entry | undefined) => {
     if (!entry) return;

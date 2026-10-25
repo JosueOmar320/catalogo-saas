@@ -406,7 +406,12 @@ test('entrega, pedido mínimo, pago y horario configurados en el panel llegan al
   await page.getByRole('button', { name: 'Guardar contacto' }).click();
   await expect(page.getByText('Contacto guardado')).toBeVisible();
 
+  // Los pedidos por WhatsApp tienen su propia página, con un índice y la barra de guardar abajo.
+  await page.goto('/dashboard/settings/pedidos');
+  await expect(page.getByRole('navigation', { name: 'Secciones de pedidos' }).getByRole('link', { name: 'Entrega' })).toBeVisible();
+  await expect(page.getByText('Todo guardado.')).toBeVisible();
   await page.getByRole('switch', { name: /Envío a domicilio/ }).click();
+  await expect(page.getByText('Tienes cambios sin guardar.')).toBeVisible();
   await page.getByRole('textbox', { name: 'Costo de envío' }).fill('25');
   await page.getByRole('textbox', { name: 'Pedido mínimo' }).fill('100');
   await page.getByRole('checkbox', { name: 'Efectivo' }).check();
@@ -472,7 +477,7 @@ test('oferta con fecha de fin: vencida vuelve al precio normal; vigente dice has
 });
 
 test('pausar pedidos: el visitante ve el aviso y no puede enviar; al quitarla, vuelve a poder', async ({ page, browser }) => {
-  await page.goto('/dashboard/settings/contacto');
+  await page.goto('/dashboard/settings/pedidos');
   await page.getByRole('switch', { name: /Pausar pedidos/ }).click();
   await page.getByRole('textbox', { name: 'Mensaje (opcional)' }).fill('Volvemos el lunes.');
   await page.getByRole('button', { name: 'Guardar pedidos' }).click();
@@ -826,6 +831,7 @@ test('días especiales y zonas de entrega del panel llegan al sitio y al pedido'
   await page.getByRole('button', { name: 'Guardar contacto' }).click();
   await expect(page.getByText('Contacto guardado')).toBeVisible();
 
+  await page.goto('/dashboard/settings/pedidos');
   await page.getByRole('button', { name: 'Agregar zona' }).click();
   await page.getByRole('button', { name: 'Agregar zona' }).click();
   const zones = page.getByRole('list', { name: 'Zonas de entrega' }).getByRole('listitem');
@@ -873,7 +879,7 @@ test('mayoreo y pedidos en mesa configurados en el panel llegan a la ficha y al 
   await page.getByRole('button', { name: 'Crear', exact: true }).click();
   await expect(page).toHaveURL(/\/dashboard\/catalog\/items\/[0-9a-f-]{36}$/);
 
-  await page.goto('/dashboard/settings/contacto');
+  await page.goto('/dashboard/settings/pedidos');
   await page.getByRole('switch', { name: /Pedidos en mesa/ }).click();
   await expect(page.getByText(new RegExp(`Cada código abre .*/catalogo/${slug}\\?mesa=1$`))).toBeVisible();
   await page.getByRole('button', { name: 'Guardar pedidos' }).click();
@@ -949,7 +955,7 @@ test('ventana de bienvenida y sucursales configuradas en el panel llegan al siti
   await save.click();
   await expect(save).toBeDisabled();
 
-  await page.goto('/dashboard/settings/contacto');
+  await page.goto('/dashboard/settings/pedidos');
   await page.getByRole('button', { name: 'Agregar sucursal' }).click();
   await page.getByRole('button', { name: 'Agregar sucursal' }).click();
   const branches = page.getByRole('list', { name: 'Sucursales' }).getByRole('listitem');
@@ -1050,7 +1056,7 @@ test('costo privado: margen en el formulario y la lista, y aviso al bajar precio
 });
 
 test('propina en el pedido, precio programado y reporte descargable', async ({ page, browser }) => {
-  await page.goto('/dashboard/settings/contacto');
+  await page.goto('/dashboard/settings/pedidos');
   await page.getByRole('switch', { name: /Propina opcional/ }).click();
   await page.getByRole('button', { name: 'Guardar pedidos' }).click();
   await expect(page.getByText('Configuración guardada')).toBeVisible();
@@ -1111,7 +1117,7 @@ test('propina en el pedido, precio programado y reporte descargable', async ({ p
 });
 
 test('promoción automática configurada en el panel: se aplica sola en el pedido', async ({ page, browser }) => {
-  await page.goto('/dashboard/settings/contacto');
+  await page.goto('/dashboard/settings/pedidos');
   await page.getByRole('button', { name: 'Agregar promoción' }).click();
   const promo = page.getByRole('list', { name: 'Promociones automáticas' }).getByRole('listitem').first();
   await promo.getByLabel('Valor').fill('10');
@@ -1235,6 +1241,7 @@ test('código propio: el administrador lo habilita; HTML limpio, widget aislado 
   await expect(page.getByRole('button', { name: /^HTML propio/ })).toHaveCount(0);
 
   await page.goto(businessPath);
+  await page.getByRole('tab', { name: /^Funciones/ }).click();
   await page.getByRole('combobox', { name: 'Código propio' }).click();
   await page.getByRole('option', { name: 'Activado para este negocio', exact: true }).click();
   await expect(page.getByText('Código propio actualizado')).toBeVisible();
@@ -1501,8 +1508,8 @@ test('Garfield en el panel (sin IA): dice dónde está cada cosa, lleva ahí y p
   const help = page.getByRole('dialog', { name: 'Ayuda de Garfield' });
   await help.getByLabel('Pregunta para Garfield').fill('¿Cómo creo un cupón de descuento?');
   await help.getByRole('button', { name: 'Enviar' }).click();
-  await help.getByRole('link', { name: 'Ir a Contacto y pedidos' }).click();
-  await expect(page).toHaveURL(/\/dashboard\/settings\/contacto$/);
+  await help.getByRole('link', { name: 'Ir a Pedidos por WhatsApp' }).click();
+  await expect(page).toHaveURL(/\/dashboard\/settings\/pedidos$/);
   // La conversación sigue al navegar.
   await expect(help.getByText('¿Cómo creo un cupón de descuento?')).toBeVisible();
   await help.getByRole('button', { name: 'Cerrar' }).click();
@@ -1534,6 +1541,7 @@ test('tipo de sitio: un sitio web nace sin catálogo y el panel no muestra produ
   await expect(page.getByRole('combobox', { name: 'Ofrece' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Crear negocio' }).click();
   await expect(page).toHaveURL(/\/admin\/negocios\/[0-9a-f-]{36}$/);
+  await page.getByRole('tab', { name: /^Funciones/ }).click();
   await expect(page.getByRole('combobox', { name: 'Tipo de sitio' })).toHaveText('Sitio web');
 
   await page.getByRole('button', { name: 'Abrir en el editor' }).click();
@@ -1541,7 +1549,7 @@ test('tipo de sitio: un sitio web nace sin catálogo y el panel no muestra produ
   await page.goto('/dashboard');
   const menu = page.getByRole('navigation', { name: 'Menú principal' });
   await expect(menu.getByRole('link', { name: 'Medios' })).toBeVisible();
-  for (const name of ['Pedidos', 'Clientes', 'Estadísticas', 'Reseñas', 'Catálogo PDF']) await expect(menu.getByRole('link', { name })).toHaveCount(0);
+  for (const name of ['Pedidos', 'Clientes', 'Estadísticas', 'Reseñas', 'Catálogo PDF', 'Pedidos por WhatsApp']) await expect(menu.getByRole('link', { name, exact: true })).toHaveCount(0);
   await expect(menu.getByRole('button', { name: 'Contenido' })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Páginas de tu sitio' })).toBeVisible();
   // Por URL tampoco: vuelve al inicio del panel.
@@ -1562,7 +1570,7 @@ test('tipo de sitio: un sitio web nace sin catálogo y el panel no muestra produ
   await page.getByRole('button', { name: 'Abrir en el editor' }).click();
   await expect(page).toHaveURL(/\/dashboard/);
   await page.goto('/dashboard');
-  await expect(page.getByRole('navigation', { name: 'Menú principal' }).getByRole('link', { name: 'Pedidos' })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Menú principal' }).getByRole('link', { name: 'Pedidos', exact: true })).toBeVisible();
 });
 
 test('accesibilidad del panel y la administración (axe)', async ({ page }) => {
@@ -1607,4 +1615,43 @@ test.describe('sin sesión', () => {
     await page.getByRole('button', { name: 'Iniciar sesión' }).click();
     await expect(page).toHaveURL(/\/dashboard\/catalog\/products$/);
   });
+});
+
+test('funciones por negocio: el administrador apaga Garfield, el PDF y las estadísticas y desaparecen del panel y del servidor', async ({ page }) => {
+  await page.goto(businessPath);
+  await page.getByRole('tab', { name: 'Funciones' }).click();
+  for (const feature of ['Garfield AI', 'Catálogo PDF', 'Estadísticas']) {
+    await page.getByRole('group', { name: feature }).getByRole('button', { name: 'Apagar' }).click();
+    await expect(page.getByText('Funciones actualizadas').last()).toBeVisible();
+    await expect(page.getByRole('group', { name: feature }).getByRole('button', { name: 'Apagar' })).toHaveAttribute('aria-pressed', 'true');
+  }
+  await expect(page.getByRole('tab', { name: 'Funciones (3 apagadas)' })).toBeVisible();
+  await expect(page.getByText('Sin Garfield AI')).toBeVisible();
+  await page.goto('/admin/negocios');
+  await page.getByRole('group', { name: 'Filtrar negocios' }).getByRole('button', { name: /^Con funciones apagadas · 1$/ }).click();
+  await expect(page.getByRole('row', { name: new RegExp(businessName) })).toBeVisible();
+
+  // En el panel del negocio: fuera del menú, de la ayuda y del servidor.
+  await page.goto('/dashboard');
+  const menu = page.getByRole('navigation', { name: 'Menú principal' });
+  await expect(menu.getByRole('link', { name: 'Catálogo PDF' })).toHaveCount(0);
+  await expect(menu.getByRole('link', { name: 'Estadísticas' })).toHaveCount(0);
+  await expect(menu.getByRole('link', { name: 'Pedidos', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Garfield/ })).toHaveCount(0);
+  await page.goto('/dashboard/export/pdf');
+  await expect(page).toHaveURL(/\/dashboard\?funcion=pdf_export$/);
+  await expect(page.getByRole('alert').filter({ hasText: '«Catálogo PDF» no está disponible para tu cuenta. Si lo necesitas, pídeselo al administrador de la plataforma.' })).toBeVisible();
+  expect((await page.request.post('/api/assistant/help', { data: { messages: [{ role: 'user', content: 'hola' }], path: '/dashboard' } })).status()).toBe(403);
+  expect((await page.request.get('/api/stats/export')).status()).toBe(404);
+
+  // De vuelta al plan: todo regresa.
+  await page.goto(businessPath);
+  await page.getByRole('tab', { name: /^Funciones/ }).click();
+  for (const feature of ['Garfield AI', 'Catálogo PDF', 'Estadísticas']) {
+    await page.getByRole('group', { name: feature }).getByRole('button', { name: /^Plan / }).click();
+    await expect(page.getByRole('group', { name: feature }).getByRole('button', { name: /^Plan / })).toHaveAttribute('aria-pressed', 'true');
+  }
+  await expect(page.getByRole('tab', { name: 'Funciones', exact: true })).toBeVisible();
+  await page.goto('/dashboard');
+  await expect(page.getByRole('navigation', { name: 'Menú principal' }).getByRole('link', { name: 'Catálogo PDF' })).toBeVisible();
 });

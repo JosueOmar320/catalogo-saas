@@ -61,7 +61,7 @@ export default async function AdminSettingsPage() {
             {!profile.email && <Typography variant="caption" color="text.secondary">{t('Para enviarte una prueba, agrega un email de contacto a tu usuario.')}</Typography>}
           </Stack>
         </SectionCard>
-        <SectionCard title={t('Planes')} description={t('Límites por negocio. Preparado para suscripciones y facturación. «Código propio» habilita HTML, widgets y CSS en el editor del sitio (cada negocio puede tener su propia decisión).')} flush>
+        <SectionCard title={t('Planes')} description={t('Límites por negocio. Preparado para suscripciones y facturación. «Código propio» habilita HTML, widgets y CSS en el editor del sitio. Cada negocio puede tener su propia decisión sobre el código propio y sobre sus funciones (en Negocios › Funciones).')} flush>
           <Box sx={{ overflowX: 'auto' }}>
             <Table size="small" sx={{ minWidth: 560 }}>
             <TableHead>
@@ -71,8 +71,27 @@ export default async function AdminSettingsPage() {
               {plans.map((p) => (
                 <TableRow key={p.id}>
                   <TableCell><Typography variant="body2" sx={{ fontWeight: 600 }}>{p.name}</Typography><Typography variant="caption" color="text.secondary">{p.id}</Typography></TableCell>
-                  <TableCell><Typography variant="caption">{Object.entries(p.limits as Record<string, number>).map(([k, v]) => `${k}: ${v}`).join(' · ')}</Typography></TableCell>
-                  <TableCell><Typography variant="caption">{Object.entries(p.features as Record<string, boolean>).filter(([k, v]) => v && k !== 'custom_code').map(([k]) => k).join(', ')}</Typography></TableCell>
+                  <TableCell>
+                    <Typography variant="caption" component="p">
+                      {(() => {
+                        const { limits } = parseEntitlements(p);
+                        const cap = (n: number | null) => (n === null ? t('sin límite') : String(n));
+                        return [
+                          t('{count} productos y servicios', { count: cap(limits.max_items) }),
+                          t('{count} fotos por ítem', { count: cap(limits.max_images_per_item) }),
+                          t('{count} catálogos', { count: cap(limits.max_catalogs) }),
+                          t('{count} usuarios', { count: cap(limits.max_members) }),
+                        ].join(' · ');
+                      })()}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Stack direction="row" useFlexGap sx={{ flexWrap: 'wrap', gap: 0.5 }}>
+                      {(Object.keys(PLAN_FEATURE_LABELS) as (keyof typeof PLAN_FEATURE_LABELS)[]).filter((k) => parseEntitlements(p).features[k]).map((k) => (
+                        <Chip key={k} size="small" variant="outlined" label={t(PLAN_FEATURE_LABELS[k])} />
+                      ))}
+                    </Stack>
+                  </TableCell>
                   <TableCell><PlanCustomCodeSwitch planId={p.id} planName={p.name} enabled={parseEntitlements(p).features.custom_code} /></TableCell>
                 </TableRow>
               ))}
@@ -84,6 +103,14 @@ export default async function AdminSettingsPage() {
     </>
   );
 }
+
+/** Funciones del plan en palabras (el código propio tiene su propia columna). */
+const PLAN_FEATURE_LABELS = {
+  pdf_export: msg('Catálogo PDF'),
+  remove_branding: msg('Sin «Sitio creado con»'),
+  custom_domain: msg('Dominio propio'),
+  analytics: msg('Estadísticas avanzadas'),
+} as const;
 
 async function Status({ label, ok, value }: { label: string; ok?: boolean; value?: string }) {
   const t = await getT();

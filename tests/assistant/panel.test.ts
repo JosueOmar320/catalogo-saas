@@ -112,7 +112,7 @@ describe('Ayuda de Garfield en el panel', () => {
   const help = (question: string, patch: Partial<HelpContext> = {}): HelpContext => ({ messages: [{ role: 'user', content: question }], path: '/dashboard', admin: false, locale: 'es', businessName: 'Café Aurora', ...patch });
 
   it('sin IA encuentra el área por palabras clave (con o sin acentos, en español o inglés)', () => {
-    assert.equal(matchAreas('¿Cómo creo un cupón de descuento?')[0].id, 'settings_contact');
+    assert.equal(matchAreas('¿Cómo creo un cupón de descuento?')[0].id, 'settings_orders');
     assert.equal(matchAreas('quiero cambiar los colores y la tipografia')[0].id, 'site_design');
     assert.equal(matchAreas('how do I import products from excel')[0].id, 'products');
     assert.equal(matchAreas('dónde están las reseñas')[0].id, 'reviews');

@@ -4,7 +4,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { CustomersBoard } from '@/features/customers/components/CustomersBoard';
 import { CUSTOMERS_PAGE, listCustomers } from '@/features/customers/queries';
 import { getLocale, getT } from '@/i18n/server';
-import { requireCatalogSite } from '@/lib/auth/session';
+import { requireCatalogFeature } from '@/lib/auth/session';
 import { parseContact } from '@/lib/business/profile';
 import { parseCatalogSettings } from '@/lib/catalog/settings';
 import { findSort } from '@/lib/orders/customers';
@@ -18,7 +18,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function CustomersPage({ searchParams }: PageProps<'/dashboard/clientes'>) {
-  const ctx = await requireCatalogSite();
+  const ctx = await requireCatalogFeature('orders');
   const { orden, q } = await searchParams;
   const sort = findSort(orden);
   const query = typeof q === 'string' ? q.slice(0, 60) : '';

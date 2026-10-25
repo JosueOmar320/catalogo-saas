@@ -2,6 +2,8 @@ import { Box, Paper, Stack, Typography, type SxProps, type Theme } from '@mui/ma
 import type { ReactNode } from 'react';
 
 type Props = {
+  /** Ancla para saltar a la tarjeta (deja margen arriba para el encabezado fijo del panel). */
+  id?: string;
   title?: string;
   description?: ReactNode;
   action?: ReactNode;
@@ -11,9 +13,9 @@ type Props = {
   sx?: SxProps<Theme>;
 };
 
-export function SectionCard({ title, description, action, children, flush, sx }: Props) {
+export function SectionCard({ id, title, description, action, children, flush, sx }: Props) {
   return (
-    <Paper variant="outlined" sx={{ overflow: 'hidden', ...sx }}>
+    <Paper id={id} variant="outlined" sx={{ overflow: 'hidden', scrollMarginTop: id ? 80 : undefined, ...sx }}>
       {(title || action) && (
         <Stack direction="row" spacing={2} sx={{ px: 2.5, pt: 2, pb: flush ? 2 : 0, justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: flush ? 1 : 0, borderColor: 'divider' }}>
           <Box>

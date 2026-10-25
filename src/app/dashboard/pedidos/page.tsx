@@ -7,7 +7,7 @@ import { isPushConfigured } from '@/features/push/server';
 import { orderCountsByCustomer } from '@/features/customers/queries';
 import { countNewOrders, listOrders, PAGE } from '@/features/orders/inbox-queries';
 import { getLocale, getT } from '@/i18n/server';
-import { canManageCatalog, requireCatalogSite } from '@/lib/auth/session';
+import { canManageCatalog, requireCatalogFeature } from '@/lib/auth/session';
 import { parseContact } from '@/lib/business/profile';
 import { reviewInviteUrl } from '@/lib/catalog/reviews';
 import { parseCatalogSettings } from '@/lib/catalog/settings';
@@ -23,7 +23,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function OrdersPage({ searchParams }: PageProps<'/dashboard/pedidos'>) {
-  const ctx = await requireCatalogSite();
+  const ctx = await requireCatalogFeature('orders');
   const { estado, dias, q } = await searchParams;
   const tab = findTab(estado);
   const days = parseRange(dias);

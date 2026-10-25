@@ -191,13 +191,15 @@ export function PagesPanel({ customCode = false, catalog = true }: { customCode?
             renderItem={(section) => {
               const meta = SECTION_META[section.type];
               const title = section.name || ('title' in section.content && section.content.title) || t(meta.label);
+              // El tipo sólo si no es ya el título (antes: «Hero / Hero»); y si está oculta o tiene fondo propio.
+              const caption = [title !== t(meta.label) ? t(meta.label) : null, section.visible ? null : t('Oculta'), section.style.background.type !== 'inherit' ? t('fondo propio') : null].filter(Boolean).join(' · ');
               return (
                 <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
                   <ButtonBase onClick={() => dispatch({ type: 'selectSection', sectionId: section.id })} sx={{ flex: 1, minWidth: 0, justifyContent: 'flex-start', gap: 1, py: 0.5, px: 0.5, borderRadius: 1, opacity: section.visible ? 1 : 0.45 }}>
                     <Box sx={{ color: 'primary.main', display: 'flex' }}><Icon id={meta.icon} size={16} /></Box>
                     <Box sx={{ minWidth: 0, textAlign: 'left' }}>
                       <Typography variant="body2" noWrap sx={{ fontWeight: 500 }}>{title}</Typography>
-                      <Typography variant="caption" color="text.secondary" noWrap component="p">{t(meta.label)}{section.style.background.type !== 'inherit' ? ` · ${t('fondo propio')}` : ''}</Typography>
+                      {caption && <Typography variant="caption" color="text.secondary" noWrap component="p">{caption}</Typography>}
                     </Box>
                   </ButtonBase>
                   <Tooltip title={section.visible ? t('Ocultar') : t('Mostrar')}>

@@ -13,6 +13,7 @@ import { BusinessMenu } from './BusinessMenu';
 import { AccountMenu } from './AccountMenu';
 import { CommandPalette, OPEN_PALETTE_EVENT } from './CommandPalette';
 import { PanelGarfield } from '@/features/assistant/components/PanelGarfield';
+import { ALL_FEATURES, type BusinessFeatures } from '@/lib/plans/features';
 import { ADMIN_NAVIGATION, navigationFor } from './navigation';
 import type { SiteKind } from '@/lib/business/site-kind';
 import { PublishControl } from './PublishControl';
@@ -22,7 +23,7 @@ const DRAWER_WIDTH = 248;
 type Props = {
   children: ReactNode;
 } & (
-  | { variant?: 'dashboard'; businessMenu: ComponentProps<typeof BusinessMenu>; siteKind?: SiteKind }
+  | { variant?: 'dashboard'; businessMenu: ComponentProps<typeof BusinessMenu>; siteKind?: SiteKind; features?: BusinessFeatures }
   | { variant: 'admin'; account: ComponentProps<typeof AccountMenu> }
 );
 
@@ -39,7 +40,7 @@ function isActive(pathname: string, search: string, href: string) {
 /** Pantallas de trabajo a lo ancho (editor del sitio, estudio de PDF). */
 const FULL_WIDTH = ['/dashboard/sitio', '/dashboard/export/pdf'];
 
-function SideNav({ onNavigate, admin, siteKind = 'catalog' }: { onNavigate?: () => void; admin?: boolean; siteKind?: SiteKind }) {
+function SideNav({ onNavigate, admin, siteKind = 'catalog', features = ALL_FEATURES }: { onNavigate?: () => void; admin?: boolean; siteKind?: SiteKind; features?: BusinessFeatures }) {
   const t = useT();
   const pathname = usePathname();
   const search = useSearchParams().toString();
@@ -48,7 +49,7 @@ function SideNav({ onNavigate, admin, siteKind = 'catalog' }: { onNavigate?: () 
   return (
     // <nav> y no <ul>: los enlaces van directos (una lista exige <li> como hijos).
     <List component="nav" aria-label={admin ? t('Menú de administración') : t('Menú principal')} dense sx={{ px: 1.25, py: 1 }}>
-      {(admin ? ADMIN_NAVIGATION : navigationFor(siteKind)).map((entry) => {
+      {(admin ? ADMIN_NAVIGATION : navigationFor(siteKind, features)).map((entry) => {
         const Icon = entry.icon;
         if (entry.href) {
           return (
@@ -103,6 +104,7 @@ export function AppShell(props: Props) {
   const t = useT();
   const admin = props.variant === 'admin';
   const siteKind = props.variant === 'admin' ? 'catalog' : (props.siteKind ?? 'catalog');
+  const features = props.variant === 'admin' ? ALL_FEATURES : (props.features ?? ALL_FEATURES);
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
   const fullWidth = FULL_WIDTH.some((p) => pathname.startsWith(p));
@@ -116,7 +118,7 @@ export function AppShell(props: Props) {
         {admin && <Typography component="span" sx={{ ml: 1, px: 0.75, py: 0.1, borderRadius: 1, fontSize: 11, fontWeight: 700, bgcolor: 'secondary.main', color: 'secondary.contrastText' }}>ADMIN</Typography>}
       </Toolbar>
       <Box sx={{ flex: 1, overflowY: 'auto' }}>
-        <SideNav onNavigate={() => setMobileOpen(false)} admin={admin} siteKind={siteKind} />
+        <SideNav onNavigate={() => setMobileOpen(false)} admin={admin} siteKind={siteKind} features={features} />
       </Box>
       <Box sx={{ p: 1.25, borderTop: 1, borderColor: 'divider' }}>
         {props.variant === 'admin' ? <AccountMenu {...props.account} /> : <BusinessMenu {...props.businessMenu} />}
@@ -174,13 +176,13 @@ export function AppShell(props: Props) {
               <MenuIcon size={18} />
             </IconButton>
             <SearchTrigger />
-            {!admin && <PanelGarfield />}
+            {!admin && features.assistant && <PanelGarfield />}
             <LanguageSwitcher />
             <ColorModeToggle />
             {!admin && <PublishControl />}
           </Toolbar>
         </AppBar>
-        <CommandPalette admin={admin} siteKind={siteKind} />
+        <CommandPalette admin={admin} siteKind={siteKind} features={features} />
         <Box component="main" id="contenido" tabIndex={-1} sx={{ outline: 'none', flex: 1, p: fullWidth ? 2 : { xs: 2, sm: 3 }, pb: fullWidth ? 2 : 12, width: '100%', maxWidth: fullWidth ? 'none' : 1240, mx: 'auto' }}>
           {children}
         </Box>

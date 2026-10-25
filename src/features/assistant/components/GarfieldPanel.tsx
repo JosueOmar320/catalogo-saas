@@ -11,6 +11,7 @@ import { interpolate } from '@/i18n/translate';
 import { ASSISTANT } from '@/lib/assistant/identity';
 import { publicStorageUrl } from '@/lib/utils/storage';
 import { GarfieldAvatar } from './GarfieldAvatar';
+import { useFeatureEnabled } from '@/components/dashboard/DashboardContext';
 import { useGarfield, type ChatAttachment, type ChatEntry } from './GarfieldProvider';
 
 const ORANGE = '#F28C28';
@@ -27,8 +28,9 @@ const rise = keyframes`
 
 export function GarfieldLauncher() {
   const { open, setOpen, pending } = useGarfield();
+  const enabled = useFeatureEnabled('assistant');
   const t = useT();
-  if (open) return null;
+  if (open || !enabled) return null;
   return (
     <Tooltip title={t('Pídele a Garfield que construya o cambie tu página')} placement="left">
       <ButtonBase
@@ -67,6 +69,7 @@ export function GarfieldLauncher() {
 
 export function GarfieldPanel() {
   const g = useGarfield();
+  const enabled = useFeatureEnabled('assistant');
   const { businessId } = useDashboard();
   const toast = useToast();
   const t = useT();
@@ -117,6 +120,7 @@ export function GarfieldPanel() {
   // Las sugerencias se envían en español (las entiende también el modo básico) y se muestran traducidas.
   const sendSuggestion = (s: (typeof suggestions.items)[number]) => void g.send(interpolate(s.prompt, s.params), [], t(s.prompt, s.params));
 
+  if (!enabled) return null;
   return (
     <Fade in={g.open} unmountOnExit>
       <Paper
@@ -365,8 +369,9 @@ function PlanCard({ entry }: { entry: ChatEntry }) {
 
 export function GarfieldPreviewBanner() {
   const g = useGarfield();
+  const enabled = useFeatureEnabled('assistant');
   const t = useT();
-  if (!g.previewingId) return null;
+  if (!g.previewingId || !enabled) return null;
   return (
     <Alert
       severity="warning"
@@ -388,7 +393,9 @@ export function GarfieldPreviewBanner() {
 
 export function GarfieldHint({ text, prompt, action }: { text: string; prompt: string; action?: string }) {
   const g = useGarfield();
+  const enabled = useFeatureEnabled('assistant');
   const t = useT();
+  if (!enabled) return null;
   return (
     <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', p: 1.25, borderRadius: 2, bgcolor: 'var(--garfield-callout)', border: 1, borderColor: `${ORANGE}40` }}>
       <GarfieldAvatar size={34} />

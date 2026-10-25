@@ -582,6 +582,22 @@ await expectErr('unknown plan', () => q(`select public.admin_set_plan_custom_cod
 await expectOk('admin turns the plan feature off again', () => q(`select public.admin_set_plan_custom_code('free', false)`));
 await as(null);
 await expectEq('off again', customCode, false);
+/* ------------------------------------------------------------ Funciones por negocio (las decide el administrador) */
+const overrides = (biz) => asSuper(() => q(`select feature_overrides v from public.businesses where id=$1`, [biz]).then((r) => r[0].v), 'authenticated');
+await as(B);
+await expectEq('features: nothing decided by default', () => overrides(bizB), {});
+await expectErr('owner cannot turn features back on for own business', () => q(`update public.businesses set feature_overrides='{"assistant": true}' where id=$1`, [bizB]), 'permission denied');
+await expectErr('owner cannot use the features admin RPC', () => q(`select public.admin_set_business_features($1, '{"assistant": true}')`, [bizB]), 'forbidden');
+await as(A);
+await expectOk('admin turns Garfield and the PDF off for B', () => q(`select public.admin_set_business_features($1, '{"assistant": false, "pdf_export": false}')`, [bizB]));
+await expectEq('saved as decided', () => overrides(bizB), { assistant: false, pdf_export: false });
+await expectErr('unknown feature', () => q(`select public.admin_set_business_features($1, '{"teleport": false}')`, [bizB]), 'invalid_features');
+await expectErr('not a yes/no value', () => q(`select public.admin_set_business_features($1, '{"assistant": "no"}')`, [bizB]), 'invalid_features');
+await expectErr('not an object', () => q(`select public.admin_set_business_features($1, '[]')`, [bizB]), 'invalid_features');
+await expectErr('unknown business', () => q(`select public.admin_set_business_features('00000000-0000-4000-8000-000000000000', '{}')`), 'business_not_found');
+await expectOk('admin goes back to the plan for B', () => q(`select public.admin_set_business_features($1, '{}')`, [bizB]));
+await expectEq('back to nothing decided', () => overrides(bizB), {});
+
 
 /* ------------------------------------------------------------ Bandeja de pedidos */
 await db.exec('reset role');

@@ -411,7 +411,6 @@ const catalog: Catalog = {
   '¿Cómo creo un cupón de descuento?': 'How do I create a discount coupon?',
   '¿Dónde cambio mi horario?': 'Where do I change my opening hours?',
   'Configuración de la plataforma': 'Platform settings',
-  'Contacto y pedidos': 'Contact and orders',
   'Inicio del panel': 'Dashboard home',
   'Menú, header y pie de página': 'Menu, header and footer',
   'Negocios (administración)': 'Businesses (admin)',

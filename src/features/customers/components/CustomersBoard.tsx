@@ -47,12 +47,12 @@ export function CustomersBoard({ customers, sort, query, inbox, askPhone, busine
   return (
     <Stack spacing={2}>
       {!inbox && (
-        <Alert severity="info" action={<Button component={Link} href="/dashboard/settings/contacto" size="small">{t('Activar')}</Button>}>
-          {t('La lista se arma con los pedidos de tu bandeja, y la bandeja está apagada. Actívala en Contacto y pedidos.')}
+        <Alert severity="info" action={<Button component={Link} href="/dashboard/settings/pedidos" size="small">{t('Activar')}</Button>}>
+          {t('La lista se arma con los pedidos de tu bandeja, y la bandeja está apagada. Actívala en Configuración › Pedidos por WhatsApp.')}
         </Alert>
       )}
       {inbox && !askPhone && (
-        <Alert severity="info" action={<Button component={Link} href="/dashboard/settings/contacto" size="small">{t('Activar')}</Button>}>
+        <Alert severity="info" action={<Button component={Link} href="/dashboard/settings/pedidos" size="small">{t('Activar')}</Button>}>
           {t('Pide el WhatsApp del cliente en el pedido para poder escribirle y reconocerlo aunque cambie su nombre.')}
         </Alert>
       )}

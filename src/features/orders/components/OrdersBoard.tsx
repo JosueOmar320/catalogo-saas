@@ -98,8 +98,8 @@ export function OrdersBoard({ tab, days, query, orders: initial, newCount, enabl
   return (
     <Stack spacing={2}>
       {!enabled && (
-        <Alert severity="info" action={<Button component={Link} href="/dashboard/settings/contacto" size="small">{t('Activar')}</Button>}>
-          {t('La bandeja está apagada: los pedidos nuevos no se guardan aquí. Actívala en Contacto y pedidos.')}
+        <Alert severity="info" action={<Button component={Link} href="/dashboard/settings/pedidos" size="small">{t('Activar')}</Button>}>
+          {t('La bandeja está apagada: los pedidos nuevos no se guardan aquí. Actívala en Configuración › Pedidos por WhatsApp.')}
         </Alert>
       )}
 

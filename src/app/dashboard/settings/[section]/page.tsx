@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { listItemsWithImages } from '@/features/catalog/queries';
 import { BusinessProfileForm } from '@/features/settings/components/BusinessProfileForm';
 import { ContactForm } from '@/features/settings/components/ContactForm';
+import { OrderSettingsForm } from '@/features/settings/components/OrderSettingsForm';
 import { PublishingPanel } from '@/features/settings/components/PublishingPanel';
 import { SeoForm } from '@/features/settings/components/SeoForm';
 import { SocialLinksForm } from '@/features/settings/components/SocialLinksForm';
@@ -44,7 +45,11 @@ export default async function SettingsPage({ params }: PageProps<'/dashboard/set
       );
       break;
     case 'contacto':
-      content = <ContactForm contact={parseContact(ctx.business.contact)} actions={settings.contactActions} order={settings.order} businessName={ctx.business.name} catalogUrl={catalogUrl(ctx.business.slug)} catalog={ctx.siteKind === 'catalog'} />;
+      content = <ContactForm contact={parseContact(ctx.business.contact)} actions={settings.contactActions} businessName={ctx.business.name} catalog={ctx.siteKind === 'catalog'} />;
+      break;
+    case 'pedidos':
+      if (ctx.siteKind !== 'catalog') notFound();
+      content = <OrderSettingsForm contact={parseContact(ctx.business.contact)} order={settings.order} businessName={ctx.business.name} catalogUrl={url} />;
       break;
     case 'redes':
       content = <SocialLinksForm links={parseSocialLinks(ctx.business.social_links)} />;
