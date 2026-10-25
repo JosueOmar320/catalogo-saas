@@ -80,6 +80,9 @@ const HEADER_WORDS: [string[], string][] = [
   [['centrado'], 'centered'],
   [['transparente'], 'transparent'],
   [['clasico'], 'classic'],
+  [['capsula', 'redondeado', 'flotante'], 'floating'],
+  [['cristal', 'vidrio', 'translucido', 'transparente con desenfoque'], 'glass'],
+  [['de marca', 'con mi color', 'del color de mi marca'], 'brand'],
 ];
 
 const FONTS: [string, string][] = [
@@ -169,6 +172,7 @@ export function rulesRespond(raw: string, ctx: AssistantContext): Out {
   const target = (selected && (refersToThis || !text.includes('pagina'))) ? 'selected' : null;
   const productSection = () =>
     selected && PRODUCT_TYPES.includes(selected.type) ? 'selected' : page?.sections.find((s) => PRODUCT_TYPES.includes(s.type)) ? `type:${page.sections.find((s) => PRODUCT_TYPES.includes(s.type))!.type}` : null;
+  const catalogSection = () => (selected?.type === 'catalog' ? 'selected' : page?.sections.some((s) => s.type === 'catalog') ? 'type:catalog' : null);
   const typeFromWords = (fragment: string): string | null => {
     for (const [words, build] of SECTION_WORDS) if (has(fragment, ...words)) return `type:${build()[build().length - 1].type}`;
     return null;
@@ -354,6 +358,13 @@ export function rulesRespond(raw: string, ctx: AssistantContext): Out {
     return done(`La sección ahora usa ${n} columnas en escritorio.`, [{ action: 'update_section', section: 'selected', content: { columns: { desktop: n } } }], ['En el celular, una columna']);
   }
 
+  /* ---------------- Catálogo: cómo se recorre */
+  if (has(text, 'filtros a un lado', 'filtros laterales', 'filtros a la izquierda', 'columna de filtros', 'como tienda en linea') && catalogSection()) {
+    return done('El catálogo ahora tiene las categorías y los filtros en una columna a la izquierda.', [{ action: 'update_product_display', section: catalogSection()!, catalog: { browse: { layout: 'sidebar', counts: true } } }], ['Que el visitante cambie entre cuadrícula y lista']);
+  }
+  if (has(text, 'como menu de restaurante', 'que las categorias lleven', 'saltar a cada categoria')) {
+    if (catalogSection()) return done('Listo: todo el catálogo queda a la vista por categoría y las pestañas llevan a cada una.', [{ action: 'update_product_display', section: catalogSection()!, catalog: { browse: { layout: 'bar', categoryNav: 'tabs', categoryMode: 'jump', sticky: true } } }], []);
+  }
   /* ---------------- Productos: columnas, imagen, layout, filtros */
   const columns = text.match(/(\d)\s*(productos|servicios|columnas|tarjetas|items)?\s*(por fila|por linea|columnas|en fila)/) ?? text.match(/(\d) columnas/);
   const layout = LAYOUT_WORDS.find(([words]) => has(text, ...words));
@@ -396,6 +407,12 @@ export function rulesRespond(raw: string, ctx: AssistantContext): Out {
   }
 
   /* ---------------- Tema: encabezado, preset, colores, tipografía, botones */
+  if (has(text, 'menu lateral', 'barra lateral', 'menu vertical', 'navegacion lateral', 'navbar vertical', 'menu a un lado', 'menu a la izquierda')) {
+    return done('Listo: el menú ahora va en una columna a la izquierda (en el celular sigue siendo una barra con botón de menú).', [{ action: 'update_theme', header: { layout: 'vertical' } }], ['Haz el menú más angosto', 'Vuelve a poner el menú arriba']);
+  }
+  if (has(text, 'menu arriba', 'barra arriba', 'menu horizontal')) {
+    return done('El menú vuelve a ir en una barra arriba.', [{ action: 'update_theme', header: { layout: 'horizontal' } }], ['Haz el encabezado fijo al hacer scroll']);
+  }
   if (has(text, 'encabezado', 'header', 'menu superior', 'barra de navegacion', 'navbar')) {
     const style = HEADER_WORDS.find(([words]) => has(text, ...words));
     if (style) return done('Cambié el estilo del encabezado.', [{ action: 'update_theme', header: { style: style[1] } }], ['Haz el encabezado fijo al hacer scroll', 'Centra el logo']);

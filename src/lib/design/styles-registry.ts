@@ -5,7 +5,7 @@ import { msg } from '@/i18n/translate';
  * en el renderer web (CSS por clase) y en el PDF. Agregar un estilo = agregar
  * el id aquí + su CSS/variante (TypeScript exige completarlos).
  */
-export const HEADER_STYLES = ['minimal', 'classic', 'centered', 'modern', 'transparent', 'dark', 'elegant'] as const;
+export const HEADER_STYLES = ['minimal', 'classic', 'centered', 'modern', 'transparent', 'dark', 'elegant', 'floating', 'glass', 'brand'] as const;
 export type HeaderStyleId = (typeof HEADER_STYLES)[number];
 
 export const HEADER_STYLE_META: Record<HeaderStyleId, { label: string; description: string }> = {
@@ -16,6 +16,9 @@ export const HEADER_STYLE_META: Record<HeaderStyleId, { label: string; descripti
   transparent: { label: msg('Transparente'), description: msg('Sobre el hero, con texto claro.') },
   dark: { label: msg('Oscuro'), description: msg('Barra oscura con texto claro.') },
   elegant: { label: msg('Elegante'), description: msg('Logo centrado, menú en mayúsculas y doble línea.') },
+  floating: { label: msg('Cápsula'), description: msg('Barra redondeada que flota sobre el sitio.') },
+  glass: { label: msg('Cristal'), description: msg('Translúcida con desenfoque: se ve el sitio detrás.') },
+  brand: { label: msg('De marca'), description: msg('Con el color principal de tu marca y texto claro.') },
 };
 
 export const CARD_STYLES = ['minimal', 'classic', 'modern', 'imageFocus', 'compact', 'elegant', 'borderless'] as const;

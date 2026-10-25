@@ -3,6 +3,7 @@
 import { Autocomplete, Button, Stack, TextField, Typography } from '@mui/material';
 import { Images } from 'lucide-react';
 import { useState, type ComponentType } from 'react';
+import { CatalogBrowseEditor } from './catalog-browse-editor';
 import { ColumnsSectionEditor } from './columns-editor';
 import { ProductEditor } from './product-editor';
 import { TableEditor } from './table-editor';
@@ -166,8 +167,9 @@ function CatalogEditor(props: EditorProps<'catalog'>) {
       <Group title={t('Qué mostrar')}>
         <Segmented label={t('Tipo')} value={c.itemType} onChange={(itemType) => set({ itemType })} options={[{ value: 'any', label: t('Todo') }, { value: 'product', label: t('Productos') }, { value: 'service', label: t('Servicios') }]} />
         <SwitchRow label={t('Destacados arriba')} checked={c.showFeatured} onChange={(showFeatured) => set({ showFeatured })} />
-        <SwitchRow label={t('Agrupar por categoría')} description={t('Con el orden personalizado y sin búsqueda activa.')} checked={c.groupByCategory} onChange={(groupByCategory) => set({ groupByCategory })} />
+        {c.browse.categoryMode === 'filter' && <SwitchRow label={t('Agrupar por categoría')} description={t('Con el orden personalizado y sin búsqueda activa.')} checked={c.groupByCategory} onChange={(groupByCategory) => set({ groupByCategory })} />}
       </Group>
+      <CatalogBrowseEditor value={c.browse} onChange={(browse) => set({ browse })} />
       <PresentationEditor value={c.presentation} onChange={(presentation) => set({ presentation })} />
       <Group title={t('Búsqueda y filtros')} description={t('Los visitantes sólo ven los filtros que tienen sentido para tus ítems.')}>
         <SwitchRow label={t('Buscador')} description={t('Por nombre, código, etiquetas y atributos.')} checked={c.filters.search} onChange={(search) => setFilters({ search })} />

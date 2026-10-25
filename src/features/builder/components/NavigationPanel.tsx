@@ -23,6 +23,8 @@ export function NavigationPanel() {
   const updateItem = (id: string, patch: Partial<NavigationItem>) => setItems(items.map((i) => (i.id === id ? { ...i, ...patch } : i)));
   const theme = state.theme;
   const setHeader = (patch: Partial<ThemeConfig['header']>) => dispatch({ type: 'setTheme', theme: { ...theme, header: { ...theme.header, ...patch } } });
+  const h = theme.header;
+  const vertical = h.layout === 'vertical';
   const setFooter = (patch: Partial<ThemeConfig['footer']>) => dispatch({ type: 'setTheme', theme: { ...theme, footer: { ...theme.footer, ...patch } } });
   const bar = theme.announcement;
   const setBar = (patch: Partial<ThemeConfig['announcement']>) => dispatch({ type: 'setTheme', theme: { ...theme, announcement: { ...bar, ...patch } } });
@@ -110,33 +112,68 @@ export function NavigationPanel() {
       </Group>
 
       <Group title={t('Estilo del header')}>
+        <Segmented label={t('Disposición')} value={h.layout} onChange={(layout) => setHeader({ layout })} options={[{ value: 'horizontal', label: t('Barra arriba') }, { value: 'vertical', label: t('Menú lateral') }]} />
+        {vertical && (
+          <>
+            <Typography variant="caption" color="text.secondary">{t('El menú queda en una columna a la izquierda; en el celular se vuelve una barra con botón de menú.')}</Typography>
+            <Segmented label={t('Ancho del menú')} value={h.verticalWidth} onChange={(verticalWidth) => setHeader({ verticalWidth })} options={[{ value: 'narrow', label: t('Angosto') }, { value: 'normal', label: t('Normal') }, { value: 'wide', label: t('Ancho') }]} />
+          </>
+        )}
         <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1 }}>
-          {HEADER_STYLES.map((id) => (
+          {HEADER_STYLES.filter((id) => !vertical || !VERTICAL_SKIP.has(id)).map((id) => (
             <ButtonBase
               key={id}
               onClick={() => setHeader({ style: id, ...(id === 'centered' || id === 'elegant' ? { logoPosition: 'center' as const } : {}) })}
-              aria-pressed={theme.header.style === id}
-              sx={{ display: 'block', textAlign: 'left', p: 1, borderRadius: 1.5, border: 1, borderColor: theme.header.style === id ? 'primary.main' : 'divider', boxShadow: theme.header.style === id ? (th) => `0 0 0 1px ${th.palette.primary.main}` : 'none' }}
+              aria-pressed={h.style === id}
+              sx={{ display: 'block', textAlign: 'left', p: 1, borderRadius: 1.5, border: 1, borderColor: h.style === id ? 'primary.main' : 'divider', boxShadow: h.style === id ? (th) => `0 0 0 1px ${th.palette.primary.main}` : 'none' }}
             >
-              <HeaderSketch id={id} />
+              <HeaderSketch id={id} vertical={vertical} />
               <Typography variant="body2" sx={{ fontWeight: 600, mt: 0.75 }}>{t(HEADER_STYLE_META[id].label)}</Typography>
               <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.3 }}>{t(HEADER_STYLE_META[id].description)}</Typography>
             </ButtonBase>
           ))}
         </Box>
-        <Segmented label={t('Logo')} value={theme.header.logoPosition} onChange={(logoPosition) => setHeader({ logoPosition })} options={[{ value: 'left', label: t('Izquierda') }, { value: 'center', label: t('Centro') }]} />
-        {theme.header.logoPosition === 'left' && (
-          <Segmented label={t('Menú')} value={theme.header.menuPosition} onChange={(menuPosition) => setHeader({ menuPosition })} options={[{ value: 'left', label: t('Izq.') }, { value: 'center', label: t('Centro') }, { value: 'right', label: t('Der.') }]} />
+        {!vertical && (
+          <>
+            <Segmented label={t('Logo')} value={h.logoPosition} onChange={(logoPosition) => setHeader({ logoPosition })} options={[{ value: 'left', label: t('Izquierda') }, { value: 'center', label: t('Centro') }]} />
+            {h.logoPosition === 'left' && (
+              <Segmented label={t('Menú')} value={h.menuPosition} onChange={(menuPosition) => setHeader({ menuPosition })} options={[{ value: 'left', label: t('Izq.') }, { value: 'center', label: t('Centro') }, { value: 'right', label: t('Der.') }]} />
+            )}
+            <Segmented label={t('Altura')} value={h.height} onChange={(height) => setHeader({ height })} options={[{ value: 'compact', label: t('Compacto') }, { value: 'normal', label: t('Normal') }, { value: 'tall', label: t('Alto') }]} />
+          </>
         )}
-        <Segmented label={t('Altura')} value={theme.header.height} onChange={(height) => setHeader({ height })} options={[{ value: 'compact', label: t('Compacto') }, { value: 'normal', label: t('Normal') }, { value: 'tall', label: t('Alto') }]} />
-        <SwitchRow label={t('Fijo al hacer scroll')} checked={theme.header.sticky} onChange={(sticky) => setHeader({ sticky })} />
-        <SwitchRow label={t('Logo')} checked={theme.header.showLogo} onChange={(showLogo) => setHeader({ showLogo })} />
-        <SwitchRow label={t('Nombre del negocio')} checked={theme.header.showName} onChange={(showName) => setHeader({ showName })} />
-        <SwitchRow label={t('Redes sociales')} checked={theme.header.showSocial} onChange={(showSocial) => setHeader({ showSocial })} />
-        <SelectInput label={t('Botón destacado')} value={theme.header.cta} onChange={(cta) => setHeader({ cta })} options={[{ value: 'none', label: t('Sin botón') }, { value: 'whatsapp', label: 'WhatsApp' }, { value: 'contact', label: t('Ir a Contacto') }]} />
-        {theme.header.cta !== 'none' && <TextInput label={t('Texto del botón')} value={theme.header.ctaLabel} onChange={(ctaLabel) => setHeader({ ctaLabel })} maxLength={30} />}
+      </Group>
+
+      <Group title={t('Enlaces del menú')}>
+        <SelectInput
+          label={t('Página actual y al pasar el mouse')}
+          value={h.linkStyle}
+          onChange={(linkStyle) => setHeader({ linkStyle })}
+          options={[
+            { value: 'underline', label: vertical ? t('Barra al costado') : t('Subrayado') },
+            { value: 'pill', label: t('Píldora de color') },
+            { value: 'boxed', label: t('Recuadro') },
+            { value: 'plain', label: t('Sólo el color') },
+          ]}
+        />
+        <SwitchRow label={t('Menú en mayúsculas')} checked={h.linkCase === 'uppercase'} onChange={(upper) => setHeader({ linkCase: upper ? 'uppercase' : 'normal' })} />
+        <Segmented label={t('Menú en el celular')} value={h.mobileMenu} onChange={(mobileMenu) => setHeader({ mobileMenu })} options={[{ value: 'dropdown', label: t('Lista') }, { value: 'drawer', label: t('Panel lateral') }, { value: 'fullscreen', label: t('Pantalla completa') }]} />
+      </Group>
+
+      <Group title={t('Qué muestra el header')}>
+        <SwitchRow label={t('Logo')} checked={h.showLogo} onChange={(showLogo) => setHeader({ showLogo })} />
+        <SwitchRow label={t('Nombre del negocio')} checked={h.showName} onChange={(showName) => setHeader({ showName })} />
+        <SwitchRow label={t('Redes sociales')} checked={h.showSocial} onChange={(showSocial) => setHeader({ showSocial })} />
+        <SelectInput label={t('Botón destacado')} value={h.cta} onChange={(cta) => setHeader({ cta })} options={[{ value: 'none', label: t('Sin botón') }, { value: 'whatsapp', label: 'WhatsApp' }, { value: 'contact', label: t('Ir a Contacto') }]} />
+        {h.cta !== 'none' && <TextInput label={t('Texto del botón')} value={h.ctaLabel} onChange={(ctaLabel) => setHeader({ ctaLabel })} maxLength={30} />}
+      </Group>
+
+      <Group title={t('Al desplazarse')}>
+        <SwitchRow label={t('Fijo al hacer scroll')} checked={h.sticky} onChange={(sticky) => setHeader({ sticky })} />
+        {!vertical && h.sticky && <SwitchRow label={t('Se esconde al bajar')} description={t('Vuelve a aparecer en cuanto el visitante sube.')} checked={h.hideOnScroll} onChange={(hideOnScroll) => setHeader({ hideOnScroll })} />}
+        {!vertical && <SwitchRow label={t('De borde a borde')} description={t('El logo y el menú llegan a las orillas de la pantalla.')} checked={h.fullWidth} onChange={(fullWidth) => setHeader({ fullWidth })} />}
         <Advanced title={t('Fondo del header (color, degradado o imagen)')}>
-          <BackgroundEditor value={theme.header.background} onChange={(background) => setHeader({ background })} inheritLabel={t('Según estilo')} />
+          <BackgroundEditor value={h.background} onChange={(background) => setHeader({ background })} inheritLabel={t('Según estilo')} />
         </Advanced>
       </Group>
 
@@ -251,18 +288,33 @@ export function NavigationPanel() {
 }
 
 /** Esquema mínimo de cada estilo de header. */
-function HeaderSketch({ id }: { id: (typeof HEADER_STYLES)[number] }) {
-  const dark = id === 'dark' || id === 'transparent';
-  const bar = dark ? '#2a2a2a' : '#fff';
+/** Estilos que no aplican al menú lateral (dependen de ir sobre el hero o de flotar arriba). */
+const VERTICAL_SKIP = new Set<(typeof HEADER_STYLES)[number]>(['transparent', 'modern', 'floating', 'centered']);
+
+function HeaderSketch({ id, vertical = false }: { id: (typeof HEADER_STYLES)[number]; vertical?: boolean }) {
+  const dark = id === 'dark' || id === 'transparent' || id === 'brand';
+  const bar = id === 'brand' ? '#4f46e5' : dark ? '#2a2a2a' : id === 'glass' ? 'rgba(255,255,255,0.6)' : '#fff';
   const ink = dark ? '#fff' : '#333';
   const centered = id === 'centered' || id === 'elegant';
+  const detached = id === 'modern' || id === 'floating';
+  if (vertical) {
+    return (
+      <Box sx={{ height: 38, borderRadius: 1, bgcolor: '#f3f3f5', overflow: 'hidden', display: 'flex' }}>
+        <Box sx={{ width: 18, bgcolor: id === 'minimal' ? 'transparent' : bar, borderRight: id === 'classic' ? '1px solid #ddd' : id === 'elegant' ? '3px double #ccc' : 'none', p: 0.4, display: 'flex', flexDirection: 'column', gap: 0.4 }}>
+          <Box sx={{ width: 7, height: 7, borderRadius: 0.5, bgcolor: ink }} />
+          {[0, 1, 2].map((i) => <Box key={i} sx={{ width: 9, height: 2.5, bgcolor: ink, opacity: 0.6 }} />)}
+        </Box>
+      </Box>
+    );
+  }
   return (
-    <Box sx={{ height: 38, borderRadius: 1, bgcolor: id === 'transparent' ? '#6b7280' : '#f3f3f5', p: id === 'modern' ? 0.5 : 0, overflow: 'hidden' }}>
+    <Box sx={{ height: 38, borderRadius: 1, bgcolor: id === 'transparent' ? '#6b7280' : id === 'glass' ? 'linear-gradient(135deg, #c7d2fe, #fbcfe8)' : '#f3f3f5', background: id === 'glass' ? 'linear-gradient(135deg, #c7d2fe, #fbcfe8)' : undefined, p: detached ? 0.5 : 0, overflow: 'hidden' }}>
       <Box
         sx={{
-          height: id === 'modern' ? 20 : 22,
+          height: detached ? 20 : 22,
           bgcolor: id === 'minimal' || id === 'transparent' ? 'transparent' : bar,
-          borderRadius: id === 'modern' ? 1 : 0,
+          borderRadius: id === 'floating' ? 99 : id === 'modern' ? 1 : 0,
+          mx: id === 'floating' ? 1 : 0,
           borderBottom: id === 'classic' ? '1px solid #ddd' : id === 'elegant' ? '3px double #ccc' : 'none',
           display: 'flex',
           alignItems: 'center',

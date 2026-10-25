@@ -16,15 +16,18 @@ import { SiteImage } from './SiteImage';
 import styles from './site.module.css';
 
 /**
- * Header del sitio con 7 estilos (data-style), logo a la izquierda o al
- * centro, menú a la izquierda/centro/derecha, sticky, transparente sobre el
- * hero (pasa a sólido con un fundido suave al hacer scroll) y menú móvil.
+ * Header del sitio: barra arriba (10 estilos, logo a la izquierda o al
+ * centro, menú a la izquierda/centro/derecha, fija, que se esconde al bajar,
+ * transparente sobre el hero con fundido al hacer scroll) o menú lateral.
+ * En el celular, botón de menú con lista, panel lateral o pantalla completa.
  */
 export function SiteHeader(props: HeaderProps) {
   const { header, brand, items, cta, social, overlayPaths, headerHiddenPaths, homePath } = props;
   const t = useSiteT();
   const current = useSitePath(props.currentPath);
-  const overlay = pathIn(overlayPaths, current);
+  const vertical = header.layout === 'vertical';
+  // El menú lateral no se superpone al hero (va a un lado).
+  const overlay = !vertical && pathIn(overlayPaths, current);
   const hidden = pathIn(headerHiddenPaths, current);
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -38,6 +41,40 @@ export function SiteHeader(props: HeaderProps) {
     observer.observe(el);
     return () => observer.disconnect();
   }, [overlay]);
+
+  // Se esconde al bajar y vuelve al subir (o al llegar arriba). Pequeños movimientos no cuentan.
+  const [tucked, setTucked] = useState(false);
+  const autoHide = header.hideOnScroll && header.sticky && !vertical;
+  useEffect(() => {
+    if (!autoHide) return;
+    let last = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      if (Math.abs(y - last) < 8) return;
+      setTucked(y > last && y > 120);
+      last = y;
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [autoHide]);
+
+  // Alto real del header fijo (dos filas, cápsula con margen…) para lo que se queda pegado debajo
+  // (la barra del catálogo, los saltos a cada sección). Al esconderse, 0.
+  const headerEl = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = headerEl.current;
+    const root = el?.closest<HTMLElement>('[data-site]');
+    if (!el || !root) return;
+    // El menú lateral sólo cuenta cuando es la barra de arriba (en el celular).
+    const set = () => root.style.setProperty('--header-offset', `${header.sticky && !tucked && (!vertical || el.offsetWidth >= root.offsetWidth * 0.9) ? el.offsetHeight : 0}px`);
+    set();
+    const observer = new ResizeObserver(set);
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty('--header-offset');
+    };
+  }, [header.sticky, vertical, tucked, hidden]);
 
   // Menú móvil: Escape lo cierra (y devuelve el foco al botón que lo abrió).
   const toggleRef = useRef<HTMLButtonElement>(null);
@@ -128,11 +165,94 @@ export function SiteHeader(props: HeaderProps) {
     </a>
   );
 
+  // Menú lateral: todos los enlaces a la vista, los submenús con sangría debajo de su título.
+  const stackedLinks = () =>
+    items.map((item) =>
+      item.children.length === 0 ? (
+        item.style === 'button' ? (
+          <a key={item.id} {...linkProps(item)} className={`${styles.btn} ${styles.btnSmall}`} data-variant="solid">{item.label}</a>
+        ) : (
+          <a key={item.id} {...linkProps(item)} className={styles.navLink} aria-current={isActive(item.href) ? 'page' : undefined}>{item.label}</a>
+        )
+      ) : (
+        <div key={item.id} className={styles.vnavGroup}>
+          {item.href ? <a {...linkProps(item)} className={styles.navLink} aria-current={isActive(item.href) ? 'page' : undefined}>{item.label}</a> : <span className={styles.vnavGroupLabel}>{item.label}</span>}
+          {item.children.map((child) => (
+            <a key={child.id} {...linkProps(child)} className={`${styles.navLink} ${styles.vnavSubLink}`} aria-current={isActive(child.href) ? 'page' : undefined}>{child.label}</a>
+          ))}
+        </div>
+      ),
+    );
+
   const toggle = items.length > 0 && (
     <button ref={toggleRef} type="button" className={styles.menuToggle} aria-expanded={open} aria-controls={menuId} aria-label={open ? t('Cerrar menú') : t('Abrir menú')} onClick={() => setOpen((o) => !o)}>
       {open ? <X size={18} /> : <Menu size={18} />}
     </button>
   );
+
+  // Lista bajo la barra, panel lateral o pantalla completa (estos dos con fondo que cierra y su propio botón de cerrar).
+  const sheet = header.mobileMenu !== 'dropdown';
+  const mobilePanel = open && (
+    <>
+      {sheet && <div className={styles.mobileBackdrop} onClick={() => setOpen(false)} aria-hidden />}
+      <nav id={menuId} className={styles.mobilePanel} data-variant={header.mobileMenu} aria-label={t('Menú móvil')}>
+        {sheet && (
+          <div className={styles.mobilePanelHead}>
+            {brandNode}
+            <button type="button" className={styles.menuToggle} aria-label={t('Cerrar menú')} onClick={() => { setOpen(false); toggleRef.current?.focus(); }}>
+              <X size={18} />
+            </button>
+          </div>
+        )}
+        {mobileLinks()}
+        {cta && (
+          <a href={cta.href} className={styles.btn} data-variant="solid" target={cta.external ? '_blank' : undefined} rel="noopener noreferrer">
+            {cta.label}
+          </a>
+        )}
+      </nav>
+    </>
+  );
+
+  const attrs = {
+    'data-style': header.style,
+    'data-overlay': overlay,
+    'data-scrolled': solid,
+    'data-custom-bg': customBg,
+    'data-links': header.linkStyle,
+    'data-case': header.linkCase,
+    'data-full': header.fullWidth || undefined,
+  };
+
+  if (vertical) {
+    return (
+      <>
+        {props.announcement && <AnnouncementBar {...props.announcement} />}
+        {props.popup && <WelcomePopup {...props.popup} />}
+        {!hidden && (
+          <header ref={headerEl} className={`${styles.header} ${styles.headerVertical}`} data-layout="vertical" data-sticky={header.sticky} {...attrs}>
+            <div className={styles.headerInner}>
+              <div className={styles.headerSurface}>{customBg && <BackgroundLayers background={header.background} />}</div>
+              <div className={styles.vnav}>
+                <div className={styles.vnavTop}>
+                  {brandNode}
+                  {toggle}
+                </div>
+                {items.length > 0 && <nav className={styles.vnavLinks} aria-label={t('Principal')}>{stackedLinks()}</nav>}
+                {(ctaNode || socialNode) && (
+                  <div className={styles.vnavFoot}>
+                    {ctaNode}
+                    {socialNode}
+                  </div>
+                )}
+              </div>
+              {mobilePanel}
+            </div>
+          </header>
+        )}
+      </>
+    );
+  }
 
   return (
     <>
@@ -140,14 +260,7 @@ export function SiteHeader(props: HeaderProps) {
       {props.popup && <WelcomePopup {...props.popup} />}
       {!hidden && <span ref={sentinel} className={styles.headerSentinel} aria-hidden />}
       {!hidden && (
-        <header
-          className={`${styles.header} ${centered ? styles.headerTwoRows : ''}`}
-          data-style={header.style}
-          data-sticky={header.sticky}
-          data-overlay={overlay}
-          data-scrolled={solid}
-          data-custom-bg={customBg}
-        >
+        <header ref={headerEl} className={`${styles.header} ${centered ? styles.headerTwoRows : ''}`} data-sticky={header.sticky} data-tucked={(tucked && !open) || undefined} {...attrs}>
           <div className={styles.headerInner}>
             <div className={styles.headerSurface}>{customBg && <BackgroundLayers background={header.background} />}</div>
             <div className={styles.container}>
@@ -180,16 +293,7 @@ export function SiteHeader(props: HeaderProps) {
                 </nav>
               )}
             </div>
-            {open && (
-              <nav id={menuId} className={styles.mobilePanel} aria-label={t('Menú móvil')}>
-                {mobileLinks()}
-                {cta && (
-                  <a href={cta.href} className={styles.btn} data-variant="solid" target={cta.external ? '_blank' : undefined} rel="noopener noreferrer">
-                    {cta.label}
-                  </a>
-                )}
-              </nav>
-            )}
+            {mobilePanel}
           </div>
         </header>
       )}
