@@ -1655,3 +1655,27 @@ test('funciones por negocio: el administrador apaga Garfield, el PDF y las estad
   await page.goto('/dashboard');
   await expect(page.getByRole('navigation', { name: 'Menú principal' }).getByRole('link', { name: 'Catálogo PDF' })).toBeVisible();
 });
+
+test('estudio de PDF: un bloque a la vez, agregar por grupos y estado de guardado', async ({ page }) => {
+  await page.goto('/dashboard/export/pdf');
+  await expect(page.getByText('Todo guardado')).toBeVisible();
+  // Las cinco pestañas a la vista.
+  for (const name of ['Contenido', 'Plantilla', 'Portada', 'Estilo', 'Página']) await expect(page.getByRole('tab', { name, exact: true })).toBeVisible();
+  // Un bloque a la vez, con la vuelta a la lista.
+  await page.getByRole('button', { name: /^Catálogo por categorías/ }).click();
+  await expect(page.getByRole('switch', { name: 'Incluir en el PDF' })).toBeChecked();
+  await page.getByRole('button', { name: 'Todos los bloques' }).click();
+  // Agregar: tipos agrupados; la portada ya está.
+  await page.getByRole('button', { name: 'Agregar bloque' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Agregar bloque' });
+  await expect(dialog.getByRole('region', { name: 'Inicio y cierre' }).getByRole('button', { name: /^Portada/ })).toBeDisabled();
+  await dialog.getByRole('region', { name: 'Contenido' }).getByRole('button', { name: /^Página de información/ }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Todos los bloques' })).toBeVisible();
+  await expect(page.getByText('Cambios sin guardar')).toBeVisible();
+  await page.getByRole('button', { name: 'Duplicar bloque' }).click();
+  await page.getByRole('button', { name: 'Todos los bloques' }).click();
+  await expect(page.getByText('5 de 5 bloques incluidos')).toBeVisible();
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click();
+  await expect(page.getByText('Todo guardado')).toBeVisible();
+});
