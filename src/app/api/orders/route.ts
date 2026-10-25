@@ -1,5 +1,6 @@
-import { NextResponse, type NextRequest } from 'next/server';
+import { after, NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
+import { notifyNewOrder } from '@/features/push/server';
 import { noContent, readJsonBody } from '@/lib/api/beacon';
 import { isSupabaseConfigured } from '@/lib/env';
 import { clientIp, consumeRateLimit } from '@/lib/security/rate-limit';
@@ -71,5 +72,7 @@ export async function POST(request: NextRequest) {
   const order = orderSchema.safeParse(body.order);
   const { error } = await createAdminClient().rpc('record_order_v2', { p_business_slug: body.slug, p_items: body.items, p_order: order.success ? (order.data as Json) : null });
   if (error) console.error('[orders] no se pudo registrar el pedido', { code: error.code });
+  // Aviso push a los miembros del negocio, después de responder (cada pedido se avisa una vez).
+  else if (order.success) after(() => notifyNewOrder(body.slug, order.data.reference));
   return noContent();
 }

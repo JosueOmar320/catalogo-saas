@@ -115,6 +115,10 @@ test('el inicio del panel cuenta el pedido enviado', async ({ page }) => {
   const main = page.getByRole('main');
   await expect(main.getByText('Lo más pedido', { exact: true })).toBeVisible();
   await expect(main.getByRole('listitem').filter({ hasText: `${productName} · 1 unidad` })).toBeVisible();
+  // Los pedidos nuevos también se ven en el título de la pestaña.
+  await expect(page).toHaveTitle(/^\(1\) /);
+  const count = await page.request.get('/api/orders/new-count');
+  expect(await count.json()).toEqual({ count: 1 });
 });
 
 test('el inicio del panel cuenta las visitas del sitio publicado y lo más visto', async ({ page, browser }) => {
@@ -138,6 +142,8 @@ test('bandeja de pedidos: el pedido enviado llega con su folio, se confirma y se
   await page.goto('/dashboard');
   await page.getByRole('link', { name: '1 nuevos' }).click();
   await expect(page).toHaveURL(/\/dashboard\/pedidos$/);
+  // Avisos al instante: sin claves VAPID (como en estas pruebas) la tarjeta lo dice.
+  await expect(page.getByText('Los avisos todavía no están configurados en el servidor. Pídeselo al administrador de la plataforma.')).toBeVisible();
   const card = page.getByRole('listitem', { name: `Pedido ${firstReference}` });
   await expect(card.getByText('Ana E2E', { exact: false })).toBeVisible();
   await expect(card.getByText('5512345678', { exact: false })).toBeVisible();

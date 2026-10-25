@@ -3,6 +3,7 @@ import { AppShell } from '@/components/dashboard/AppShell';
 import { DashboardProvider } from '@/components/dashboard/DashboardContext';
 import { appFont } from '@/components/providers/app-font';
 import { AppProviders } from '@/components/providers/AppProviders';
+import { NewOrdersTitle } from '@/features/push/components/NewOrdersTitle';
 import { AppI18n } from '@/i18n/AppI18n';
 import { getT } from '@/i18n/server';
 import { canManageCatalog, requireBusinessContext } from '@/lib/auth/session';
@@ -16,6 +17,10 @@ export async function generateMetadata(): Promise<Metadata> {
     // Con template: las páginas internas también llevan "· Vitrina" (un título plano lo cortaba).
     title: { default: t('Panel'), template: `%s · ${env.appName}` },
     robots: { index: false, follow: false },
+    // Instalable como app (y en iPhone, necesario para los avisos de pedidos).
+    manifest: '/panel.webmanifest',
+    icons: { apple: '/panel-icon' },
+    appleWebApp: { capable: true, title: env.appName, statusBarStyle: 'default' },
   };
 }
 
@@ -50,6 +55,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
             siteKind={ctx.siteKind}
           >
             {children}
+            {ctx.siteKind === 'catalog' && <NewOrdersTitle />}
           </AppShell>
         </DashboardProvider>
       </AppProviders>

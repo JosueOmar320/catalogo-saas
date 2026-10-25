@@ -22,7 +22,11 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   async headers() {
-    return [{ source: '/:path*', headers: securityHeaders }];
+    return [
+      { source: '/:path*', headers: securityHeaders },
+      // Service worker de los avisos: siempre la versión nueva.
+      { source: '/sw.js', headers: [{ key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' }] },
+    ];
   },
   // react-pdf usa módulos nativos de Node: no se empaqueta.
   serverExternalPackages: ['@react-pdf/renderer'],
