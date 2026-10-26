@@ -14,6 +14,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { itemThumbnail, listCategories, listItemsWithImages, listPages } from '@/features/catalog/queries';
 import { countReview, itemHasPrice, REVIEW_FILTERS, REVIEW_ORDER, type ReviewFilter } from '@/features/items/review';
+import { DemoTour } from '@/features/demo/components/DemoTour';
 import { OrderStatsChart } from '@/features/orders/components/OrderStatsChart';
 import { getOrderStats } from '@/features/orders/queries';
 import { countNewOrders } from '@/features/orders/inbox-queries';
@@ -199,7 +200,8 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
       <Grid container spacing={2.5}>
         <Grid size={{ xs: 12, lg: 8 }}>
           <Stack spacing={2.5}>
-            {!setupDone && (
+            {ctx.demoExpiresAt && <DemoTour />}
+            {!setupDone && !ctx.demoExpiresAt && (
               <SectionCard title={t('Primeros pasos')} description={t('{completed} de {total} completados', { completed, total: steps.length })}>
                 <LinearProgress
                   variant="determinate"

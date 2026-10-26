@@ -4,6 +4,7 @@ import { Alert, Box, Button, Chip, Stack, Tab, Tabs, Tooltip, Typography } from 
 import { ArrowDownRight, ArrowUpRight, BarChart3, Check, Copy, Download, Minus } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
+import { useDashboard } from '@/components/dashboard/DashboardContext';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { useT } from '@/i18n/client';
@@ -146,6 +147,8 @@ const visuallyHidden = { position: 'absolute', width: '1px', height: '1px', over
 /** Analítica de ventas: el periodo contra el anterior, el recorrido de las visitas, de dónde llegan y los productos. */
 export function AnalyticsBoard({ summary, products, siteUrl, published, ordersEnabled, currency, priceLocale, locale }: Props) {
   const t = useT();
+  // En la cuenta de prueba los números son de ejemplo: el aviso de «no publicado» confundiría.
+  const { demo } = useDashboard();
   const { current, previous, range } = summary;
   const money = (value: number | null) => (value === null ? '—' : formatPrice(value, currency || 'MXN', priceLocale));
   const percent = (value: number | null) => (value === null ? '—' : `${value.toLocaleString()} %`);
@@ -167,7 +170,7 @@ export function AnalyticsBoard({ summary, products, siteUrl, published, ordersEn
         </Stack>
       </Stack>
 
-      {!published && <Alert severity="info">{t('Tu sitio no está publicado: las visitas se cuentan sólo en el sitio publicado.')}</Alert>}
+      {!published && !demo && <Alert severity="info">{t('Tu sitio no está publicado: las visitas se cuentan sólo en el sitio publicado.')}</Alert>}
       {summary.funnelSince === null ? (
         <Alert severity="info">{t('El recorrido de las visitas y de dónde llegan se empiezan a contar ahora: vuelve en unos días para verlo.')}</Alert>
       ) : (

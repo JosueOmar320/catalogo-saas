@@ -3,10 +3,12 @@ import { AppShell } from '@/components/dashboard/AppShell';
 import { DashboardProvider } from '@/components/dashboard/DashboardContext';
 import { appFont } from '@/components/providers/app-font';
 import { AppProviders } from '@/components/providers/AppProviders';
+import { DemoBanner } from '@/features/demo/components/DemoBanner';
 import { NewOrdersTitle } from '@/features/push/components/NewOrdersTitle';
 import { AppI18n } from '@/i18n/AppI18n';
 import { getT } from '@/i18n/server';
 import { canManageCatalog, requireBusinessContext } from '@/lib/auth/session';
+import { demoHoursLeft } from '@/lib/demo/expiry';
 import { env } from '@/lib/env';
 import { publicStorageUrl } from '@/lib/utils/storage';
 
@@ -42,6 +44,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
             canManage: canManageCatalog(ctx),
             siteKind: ctx.siteKind,
             features: ctx.features,
+            demo: Boolean(ctx.demoExpiresAt),
           }}
         >
           <AppShell
@@ -55,6 +58,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
             siteKind={ctx.siteKind}
             features={ctx.features}
           >
+            {ctx.demoExpiresAt && <DemoBanner hoursLeft={demoHoursLeft(ctx.demoExpiresAt)} />}
             {children}
             {ctx.siteKind === 'catalog' && ctx.features.orders && <NewOrdersTitle />}
           </AppShell>

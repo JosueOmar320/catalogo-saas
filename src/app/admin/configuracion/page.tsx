@@ -14,6 +14,8 @@ import { requirePlatformAdmin } from '@/lib/auth/session';
 import { emailSettings } from '@/lib/email/resend';
 import { isServiceRoleConfigured } from '@/lib/supabase/admin';
 import { isVercelConfigured } from '@/lib/domains/vercel';
+import { DEMO_HOURS, isDemoEnabled, MAX_ACTIVE_DEMOS } from '@/features/demo/config';
+import { countActiveDemos } from '@/features/demo/server';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
@@ -29,6 +31,7 @@ export default async function AdminSettingsPage() {
   const cronSecret = (process.env.CRON_SECRET ?? '').length >= 16;
   const sample = sampleCatalogReviewEmail(locale, profile.full_name, profile.id);
   const serviceRole = isServiceRoleConfigured();
+  const activeDemos = serviceRole ? await countActiveDemos() : 0;
   // {path} se reemplaza por la ruta del ajuste en Supabase, en negrita.
   const [signupBefore, signupAfter] = t('Desactiva el registro público en Supabase: {path}. Aunque quede activo, las cuentas creadas por fuera del panel nacen desactivadas.').split('{path}');
   return (
@@ -60,6 +63,13 @@ export default async function AdminSettingsPage() {
             )}
             <EmailSettings previewHtml={sample.html} subject={sample.subject} canSend={Boolean(mail.apiKey && mail.from && profile.email)} />
             {!profile.email && <Typography variant="caption" color="text.secondary">{t('Para enviarte una prueba, agrega un email de contacto a tu usuario.')}</Typography>}
+          </Stack>
+        </SectionCard>
+        <SectionCard title={t('Cuenta demo')} description={t('«Probar el panel» crea, sin registro, un negocio de prueba propio para cada visitante con el café de ejemplo. No se publica, no aparece en esta administración y se borra solo a las {hours} horas.', { hours: DEMO_HOURS })}>
+          <Stack spacing={1.5} sx={{ pb: 2 }}>
+            <Status label={t('Disponible (service role y DEMO_ACCOUNTS distinto de off)')} ok={isDemoEnabled()} />
+            <Status label={t('Negocios de prueba activos')} value={`${activeDemos} / ${MAX_ACTIVE_DEMOS}`} />
+            {!cronSecret && <Alert severity="info">{t('Sin CRON_SECRET, las demos vencidas se borran cuando alguien crea una nueva (no con el cron diario).')}</Alert>}
           </Stack>
         </SectionCard>
         <SectionCard title={t('Dominios propios')} description={t('Para que cada negocio conecte su dominio, la plataforma agrega el dominio al proyecto de Vercel. Crea un token en Vercel › Account Settings › Tokens con acceso al proyecto.')}>

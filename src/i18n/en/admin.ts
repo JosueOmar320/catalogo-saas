@@ -319,6 +319,13 @@ const catalog: Catalog = {
   'Equipo (VERCEL_TEAM_ID, sólo si el proyecto es de un equipo)': 'Team (VERCEL_TEAM_ID, only if the project belongs to a team)',
   'Sin equipo': 'No team',
   'Mientras falte el token o el proyecto, los negocios ven el dominio propio como «todavía no disponible».': 'While the token or the project is missing, businesses see custom domains as “not available yet”.',
+
+  // Cuenta demo
+  'Cuenta demo': 'Demo account',
+  '«Probar el panel» crea, sin registro, un negocio de prueba propio para cada visitante con el café de ejemplo. No se publica, no aparece en esta administración y se borra solo a las {hours} horas.': '“Try the dashboard” creates, without sign-up, a private test business for each visitor with the sample café. It is never published, does not appear in this admin and is deleted automatically after {hours} hours.',
+  'Disponible (service role y DEMO_ACCOUNTS distinto de off)': 'Available (service role and DEMO_ACCOUNTS not set to off)',
+  'Negocios de prueba activos': 'Active test businesses',
+  'Sin CRON_SECRET, las demos vencidas se borran cuando alguien crea una nueva (no con el cron diario).': 'Without CRON_SECRET, expired demos are deleted when someone creates a new one (not by the daily cron).',
 };
 
 export default catalog;

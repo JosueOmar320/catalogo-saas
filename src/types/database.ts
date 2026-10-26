@@ -32,6 +32,8 @@ type BusinessRow = Timestamps & {
   custom_domain: string | null;
   custom_domain_status: 'none' | 'pending' | 'active';
   custom_domain_checked_at: string | null;
+  /** Negocio de prueba de «Probar el panel»: cuándo se borra (null = negocio real). */
+  demo_expires_at: string | null;
   deleted_at: string | null;
 };
 
@@ -145,6 +147,8 @@ type ProfileRow = Timestamps & {
   notify_catalog_review: boolean;
   max_businesses: number | null;
   created_by: string | null;
+  /** Cuenta de prueba de «Probar el panel» (se borra con su negocio). */
+  demo: boolean;
 };
 
 type AuditLogRow = {
@@ -361,6 +365,24 @@ export type Database = {
       admin_set_plan_custom_code: { Args: { p_plan: string; p_value: boolean }; Returns: undefined };
       admin_set_business_features: { Args: { p_business: string; p_features: Json }; Returns: undefined };
       get_site_by_domain: { Args: { p_host: string }; Returns: string | null };
+      create_demo_business: {
+        Args: {
+          p_owner: string;
+          p_name: string;
+          p_slug: string;
+          p_hours?: number;
+          p_slogan?: string | null;
+          p_description?: string | null;
+          p_contact?: Json;
+          p_social_links?: Json;
+          p_theme?: Json;
+          p_settings?: Json;
+          p_attribute_defs?: Json;
+          p_navigation?: Json;
+        };
+        Returns: Json;
+      };
+      purge_demo_business: { Args: { p_business: string }; Returns: string[] };
       admin_update_business: { Args: { p_business: string; p_name: string; p_slug: string; p_plan_id: string; p_status: BusinessStatus }; Returns: undefined };
       admin_set_business_member: { Args: { p_business: string; p_user: string; p_role: MemberRole }; Returns: undefined };
       admin_remove_business_member: { Args: { p_business: string; p_user: string }; Returns: undefined };

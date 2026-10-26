@@ -28,6 +28,7 @@ export function dbErrorMessage(error: PgError, fallback: string = msg('No se pud
   if (message.includes('plan_limit_reached:max_images_per_item')) {
     return msg('Alcanzaste el límite de imágenes por ítem de tu plan.');
   }
+  if (message.includes('demo_cannot_publish')) return msg('En la cuenta de prueba el sitio no se publica. Usa «Vista previa» para verlo como tus clientes.');
   if (message.includes('slug_unavailable')) return msg('Esa dirección ya está en uso. Prueba con otra.');
   if (message.includes('business_limit_reached')) return msg('Ese usuario alcanzó su máximo de negocios asignados.');
   if (message.includes('cannot_demote_self')) return msg('No puedes quitarte el rol de administrador ni desactivar tu propia cuenta.');

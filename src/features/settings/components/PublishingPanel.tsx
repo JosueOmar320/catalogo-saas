@@ -5,6 +5,7 @@ import { Eye, EyeOff, Rocket } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { STATUS_LABELS } from '@/lib/catalog/status';
 import { useConfirm } from '@/components/feedback/ConfirmProvider';
+import { useDashboard } from '@/components/dashboard/DashboardContext';
 import { QrCodeButton } from '@/components/dashboard/QrCodeButton';
 import { CopyField } from '@/components/ui/CopyField';
 import { SectionCard } from '@/components/ui/SectionCard';
@@ -22,6 +23,7 @@ export function PublishingPanel({ status, url, publishedAt, visibleItems, hidden
   const router = useRouter();
   const confirm = useConfirm();
   const { run, pending } = useAction();
+  const { demo } = useDashboard();
   const published = status === 'published';
 
   return (
@@ -41,6 +43,7 @@ export function PublishingPanel({ status, url, publishedAt, visibleItems, hidden
                 ? t('Tu catálogo todavía es un borrador: nadie más puede verlo. Revisa la vista previa y publícalo cuando esté listo.')
                 : t('Tu catálogo está despublicado. El enlace muestra "catálogo no disponible".')}
           </Typography>
+          {demo && <Alert severity="info">{t('En la cuenta de prueba el sitio no se publica. Usa «Vista previa» para verlo como tus clientes.')}</Alert>}
           {catalog && visibleItems === 0 && !published && <Alert severity="warning">{t('Aún no hay ítems visibles. Puedes publicar igual, pero tus clientes verán un catálogo vacío.')}</Alert>}
           <CopyField label={t('Enlace público')} value={url} openable={published} />
           <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
@@ -58,7 +61,7 @@ export function PublishingPanel({ status, url, publishedAt, visibleItems, hidden
                 {t('Despublicar')}
               </Button>
             ) : (
-              <Button variant="contained" startIcon={<Rocket size={15} />} disabled={pending} onClick={() => run(publishCatalog, { onSuccess: () => router.refresh() })}>
+              <Button variant="contained" startIcon={<Rocket size={15} />} disabled={pending || demo} onClick={() => run(publishCatalog, { onSuccess: () => router.refresh() })}>
                 {catalog ? t('Publicar catálogo') : t('Publicar sitio')}
               </Button>
             )}

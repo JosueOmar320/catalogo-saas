@@ -1,6 +1,6 @@
-import { createHash, timingSafeEqual } from 'node:crypto';
 import { NextResponse, type NextRequest } from 'next/server';
 import { runCatalogReview } from '@/features/notifications/catalog-review';
+import { isCronRequest } from '@/lib/api/cron';
 import { createAdminClient, isServiceRoleConfigured } from '@/lib/supabase/admin';
 
 /**
@@ -14,15 +14,6 @@ export const maxDuration = 60;
 
 /** La función no existe todavía (PostgREST / Postgres): la migración 20261102 no se aplicó en este entorno. */
 const MISSING_FUNCTION = new Set(['PGRST202', '42883']);
-
-/** Resúmenes de largo fijo: ni el largo del encabezado ni su contenido cambian el tiempo de comparación. */
-const digest = (value: string) => createHash('sha256').update(value, 'utf8').digest();
-
-function authorized(request: NextRequest): boolean {
-  const secret = process.env.CRON_SECRET ?? '';
-  const given = request.headers.get('authorization') ?? '';
-  return secret.length >= 16 && timingSafeEqual(digest(given), digest(`Bearer ${secret}`));
-}
 
 /** Limpieza de datos viejos (migración 20261102). Sólo la service role puede ejecutarla. */
 async function purgeOldData(): Promise<boolean> {
@@ -38,7 +29,7 @@ async function purgeOldData(): Promise<boolean> {
 }
 
 export async function GET(request: NextRequest) {
-  if (!authorized(request)) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  if (!isCronRequest(request)) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   if (!isServiceRoleConfigured()) return NextResponse.json({ error: 'not_configured' }, { status: 503 });
   const dryRun = request.nextUrl.searchParams.get('dry') === '1';
   const review = await runCatalogReview({ dryRun });

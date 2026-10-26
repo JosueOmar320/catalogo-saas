@@ -219,6 +219,31 @@
   font-size: 15px;
 }
 
+/* «Probar el panel» es un <button>: mismo aspecto que los enlaces. */
+button.button {
+  border: 0;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+button.button:disabled {
+  opacity: 0.75;
+  cursor: progress;
+}
+
+.demoNote {
+  margin: 12px auto 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.demoError {
+  flex-basis: 100%;
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: #b42318;
+}
+
 .buttonSmall {
   background: var(--button-bg);
   color: var(--button-ink);

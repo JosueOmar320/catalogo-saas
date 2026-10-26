@@ -1,4 +1,8 @@
+import { Box } from '@mui/material';
 import type { Metadata } from 'next';
+import { isDemoEnabled } from '@/features/demo/config';
+import { TryDashboardButton } from '@/features/demo/components/TryDashboardButton';
+import demoStyles from '@/features/demo/components/demo.module.css';
 import { AuthCard } from '@/features/auth/components/AuthCard';
 import { LoginForm } from '@/features/auth/components/LoginForm';
 import { getT } from '@/i18n/server';
@@ -19,7 +23,19 @@ export default async function LoginPage({ searchParams }: PageProps<'/login'>) {
   const t = await getT();
   const notice = typeof error === 'string' ? NOTICES[error] : undefined;
   return (
-    <AuthCard title={t('Iniciar sesión')} footer={<>{t('¿Necesitas acceso? Contacta al administrador.')}</>}>
+    <AuthCard
+      title={t('Iniciar sesión')}
+      footer={
+        <>
+          {t('¿Necesitas acceso? Contacta al administrador.')}
+          {isDemoEnabled() && (
+            <Box sx={{ mt: 1 }}>
+              {t('¿Sólo quieres mirar?')} <TryDashboardButton className={demoStyles.linkButton} errorClassName={demoStyles.error} />
+            </Box>
+          )}
+        </>
+      }
+    >
       <LoginForm next={typeof next === 'string' ? next : undefined} notice={notice ? t(notice) : undefined} />
     </AuthCard>
   );

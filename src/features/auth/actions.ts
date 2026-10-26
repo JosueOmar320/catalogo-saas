@@ -71,12 +71,19 @@ export async function signOut() {
   redirect('/login');
 }
 
+/** Cuenta de prueba de «Probar el panel» («*»: sin la migración 20261110 la columna no existe y no es demo). */
+async function isDemoUser(userId: string): Promise<boolean> {
+  const { data } = await (await createClient()).from('profiles').select('*').eq('id', userId).maybeSingle();
+  return Boolean((data as { demo?: boolean } | null)?.demo);
+}
+
 /** Cambio de contraseña del propio usuario (verifica la actual). */
 export async function changePassword(input: ChangePasswordValues): Promise<ActionResult> {
   const parsed = parseInput(changePasswordSchema, input);
   if (!parsed.success) return parsed.result;
   const user = await getUser();
   if (!user?.email) return fail(msg('Inicia sesión de nuevo.'));
+  if (await isDemoUser(user.id)) return fail(msg('En la cuenta de prueba no se cambia la contraseña.'));
   if (!(await consumeRateLimit(`password:${user.id}`, 5, 900))) return fail(msg('Demasiados intentos. Espera unos minutos e inténtalo de nuevo.'));
   const supabase = await createClient();
   const { error: wrong } = await supabase.auth.signInWithPassword({ email: user.email, password: parsed.data.currentPassword });

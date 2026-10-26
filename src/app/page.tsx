@@ -8,6 +8,8 @@ import { getT } from '@/i18n/server';
 import { msg } from '@/i18n/translate';
 import { buildSampleSite } from '@/lib/site/sample-site';
 import { env } from '@/lib/env';
+import { isDemoEnabled } from '@/features/demo/config';
+import { TryDashboardButton } from '@/features/demo/components/TryDashboardButton';
 import { LandingControls } from './LandingControls';
 import styles from './landing.module.css';
 
@@ -56,6 +58,7 @@ const STACK = ['Next.js 16', 'React 19', 'TypeScript', 'Supabase', 'PostgreSQL',
 
 export default async function Home() {
   const t = await getT();
+  const demoEnabled = isDemoEnabled();
   return (
     <AppI18n>
       <div className={`${appFont.variable} ${styles.page}`}>
@@ -82,13 +85,15 @@ export default async function Home() {
               {t('Crea un sitio con tu marca, publica tus productos con búsqueda y filtros, recibe pedidos por WhatsApp y descarga un catálogo en PDF. Con un asistente de IA que edita por ti.')}
             </p>
             <div className={styles.ctas}>
-              <Link href="/demo" className={styles.button}>
+              {demoEnabled && <TryDashboardButton className={styles.button} errorClassName={styles.demoError} />}
+              <Link href="/demo" className={demoEnabled ? styles.buttonGhost : styles.button}>
                 {t('Ver la demo en vivo')} <ArrowRight size={16} aria-hidden />
               </Link>
               <Link href="/demo/pdf" className={styles.buttonGhost} target="_blank">
                 <FileDown size={16} aria-hidden /> {t('PDF de ejemplo')}
               </Link>
             </div>
+            {demoEnabled && <p className={styles.demoNote}>{t('Sin registro: entras a un negocio de prueba propio, con productos, pedidos y estadísticas, que se borra solo en 24 horas.')}</p>}
             <dl className={styles.stats}>
               {STATS.map((stat) => (
                 <div key={stat.label}>

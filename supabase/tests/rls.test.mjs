@@ -1043,5 +1043,51 @@ await q(`update public.businesses set custom_domain=null, custom_domain_status='
 await q(`update public.businesses set custom_domain=null, custom_domain_status='none' where id=$1`, [bizA]);
 await db.exec('reset role');
 
+// --- Cuenta demo ------------------------------------------------------------
+const DEMO_USER = 'dddddddd-0000-4000-8000-000000000009';
+await db.exec('reset role');
+// Como Auth: el usuario nace sin app_metadata (llega después), así que su perfil empieza desactivado.
+await q(`insert into auth.users(id, email) values ($1, 'demo-x@usuarios.invalid')`, [DEMO_USER]);
+const createDemo = () => q(`select public.create_demo_business($1, 'Café demo', 'prueba-x', 24, 'Lema', null, '{}', '[]', '{}', '{}', '[]', '{}') r`, [DEMO_USER]).then((r) => r[0].r);
+await as(DEMO_USER);
+await expectErr('a member cannot create a demo business', createDemo, 'permission denied');
+await as(null);
+await expectErr('nor can anon', createDemo, 'permission denied');
+await db.exec('reset role; set role service_role');
+let demo;
+await expectOk('the server (service role) creates the demo business', async () => { demo = await createDemo(); return demo; });
+await db.exec('reset role');
+await expectEq('demo plan, expires in a day, the account is active and marked as demo', () => q(`select b.plan_id, b.demo_expires_at between now() + interval '23 hours' and now() + interval '25 hours' as expires, p.demo, p.status from public.businesses b, public.profiles p where b.id = $1 and p.id = $2`, [demo.business_id, DEMO_USER]), [{ plan_id: 'demo', expires: true, demo: true, status: 'active' }]);
+await expectEq('the owner membership and the default catalog exist', () => q(`select (select role from public.business_members where business_id = $1) as role, (select count(*)::int from public.catalogs where business_id = $1 and is_default) as catalogs`, [demo.business_id]), [{ role: 'owner', catalogs: 1 }]);
+await as(DEMO_USER);
+await expectEq('the demo user sees their business', () => q(`select slug from public.businesses`).then((r) => r.map((x) => x.slug)), ['prueba-x']);
+await expectErr('cannot extend the demo', () => q(`update public.businesses set demo_expires_at = null where id = $1`, [demo.business_id]), 'permission denied');
+await expectErr('cannot turn the account into a real one', () => q(`update public.profiles set demo = false where id = $1`, [DEMO_USER]), 'permission denied');
+await expectErr('a demo site cannot be published', () => q(`update public.catalogs set status = 'published' where id = $1`, [demo.catalog_id]), 'demo_cannot_publish');
+await expectOk('but it can be edited like any business', () => q(`insert into public.categories(business_id, catalog_id, name) values ($1, $2, 'Postres') returning name`, [demo.business_id, demo.catalog_id]));
+await expectOk('and its name changed', () => q(`update public.profiles set full_name = 'Visitante' where id = $1`, [DEMO_USER]));
+await db.exec('reset role');
+await expectEq('nothing of the demo goes to the audit log', () => q(`select count(*)::int n from public.audit_log where business_id = $1 or actor_id = $2`, [demo.business_id, DEMO_USER]).then((r) => r[0].n), 0);
+await expectOk('real businesses are still audited', async () => {
+  await q(`update public.businesses set slogan = 'Auditado' where id = $1`, [bizA]);
+  const n = (await q(`select count(*)::int n from public.audit_log where business_id = $1 and action = 'businesses.update'`, [bizA]))[0].n;
+  if (!n) throw new Error('no audit row');
+});
+await as(A);
+await expectEq('admin stats count demos apart', async () => {
+  const stats = (await q(`select public.admin_stats() s`))[0].s;
+  const real = (await q(`select count(*)::int n from public.businesses where deleted_at is null and demo_expires_at is null`))[0].n;
+  const people = (await q(`select count(*)::int n from public.profiles where not demo`))[0].n;
+  return [stats.demos, stats.businesses.total === real, stats.users.total === people];
+}, [1, true, true]);
+await expectErr('a platform admin cannot purge through the API', () => q(`select public.purge_demo_business($1)`, [demo.business_id]), 'permission denied');
+await db.exec('reset role; set role service_role');
+await expectErr('purge refuses a real business', () => q(`select public.purge_demo_business($1)`, [bizA]), 'business_not_found');
+await expectEq('purge returns the demo accounts to delete from Auth', () => q(`select public.purge_demo_business($1) r`, [demo.business_id]).then((r) => r[0].r), [DEMO_USER]);
+await db.exec('reset role');
+await expectEq('the business, its content and the demo profile are gone, without audit traces', () => q(`select (select count(*)::int from public.businesses where id = $1) b, (select count(*)::int from public.categories where business_id = $1) c, (select count(*)::int from public.profiles where id = $2) p, (select count(*)::int from public.audit_log where business_id = $1 or actor_id = $2) a`, [demo.business_id, DEMO_USER]), [{ b: 0, c: 0, p: 0, a: 0 }]);
+await expectEq('the demo plan is hidden', () => q(`select is_public from public.plans where id = 'demo'`), [{ is_public: false }]);
+await db.exec('reset role');
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);

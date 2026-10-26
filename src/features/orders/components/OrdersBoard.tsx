@@ -188,7 +188,7 @@ export function OrdersBoard({ tab, days, query, orders: initial, newCount, enabl
                     ))}
                   </Box>
 
-                  {(order.discount || order.delivery_fee || order.tip) && (
+                  {Boolean(order.discount || order.delivery_fee || order.tip) && (
                     <Typography variant="caption" color="text.secondary">
                       {[order.subtotal !== null && t('Subtotal: {amount}', { amount: money(order, order.subtotal) }), order.discount && t('Descuento: −{amount}', { amount: money(order, order.discount) }), order.delivery_fee && t('Envío: {amount}', { amount: money(order, order.delivery_fee) }), order.tip && t('Propina: {amount}', { amount: money(order, order.tip) })].filter(Boolean).join(' · ')}
                     </Typography>
