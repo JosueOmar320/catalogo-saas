@@ -20,9 +20,11 @@ A multi-tenant SaaS where a small business (a café, a hardware store, a service
     <td width="50%"><img src="docs/images/site-menu.jpg" alt="Catalog with search, categories and filters" /></td>
     <td width="50%"><img src="docs/images/site-product.jpg" alt="Product page with options and WhatsApp order" /></td>
   </tr>
+</table>
+<table>
   <tr>
-    <td width="50%"><img src="docs/images/pdf-catalog.jpg" alt="PDF catalog generated from the same site" /></td>
-    <td width="50%" align="center"><img src="docs/images/site-mobile.jpg" alt="The catalog on a phone" width="45%" /></td>
+    <td width="80%"><img src="docs/images/pdf-catalog.jpg" alt="PDF catalog generated from the same site" /></td>
+    <td width="20%"><img src="docs/images/site-mobile.jpg" alt="The catalog on a phone" /></td>
   </tr>
 </table>
 

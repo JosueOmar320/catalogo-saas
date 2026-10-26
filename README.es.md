@@ -20,9 +20,11 @@ SaaS multi-tenant para que un pequeño negocio (una cafetería, una ferretería,
     <td width="50%"><img src="docs/images/site-menu.jpg" alt="Catálogo con buscador, categorías y filtros" /></td>
     <td width="50%"><img src="docs/images/site-product.jpg" alt="Ficha de producto con pedido por WhatsApp" /></td>
   </tr>
+</table>
+<table>
   <tr>
-    <td width="50%"><img src="docs/images/pdf-catalog.jpg" alt="Catálogo PDF generado desde el mismo sitio" /></td>
-    <td width="50%" align="center"><img src="docs/images/site-mobile.jpg" alt="El catálogo en el celular" width="45%" /></td>
+    <td width="80%"><img src="docs/images/pdf-catalog.jpg" alt="Catálogo PDF generado desde el mismo sitio" /></td>
+    <td width="20%"><img src="docs/images/site-mobile.jpg" alt="El catálogo en el celular" /></td>
   </tr>
 </table>
 
