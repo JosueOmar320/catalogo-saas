@@ -72,6 +72,11 @@ const catalog: Catalog = {
   'Ver el código': 'View the code',
   'Ya tengo acceso': 'I already have access',
   Enlaces: 'Links',
+
+  // Cuenta demo
+  'Sin registro: entras a un negocio de prueba propio, con productos, pedidos y estadísticas, que se borra solo en 24 horas.': 'No sign-up: you get your own test business, with products, orders and analytics, deleted automatically after 24 hours.',
+  'Probar el panel': 'Try the dashboard',
+  'Preparando tu negocio de prueba…': 'Preparing your test business…',
 };
 
 export default catalog;

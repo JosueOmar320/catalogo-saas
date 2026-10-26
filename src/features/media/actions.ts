@@ -3,6 +3,8 @@
 import { z } from 'zod';
 import { canManageCatalog, requireBusinessContext, type BusinessContext } from '@/lib/auth/session';
 import { afterCatalogChange } from '@/lib/catalog/cache';
+import { DEMO_MEDIA_LIMIT } from '@/features/demo/config';
+import { getT } from '@/i18n/server';
 import { msg } from '@/i18n/translate';
 import { fail, ok, type ActionResult } from '@/lib/utils/result';
 import { isPathOwnedBy, type MediaKind } from '@/lib/utils/storage';
@@ -27,6 +29,14 @@ async function run<T>(fn: () => Promise<T>, message?: string): Promise<ActionRes
   }
 }
 
+/** Cuenta de prueba: la biblioteca tiene tope (se borra con la demo, pero ocupa Storage mientras tanto). */
+async function demoLibraryFull(ctx: BusinessContext): Promise<boolean> {
+  if (!ctx.demoExpiresAt) return false;
+  const { count } = await ctx.supabase.from('media_assets').select('id', { count: 'exact', head: true }).eq('business_id', ctx.business.id).is('deleted_at', null);
+  return (count ?? 0) >= DEMO_MEDIA_LIMIT;
+}
+const DEMO_FULL = msg('En la cuenta de prueba la biblioteca llega hasta {count} imágenes. Borra alguna para subir otra.');
+
 /** Cambios que afectan el sitio publicado (reemplazar, importar una externa). */
 function contentChanged(ctx: BusinessContext) {
   afterCatalogChange(ctx);
@@ -39,6 +49,7 @@ export async function registerMedia(input: UploadedImage & { kind: MediaKind; so
   if (!parsed.success) return fail(msg('Imagen inválida.'));
   const image = parsed.data;
   if (!isPathOwnedBy(image.path, ctx.business.id) || (image.thumbPath && !isPathOwnedBy(image.thumbPath, ctx.business.id))) return fail(msg('Imagen inválida.'));
+  if (await demoLibraryFull(ctx)) return fail((await getT())(DEMO_FULL, { count: DEMO_MEDIA_LIMIT }));
   const folder = (MEDIA_FOLDERS as readonly string[]).includes(input.folder ?? '') ? input.folder! : 'images';
   const name = (input.name || image.alt || input.originalName || 'Imagen').slice(0, 200);
   const { data, error } = await ctx.supabase
@@ -80,6 +91,7 @@ export async function addMediaFromUrl(input: AddFromUrlInput): Promise<ActionRes
   const parsed = addFromUrlSchema.safeParse(input);
   if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? msg('URL inválida.'));
   const { url, mode, ...meta } = parsed.data;
+  if (await demoLibraryFull(ctx)) return fail((await getT())(DEMO_FULL, { count: DEMO_MEDIA_LIMIT }));
   return run(() => (mode === 'external' ? media.addExternal(scopeOf(ctx), url, meta) : media.importFromUrl(scopeOf(ctx), url, meta)), mode === 'external' ? msg('Enlace agregado a la biblioteca') : msg('Imagen importada'));
 }
 

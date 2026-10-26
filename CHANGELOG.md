@@ -4,6 +4,9 @@ Historial por etapas. Cada línea enlaza al pull request donde está el detalle,
 
 ## Octubre 2026 · Plataforma
 
+- Cuenta demo pública: «Probar el panel» abre, sin registro, un negocio de prueba propio con datos de ejemplo que no se publica y se borra a las 24 horas.
+- README en inglés y español con capturas, licencia y repositorio ordenado ([#62](https://github.com/JosueOmar320/catalogo-saas/pull/62)).
+
 - Dominio propio por negocio: DNS guiado, alta por la API de Vercel y el sitio servido en `mitienda.com` ([#61](https://github.com/JosueOmar320/catalogo-saas/pull/61)).
 - Estudio de PDF más claro: un bloque a la vez, agregar por grupos, estado de guardado y vista para el celular ([#60](https://github.com/JosueOmar320/catalogo-saas/pull/60)).
 - Funciones por negocio (el administrador apaga Garfield, PDF, pedidos, estadísticas o importar) y administración más clara ([#59](https://github.com/JosueOmar320/catalogo-saas/pull/59)).

@@ -1,5 +1,6 @@
 import { contactSchema } from '@/lib/business/profile';
 import { catalogSettingsSchema, seoSchema } from '@/lib/catalog/settings';
+import type { AttributeDef } from '@/lib/catalog/attributes';
 import type { DietTag } from '@/lib/catalog/item-attributes';
 import type { CatalogItemView } from '@/lib/catalog/view-model';
 import { env } from '@/lib/env';
@@ -19,13 +20,14 @@ import type { SiteViewModel } from './view-model';
  */
 const photo = (id: string, w = 1200) => `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=${w}&q=70`;
 
-const CATEGORIES = [
-  { id: '00000000-0000-4000-8000-00000000c001', name: 'Café de especialidad', description: 'Granos de origen único, tostados cada semana.', imageUrl: photo('1509042239860-f550ce710b93', 800) },
-  { id: '00000000-0000-4000-8000-00000000c002', name: 'Panadería', description: 'Horneado todas las mañanas.', imageUrl: photo('1509440159596-0249088772ff', 800) },
-  { id: '00000000-0000-4000-8000-00000000c003', name: 'Eventos y cursos', description: 'Llevamos la experiencia a tu evento o empresa.', imageUrl: photo('1511920170033-f8396924c348', 800) },
+const CATEGORY_DATA = [
+  { id: '00000000-0000-4000-8000-00000000c001', name: 'Café de especialidad', description: 'Granos de origen único, tostados cada semana.', photo: '1509042239860-f550ce710b93' },
+  { id: '00000000-0000-4000-8000-00000000c002', name: 'Panadería', description: 'Horneado todas las mañanas.', photo: '1509440159596-0249088772ff' },
+  { id: '00000000-0000-4000-8000-00000000c003', name: 'Eventos y cursos', description: 'Llevamos la experiencia a tu evento o empresa.', photo: '1511920170033-f8396924c348' },
 ];
+const CATEGORIES = CATEGORY_DATA.map(({ photo: id, ...category }) => ({ ...category, imageUrl: photo(id, 800) }));
 
-type SampleItem = {
+export type SampleItem = {
   name: string;
   type?: ItemType;
   category: number;
@@ -64,9 +66,64 @@ const ITEMS: SampleItem[] = [
   { name: 'Café para oficinas', type: 'service', category: 2, short: 'Suscripción mensual con entrega y mantenimiento.', price: null },
 ];
 
+const sampleItemId = (index: number) => `00000000-0000-4000-8000-0000000001${String(index).padStart(2, '0')}`;
+
+/*
+ * Datos del café de ejemplo, también para sembrar la cuenta demo
+ * (lib/demo/seed.ts): mismo negocio, productos, reseñas y ajustes.
+ */
+export const samplePhotoUrl = photo;
+export const SAMPLE_CATEGORIES = CATEGORY_DATA;
+export const SAMPLE_ITEMS = ITEMS;
+
+export const SAMPLE_BUSINESS = {
+  name: 'Café Aurora',
+  description: 'Cafetería de especialidad y panadería artesanal en el corazón de la ciudad.',
+  slogan: 'Café recién tostado, pan recién horneado.',
+  contact: contactSchema.parse({
+    whatsapp: '+52 55 1234 5678',
+    phone: '+52 55 1234 5678',
+    email: 'hola@cafeaurora.mx',
+    address: 'Av. Álvaro Obregón 120',
+    city: 'Ciudad de México',
+    hours: 'Días festivos: 9:00 – 14:00',
+    schedule: {
+      enabled: true,
+      timezone: 'America/Mexico_City',
+      days: [
+        ...Array.from({ length: 5 }, () => ({ open: true, ranges: [{ from: '07:30', to: '20:00' }] })),
+        ...Array.from({ length: 2 }, () => ({ open: true, ranges: [{ from: '08:30', to: '18:00' }] })),
+      ],
+    },
+  }),
+  socialLinks: [
+    { network: 'instagram' as const, url: 'https://instagram.com' },
+    { network: 'facebook' as const, url: 'https://facebook.com' },
+  ],
+};
+
+export function sampleCatalogSettings() {
+  return catalogSettingsSchema.parse({ currency: 'MXN', contactActions: { phone: { enabled: true } }, order: { enabled: true, pickup: true, delivery: true, deliveryFee: 35, freeDeliveryFrom: 300, deliveryNote: 'Zona centro, 30–45 min', payments: ['cash', 'card', 'transfer'], scheduling: 'optional', leadMinutes: 30, tables: true, coupons: [{ code: 'BIENVENIDA', type: 'percent', value: 10, minSubtotal: 100 }] }, reviews: { enabled: true } });
+}
+
+export const SAMPLE_ATTRIBUTE_DEFS: AttributeDef[] = [
+  { id: 'origen', name: 'Origen', type: 'select', unit: '', options: ['Chiapas', 'Veracruz', 'Oaxaca'], filterable: true, showInCard: true, showInDetail: true, showInPdf: true },
+  { id: 'tamano', name: 'Tamaño', type: 'text', unit: '', options: [], filterable: false, showInCard: true, showInDetail: true, showInPdf: true },
+  { id: 'duracion', name: 'Duración', type: 'number', unit: 'h', options: [], filterable: false, showInCard: true, showInDetail: true, showInPdf: true },
+  { id: 'incluye', name: 'Incluye', type: 'list', unit: '', options: [], filterable: false, showInCard: false, showInDetail: true, showInPdf: true },
+];
+
+/** Reseñas de ejemplo (aprobadas): itemIndex es el producto de SAMPLE_ITEMS (null = del negocio). */
+export const SAMPLE_REVIEWS: { id: string; itemIndex: number | null; name: string; rating: number; body: string; createdAt: string; reply?: string }[] = [
+  { id: 'r1', itemIndex: null, name: 'Mariana G.', rating: 5, body: 'El mejor café de la colonia. Siempre amables y el pan recién salido.', createdAt: '2026-10-12T15:00:00Z' },
+  { id: 'r2', itemIndex: 1, name: 'Luis R.', rating: 5, body: 'El latte de avena con un shot extra es mi favorito.', createdAt: '2026-10-10T15:00:00Z' },
+  { id: 'r3', itemIndex: 1, name: 'Sofía P.', rating: 4, body: 'Muy rico, aunque me gusta un poco más caliente.', createdAt: '2026-10-05T15:00:00Z', reply: '¡Gracias, Sofía! Pídelo «extra caliente» y te lo preparamos así.' },
+  { id: 'r4', itemIndex: null, name: 'Jorge M.', rating: 5, body: 'Pedí por WhatsApp para la oficina y llegó a tiempo.', createdAt: '2026-09-28T15:00:00Z' },
+];
+
 function sampleItems(currency: string, url: string): CatalogItemView[] {
   return ITEMS.map((item, index) => ({
-    id: `00000000-0000-4000-8000-0000000001${String(index).padStart(2, '0')}`,
+    id: sampleItemId(index),
     slug: `ejemplo-${index + 1}`,
     type: item.type ?? 'product',
     name: item.name,
@@ -103,7 +160,7 @@ function sampleItems(currency: string, url: string): CatalogItemView[] {
     stock: item.stock ?? null,
     diet: item.diet ?? [],
     season: null,
-    pairings: (item.pairings ?? []).map((i) => `00000000-0000-4000-8000-0000000001${String(i).padStart(2, '0')}`),
+    pairings: (item.pairings ?? []).map(sampleItemId),
     tiers: (item.tiers ?? []).map(([minQty, price]) => ({ minQty, price, priceLabel: formatPrice(price, currency) })),
     variants: item.variants
       ? {
@@ -241,36 +298,17 @@ type SampleOptions = {
 };
 
 export function buildSampleSite(options: SampleOptions = {}): SiteViewModel {
-  const settings = catalogSettingsSchema.parse({ currency: 'MXN', contactActions: { phone: { enabled: true } }, order: { enabled: true, pickup: true, delivery: true, deliveryFee: 35, freeDeliveryFrom: 300, deliveryNote: 'Zona centro, 30–45 min', payments: ['cash', 'card', 'transfer'], scheduling: 'optional', leadMinutes: 30, tables: true, coupons: [{ code: 'BIENVENIDA', type: 'percent', value: 10, minSubtotal: 100 }] }, reviews: { enabled: true } });
+  const settings = sampleCatalogSettings();
   const url = `${env.siteUrl}/demo`;
   const pages = options.pages ?? buildSamplePages();
   return {
     business: {
-      name: options.businessName ?? 'Café Aurora',
+      ...SAMPLE_BUSINESS,
+      name: options.businessName ?? SAMPLE_BUSINESS.name,
       slug: 'demo',
-      description: options.description === undefined ? 'Cafetería de especialidad y panadería artesanal en el corazón de la ciudad.' : options.description,
-      slogan: options.slogan === undefined ? 'Café recién tostado, pan recién horneado.' : options.slogan,
+      description: options.description === undefined ? SAMPLE_BUSINESS.description : options.description,
+      slogan: options.slogan === undefined ? SAMPLE_BUSINESS.slogan : options.slogan,
       logoUrl: options.logoUrl ?? null,
-      contact: contactSchema.parse({
-        whatsapp: '+52 55 1234 5678',
-        phone: '+52 55 1234 5678',
-        email: 'hola@cafeaurora.mx',
-        address: 'Av. Álvaro Obregón 120',
-        city: 'Ciudad de México',
-        hours: 'Días festivos: 9:00 – 14:00',
-        schedule: {
-          enabled: true,
-          timezone: 'America/Mexico_City',
-          days: [
-            ...Array.from({ length: 5 }, () => ({ open: true, ranges: [{ from: '07:30', to: '20:00' }] })),
-            ...Array.from({ length: 2 }, () => ({ open: true, ranges: [{ from: '08:30', to: '18:00' }] })),
-          ],
-        },
-      }),
-      socialLinks: [
-        { network: 'instagram', url: 'https://instagram.com' },
-        { network: 'facebook', url: 'https://facebook.com' },
-      ],
     },
     theme: options.theme ?? applyPreset(DEFAULT_THEME, getPreset('restaurant')),
     settings,
@@ -279,12 +317,7 @@ export function buildSampleSite(options: SampleOptions = {}): SiteViewModel {
     faviconUrl: null,
     categories: CATEGORIES,
     items: sampleItems(settings.currency, url),
-    attributeDefs: [
-      { id: 'origen', name: 'Origen', type: 'select', unit: '', options: ['Chiapas', 'Veracruz', 'Oaxaca'], filterable: true, showInCard: true, showInDetail: true, showInPdf: true },
-      { id: 'tamano', name: 'Tamaño', type: 'text', unit: '', options: [], filterable: false, showInCard: true, showInDetail: true, showInPdf: true },
-      { id: 'duracion', name: 'Duración', type: 'number', unit: 'h', options: [], filterable: false, showInCard: true, showInDetail: true, showInPdf: true },
-      { id: 'incluye', name: 'Incluye', type: 'list', unit: '', options: [], filterable: false, showInCard: false, showInDetail: true, showInPdf: true },
-    ],
+    attributeDefs: SAMPLE_ATTRIBUTE_DEFS,
     pages,
     navigation: navigationFromPages(pages.filter((page) => page.slug !== 'pedido-rapido')),
     showBranding: true,
@@ -292,11 +325,6 @@ export function buildSampleSite(options: SampleOptions = {}): SiteViewModel {
     url,
     publishedAt: null,
     // Reseñas de ejemplo (aprobadas): se ven en la ficha, las tarjetas y la sección de testimonios.
-    reviews: [
-      { id: 'r1', itemId: null, name: 'Mariana G.', rating: 5, body: 'El mejor café de la colonia. Siempre amables y el pan recién salido.', createdAt: '2026-10-12T15:00:00Z' },
-      { id: 'r2', itemId: '00000000-0000-4000-8000-000000000101', name: 'Luis R.', rating: 5, body: 'El latte de avena con un shot extra es mi favorito.', createdAt: '2026-10-10T15:00:00Z' },
-      { id: 'r3', itemId: '00000000-0000-4000-8000-000000000101', name: 'Sofía P.', rating: 4, body: 'Muy rico, aunque me gusta un poco más caliente.', createdAt: '2026-10-05T15:00:00Z', reply: '¡Gracias, Sofía! Pídelo «extra caliente» y te lo preparamos así.' },
-      { id: 'r4', itemId: null, name: 'Jorge M.', rating: 5, body: 'Pedí por WhatsApp para la oficina y llegó a tiempo.', createdAt: '2026-09-28T15:00:00Z' },
-    ],
+    reviews: SAMPLE_REVIEWS.map(({ itemIndex, ...review }) => ({ ...review, itemId: itemIndex === null ? null : sampleItemId(itemIndex) })),
   };
 }

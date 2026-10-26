@@ -28,10 +28,20 @@ function groupBy<T, K>(rows: T[], key: (row: T) => K): Map<K, T[]> {
   return groups;
 }
 
+/*
+ * Las cuentas y negocios de prueba («Probar el panel») no aparecen en la
+ * administración. Se filtran aquí (con «*»): antes de la migración 20261110
+ * las columnas no existen y todo cuenta como real.
+ */
+const isDemoBusiness = (b: object) => Boolean((b as { demo_expires_at?: string | null }).demo_expires_at);
+const isDemoProfile = (p: object) => Boolean((p as { demo?: boolean }).demo);
+
 // Listas completas por páginas (PostgREST corta en 1000 filas).
-const allProfiles = (supabase: ServerSupabase) => fetchAllRows((from, to) => supabase.from('profiles').select('*').order('created_at', { ascending: false }).order('id').range(from, to));
+const allProfiles = (supabase: ServerSupabase) =>
+  fetchAllRows((from, to) => supabase.from('profiles').select('*').order('created_at', { ascending: false }).order('id').range(from, to)).then((rows) => rows.filter((p) => !isDemoProfile(p)));
 const allMembers = (supabase: ServerSupabase) => fetchAllRows((from, to) => supabase.from('business_members').select('business_id, user_id, role').order('business_id').order('user_id').range(from, to));
-const allBusinessNames = (supabase: ServerSupabase) => fetchAllRows((from, to) => supabase.from('businesses').select('id, name').is('deleted_at', null).order('id').range(from, to));
+const allBusinessNames = (supabase: ServerSupabase) =>
+  fetchAllRows((from, to) => supabase.from('businesses').select('*').is('deleted_at', null).order('id').range(from, to)).then((rows) => rows.filter((b) => !isDemoBusiness(b)).map(({ id, name }) => ({ id, name })));
 
 function withBusinesses(profiles: Tables<'profiles'>[], members: { business_id: string; user_id: string; role: MemberRole }[], businesses: { id: string; name: string }[]): AdminUserRow[] {
   const names = new Map(businesses.map((b) => [b.id, b.name]));
@@ -69,7 +79,7 @@ export async function listBusinesses(supabase: ServerSupabase): Promise<AdminBus
   const people = new Map(profiles.map((p) => [p.id, p]));
   const teams = groupBy(members, (m) => m.business_id);
   const catalogsByBusiness = groupBy(catalogs, (c) => c.business_id);
-  return businesses.map((b) => {
+  return businesses.filter((b) => !isDemoBusiness(b)).map((b) => {
     const team = teams.get(b.id) ?? [];
     return {
       ...b,
@@ -86,7 +96,7 @@ export async function getBusinessDetail(supabase: ServerSupabase, id: string) {
     supabase.from('business_members').select('user_id, role, created_at').eq('business_id', id),
     supabase.from('catalogs').select('*').eq('business_id', id).is('deleted_at', null).order('created_at'),
     // El selector "agregar miembro" necesita a todos los usuarios: por páginas.
-    fetchAllRows((from, to) => supabase.from('profiles').select('id, username, full_name, status').order('id').range(from, to)).then((data) => ({ data })),
+    fetchAllRows((from, to) => supabase.from('profiles').select('*').order('id').range(from, to)).then((data) => ({ data: data.filter((p) => !isDemoProfile(p)) })),
     supabase.rpc('admin_catalog_counts'),
   ]);
   if (!business) return null;
@@ -111,10 +121,10 @@ export async function listCatalogs(supabase: ServerSupabase) {
   // Conteos en SQL (antes: se descargaban todas las páginas e ítems de la plataforma para contarlos).
   const [catalogs, businesses, { data: counts }] = await Promise.all([
     fetchAllRows((from, to) => supabase.from('catalogs').select('id, business_id, name, slug, status, is_active, is_default, published_at, updated_at').is('deleted_at', null).order('updated_at', { ascending: false }).order('id').range(from, to)),
-    fetchAllRows((from, to) => supabase.from('businesses').select('id, name, slug, status').is('deleted_at', null).order('id').range(from, to)),
+    fetchAllRows((from, to) => supabase.from('businesses').select('*').is('deleted_at', null).order('id').range(from, to)),
     supabase.rpc('admin_catalog_counts'),
   ]);
-  const byBusiness = new Map(businesses.map((b) => [b.id, b]));
+  const byBusiness = new Map(businesses.filter((b) => !isDemoBusiness(b)).map(({ id, name, slug, status }) => [id, { id, name, slug, status }]));
   const totals = new Map((counts ?? []).map((c) => [c.catalog_id, c]));
   return catalogs.flatMap((c) => {
     const business = byBusiness.get(c.business_id);
@@ -160,12 +170,14 @@ export async function listAudit(supabase: ServerSupabase, { limit = 50, offset =
 export async function listMedia(supabase: ServerSupabase, { businessId, limit = 60 }: { businessId?: string; limit?: number } = {}) {
   let query = supabase.from('media_assets').select('*').is('deleted_at', null).order('created_at', { ascending: false }).limit(limit);
   if (businessId) query = query.eq('business_id', businessId);
-  const [{ data: assets }, { data: businesses }] = await Promise.all([query, supabase.from('businesses').select('id, name')]);
+  const [{ data: assets }, { data: businesses }] = await Promise.all([query, supabase.from('businesses').select('*')]);
   const names = new Map((businesses ?? []).map((b) => [b.id, b.name]));
-  return (assets ?? []).map((a) => ({ ...a, url: publicStorageUrl(a.thumb_path ?? a.path)!, businessName: names.get(a.business_id) ?? '—' }));
+  const demos = new Set((businesses ?? []).filter(isDemoBusiness).map((b) => b.id));
+  return (assets ?? []).filter((a) => !demos.has(a.business_id)).map((a) => ({ ...a, url: publicStorageUrl(a.thumb_path ?? a.path)!, businessName: names.get(a.business_id) ?? '—' }));
 }
 
 export async function listPlans(supabase: ServerSupabase) {
-  const { data } = await supabase.from('plans').select('id, name, limits, features').order('sort_order');
+  // El plan «demo» es sólo de las cuentas de prueba: no se asigna ni se edita.
+  const { data } = await supabase.from('plans').select('id, name, limits, features').neq('id', 'demo').order('sort_order');
   return data ?? [];
 }

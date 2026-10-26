@@ -18,6 +18,8 @@ export type DashboardInfo = {
   siteKind: SiteKind;
   /** Funciones encendidas para este negocio (las decide el administrador). */
   features: BusinessFeatures;
+  /** Cuenta de prueba de «Probar el panel» (no se publica). */
+  demo: boolean;
 };
 
 const DashboardContext = createContext<DashboardInfo | null>(null);

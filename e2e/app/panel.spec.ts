@@ -1752,3 +1752,69 @@ test('dominio propio: según el plan, el administrador lo enciende y el sitio se
   await page.getByRole('group', { name: 'Dominio propio' }).getByRole('button', { name: /^Plan / }).click();
   await expect(page.getByRole('group', { name: 'Dominio propio' }).getByRole('button', { name: /^Plan / })).toHaveAttribute('aria-pressed', 'true');
 });
+
+test('cuenta demo: «Probar el panel» entra sin registro a un negocio de prueba propio, que no se publica ni se ve en la administración y se borra', async ({ page, browser }) => {
+  test.setTimeout(120_000);
+  const visitor = await browser.newContext({ ...ANONYMOUS, viewport: { width: 1440, height: 900 } });
+  const demo = await visitor.newPage();
+  await demo.goto('/');
+  await demo.getByRole('button', { name: 'Probar el panel' }).click();
+  await expect(demo).toHaveURL(/\/dashboard\?bienvenida=demo$/, { timeout: 60_000 });
+  await expect(demo.getByText('Cuenta de prueba.')).toBeVisible();
+  await expect(demo.getByText('Recorrido sugerido')).toBeVisible();
+  await expect(demo.getByRole('heading', { level: 1, name: 'Hola, Café Aurora' })).toBeVisible();
+
+  // Con vida: productos, pedidos, reseñas y estadísticas de ejemplo.
+  await demo.goto('/dashboard/catalog/products');
+  await expect(demo.getByText('Latte de avena').first()).toBeVisible();
+  await demo.goto('/dashboard/pedidos');
+  await expect(demo.getByText('Oficina Roma Norte').first()).toBeVisible();
+  await demo.goto('/dashboard/resenas');
+  await expect(demo.getByText('El croissant estaba perfecto, crujiente por fuera y suave por dentro.').first()).toBeVisible();
+  await demo.goto('/dashboard/estadisticas');
+  await expect(demo.getByText('Instagram').first()).toBeVisible();
+  if (process.env.README_SHOTS) {
+    // Capturas del README (README_SHOTS=1 npm run test:e2e:app -- -g "cuenta demo").
+    await demo.screenshot({ path: 'docs/images/panel-stats.jpg', type: 'jpeg', quality: 82 });
+    for (const [path, name] of [['/dashboard', 'panel-home'], ['/dashboard/pedidos', 'panel-orders'], ['/dashboard/sitio', 'panel-editor']] as const) {
+      await demo.goto(path);
+      await demo.waitForLoadState('networkidle');
+      await demo.screenshot({ path: `docs/images/${name}.jpg`, type: 'jpeg', quality: 82 });
+    }
+  }
+
+  // No se publica: se explica y el botón queda apagado.
+  await demo.goto('/dashboard/settings/publicacion');
+  await expect(demo.getByText('En la cuenta de prueba el sitio no se publica. Usa «Vista previa» para verlo como tus clientes.')).toBeVisible();
+  await expect(demo.getByRole('button', { name: 'Publicar catálogo' })).toBeDisabled();
+
+  // La administración no ve cuentas ni negocios de prueba.
+  await page.goto('/admin/negocios');
+  await expect(page.getByRole('heading', { level: 1, name: 'Negocios' })).toBeVisible();
+  await expect(page.getByRole('row', { name: /Café Aurora/ })).toHaveCount(0);
+  await page.goto('/admin/usuarios');
+  await expect(page.getByText(/^@?demo-[0-9a-f]{8}$/)).toHaveCount(0);
+
+  // «Salir y borrar»: vuelve al inicio y la cuenta ya no existe.
+  await demo.goto('/dashboard');
+  await demo.getByRole('button', { name: 'Salir y borrar' }).click();
+  await expect(demo).toHaveURL(/\/$/);
+  await demo.goto('/dashboard');
+  await expect(demo).toHaveURL(/\/login/);
+
+  // Una demo vencida la borra el cron diario (con su archivos y su cuenta).
+  await demo.goto('/');
+  await demo.getByRole('button', { name: 'Probar el panel' }).click();
+  await expect(demo).toHaveURL(/\/dashboard\?bienvenida=demo$/, { timeout: 60_000 });
+  const db = (path: string, init: RequestInit = {}) =>
+    fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/${path}`, { ...init, headers: { apikey: process.env.SUPABASE_SECRET_KEY!, Authorization: `Bearer ${process.env.SUPABASE_SECRET_KEY}`, 'Content-Type': 'application/json', ...init.headers } });
+  const expire = await db('businesses?demo_expires_at=not.is.null', { method: 'PATCH', body: JSON.stringify({ demo_expires_at: new Date(Date.now() - 60_000).toISOString() }) });
+  expect(expire.status).toBeLessThan(300);
+  const cron = await visitor.request.get('/api/cron/demo-cleanup', { headers: { Authorization: `Bearer ${process.env.CRON_SECRET}` } });
+  expect(await cron.json()).toEqual({ purged: 1 });
+  expect(await (await db('businesses?select=id&demo_expires_at=not.is.null')).json()).toEqual([]);
+  expect((await visitor.request.get('/api/cron/demo-cleanup')).status()).toBe(401);
+  await demo.goto('/dashboard');
+  await expect(demo).toHaveURL(/\/login/);
+  await visitor.close();
+});

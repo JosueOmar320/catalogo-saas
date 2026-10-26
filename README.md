@@ -11,7 +11,7 @@
 
 A multi-tenant SaaS where a small business (a café, a hardware store, a service studio…) builds its own website **without code**. The site doubles as a **product and service catalog** that takes orders over WhatsApp, and exports to a **print-ready PDF**. **Garfield**, an AI assistant, edits the site from plain-language requests.
 
-**Live demo:** [sample site](https://catalogo-saas-nu.vercel.app/demo) · [PDF catalog](https://catalogo-saas-nu.vercel.app/demo/pdf) · [landing page](https://catalogo-saas-nu.vercel.app)
+**Live demo:** [try the dashboard](https://catalogo-saas-nu.vercel.app) (no sign-up: «Probar el panel» opens your own test business, deleted after 24 h) · [sample site](https://catalogo-saas-nu.vercel.app/demo) · [PDF catalog](https://catalogo-saas-nu.vercel.app/demo/pdf)
 
 ![Sample site built with Vitrina](docs/images/site-home.jpg)
 
@@ -25,6 +25,19 @@ A multi-tenant SaaS where a small business (a café, a hardware store, a service
   <tr>
     <td width="80%"><img src="docs/images/pdf-catalog.jpg" alt="PDF catalog generated from the same site" /></td>
     <td width="20%"><img src="docs/images/site-mobile.jpg" alt="The catalog on a phone" /></td>
+  </tr>
+</table>
+
+### The dashboard
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/panel-editor.jpg" alt="Site editor with live preview and Garfield" /></td>
+    <td width="50%"><img src="docs/images/panel-home.jpg" alt="Dashboard home of the test account" /></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/images/panel-orders.jpg" alt="Order inbox with WhatsApp orders" /></td>
+    <td width="50%"><img src="docs/images/panel-stats.jpg" alt="Sales funnel and traffic sources" /></td>
   </tr>
 </table>
 
@@ -46,6 +59,7 @@ A multi-tenant SaaS where a small business (a café, a hardware store, a service
   - custom domains (`mystore.com`, provisioned through the Vercel API)
   - sandboxed custom HTML, CSS and widgets
   - Spanish and English UI
+  - a public demo account: each visitor gets a private, pre-filled test business that can't be published and is purged after 24 hours
 
 Every feature, area by area: [docs/FUNCIONALIDADES.md](docs/FUNCIONALIDADES.md) (Spanish).
 
@@ -53,13 +67,14 @@ Every feature, area by area: [docs/FUNCIONALIDADES.md](docs/FUNCIONALIDADES.md) 
 
 | Topic | Decision | Why |
 | --- | --- | --- |
-| Multi-tenant isolation | Row Level Security on all 26 tables and on Storage, composite foreign keys `(business_id, id)`, and `SECURITY DEFINER` functions with an empty `search_path` for privileged operations. | A bug in the app, or a direct call to the REST API, cannot cross tenants. 417 database tests run every migration on real Postgres (PGlite) and check it. |
+| Multi-tenant isolation | Row Level Security on all 26 tables and on Storage, composite foreign keys `(business_id, id)`, and `SECURITY DEFINER` functions with an empty `search_path` for privileged operations. | A bug in the app, or a direct call to the REST API, cannot cross tenants. 436 database tests run every migration on real Postgres (PGlite) and check it. |
 | Public site performance | One RPC per business (`get_public_catalog`), cached with ISR and a per-business tag. The anonymous role cannot read tables. The public bundle stays free of Zod (enforced by a test). | An uncached visit costs a single database call, and publishing invalidates only that business. |
 | One model, two renderers | The same sections and design tokens render to React on the web and to `@react-pdf/renderer`. | The PDF always matches the site, and there is a single design system to maintain. |
 | Safe saves | The editor works in memory and saves in one transaction with optimistic versioning (`site_version`). | No half-saved states, and two people can't silently overwrite each other. |
 | Constrained AI | The model returns typed actions (Zod) that go through the same reducer and permissions as the UI. It works without an API key. | A malicious prompt can't do anything the user couldn't already do. |
 | Untrusted code | Custom HTML is sanitized on the server. Scripts run only inside a sandboxed `srcdoc` iframe without `allow-same-origin`. Custom CSS is scoped to the site. | Every tenant shares one origin with the dashboard, so tenant scripts must never run on it. |
 | Custom domains | `proxy.ts` resolves the host to a business (cached lookup) and rewrites to the same cached pages. Domains are added and verified through the Vercel API. | One deployment serves every tenant's domain. The proxy runs on platform hosts only where a session is needed, so the public catalog stays cheap. |
+| Public demo | Each visitor gets a private test business (created with the service role, seeded with orders and 60 days of analytics). It can't be published (a database trigger), stays out of the admin and the audit log, is rate-limited, and is purged by a daily cron. | Recruiters and clients can try the real dashboard without an account, and nothing they write ever becomes public. |
 | Hardened inputs | SSRF-safe downloads (the IP is checked at connect time), CSV formula neutralization, rate-limited login, strict security headers. | These are the usual SaaS attack surfaces, each covered by tests. |
 
 More detail, in Spanish: [architecture](docs/ARQUITECTURA.md) · [setup, deployment, testing and security guide](docs/GUIA.md) · [i18n](docs/I18N.md) · [Garfield AI](docs/GARFIELD-AI.md).
@@ -83,10 +98,10 @@ flowchart LR
 
 | Layer | Tests | What they cover |
 | --- | --- | --- |
-| Database | 417 | Every migration in order, RLS per table and role, plan limits, admin RPCs, audit log, retention, custom domains. Runs on PGlite, no Docker needed. |
-| Unit | 463 | Security (SSRF, redirects, storage paths), editor reducer, Garfield router and executors, PDF, orders, analytics, domains. Line coverage is 94%. |
+| Database | 436 | Every migration in order, RLS per table and role, plan limits, admin RPCs, audit log, retention, custom domains. Runs on PGlite, no Docker needed. |
+| Unit | 472 | Security (SSRF, redirects, storage paths), editor reducer, Garfield router and executors, PDF, orders, analytics, domains. Line coverage is 94%. |
 | End-to-end | 58 | Public site, landing and ordering on desktop and mobile, with automated accessibility checks (axe, WCAG 2.1 AA). |
-| End-to-end, signed in | 48 | Full flows against a local Supabase in Docker: admin creates a business, owner publishes, a visitor orders, inbox, analytics, custom domain. |
+| End-to-end, signed in | 49 | Full flows against a local Supabase in Docker: admin creates a business, owner publishes, a visitor orders, inbox, analytics, custom domain, demo account. |
 
 CI runs on every pull request: typecheck and lint, all of the tests above, a production build, `npm audit`, dependency review, gitleaks and CodeQL. Dependabot keeps dependencies current. No job needs secrets.
 

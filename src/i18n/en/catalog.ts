@@ -951,6 +951,28 @@ const catalog: Catalog = {
   'Falta el DNS': 'DNS pending',
   'Conectado': 'Connected',
   'En pausa': 'Paused',
+
+  // Cuenta demo
+  'Salir y borrar': 'Exit and delete',
+  'Cuenta de prueba.': 'Test account.',
+  'Cambia lo que quieras: nada de esto es público y se borra en menos de una hora.': 'Change anything you like: none of this is public and it is deleted in less than an hour.',
+  'Cambia lo que quieras: nada de esto es público y se borra en {hours} h.': 'Change anything you like: none of this is public and it is deleted in {hours} h.',
+  'Edita el sitio': 'Edit the site',
+  'Cambia textos, colores, secciones y el menú, con vista previa en celular.': 'Change texts, colors, sections and the menu, with a phone preview.',
+  'Pídele algo a Garfield': 'Ask Garfield for something',
+  'En el editor: «agrega una sección de preguntas frecuentes» o «cambia a un estilo oscuro».': 'In the editor: “add an FAQ section” or “switch to a dark style”.',
+  'Revisa los pedidos': 'Check the orders',
+  'Pedidos de ejemplo por WhatsApp: confírmalos, márcalos como listos o entregados.': 'Sample WhatsApp orders: confirm them, mark them ready or delivered.',
+  'Mira las estadísticas': 'Look at the analytics',
+  'Visitas, de dónde llegan y cuántas terminan en pedido, contra el periodo anterior.': 'Visits, where they come from and how many end in an order, against the previous period.',
+  'Administra los productos': 'Manage the products',
+  'Opciones, extras, precios por mayoreo, existencias y margen.': 'Options, extras, wholesale prices, stock and margin.',
+  'Descarga el catálogo en PDF': 'Download the PDF catalog',
+  'Se arma con el mismo diseño del sitio.': 'It uses the same design as the site.',
+  'Recorrido sugerido': 'Suggested tour',
+  'Este es un negocio de ejemplo con datos de prueba. Toca cualquier parada.': 'This is a sample business with test data. Tap any stop.',
+  'En la cuenta de prueba la biblioteca llega hasta {count} imágenes. Borra alguna para subir otra.': 'In the test account the library holds up to {count} images. Delete one to upload another.',
+  'En la cuenta de prueba el sitio no se publica. Usa «Vista previa» para verlo como tus clientes.': 'The test account\'s site is not published. Use “Preview” to see it as your customers would.',
 };
 
 export default catalog;

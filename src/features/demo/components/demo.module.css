@@ -1,0 +1,23 @@
+/* «Probar el panel» como enlace (debajo del login). */
+.linkButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--mui-palette-primary-main, #1d4ed8);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.linkButton:disabled {
+  cursor: progress;
+  opacity: 0.75;
+}
+
+.error {
+  margin: 6px 0 0;
+  color: var(--mui-palette-error-main, #b42318);
+}

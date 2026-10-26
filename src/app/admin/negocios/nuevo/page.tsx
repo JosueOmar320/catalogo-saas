@@ -12,12 +12,13 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function NewBusinessPage({ searchParams }: PageProps<'/admin/negocios/nuevo'>) {
   const { supabase } = await requirePlatformAdmin();
-  const [{ owner }, { data: users }, plans, t] = await Promise.all([searchParams, supabase.from('profiles').select('id, username, full_name, status').order('username'), listPlans(supabase), getT()]);
+  const [{ owner }, { data: users }, plans, t] = await Promise.all([searchParams, supabase.from('profiles').select('*').order('username'), listPlans(supabase), getT()]);
   return (
     <>
       <PageHeader title={t('Nuevo negocio')} back={{ href: '/admin/negocios', label: t('Negocios') }} />
       <CreateBusinessForm
-        users={(users ?? []).map((u) => ({ id: u.id, username: u.username, fullName: u.full_name, status: u.status }))}
+        // Sin cuentas de prueba («*»: antes de la migración 20261110 no existe la columna).
+        users={(users ?? []).filter((u) => !(u as { demo?: boolean }).demo).map((u) => ({ id: u.id, username: u.username, fullName: u.full_name, status: u.status }))}
         plans={plans.map((p) => ({ id: p.id, name: p.name }))}
         defaultOwner={typeof owner === 'string' ? owner : undefined}
       />

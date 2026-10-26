@@ -519,6 +519,14 @@ const catalog: Catalog = {
   'Importar productos': 'Import products',
   'Subir productos desde un archivo CSV o Excel.': 'Upload products from a CSV or Excel file.',
   'Oculta': 'Hidden',
+
+  // Cuenta demo
+  '¿Sólo quieres mirar?': 'Just looking around?',
+  'En la cuenta de prueba no se cambia la contraseña.': 'The password can\'t be changed in the test account.',
+  'La cuenta de prueba no está disponible por ahora.': 'The test account is not available right now.',
+  'Hay muchas personas probando el panel. Intenta de nuevo en un rato.': 'Lots of people are trying the dashboard right now. Try again in a while.',
+  'No se pudo preparar la cuenta de prueba. Intenta de nuevo.': 'Could not prepare the test account. Try again.',
+  'Ya creaste varias cuentas de prueba. Usa la que tienes abierta o intenta en una hora.': 'You already created several test accounts. Use the one you have open or try again in an hour.',
 };
 
 export default catalog;

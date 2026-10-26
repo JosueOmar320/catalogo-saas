@@ -11,6 +11,9 @@ import { checkRateLimit } from './rate-limit';
 const MAX_BODY = 40_000;
 /** Cupo diario por usuario, compartido por todas las rutas: Garfield es uno solo. */
 const DAILY_REQUESTS = 300;
+/** Cuentas de prueba («Probar el panel»): menos por cuenta y un tope entre todas (cada visitante tiene la suya). */
+const DEMO_DAILY_REQUESTS = 40;
+const DEMO_DAILY_TOTAL = 500;
 
 type Guarded<T> = { ok: true; ctx: BusinessContext; data: T; t: Translator; locale: Locale } | { ok: false; response: NextResponse };
 
@@ -37,7 +40,8 @@ export async function guardAssistantRequest<S extends z.ZodType>(request: NextRe
 
   const limit = checkRateLimit(ctx.userId);
   if (!limit.ok) return fail(429, t('Garfield necesita una siesta corta. Intenta en {seconds} s.', { seconds: limit.retryAfter }), { 'Retry-After': String(limit.retryAfter) });
-  if (!(await consumeRateLimit(`assistant:${ctx.userId}`, DAILY_REQUESTS, 86_400))) return fail(429, t('Garfield ya trabajó mucho hoy. Vuelve mañana o sigue editando a mano.'), { 'Retry-After': '3600' });
+  if (!(await consumeRateLimit(`assistant:${ctx.userId}`, ctx.demoExpiresAt ? DEMO_DAILY_REQUESTS : DAILY_REQUESTS, 86_400))) return fail(429, t('Garfield ya trabajó mucho hoy. Vuelve mañana o sigue editando a mano.'), { 'Retry-After': '3600' });
+  if (ctx.demoExpiresAt && !(await consumeRateLimit('assistant:demo', DEMO_DAILY_TOTAL, 86_400))) return fail(429, t('Garfield ya trabajó mucho hoy. Vuelve mañana o sigue editando a mano.'), { 'Retry-After': '3600' });
 
   if (Number(request.headers.get('content-length') ?? 0) > maxBody) return fail(413, t('El pedido es demasiado grande.'));
   const raw = await request.text();

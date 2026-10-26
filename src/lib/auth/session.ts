@@ -60,6 +60,8 @@ export type BusinessContext = {
   customDomain: string | null;
   /** Raíz pública del sitio: su dominio propio activo o /catalogo/<negocio>. */
   publicUrl: string;
+  /** Negocio de prueba de «Probar el panel»: cuándo se borra (null = negocio real). */
+  demoExpiresAt: string | null;
 };
 
 /**
@@ -124,6 +126,7 @@ export const getBusinessContext = cache(async (): Promise<BusinessContext | null
     features,
     customDomain,
     publicUrl: catalogUrl(business.slug, customDomain),
+    demoExpiresAt: business.demo_expires_at ?? null,
   };
 });
 

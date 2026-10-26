@@ -14,7 +14,7 @@ import { useDashboard } from './DashboardContext';
 /** Estado del catálogo + acción principal de publicar. */
 export function PublishControl() {
   const t = useT();
-  const { catalogStatus, publicUrl, canManage } = useDashboard();
+  const { catalogStatus, publicUrl, canManage, demo } = useDashboard();
   const router = useRouter();
   const confirm = useConfirm();
   const { run, pending } = useAction();
@@ -58,9 +58,9 @@ export function PublishControl() {
           <Button variant="outlined" color="inherit" href="/preview" target="_blank">
             {t('Vista previa')}
           </Button>
-          <Tooltip title={canManage ? '' : t('Sólo el dueño o un administrador puede publicar')}>
+          <Tooltip title={demo ? t('En la cuenta de prueba el sitio no se publica. Usa «Vista previa» para verlo como tus clientes.') : canManage ? '' : t('Sólo el dueño o un administrador puede publicar')}>
             <span>
-              <Button variant="contained" startIcon={<Rocket size={14} />} onClick={publish} disabled={pending || !canManage}>
+              <Button variant="contained" startIcon={<Rocket size={14} />} onClick={publish} disabled={pending || !canManage || demo}>
                 {pending ? t('Publicando…') : t('Publicar')}
               </Button>
             </span>
