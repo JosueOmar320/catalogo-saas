@@ -2,6 +2,17 @@
   "name": "catalogo-saas",
   "version": "0.1.0",
   "private": true,
+  "description": "Multi-tenant SaaS to build a website, product catalog and PDF for small businesses, with an AI assistant. Next.js 16 + Supabase (RLS).",
+  "author": "Josue Flores (https://github.com/JosueOmar320)",
+  "license": "UNLICENSED",
+  "homepage": "https://catalogo-saas-nu.vercel.app",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JosueOmar320/catalogo-saas.git"
+  },
+  "bugs": {
+    "url": "https://github.com/JosueOmar320/catalogo-saas/issues"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -18,7 +29,8 @@
     "test:e2e:app": "node scripts/e2e-app.mjs",
     "check": "npm run typecheck && npm run lint && npm run test:unit && npm run test:db",
     "db:types": "npx supabase gen types typescript --project-id \"$SUPABASE_PROJECT_ID\" --schema public > src/types/database.generated.ts",
-    "admin:create": "node --env-file=.env.local scripts/create-admin.mjs"
+    "admin:create": "node --env-file=.env.local scripts/create-admin.mjs",
+    "screenshots": "node scripts/screenshots.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.135.0",

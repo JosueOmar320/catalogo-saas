@@ -1,6 +1,6 @@
 # Vitrina: arquitectura (v5: medios, Garfield híbrido, composición y PDF)
 
-> Auditoría de la v1 y plan de la v2: [AUDITORIA-V2.md](AUDITORIA-V2.md). Análisis de los catálogos PDF de referencia y propuesta de la v3: [ANALISIS-CATALOGOS-PDF.md](ANALISIS-CATALOGOS-PDF.md). Auditoría y propuesta de la v4: [AUDITORIA-V4.md](AUDITORIA-V4.md). Auditoría y propuesta de la v5: [AUDITORIA-V5.md](AUDITORIA-V5.md).
+> Auditoría de la v1 y plan de la v2: [auditorias/AUDITORIA-V2.md](auditorias/AUDITORIA-V2.md). Análisis de los catálogos PDF de referencia y propuesta de la v3: [auditorias/ANALISIS-CATALOGOS-PDF.md](auditorias/ANALISIS-CATALOGOS-PDF.md). Auditoría y propuesta de la v4: [auditorias/AUDITORIA-V4.md](auditorias/AUDITORIA-V4.md). Auditoría y propuesta de la v5: [auditorias/AUDITORIA-V5.md](auditorias/AUDITORIA-V5.md).
 
 ## Concepto
 

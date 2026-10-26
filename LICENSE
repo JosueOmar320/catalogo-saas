@@ -1,0 +1,27 @@
+Copyright (c) 2026 Josue Flores. All rights reserved.
+
+This repository and all of its contents (source code, database migrations,
+documentation, designs and images) are the exclusive property of the copyright
+holder.
+
+The source code is made publicly visible for review and portfolio purposes only.
+Viewing it on GitHub does not grant any license. Without prior written
+permission from the copyright holder, you may not:
+
+  - copy, reproduce or fork this software for any use other than viewing it on
+    GitHub;
+  - modify it or create derivative works;
+  - distribute, sublicense, sell or host it, or offer it as a service;
+  - use it, in whole or in part, for any commercial or production purpose.
+
+Third-party components keep their own licenses (see package.json and each
+dependency's license file).
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHOR BE
+LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR ITS USE.
+
+For licensing inquiries, contact the author through GitHub:
+https://github.com/JosueOmar320
