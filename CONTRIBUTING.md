@@ -1,5 +1,7 @@
 # Cómo contribuir
 
+> Este proyecto no es de código abierto (ver [LICENSE](LICENSE)): el código es público para revisión y portafolio. Los reportes de errores y propuestas son bienvenidos como issues; para contribuir código, abre primero un issue y espera confirmación. Toda contribución aceptada queda bajo los mismos términos de la licencia.
+
 ## Preparar el entorno
 
 ```bash
@@ -14,7 +16,7 @@ npm ci
 npm run dev
 ```
 
-`/demo` y `/demo/pdf` funcionan sin Supabase. Para el panel, sigue *Configurar Supabase* en el [README](README.md).
+`/demo` y `/demo/pdf` funcionan sin Supabase. Para el panel, sigue *Configurar Supabase* en la [guía técnica](docs/GUIA.md#configurar-supabase).
 
 ## Antes de abrir un pull request
 

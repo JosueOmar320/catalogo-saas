@@ -6443,6 +6443,57 @@ a.serviceLink:hover .serviceTitle {
   min-width: 0;
 }
 
+/* Categorías y tipo (Productos · Servicios) son una sola fila: en el celular se desliza
+   entera (sin repartir el ancho a la mitad, que cortaba los nombres) y en pantallas anchas
+   cada grupo ocupa lo que necesita y, si no cabe, baja de línea. */
+.toolbarCats {
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin: 0 calc(var(--gutter) * -1);
+  padding: 0 var(--gutter);
+}
+
+.toolbarCats::-webkit-scrollbar {
+  display: none;
+}
+
+.toolbarCats > .chips {
+  flex: none;
+  overflow-x: visible;
+  margin: 0;
+  padding: 0;
+}
+
+@container site (min-width: 720px) {
+  .toolbarCats {
+    flex-wrap: wrap;
+    overflow-x: visible;
+    margin: 0;
+    padding: 0;
+  }
+
+  .toolbarCats > .chips {
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+  }
+}
+
+/* Tableta: entre el buscador y los filtros no hay lugar; las categorías van en su propia fila. */
+@container site (min-width: 720px) and (max-width: 1023px) {
+  .toolbarRow {
+    flex-wrap: wrap;
+  }
+
+  .toolbarRow > .toolbarCats {
+    order: 3;
+    flex-basis: 100%;
+  }
+
+  .toolbarRow > .toolbarEnd {
+    margin-inline-start: auto;
+  }
+}
+
 .catCount {
   margin-inline-start: 6px;
   font-size: 0.85em;

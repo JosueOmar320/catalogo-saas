@@ -1,0 +1,31 @@
+name: Reportar un error
+description: Algo no funciona como debería.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: Qué pasó
+      description: Qué esperabas y qué viste en cambio.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Pasos para reproducirlo
+      placeholder: |
+        1. Entra a …
+        2. Toca …
+        3. Aparece …
+    validations:
+      required: true
+  - type: input
+    id: where
+    attributes:
+      label: Dónde
+      description: Ruta o pantalla (por ejemplo /dashboard/sitio o el sitio publicado) y navegador.
+  - type: textarea
+    id: extra
+    attributes:
+      label: Capturas o mensajes de error
+      description: Si el error muestra un código, inclúyelo. No pegues datos personales ni claves.

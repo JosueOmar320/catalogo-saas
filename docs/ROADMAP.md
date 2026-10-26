@@ -1,23 +1,22 @@
 # Roadmap
 
+Ya hechos y fuera de esta lista: dominio propio por negocio, interfaz en español e inglés, ajustes de tablet, historial de versiones, bandeja de pedidos y estadísticas (ver [CHANGELOG](../CHANGELOG.md)).
+
 ## Pendiente (fuera del MVP, el modelo ya lo soporta)
 
 | Funcionalidad | Cómo encaja en la arquitectura actual |
 | --- | --- |
 | **Arrastrar y soltar en la preview** | Hoy se reordena en el panel (arrastrar o flechas) y se selecciona una sección haciendo clic en la preview. Arrastrar dentro de la preview es el siguiente paso natural. |
-| **Estilos por breakpoint más finos** | Hoy: columnas y visibilidad por dispositivo, tamaños de texto de escritorio y móvil (v4), padding y alineación sólo en celular y columnas apiladas/invertidas (v5). Siguiente: ajustes de tablet. |
 | **Video subido** | El hero acepta una URL .mp4. Subir video a Storage requiere otro perfil de media (tamaño, formatos). |
 | **Más plantillas de sitio** | v5 trae 10. Agregar una = otra entrada en `lib/site/templates.ts` (tema + páginas + secciones existentes). |
 | **Draft → Preview → Publish con snapshot** | Tabla `catalog_publications (catalog_id, snapshot jsonb, published_at)`. Publicar guarda el resultado de `get_public_catalog`; la página pública lee el snapshot. Hoy los cambios guardados son visibles de inmediato (los ítems y categorías tienen su propio interruptor de visibilidad). |
 | **Billing (Stripe)** | Tabla `subscriptions` + webhook en un Route Handler que actualiza `businesses.plan_id` (con service role, ya que el usuario no puede cambiarlo; hoy lo cambia el administrador en `/admin/negocios`). `lib/plans` ya centraliza límites y features. |
-| **Dominios personalizados** | Tabla `business_domains (domain, business_id, verified_at)` + en `proxy.ts`, reescribir `host → /catalogo/[slug]`. Vercel Domains API para el alta. |
 | **Equipos (plan Business)** | `business_members` y `has_business_role` ya existen, y el administrador asigna usuarios a negocios con rol (v4). Falta que el dueño invite a su propio equipo (tabla `invitations` + límite por plan). |
 | **Varios catálogos por negocio** | El administrador ya crea, activa y elige el catálogo principal (v4). Falta que el editor trabaje sobre un catálogo elegido (hoy siempre el principal) y la ruta `/catalogo/[negocio]/[catalogo]`. |
 | **Más acciones de contacto** | Agregar la clave en `contactActionsSchema` y su definición en `lib/contact/actions.ts` (link externo, formulario, reservación, compra). |
 | **Más secciones, estilos, fuentes, plantillas PDF** | Ver "Registros extensibles" en ARQUITECTURA.md: cada uno se agrega en un registro y TypeScript obliga a completar web, editor y PDF. |
 | **Papelera** | Ítems y categorías usan `deleted_at`: sólo falta la vista para restaurar y un job que purgue imágenes. |
 | **Limpieza de Storage** | La biblioteca ya sabe qué se usa (`media_references`). Falta un job programado que borre archivos sin registro ni uso (subidas abandonadas). |
-| **i18n** | Los textos están en español en los componentes. Extraerlos a diccionarios cuando se venda fuera de LATAM. |
 | **PDF en background** | Para catálogos de miles de ítems: generar en una cola, guardar en Storage y notificar. |
 
 ## Siguientes pasos del constructor de catálogos (v3)

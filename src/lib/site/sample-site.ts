@@ -71,7 +71,8 @@ function sampleItems(currency: string, url: string): CatalogItemView[] {
     type: item.type ?? 'product',
     name: item.name,
     shortDescription: item.short,
-    description: `${item.short}\n\nEste es un ítem de ejemplo. Cuando agregues tus productos y servicios aparecerán aquí.`,
+    // La ficha ya muestra la descripción corta arriba: la larga no la repite.
+    description: 'Este es un ítem de ejemplo. Cuando agregues tus productos y servicios aparecerán aquí.',
     price: item.price,
     compareAtPrice: item.compareAt ?? null,
     currency,
