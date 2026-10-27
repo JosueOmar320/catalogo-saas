@@ -14,12 +14,19 @@ import { LandingControls } from './LandingControls';
 import styles from './landing.module.css';
 
 const REPO_URL = 'https://github.com/JosueOmar320/catalogo-saas';
+const OG_IMAGE = '/social/vitrina-og.jpg';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
+  const title = t('{app} · Sitio web, catálogo y PDF para pequeños negocios', { app: env.appName });
+  const description = t('Crea el sitio web, el catálogo de productos y el PDF de tu negocio sin código. Con asistente de IA, modo oscuro y en español o inglés.');
+  // Vista previa al compartir el enlace (LinkedIn, WhatsApp, X). Sólo la landing: los catálogos usan la suya.
+  const image = { url: OG_IMAGE, width: 1200, height: 630, alt: t('El panel de {app} con Garfield, el sitio en el celular y el catálogo PDF', { app: env.appName }) };
   return {
-    title: { absolute: t('{app} · Sitio web, catálogo y PDF para pequeños negocios', { app: env.appName }) },
-    description: t('Crea el sitio web, el catálogo de productos y el PDF de tu negocio sin código. Con asistente de IA, modo oscuro y en español o inglés.'),
+    title: { absolute: title },
+    description,
+    openGraph: { type: 'website', url: '/', siteName: env.appName, title, description, images: [image] },
+    twitter: { card: 'summary_large_image', title, description, images: [image] },
   };
 }
 
