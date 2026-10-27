@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../support/test';
 import sharp from 'sharp';
 import { unsubscribeToken } from '../../src/lib/email/links';
 import { admin, login } from './session';
