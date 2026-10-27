@@ -14,5 +14,7 @@ export async function expectAccessible(page: Page, label: string) {
   });
   const { violations } = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
   const report = violations.map((v) => `${label} · ${v.id} (${v.impact}): ${v.help}\n${v.nodes.map((n) => `   ${n.target.join(' ')}`).join('\n')}`);
-  expect(report, report.join('\n\n')).toEqual([]);
+  // El detalle (HTML del elemento y por qué falla) va en el mensaje: las clases de MUI solas no dicen qué elemento es.
+  const details = violations.flatMap((v) => v.nodes.map((n) => `${v.id}: ${n.html.slice(0, 300)}\n   ${n.failureSummary?.replace(/\n/g, ' ') ?? ''}`));
+  expect(report, [...report, '', ...details].join('\n\n')).toEqual([]);
 }

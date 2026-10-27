@@ -202,7 +202,7 @@ function SearchTrigger() {
     <Box sx={{ flex: 1, display: 'flex' }}>
       <ButtonBase
         onClick={open}
-        aria-label={t('Buscar ({shortcut})', { shortcut })}
+        // Sin aria-label: el nombre es lo que se ve («Buscar… ⌘K»), como pide WCAG 2.5.3; el atajo va en aria-keyshortcuts.
         aria-keyshortcuts="Meta+K Control+K"
         sx={{
           display: { xs: 'none', sm: 'flex' },

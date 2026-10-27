@@ -4,6 +4,9 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # Sólo versiones con 2 semanas publicadas: si una sale con un error o comprometida, hay tiempo de que se sepa.
+    cooldown:
+      default-days: 14
     open-pull-requests-limit: 5
     ignore:
       # Versiones mayores que hoy rompen el CI; se revisan a mano cuando el ecosistema las soporte.
@@ -24,6 +27,8 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 14
     groups:
       actions:
         patterns: ['*']

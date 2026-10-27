@@ -34,7 +34,9 @@ export default defineConfig({
   projects: APP
     ? [
         { name: 'app-setup', testMatch: /app\/.*\.setup\.ts$/ },
-        { name: 'app', testMatch: /app\/.*\.spec\.ts$/, dependencies: ['app-setup'], use: { ...devices['Desktop Chrome'], storageState: ADMIN_STATE } },
+        // Sin reintentos: las pruebas con sesión van en serie sobre un mismo negocio. Un reintento
+        // repite el archivo y crea otro negocio, y las siguientes fallan por eso (no por el error real).
+        { name: 'app', testMatch: /app\/.*\.spec\.ts$/, dependencies: ['app-setup'], retries: 0, use: { ...devices['Desktop Chrome'], storageState: ADMIN_STATE } },
       ]
     : [
         { name: 'desktop', use: { ...devices['Desktop Chrome'] }, testMatch: /public\/.*(?<!\.mobile)\.spec\.ts$/ },

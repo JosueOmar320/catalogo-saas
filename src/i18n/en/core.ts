@@ -236,7 +236,6 @@ const catalog: Catalog = {
   'Recibes este aviso semanal porque administras {business} en {app}. Sólo llega si hay pendientes.': "You're getting this weekly notice because you manage {business} on {app}. It's only sent when there's something to finish.",
   'Dejar de recibir estos avisos': 'Stop getting these notices',
   // Búsqueda rápida (⌘K)
-  'Buscar ({shortcut})': 'Search ({shortcut})',
   'Buscar…': 'Search…',
   'Busca productos, servicios o secciones…': 'Search products, services or sections…',
   Buscar: 'Search',
