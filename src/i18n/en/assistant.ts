@@ -9,7 +9,6 @@ const catalog: Catalog = {
 
   // Botón flotante y panel
   'Pídele a Garfield que construya o cambie tu página': 'Ask Garfield to build or change your page',
-  'Abrir {name}': 'Open {name}',
   'Pensando…': 'Thinking…',
   '¿Qué construimos?': 'What shall we build?',
   'No se pudo subir la imagen.': "Couldn't upload the image.",

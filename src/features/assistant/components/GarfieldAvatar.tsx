@@ -30,13 +30,13 @@ const CREAM = '#FFE3B8';
 const PINK = '#F4A3A8';
 const INK = '#3A2410';
 
-export function GarfieldAvatar({ size = 40, mood = 'idle', ring = true, sx }: { size?: number; mood?: GarfieldMood; ring?: boolean; sx?: SxProps<Theme> }) {
+/** decorative: junto a un texto que ya dice «Garfield AI» (no se anuncia dos veces). */
+export function GarfieldAvatar({ size = 40, mood = 'idle', ring = true, decorative = false, sx }: { size?: number; mood?: GarfieldMood; ring?: boolean; decorative?: boolean; sx?: SxProps<Theme> }) {
   // Párpados: relajados (idle), más abiertos (feliz), entrecerrados pensando, caídos preocupado.
   const lid = { idle: 13, thinking: 16, happy: 9, worried: 12 }[mood];
   return (
     <Box
-      role="img"
-      aria-label="Garfield AI"
+      {...(decorative ? { 'aria-hidden': true } : { role: 'img', 'aria-label': 'Garfield AI' })}
       sx={{
         width: size,
         height: size,

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../support/test';
 import sharp from 'sharp';
 import { unsubscribeToken } from '../../src/lib/email/links';
 import { admin, login } from './session';
@@ -1688,7 +1688,9 @@ test('estudio de PDF: un bloque a la vez, agregar por grupos y estado de guardad
 });
 
 test('dominio propio: según el plan, el administrador lo enciende y el sitio se sirve en el dominio del negocio', async ({ page, browser }) => {
-  const card = page.locator('.MuiPaper-root').filter({ has: page.getByText('Dominio propio', { exact: true }) });
+  // Por su id y sólo la visible: mientras llega el streaming, Next deja una copia oculta del contenido
+  // (y un filtro por «.MuiPaper-root» encontraba además los avisos, que también son Paper).
+  const card = page.locator('#dominio-propio:visible');
   await page.goto('/dashboard/settings/publicacion');
   await expect(card.getByText('El dominio propio no está incluido en tu plan.')).toBeVisible();
   await expect(card.getByRole('button', { name: 'Conectar' })).toBeDisabled();
@@ -1785,7 +1787,8 @@ test('cuenta demo: «Probar el panel» entra sin registro a un negocio de prueba
 
   // No se publica: se explica y el botón queda apagado.
   await demo.goto('/dashboard/settings/publicacion');
-  await expect(demo.getByText('En la cuenta de prueba el sitio no se publica. Usa «Vista previa» para verlo como tus clientes.')).toBeVisible();
+  // En el aviso de la página (el mismo texto puede estar en la ayuda del botón «Publicar» de arriba).
+  await expect(demo.getByRole('alert').filter({ hasText: 'En la cuenta de prueba el sitio no se publica.' })).toBeVisible();
   await expect(demo.getByRole('button', { name: 'Publicar catálogo' })).toBeDisabled();
 
   // La administración no ve cuentas ni negocios de prueba.

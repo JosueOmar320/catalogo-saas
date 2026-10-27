@@ -52,7 +52,7 @@ export function CustomDomainCard({ domain, status, availability, canManage, plat
   };
 
   return (
-    <SectionCard title={t('Dominio propio')} action={<Chip label={paused ? t('En pausa') : t(STATUS[status].label)} color={paused ? 'default' : STATUS[status].color} size="small" />}>
+    <SectionCard id="dominio-propio" title={t('Dominio propio')} action={<Chip label={paused ? t('En pausa') : t(STATUS[status].label)} color={paused ? 'default' : STATUS[status].color} size="small" />}>
       <Stack spacing={2}>
         <Typography variant="body2" color="text.secondary">
           {t('Muestra tu sitio en tu propio dominio (mitienda.com). La dirección {url} sigue funcionando.', { url: platformUrl.replace(/^https?:\/\//, '') })}

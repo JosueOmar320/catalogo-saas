@@ -32,10 +32,10 @@ export function GarfieldLauncher() {
   const t = useT();
   if (open || !enabled) return null;
   return (
-    <Tooltip title={t('Pídele a Garfield que construya o cambie tu página')} placement="left">
+    // describeChild: la ayuda es descripción, no el nombre. El nombre es lo que se ve («Garfield AI · ¿Qué construimos?»), como pide WCAG 2.5.3.
+    <Tooltip title={t('Pídele a Garfield que construya o cambie tu página')} placement="left" describeChild>
       <ButtonBase
         onClick={() => setOpen(true)}
-        aria-label={t('Abrir {name}', { name: ASSISTANT.name })}
         sx={{
           position: 'fixed',
           right: 20,
@@ -55,7 +55,7 @@ export function GarfieldLauncher() {
           animation: `${rise} .3s ease-out`,
         }}
       >
-        <GarfieldAvatar size={38} mood={pending ? 'thinking' : 'idle'} />
+        <GarfieldAvatar size={38} mood={pending ? 'thinking' : 'idle'} decorative />
         <Box sx={{ textAlign: 'left' }}>
           <Typography variant="body2" sx={{ fontWeight: 700, lineHeight: 1.1 }}>{ASSISTANT.name}</Typography>
           <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.1 }}>{pending ? t('Pensando…') : t('¿Qué construimos?')}</Typography>
