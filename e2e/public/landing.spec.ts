@@ -12,6 +12,17 @@ test.describe('Landing', () => {
     await expect(page.getByRole('link', { name: 'Ver la demo en vivo' })).toHaveAttribute('href', '/demo');
   });
 
+  test('tiene vista previa para compartir (Open Graph) y la imagen existe', async ({ page, request }) => {
+    await page.goto('/');
+    const ogImage = await page.locator('meta[property="og:image"]').getAttribute('content');
+    expect(ogImage).toMatch(/\/social\/vitrina-og\.jpg$/);
+    await expect(page.locator('meta[property="og:image:width"]')).toHaveAttribute('content', '1200');
+    await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute('content', 'summary_large_image');
+    const image = await request.get(new URL(ogImage!).pathname);
+    expect(image.ok()).toBe(true);
+    expect(image.headers()['content-type']).toBe('image/jpeg');
+  });
+
   test.describe('con el navegador en inglés', () => {
     test.use({ locale: 'en-US' });
 

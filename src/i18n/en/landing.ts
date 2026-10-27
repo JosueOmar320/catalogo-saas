@@ -6,6 +6,7 @@ const catalog: Catalog = {
   '{app} · Sitio web, catálogo y PDF para pequeños negocios': '{app} · Website, catalog and PDF for small businesses',
   'Crea el sitio web, el catálogo de productos y el PDF de tu negocio sin código. Con asistente de IA, modo oscuro y en español o inglés.':
     'Build your business website, product catalog and PDF without code. With an AI assistant, dark mode, in English or Spanish.',
+  'El panel de {app} con Garfield, el sitio en el celular y el catálogo PDF': 'The {app} dashboard with Garfield, the site on a phone and the PDF catalog',
   // Navegación y controles
   Principal: 'Main',
   Funciones: 'Features',
