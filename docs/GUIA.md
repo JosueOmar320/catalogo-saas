@@ -192,6 +192,8 @@ Para reportar un problema de seguridad, ver [`SECURITY.md`](../SECURITY.md).
 
 Las funciones corren en `iad1` (Washington D.C., `vercel.json`), junto a una base de Supabase en *East US*: si tu proyecto de Supabase está en otra región, cambia `regions` por la más cercana.
 
+Las ramas de Dependabot (`dependabot/**`) no generan preview en Vercel (`git.deploymentEnabled`): la CI de GitHub ya prueba esos cambios y cada preview suma a *Functions Storage*, que en Hobby tiene un límite de 10 GB.
+
 **Antes del primer despliegue (Supabase)**
 1. Aplica todas las migraciones de `supabase/migrations/` (ver [Configurar Supabase](#configurar-supabase)).
 2. *Authentication → Sign In / Providers*: apaga **Allow new users to sign up**. La clave pública viaja en el JavaScript del sitio; con el registro abierto cualquiera podría crear cuentas por la API (nacen deshabilitadas, pero ocupan espacio y pueden llamar funciones autenticadas).
