@@ -1781,6 +1781,13 @@ test('cuenta demo: «Probar el panel» entra sin registro a un negocio de prueba
       await demo.waitForLoadState('networkidle');
       await demo.screenshot({ path: `docs/images/${name}.jpg`, type: 'jpeg', quality: 82 });
     }
+    // Garfield en el editor (modo sin IA: el router local resuelve el pedido al instante).
+    await demo.getByRole('button', { name: 'Abrir Garfield AI' }).click();
+    await demo.getByLabel('Mensaje para Garfield').fill('Agrega una sección de preguntas frecuentes');
+    await demo.getByRole('button', { name: 'Enviar' }).click();
+    await expect(demo.getByText('Garfield está pensando…')).toBeHidden({ timeout: 30_000 });
+    await demo.waitForTimeout(1500);
+    await demo.screenshot({ path: 'docs/images/panel-garfield.jpg', type: 'jpeg', quality: 82 });
   }
 
   // No se publica: se explica y el botón queda apagado.

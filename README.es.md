@@ -11,35 +11,13 @@
 
 SaaS multi-tenant para que un pequeño negocio (una cafetería, una ferretería, un estudio de servicios…) arme su sitio web **sin código**. El sitio funciona además como **catálogo de productos y servicios**, recibe pedidos por WhatsApp y se exporta a un **PDF listo para imprimir**. **Garfield**, un asistente con IA, edita el sitio a partir de pedidos en lenguaje natural.
 
-**Demo en vivo:** [probar el panel](https://catalogo-saas-nu.vercel.app) (sin registro: «Probar el panel» abre tu propio negocio de prueba, que se borra a las 24 h) · [sitio de ejemplo](https://catalogo-saas-nu.vercel.app/demo) · [catálogo PDF](https://catalogo-saas-nu.vercel.app/demo/pdf)
+### ▶ [Prueba el panel en vivo](https://catalogo-saas-nu.vercel.app), sin registro
 
-![Sitio de ejemplo hecho con Vitrina](docs/images/site-home.jpg)
+Toca **Probar el panel** en la landing y entras a tu propio negocio de prueba, ya con productos, pedidos, reseñas y estadísticas. Cambia lo que quieras: nada es público y se borra a las 24 horas. También puedes ver el [sitio de ejemplo](https://catalogo-saas-nu.vercel.app/demo) o descargar el [catálogo PDF](https://catalogo-saas-nu.vercel.app/demo/pdf).
 
-<table>
-  <tr>
-    <td width="50%"><img src="docs/images/site-menu.jpg" alt="Catálogo con buscador, categorías y filtros" /></td>
-    <td width="50%"><img src="docs/images/site-product.jpg" alt="Ficha de producto con pedido por WhatsApp" /></td>
-  </tr>
-</table>
-<table>
-  <tr>
-    <td width="80%"><img src="docs/images/pdf-catalog.jpg" alt="Catálogo PDF generado desde el mismo sitio" /></td>
-    <td width="20%"><img src="docs/images/site-mobile.jpg" alt="El catálogo en el celular" /></td>
-  </tr>
-</table>
+![El editor del sitio con Garfield: le pides «agrega una sección de preguntas frecuentes» y la agrega con su contenido, con deshacer y sugerencias](docs/images/panel-garfield.jpg)
 
-### El panel
-
-<table>
-  <tr>
-    <td width="50%"><img src="docs/images/panel-editor.jpg" alt="Editor del sitio con vista previa y Garfield" /></td>
-    <td width="50%"><img src="docs/images/panel-home.jpg" alt="Inicio del panel en la cuenta de prueba" /></td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="docs/images/panel-orders.jpg" alt="Bandeja de pedidos por WhatsApp" /></td>
-    <td width="50%"><img src="docs/images/panel-stats.jpg" alt="Recorrido de las visitas y de dónde llegan" /></td>
-  </tr>
-</table>
+**De un vistazo:** más de 1 000 pruebas automáticas · RLS en las 26 tablas · 28 migraciones · 60 pull requests fusionados, todos con CI · interfaz en español e inglés.
 
 ## Qué hace
 
@@ -59,9 +37,38 @@ SaaS multi-tenant para que un pequeño negocio (una cafetería, una ferretería,
   - dominio propio (`mitienda.com`, conectado por la API de Vercel)
   - HTML, CSS y widgets propios aislados
   - interfaz en español e inglés
-  - cuenta demo pública: cada visitante entra a un negocio de prueba propio, con datos, que no se publica y se borra a las 24 horas
+  - cuenta demo pública (ver arriba)
 
 Todas las funciones, área por área: [docs/FUNCIONALIDADES.md](docs/FUNCIONALIDADES.md).
+
+## Capturas
+
+**El sitio público** que recibe un negocio: inicio, catálogo con filtros, ficha de producto y vista en el celular.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/site-home.jpg" alt="Sitio de ejemplo hecho con Vitrina" /></td>
+    <td width="50%"><img src="docs/images/site-menu.jpg" alt="Catálogo con buscador, categorías y filtros" /></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/images/site-product.jpg" alt="Ficha de producto con pedido por WhatsApp" /></td>
+    <td width="50%" align="center"><img src="docs/images/site-mobile.jpg" alt="El catálogo en el celular" width="45%" /></td>
+  </tr>
+</table>
+
+**El catálogo PDF**, generado desde el mismo sitio.
+
+![Catálogo PDF generado desde el mismo sitio](docs/images/pdf-catalog.jpg)
+
+**El panel:** inicio con recorrido sugerido, bandeja de pedidos por WhatsApp y el recorrido de las visitas por origen.
+
+<table>
+  <tr>
+    <td width="33%"><img src="docs/images/panel-home.jpg" alt="Inicio del panel en la cuenta de prueba" /></td>
+    <td width="33%"><img src="docs/images/panel-orders.jpg" alt="Bandeja de pedidos por WhatsApp" /></td>
+    <td width="33%"><img src="docs/images/panel-stats.jpg" alt="Recorrido de las visitas y de dónde llegan" /></td>
+  </tr>
+</table>
 
 ## Decisiones técnicas destacadas
 
@@ -74,7 +81,7 @@ Todas las funciones, área por área: [docs/FUNCIONALIDADES.md](docs/FUNCIONALID
 | IA acotada | El modelo devuelve acciones tipadas (Zod) que pasan por el mismo reducer y los mismos permisos que la interfaz. Funciona sin clave de API. | Un prompt malicioso no puede hacer nada que el usuario no pudiera hacer. |
 | Código no confiable | El HTML propio se sanitiza en el servidor. Los scripts sólo corren en un iframe `srcdoc` aislado, sin `allow-same-origin`. El CSS queda limitado al sitio. | Todos los negocios comparten origen con el panel, así que sus scripts nunca deben correr en él. |
 | Dominio propio | `proxy.ts` identifica el negocio por el host (consulta con caché) y reescribe a las mismas páginas cacheadas. El alta y la verificación usan la API de Vercel. | Un solo despliegue sirve el dominio de cada negocio. En los hosts de la plataforma el proxy sólo corre donde hay sesión, así que el catálogo público sigue siendo barato. |
-| Demo pública | Cada visitante recibe un negocio de prueba propio (lo crea la service role, con pedidos y 60 días de estadísticas). No se puede publicar (trigger en la base), no aparece en la administración ni en la auditoría, tiene límites por IP y un cron diario lo borra. | Reclutadores y clientes prueban el panel real sin cuenta, y nada de lo que escriben llega a ser público. |
+| Demo pública | Cada visitante recibe un negocio de prueba propio (lo crea la service role, con pedidos y 60 días de estadísticas). No se puede publicar (trigger en la base), no aparece en la administración ni en la auditoría, tiene límites por IP y un cron diario lo borra. | Cualquiera prueba el panel real sin cuenta, y nada de lo que escribe llega a ser público. |
 | Entradas endurecidas | Descargas a prueba de SSRF (la IP se verifica al conectar), celdas CSV neutralizadas, login con límite de intentos y cabeceras de seguridad. | Son las superficies de ataque típicas de un SaaS, cada una cubierta por pruebas. |
 
 Más detalle: [arquitectura](docs/ARQUITECTURA.md) · [guía de instalación, despliegue, pruebas y seguridad](docs/GUIA.md) · [idiomas](docs/I18N.md) · [Garfield AI](docs/GARFIELD-AI.md) · [roadmap](docs/ROADMAP.md) · [cambios](CHANGELOG.md).
@@ -98,7 +105,7 @@ flowchart LR
 
 | Capa | Pruebas | Qué cubren |
 | --- | --- | --- |
-| Base de datos | 436 | Cada migración en orden, RLS por tabla y rol, límites de plan, RPC de administración, auditoría, retención y dominio propio. Corre sobre PGlite, sin Docker. |
+| Base de datos | 436 | Cada migración en orden, RLS por tabla y rol, límites de plan, RPC de administración, auditoría, retención, dominio propio y cuenta demo. Corre sobre PGlite, sin Docker. |
 | Unitarias | 472 | Seguridad (SSRF, redirecciones, rutas de Storage), reducer del editor, router y ejecutores de Garfield, PDF, pedidos, estadísticas y dominios. La cobertura de líneas es del 94 %. |
 | End-to-end | 58 | Sitio público, landing y pedido en escritorio y celular, con revisión automática de accesibilidad (axe, WCAG 2.1 AA). |
 | End-to-end con sesión | 49 | Flujos completos contra un Supabase local en Docker: el administrador crea un negocio, el dueño publica, un visitante pide, bandeja, estadísticas, dominio propio y cuenta demo. |
@@ -128,6 +135,12 @@ npm run check
 ```
 
 Eso corre typecheck, lint, pruebas unitarias y pruebas de base de datos, sin Docker ni Supabase.
+
+## Sobre el proyecto
+
+Proyecto personal de **Josue Flores**, hecho a partir del 27 de septiembre de 2026 y desplegado en Vercel con Supabase. Cada cambio entró por un pull request con toda la CI; el [historial de cambios](CHANGELOG.md) los resume por etapas, y cada auditoría técnica está en [docs/auditorias](docs/auditorias).
+
+- GitHub: [@JosueOmar320](https://github.com/JosueOmar320)
 
 ## Licencia
 

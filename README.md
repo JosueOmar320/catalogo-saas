@@ -11,35 +11,13 @@
 
 A multi-tenant SaaS where a small business (a café, a hardware store, a service studio…) builds its own website **without code**. The site doubles as a **product and service catalog** that takes orders over WhatsApp, and exports to a **print-ready PDF**. **Garfield**, an AI assistant, edits the site from plain-language requests.
 
-**Live demo:** [try the dashboard](https://catalogo-saas-nu.vercel.app) (no sign-up: «Probar el panel» opens your own test business, deleted after 24 h) · [sample site](https://catalogo-saas-nu.vercel.app/demo) · [PDF catalog](https://catalogo-saas-nu.vercel.app/demo/pdf)
+### ▶ [Try the dashboard live](https://catalogo-saas-nu.vercel.app) — no sign-up
 
-![Sample site built with Vitrina](docs/images/site-home.jpg)
+Click **Try the dashboard** on the landing page and you get your own pre-filled test business: products, orders, reviews and analytics. Edit anything; nothing is public, and it is deleted after 24 hours. You can also browse the [sample site](https://catalogo-saas-nu.vercel.app/demo) or download the [PDF catalog](https://catalogo-saas-nu.vercel.app/demo/pdf).
 
-<table>
-  <tr>
-    <td width="50%"><img src="docs/images/site-menu.jpg" alt="Catalog with search, categories and filters" /></td>
-    <td width="50%"><img src="docs/images/site-product.jpg" alt="Product page with options and WhatsApp order" /></td>
-  </tr>
-</table>
-<table>
-  <tr>
-    <td width="80%"><img src="docs/images/pdf-catalog.jpg" alt="PDF catalog generated from the same site" /></td>
-    <td width="20%"><img src="docs/images/site-mobile.jpg" alt="The catalog on a phone" /></td>
-  </tr>
-</table>
+![The site editor with Garfield: asked to "add an FAQ section", it adds and fills it, with undo and next-step suggestions](docs/images/panel-garfield.jpg)
 
-### The dashboard
-
-<table>
-  <tr>
-    <td width="50%"><img src="docs/images/panel-editor.jpg" alt="Site editor with live preview and Garfield" /></td>
-    <td width="50%"><img src="docs/images/panel-home.jpg" alt="Dashboard home of the test account" /></td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="docs/images/panel-orders.jpg" alt="Order inbox with WhatsApp orders" /></td>
-    <td width="50%"><img src="docs/images/panel-stats.jpg" alt="Sales funnel and traffic sources" /></td>
-  </tr>
-</table>
+**At a glance:** 1,000+ automated tests · Row Level Security on all 26 tables · 28 migrations · 60 merged pull requests, each one through CI · English and Spanish UI.
 
 ## What it does
 
@@ -59,9 +37,38 @@ A multi-tenant SaaS where a small business (a café, a hardware store, a service
   - custom domains (`mystore.com`, provisioned through the Vercel API)
   - sandboxed custom HTML, CSS and widgets
   - Spanish and English UI
-  - a public demo account: each visitor gets a private, pre-filled test business that can't be published and is purged after 24 hours
+  - a public demo account (see above)
 
 Every feature, area by area: [docs/FUNCIONALIDADES.md](docs/FUNCIONALIDADES.md) (Spanish).
+
+## Screenshots
+
+**The public site** a business gets: home, catalog with filters, product page and phone view.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/site-home.jpg" alt="Sample site built with Vitrina" /></td>
+    <td width="50%"><img src="docs/images/site-menu.jpg" alt="Catalog with search, categories and filters" /></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/images/site-product.jpg" alt="Product page with options and WhatsApp order" /></td>
+    <td width="50%" align="center"><img src="docs/images/site-mobile.jpg" alt="The catalog on a phone" width="45%" /></td>
+  </tr>
+</table>
+
+**The PDF catalog**, generated from the same site.
+
+![PDF catalog generated from the same site](docs/images/pdf-catalog.jpg)
+
+**The dashboard:** home with a guided tour, WhatsApp order inbox, and the sales funnel by traffic source.
+
+<table>
+  <tr>
+    <td width="33%"><img src="docs/images/panel-home.jpg" alt="Dashboard home of the test account" /></td>
+    <td width="33%"><img src="docs/images/panel-orders.jpg" alt="Order inbox with WhatsApp orders" /></td>
+    <td width="33%"><img src="docs/images/panel-stats.jpg" alt="Sales funnel and traffic sources" /></td>
+  </tr>
+</table>
 
 ## Engineering highlights
 
@@ -74,10 +81,10 @@ Every feature, area by area: [docs/FUNCIONALIDADES.md](docs/FUNCIONALIDADES.md) 
 | Constrained AI | The model returns typed actions (Zod) that go through the same reducer and permissions as the UI. It works without an API key. | A malicious prompt can't do anything the user couldn't already do. |
 | Untrusted code | Custom HTML is sanitized on the server. Scripts run only inside a sandboxed `srcdoc` iframe without `allow-same-origin`. Custom CSS is scoped to the site. | Every tenant shares one origin with the dashboard, so tenant scripts must never run on it. |
 | Custom domains | `proxy.ts` resolves the host to a business (cached lookup) and rewrites to the same cached pages. Domains are added and verified through the Vercel API. | One deployment serves every tenant's domain. The proxy runs on platform hosts only where a session is needed, so the public catalog stays cheap. |
-| Public demo | Each visitor gets a private test business (created with the service role, seeded with orders and 60 days of analytics). It can't be published (a database trigger), stays out of the admin and the audit log, is rate-limited, and is purged by a daily cron. | Recruiters and clients can try the real dashboard without an account, and nothing they write ever becomes public. |
+| Public demo | Each visitor gets a private test business (created with the service role, seeded with orders and 60 days of analytics). It can't be published (a database trigger), stays out of the admin and the audit log, is rate-limited, and is purged by a daily cron. | Anyone can try the real dashboard without an account, and nothing they write ever becomes public. |
 | Hardened inputs | SSRF-safe downloads (the IP is checked at connect time), CSV formula neutralization, rate-limited login, strict security headers. | These are the usual SaaS attack surfaces, each covered by tests. |
 
-More detail, in Spanish: [architecture](docs/ARQUITECTURA.md) · [setup, deployment, testing and security guide](docs/GUIA.md) · [i18n](docs/I18N.md) · [Garfield AI](docs/GARFIELD-AI.md).
+More detail, in Spanish: [architecture](docs/ARQUITECTURA.md) · [setup, deployment, testing and security guide](docs/GUIA.md) · [i18n](docs/I18N.md) · [Garfield AI](docs/GARFIELD-AI.md) · [changelog](CHANGELOG.md).
 
 ## Architecture
 
@@ -98,7 +105,7 @@ flowchart LR
 
 | Layer | Tests | What they cover |
 | --- | --- | --- |
-| Database | 436 | Every migration in order, RLS per table and role, plan limits, admin RPCs, audit log, retention, custom domains. Runs on PGlite, no Docker needed. |
+| Database | 436 | Every migration in order, RLS per table and role, plan limits, admin RPCs, audit log, retention, custom domains, demo accounts. Runs on PGlite, no Docker needed. |
 | Unit | 472 | Security (SSRF, redirects, storage paths), editor reducer, Garfield router and executors, PDF, orders, analytics, domains. Line coverage is 94%. |
 | End-to-end | 58 | Public site, landing and ordering on desktop and mobile, with automated accessibility checks (axe, WCAG 2.1 AA). |
 | End-to-end, signed in | 49 | Full flows against a local Supabase in Docker: admin creates a business, owner publishes, a visitor orders, inbox, analytics, custom domain, demo account. |
@@ -128,6 +135,12 @@ npm run check
 ```
 
 That runs typecheck, lint, unit tests and database tests, with no Docker or Supabase required.
+
+## About the project
+
+A solo project by **Josue Flores**, built from September 27, 2026 and deployed on Vercel with Supabase. Every change went through a pull request with the full CI suite; the [changelog](CHANGELOG.md) lists them stage by stage, and each technical audit is in [docs/auditorias](docs/auditorias).
+
+- GitHub: [@JosueOmar320](https://github.com/JosueOmar320)
 
 ## License
 
