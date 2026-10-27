@@ -140,6 +140,7 @@ That runs typecheck, lint, unit tests and database tests, with no Docker or Supa
 
 A solo project by **Josue Flores**, built from September 27, 2026 and deployed on Vercel with Supabase. Every change went through a pull request with the full CI suite; the [changelog](CHANGELOG.md) lists them stage by stage, and each technical audit is in [docs/auditorias](docs/auditorias).
 
+- LinkedIn: [Josue Flores](https://www.linkedin.com/in/josue-flores-00356a2a2)
 - GitHub: [@JosueOmar320](https://github.com/JosueOmar320)
 
 ## License

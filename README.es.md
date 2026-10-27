@@ -140,6 +140,7 @@ Eso corre typecheck, lint, pruebas unitarias y pruebas de base de datos, sin Doc
 
 Proyecto personal de **Josue Flores**, hecho a partir del 27 de septiembre de 2026 y desplegado en Vercel con Supabase. Cada cambio entró por un pull request con toda la CI; el [historial de cambios](CHANGELOG.md) los resume por etapas, y cada auditoría técnica está en [docs/auditorias](docs/auditorias).
 
+- LinkedIn: [Josue Flores](https://www.linkedin.com/in/josue-flores-00356a2a2)
 - GitHub: [@JosueOmar320](https://github.com/JosueOmar320)
 
 ## Licencia
