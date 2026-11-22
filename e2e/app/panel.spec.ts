@@ -1762,7 +1762,7 @@ test('cuenta demo: «Probar el panel» entra sin registro a un negocio de prueba
   const visitor = await browser.newContext({ ...ANONYMOUS, viewport: { width: 1440, height: 900 } });
   const demo = await visitor.newPage();
   await demo.goto('/');
-  await demo.getByRole('button', { name: 'Probar el panel' }).click();
+  await demo.getByRole('button', { name: 'Probar el panel' }).first().click();
   await expect(demo).toHaveURL(/\/dashboard\?bienvenida=demo$/, { timeout: 60_000 });
   await expect(demo.getByText('Cuenta de prueba.')).toBeVisible();
   await expect(demo.getByText('Recorrido sugerido')).toBeVisible();
@@ -1816,7 +1816,7 @@ test('cuenta demo: «Probar el panel» entra sin registro a un negocio de prueba
 
   // Una demo vencida la borra el cron diario (con su archivos y su cuenta).
   await demo.goto('/');
-  await demo.getByRole('button', { name: 'Probar el panel' }).click();
+  await demo.getByRole('button', { name: 'Probar el panel' }).first().click();
   await expect(demo).toHaveURL(/\/dashboard\?bienvenida=demo$/, { timeout: 60_000 });
   const db = (path: string, init: RequestInit = {}) =>
     fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/${path}`, { ...init, headers: { apikey: process.env.SUPABASE_SECRET_KEY!, Authorization: `Bearer ${process.env.SUPABASE_SECRET_KEY}`, 'Content-Type': 'application/json', ...init.headers } });

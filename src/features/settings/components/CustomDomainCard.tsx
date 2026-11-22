@@ -62,7 +62,8 @@ export function CustomDomainCard({ domain, status, availability, canManage, plat
         {availability === 'platform' && <Typography variant="body2">{t('El dominio propio todavía no está disponible en la plataforma.')}</Typography>}
         {!canManage && availability === 'ok' && <Alert severity="info">{t('Sólo el dueño o un administrador puede cambiar esto.')}</Alert>}
 
-        {!domain && availability !== 'ok' ? null : domain ? (
+        {/* Sin la función en el plan no hay formulario (un campo deshabilitado sólo confundía); sin Vercel configurado se muestra deshabilitado. */}
+        {!domain && availability === 'plan' ? null : domain ? (
           <>
             <CopyField label={t('Tu dominio')} value={`https://${domain}`} openable={status === 'active' && !paused} />
             {alias && <Typography variant="caption" color="text.secondary">{t('{alias} también funciona y lleva a {domain}.', { alias, domain })}</Typography>}

@@ -73,7 +73,7 @@ Las correcciones de la sección C siguen DESIGN.md (sin sombras, un primario por
 | `npm run test:db` (PGlite, 29 migraciones) | 468 / 468 (antes 436) |
 | `npm run build` (Next.js 16.4.6) | OK |
 | `npm run test:e2e` (escritorio + móvil, sin Supabase, como CI) | 59 / 59, axe sin problemas en landing, login y sitio de ejemplo |
-| `npm run test:e2e:app` (Supabase local en Docker, base reiniciada) | 48 / 48 (tres aserciones actualizadas a la copia nueva del panel: plural «1 producto sin precio», fila de avisos ausente sin VAPID, sin formulario de dominio con la función apagada) |
+| `npm run test:e2e:app` (Supabase local en Docker, base reiniciada) | 49 / 49 (cuatro aserciones actualizadas a la copia nueva: plural «1 producto sin precio», fila de avisos ausente sin VAPID, sin formulario de dominio con la función apagada, dos botones «Probar el panel» en la landing) |
 | `npm audit --omit=dev --audit-level=moderate` | 0 vulnerabilidades (antes 1 moderada con 7 avisos en Next.js) |
 | `impeccable detect` | 0 hallazgos en la landing; en el panel sólo reglas de tokens sobre contenido de ejemplo y documentos de impresión |
 
