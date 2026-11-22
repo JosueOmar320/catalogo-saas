@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { isPlatformHost } from '@/lib/domains/domain';
 import { routeCustomDomain } from '@/lib/domains/routing';
+import { env } from '@/lib/env';
 import { updateSession } from '@/lib/supabase/proxy';
 
 /**
@@ -11,12 +13,23 @@ import { updateSession } from '@/lib/supabase/proxy';
  * (/api/orders/export sí, /api/orders no).
  */
 const SESSION_PREFIXES = ['/dashboard', '/admin', '/preview', '/api/assistant', '/api/catalogs', '/api/catalog'];
-const SESSION_PATHS = new Set(['/cuenta', '/sin-acceso', '/login', '/api/orders/export', '/api/stats/export']);
+const SESSION_PATHS = new Set(['/cuenta', '/sin-acceso', '/login', '/api/orders/export', '/api/orders/new-count', '/api/stats/export', '/api/customers/export']);
 const needsSession = (pathname: string) => SESSION_PATHS.has(pathname) || SESSION_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 
+/** Host de la plataforma (NEXT_PUBLIC_SITE_URL o el dominio de producción de Vercel): nunca es un dominio propio. */
+const PLATFORM_HOSTS = (() => {
+  try {
+    return [new URL(env.siteUrl).hostname];
+  } catch {
+    return [];
+  }
+})();
+const hostOf = (request: NextRequest) => (request.headers.get('host') ?? '').toLowerCase().replace(/:\d+$/, '');
+
 export async function proxy(request: NextRequest) {
-  // 1) Un dominio propio de un negocio: su sitio (no hay sesión que refrescar).
-  const custom = await routeCustomDomain(request);
+  // 1) Un dominio propio de un negocio: su sitio (no hay sesión que refrescar). En el host de la
+  //    plataforma (que el matcher no puede excluir si tiene dominio propio) ni se consulta.
+  const custom = isPlatformHost(hostOf(request), PLATFORM_HOSTS) ? null : await routeCustomDomain(request);
   if (custom) return custom;
   const { pathname } = request.nextUrl;
   // 2) /dominio/<negocio> sólo se llega reescrito desde un dominio propio (en la plataforma, duplicaría /catalogo).
@@ -39,7 +52,9 @@ export const config = {
     '/api/catalogs/:path*',
     '/api/catalog/:path*',
     '/api/orders/export',
+    '/api/orders/new-count',
     '/api/stats/export',
+    '/api/customers/export',
     // /dominio directo en la plataforma: 404.
     '/dominio',
     '/dominio/:path*',

@@ -11,10 +11,12 @@ import type { SectionProps } from './types';
 export function TableSection({ section, site, env }: SectionProps<'table'>) {
   const { content } = section;
   const t = siteTranslator(site.settings.language);
-  const columns = content.columns.filter((column, i) => column.label.trim() || content.rows.some((row) => row.cells[i]?.trim()));
+  // Las columnas vacías se omiten, pero cada celda y la columna destacada se
+  // leen por su índice ORIGINAL (igual que el editor y el PDF).
+  const columns = content.columns.map((column, index) => ({ column, index })).filter(({ column, index }) => column.label.trim() || content.rows.some((row) => row.cells[index]?.trim()));
   const rows = content.rows.filter((row) => row.cells.some((cell) => cell.trim()));
   if ((rows.length === 0 || columns.length === 0) && env.mode === 'public') return null;
-  const highlight = content.highlight > 0 && content.highlight <= columns.length ? content.highlight - 1 : -1;
+  const highlight = content.highlight > 0 && content.highlight <= content.columns.length ? content.highlight - 1 : -1;
   return (
     <SectionFrame section={section} theme={site.theme}>
       <SectionHead eyebrow={content.eyebrow} title={content.title} subtitle={content.subtitle} center />
@@ -25,8 +27,8 @@ export function TableSection({ section, site, env }: SectionProps<'table'>) {
             {content.title && <caption className={styles.visuallyHidden}>{content.title}</caption>}
             <thead>
               <tr>
-                {columns.map((column, i) => (
-                  <th key={column.id} scope="col" data-align={column.align} data-highlight={i === highlight || undefined}>
+                {columns.map(({ column, index }) => (
+                  <th key={column.id} scope="col" data-align={column.align} data-highlight={index === highlight || undefined}>
                     {column.label}
                   </th>
                 ))}
@@ -35,9 +37,9 @@ export function TableSection({ section, site, env }: SectionProps<'table'>) {
             <tbody>
               {rows.map((row) => (
                 <tr key={row.id}>
-                  {columns.map((column, i) => {
-                    const value = row.cells[i] ?? '';
-                    const props = { 'data-align': column.align, 'data-label': column.label, 'data-highlight': i === highlight || undefined } as const;
+                  {columns.map(({ column, index }, i) => {
+                    const value = row.cells[index] ?? '';
+                    const props = { 'data-align': column.align, 'data-label': column.label, 'data-highlight': index === highlight || undefined } as const;
                     return content.rowHeaders && i === 0 ? (
                       <th key={column.id} scope="row" {...props}>{value}</th>
                     ) : (

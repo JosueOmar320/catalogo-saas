@@ -66,7 +66,9 @@ export function CategoryManager({ categories: initial }: { categories: CategoryR
     const ok = await confirm({
       title: t('¿Eliminar "{name}"?', { name: category.name }),
       description: category.itemCount
-        ? t('Sus {count} ítem(s) no se borran: quedarán como "Sin categoría".', { count: category.itemCount })
+        ? category.itemCount === 1
+          ? t('Su ítem no se borra: quedará como "Sin categoría".')
+          : t('Sus {count} ítems no se borran: quedarán como "Sin categoría".', { count: category.itemCount })
         : t('La categoría está vacía.'),
       confirmLabel: t('Eliminar'),
       destructive: true,
@@ -109,7 +111,7 @@ export function CategoryManager({ categories: initial }: { categories: CategoryR
                     {category.name}
                   </Typography>
                   <Typography variant="caption" color="text.secondary" noWrap component="p">
-                    {category.isActive ? t('{count} ítem(s)', { count: category.itemCount }) : t('{count} ítem(s) · Oculta', { count: category.itemCount })}
+                    {[category.itemCount === 1 ? t('1 ítem') : t('{count} ítems', { count: category.itemCount }), !category.isActive && t('Oculta')].filter(Boolean).join(' · ')}
                   </Typography>
                 </Box>
                 <Tooltip title={category.isActive ? t('Visible') : t('Oculta')}>

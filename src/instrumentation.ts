@@ -8,6 +8,15 @@ export async function register() {
   for (const warning of configWarnings(process.env)) console.warn(`[config] ${warning}`);
 }
 
+/** Host (sin puerto) de una URL, o null si no se puede leer. */
+function hostname(url: string): string | null {
+  try {
+    return new URL(url.includes('://') ? url : `https://${url}`).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
 const ROUTINGS = ['local-first', 'llm-first', 'local-only'];
 const PROVIDERS = ['gemini', 'anthropic', 'openai-compatible', 'basic'];
 
@@ -29,6 +38,14 @@ export function configWarnings(env: Record<string, string | undefined>): string[
 
   const siteUrl = env.NEXT_PUBLIC_SITE_URL;
   if (siteUrl !== undefined && !/^https?:\/\/[^\s/]+/i.test(siteUrl)) warnings.push('NEXT_PUBLIC_SITE_URL no es una URL http(s) completa (p. ej. https://midominio.com).');
+
+  // En producción el host canónico y el dominio de producción de Vercel deben coincidir: si no,
+  // el proxy trataría el host de la plataforma como dominio propio y los enlaces saldrían a otro sitio.
+  const productionHost = env.VERCEL_PROJECT_PRODUCTION_URL?.trim().toLowerCase();
+  if (env.VERCEL_ENV === 'production' && siteUrl && productionHost) {
+    const siteHost = hostname(siteUrl);
+    if (siteHost && siteHost !== productionHost) warnings.push(`NEXT_PUBLIC_SITE_URL (${siteHost}) no coincide con VERCEL_PROJECT_PRODUCTION_URL (${productionHost}): revisa el dominio canónico del proyecto.`);
+  }
 
   return warnings;
 }

@@ -32,7 +32,7 @@ export function GarfieldLauncher() {
   const t = useT();
   if (open || !enabled) return null;
   return (
-    // describeChild: la ayuda es descripción, no el nombre. El nombre es lo que se ve («Garfield AI · ¿Qué construimos?»), como pide WCAG 2.5.3.
+    // describeChild: la ayuda es descripción, no el nombre. El nombre es lo que se ve («Garfield · ¿Qué construimos?»), como pide WCAG 2.5.3.
     <Tooltip title={t('Pídele a Garfield que construya o cambie tu página')} placement="left" describeChild>
       <ButtonBase
         onClick={() => setOpen(true)}
@@ -57,7 +57,7 @@ export function GarfieldLauncher() {
       >
         <GarfieldAvatar size={38} mood={pending ? 'thinking' : 'idle'} decorative />
         <Box sx={{ textAlign: 'left' }}>
-          <Typography variant="body2" sx={{ fontWeight: 700, lineHeight: 1.1 }}>{ASSISTANT.name}</Typography>
+          <Typography variant="body2" sx={{ fontWeight: 700, lineHeight: 1.1 }}>{ASSISTANT.shortName}</Typography>
           <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.1 }}>{pending ? t('Pensando…') : t('¿Qué construimos?')}</Typography>
         </Box>
       </ButtonBase>
@@ -125,7 +125,7 @@ export function GarfieldPanel() {
     <Fade in={g.open} unmountOnExit>
       <Paper
         role="dialog"
-        aria-label={ASSISTANT.name}
+        aria-label={ASSISTANT.shortName}
         elevation={0}
         sx={{
           position: 'fixed',
@@ -148,7 +148,7 @@ export function GarfieldPanel() {
           <GarfieldAvatar size={36} mood={g.pending ? 'thinking' : 'idle'} ring={false} />
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
-              <Typography variant="body1" sx={{ fontWeight: 750 }}>{ASSISTANT.name}</Typography>
+              <Typography variant="body1" sx={{ fontWeight: 750 }}>{ASSISTANT.shortName}</Typography>
               {g.editor === 'pdf' && <Chip size="small" label="PDF" sx={{ height: 20, fontSize: 11, fontWeight: 700, bgcolor: 'var(--garfield-chip)' }} />}
               {g.mode === 'basic' && (
                 <Tooltip title={t('Sin IA (o sin cuota por hoy): entiendo pedidos directos. Configura GEMINI_API_KEY (gratis) para conversar libremente.')}>

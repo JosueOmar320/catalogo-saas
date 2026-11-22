@@ -27,6 +27,11 @@ export const env = {
       : 'http://localhost:3000')
   ).replace(/\/$/, ''),
   appName: process.env.NEXT_PUBLIC_APP_NAME ?? 'Vitrina',
+  /**
+   * Cómo pedir acceso (la landing lo enlaza): https://wa.me/…, https://… o mailto:….
+   * Vacío = no se muestra el enlace (sólo se acepta https y mailto).
+   */
+  contactUrl: /^(https:\/\/|mailto:)/.test(process.env.NEXT_PUBLIC_CONTACT_URL ?? '') ? (process.env.NEXT_PUBLIC_CONTACT_URL as string) : '',
   storageBucket: 'catalog-media',
   /** Permite desactivar el optimizador de imágenes de Vercel para controlar costos. */
   imageOptimization: process.env.NEXT_PUBLIC_IMAGE_OPTIMIZATION !== 'false',

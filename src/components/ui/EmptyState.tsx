@@ -2,15 +2,22 @@ import { Box, Typography } from '@mui/material';
 import type { LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 
-type Props = { icon: LucideIcon; title: string; description?: string; action?: ReactNode };
+type Props = {
+  icon: LucideIcon;
+  title: string;
+  description?: string;
+  action?: ReactNode;
+  /** Nivel del título en el esquema: 2 bajo el h1 de la página (por defecto), 3 dentro de una tarjeta con título. */
+  level?: 2 | 3;
+};
 
-export function EmptyState({ icon: Icon, title, description, action }: Props) {
+export function EmptyState({ icon: Icon, title, description, action, level = 2 }: Props) {
   return (
     <Box sx={{ textAlign: 'center', py: 6, px: 2 }}>
       <Box sx={{ display: 'inline-flex', p: 1.5, borderRadius: 2, bgcolor: 'primary.light', color: 'primary.main', mb: 1.5 }}>
         <Icon size={22} />
       </Box>
-      <Typography variant="h3">{title}</Typography>
+      <Typography variant="h3" component={level === 2 ? 'h2' : 'h3'}>{title}</Typography>
       {description && (
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, maxWidth: 380, mx: 'auto' }}>
           {description}

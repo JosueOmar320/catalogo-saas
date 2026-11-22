@@ -22,6 +22,7 @@ export async function savePushSubscription(input: unknown): Promise<ActionResult
   const device = deviceLabel((await headers()).get('user-agent') ?? '');
   const { error } = await ctx.supabase.rpc('register_push_subscription', { p_endpoint: parsed.data.endpoint, p_p256dh: parsed.data.keys.p256dh, p_auth: parsed.data.keys.auth, p_device: device });
   if (error?.message.includes('push_limit')) return fail(msg('Ya tienes avisos en 10 dispositivos. Desactívalos en alguno para agregar éste.'));
+  if (error?.message.includes('push_duplicate')) return fail(msg('Este navegador ya recibe avisos de otra cuenta. Desactívalos desde esa cuenta para activarlos aquí.'));
   if (error) return fail(dbErrorMessage(error, msg('No se pudieron activar los avisos.')));
   return ok(undefined, msg('Avisos activados en este dispositivo'));
 }

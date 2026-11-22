@@ -155,8 +155,8 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
-      # Dependencias de producción: falla con vulnerabilidades altas o críticas.
-      - run: npm audit --omit=dev --audit-level=high
+      # Dependencias de producción: falla desde vulnerabilidades moderadas (Next.js publica la mayoría así).
+      - run: npm audit --omit=dev --audit-level=moderate
 
   dependency-review:
     name: Dependency review

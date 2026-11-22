@@ -16,8 +16,12 @@ export const maxDuration = 60;
 const PREVIEW_MAX_ITEMS = 60;
 /** Configuración en borrador (POST): más que esto no es una configuración. */
 const MAX_BODY_BYTES = 256 * 1024;
-/** PDFs por persona cada 10 minutos (cada uno tarda segundos de CPU). */
-const RATE_LIMIT = 30;
+/**
+ * PDFs por persona cada 10 minutos (cada uno tarda segundos de CPU). La vista
+ * previa del estudio se regenera con cada cambio: cubo aparte y más amplio, para
+ * que editar mucho no agote la descarga.
+ */
+const RATE_LIMIT = { preview: 120, download: 30 };
 const RATE_WINDOW_SECONDS = 600;
 /** Ids de bloque que van en la cabecera X-Pdf-Marks (vienen del cliente: sólo ASCII, o la cabecera no se puede escribir). */
 const MARK_ID = /^[A-Za-z0-9_-]{1,64}$/;
@@ -31,10 +35,14 @@ async function authorize(catalogId: string): Promise<BusinessContext | NextRespo
   if (!ctx.features.pdf_export) {
     return NextResponse.json({ error: t('La exportación a PDF no está incluida en tu plan.') }, { status: 403 });
   }
-  if (!(await consumeRateLimit(`pdf:${ctx.userId}`, RATE_LIMIT, RATE_WINDOW_SECONDS))) {
-    return NextResponse.json({ error: t('Demasiadas solicitudes. Intenta de nuevo en unos minutos.') }, { status: 429 });
-  }
   return ctx;
+}
+
+/** Cubos separados: la vista previa automática del estudio no consume las descargas. */
+async function rateLimited(ctx: BusinessContext, kind: keyof typeof RATE_LIMIT): Promise<NextResponse | null> {
+  if (await consumeRateLimit(`pdf-${kind}:${ctx.userId}`, RATE_LIMIT[kind], RATE_WINDOW_SECONDS)) return null;
+  const t = await getT();
+  return NextResponse.json({ error: t('Demasiadas solicitudes. Intenta de nuevo en unos minutos.') }, { status: 429 });
 }
 
 async function respond(ctx: BusinessContext, settings: PdfSettings, { download, preview }: { download: boolean; preview: boolean }) {
@@ -63,6 +71,8 @@ export async function GET(request: NextRequest, { params }: RouteContext<'/api/c
   const { catalogId } = await params;
   const ctx = await authorize(catalogId);
   if (ctx instanceof NextResponse) return ctx;
+  const limited = await rateLimited(ctx, 'download');
+  if (limited) return limited;
   const legacy = (ctx.catalog.settings as { pdf?: unknown } | null)?.pdf;
   const settings = parsePdfSettings(ctx.catalog.pdf, legacy);
   return respond(ctx, settings, { download: request.nextUrl.searchParams.get('download') === '1', preview: false });
@@ -88,5 +98,8 @@ export async function POST(request: NextRequest, { params }: RouteContext<'/api/
     const t = await getT();
     return NextResponse.json({ error: t('Configuración inválida') }, { status: 400 });
   }
-  return respond(ctx, parsed.data, { download: !body?.preview, preview: Boolean(body?.preview) });
+  const preview = Boolean(body?.preview);
+  const limited = await rateLimited(ctx, preview ? 'preview' : 'download');
+  if (limited) return limited;
+  return respond(ctx, parsed.data, { download: !preview, preview });
 }

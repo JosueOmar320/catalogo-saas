@@ -10,6 +10,7 @@ import { useT } from '@/i18n/client';
 import { msg } from '@/i18n/translate';
 import { ADMIN_NAVIGATION, navigationFor } from './navigation';
 import type { SiteKind } from '@/lib/business/site-kind';
+import { useCanManage } from './DashboardContext';
 import { GarfieldAvatar } from '@/features/assistant/components/GarfieldAvatar';
 import { askGarfield } from '@/features/assistant/components/PanelGarfield';
 
@@ -47,6 +48,7 @@ export function CommandPalette({ admin, siteKind = 'catalog', features = ALL_FEA
   const [active, setActive] = useState(0);
   const [items, setItems] = useState<{ id: string; name: string; sku: string | null; type: 'product' | 'service' }[] | null>(null);
   const loading = useRef(false);
+  const canManage = useCanManage();
 
   const show = useCallback(() => {
     setQuery('');
@@ -78,7 +80,7 @@ export function CommandPalette({ admin, siteKind = 'catalog', features = ALL_FEA
   }, [open, show]);
 
   const entries = useMemo<Entry[]>(() => {
-    const navigation = (admin ? ADMIN_NAVIGATION : navigationFor(siteKind, features)).flatMap((entry): { label: string; hint?: string; href: string }[] =>
+    const navigation = (admin ? ADMIN_NAVIGATION : navigationFor(siteKind, features, canManage)).flatMap((entry): { label: string; hint?: string; href: string }[] =>
       entry.children
         ? entry.children.map((child) => ({ label: t(child.label), hint: t(entry.label), href: child.href }))
         : entry.href
@@ -109,7 +111,7 @@ export function CommandPalette({ admin, siteKind = 'catalog', features = ALL_FEA
     // Una pregunta ("¿cómo creo un cupón?") va a Garfield; siempre al final, para no tapar los resultados.
     const ask: Entry[] = !admin && features.assistant && query.trim().length >= 3 ? [{ id: 'ask', group: 'ask', label: t('Preguntar a Garfield: «{query}»', { query: query.trim() }), href: '', icon: <GarfieldAvatar size={18} ring={false} />, run: () => askGarfield(query.trim()) }] : [];
     return [...found, ...go, ...actions, ...ask];
-  }, [admin, catalog, features, items, query, siteKind, t]);
+  }, [admin, canManage, catalog, features, items, query, siteKind, t]);
 
   const go = (entry: Entry | undefined) => {
     if (!entry) return;

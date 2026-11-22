@@ -1,7 +1,7 @@
 'use client';
 
 import { LayoutGrid, List, X } from 'lucide-react';
-import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { useEffect, useEffectEvent, useId, useRef, type ReactNode } from 'react';
 import type { Translator } from '@/i18n/translate';
 import { SORT_OPTIONS, type SortOption } from '@/lib/catalog/collections-core';
 import type { CatalogCategoryView } from '@/lib/catalog/view-model';
@@ -212,17 +212,21 @@ export function yesNo(value: string, t: Translator): string {
 export function Sheet({ open, onClose, title, footer, children, t }: { open: boolean; onClose: () => void; title: string; footer?: ReactNode; children: ReactNode; t: Translator }) {
   const panel = useRef<HTMLDivElement>(null);
   const titleId = useId();
+  // `onClose` suele ser una flecha nueva en cada render: si el efecto dependiera de
+  // ella, cada tecla en un filtro movería el foco al panel y se perderían letras.
+  const close = useEffectEvent(() => onClose());
   useEffect(() => {
     if (!open) return;
     const opener = document.activeElement as HTMLElement | null;
     panel.current?.focus();
-    const onKey = (event: KeyboardEvent) => event.key === 'Escape' && onClose();
+    const onKey = (event: KeyboardEvent) => event.key === 'Escape' && close();
     document.addEventListener('keydown', onKey);
     return () => {
       document.removeEventListener('keydown', onKey);
+      // Sólo al cerrar de verdad: el foco vuelve al botón que lo abrió.
       opener?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open]);
   if (!open) return null;
   return (
     <>

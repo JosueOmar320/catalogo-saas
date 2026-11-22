@@ -5,6 +5,7 @@ import { ChevronsUpDown, LayoutGrid, LogOut, Shield, UserRound } from 'lucide-re
 import Link from 'next/link';
 import { useState } from 'react';
 import { signOut } from '@/features/auth/actions';
+import { removePushSubscription } from '@/features/push/actions';
 import { useT } from '@/i18n/client';
 
 type Props = {
@@ -37,6 +38,32 @@ export function AccountMenu({ username, fullName, isAdmin, showDashboard = true 
   );
 }
 
+/** Alcance del service worker de los avisos de pedidos (el mismo que registra OrderAlertsCard). */
+const PUSH_SCOPE = '/dashboard/';
+
+/**
+ * Al salir, este dispositivo deja de recibir avisos de pedidos: se da de baja
+ * en el navegador y se borra su registro en el servidor (mejor esfuerzo: si
+ * algo falla, se sale igual).
+ */
+async function unsubscribePush(): Promise<void> {
+  try {
+    if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
+    const registration = await navigator.serviceWorker.getRegistration(PUSH_SCOPE);
+    const subscription = await registration?.pushManager.getSubscription();
+    if (!subscription) return;
+    const { endpoint } = subscription;
+    await Promise.allSettled([subscription.unsubscribe(), removePushSubscription(endpoint)]);
+  } catch {
+    // Sin avisos activos o sin permiso: no impide salir.
+  }
+}
+
+async function logout(): Promise<void> {
+  await unsubscribePush();
+  await signOut();
+}
+
 export function AccountMenuItems({ anchor, onClose, isAdmin, showDashboard, children }: { anchor: HTMLElement | null; onClose: () => void; isAdmin: boolean; showDashboard?: boolean; children?: React.ReactNode }) {
   const t = useT();
   return (
@@ -66,7 +93,7 @@ export function AccountMenuItems({ anchor, onClose, isAdmin, showDashboard, chil
         <ListItemText primary={t('Mi cuenta')} slotProps={{ primary: { variant: 'body2' } }} />
       </MenuItem>
       <Divider />
-      <MenuItem onClick={() => void signOut()}>
+      <MenuItem onClick={() => void logout()}>
         <ListItemIcon><LogOut size={16} /></ListItemIcon>
         <ListItemText primary={t('Cerrar sesión')} slotProps={{ primary: { variant: 'body2' } }} />
       </MenuItem>

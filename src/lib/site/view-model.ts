@@ -64,6 +64,11 @@ export type SiteInput = {
   siteKind?: SiteKind;
   /** Dominio propio activo: la raíz pública y los enlaces de cada ítem usan ese dominio. */
   customDomain?: string | null;
+  /**
+   * Función «Pedidos y clientes» del negocio (decisión del administrador). Apagada: los
+   * pedidos por WhatsApp siguen, pero sin copia en la bandeja ni teléfono del cliente.
+   */
+  ordersEnabled?: boolean;
 };
 
 /**
@@ -74,7 +79,9 @@ export function buildSiteViewModel(input: SiteInput, { public: isPublic = false,
   const siteKind = input.siteKind ?? 'catalog';
   const parsed = parseCatalogSettings(input.catalog.settings);
   // Sitio web sin catálogo: nada de productos, pedidos ni reseñas aunque la configuración los tenga activos.
-  const settings = siteKind === 'catalog' ? parsed : { ...parsed, order: { ...parsed.order, enabled: false }, reviews: { ...parsed.reviews, enabled: false } };
+  const withKind = siteKind === 'catalog' ? parsed : { ...parsed, order: { ...parsed.order, enabled: false }, reviews: { ...parsed.reviews, enabled: false } };
+  // Sin la función de pedidos no hay bandeja: no se promete copia ni se pide teléfono.
+  const settings = input.ordersEnabled === false ? { ...withKind, order: { ...withKind.order, inbox: false, askPhone: false } } : withKind;
   const categories = mapCategories(input.categories);
   const attributeDefs = parseAttributeDefs(input.catalog.attribute_defs);
   const items = siteKind === 'catalog' ? (isPublic ? input.items.filter((item) => inSeason(parseItemAttributes(item.attributes).season, now)) : input.items) : [];

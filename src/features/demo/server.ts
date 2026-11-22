@@ -90,10 +90,19 @@ async function copyTemplate(admin: Admin, businessId: string, template: Record<s
   return images;
 }
 
-/** Todos los archivos bajo una carpeta (la API de Storage lista un nivel a la vez). */
+/** Archivos por página al listar Storage (su tope por llamada). */
+const LIST_PAGE = 1000;
+
+/** Todos los archivos bajo una carpeta (la API de Storage lista un nivel a la vez y por páginas). */
 async function listAll(admin: Admin, prefix: string): Promise<string[]> {
-  const { data } = await bucket(admin).list(prefix, { limit: 1000 });
-  const nested = await Promise.all((data ?? []).map((entry) => (entry.id ? Promise.resolve([`${prefix}/${entry.name}`]) : listAll(admin, `${prefix}/${entry.name}`))));
+  const entries: { id: string | null; name: string }[] = [];
+  for (let offset = 0; ; offset += LIST_PAGE) {
+    const { data, error } = await bucket(admin).list(prefix, { limit: LIST_PAGE, offset });
+    if (error) throw error;
+    entries.push(...(data ?? []));
+    if (!data || data.length < LIST_PAGE) break;
+  }
+  const nested = await Promise.all(entries.map((entry) => (entry.id ? Promise.resolve([`${prefix}/${entry.name}`]) : listAll(admin, `${prefix}/${entry.name}`))));
   return nested.flat();
 }
 

@@ -17,7 +17,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import { Copy, Eye, ImageIcon, MoreHorizontal, PackageX, Pencil, Search, ShoppingBag, Star, Trash2 } from 'lucide-react';
+import { Copy, Eye, EyeOff, ImageIcon, MoreHorizontal, PackageX, Pencil, Search, ShoppingBag, Star, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
@@ -294,7 +294,11 @@ export function ItemsTable({ items: initialItems, categories, initialReview = nu
                 <Box component={Link} href={`/dashboard/catalog/items/${item.id}`} sx={{ flex: 1, minWidth: 0, color: 'inherit', textDecoration: 'none', '&:hover .name': { textDecoration: 'underline' } }}>
                   <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
                     <Typography className="name" variant="body2" noWrap sx={{ fontWeight: 600 }}>{item.name}</Typography>
-                    {item.isFeatured && <Star size={13} fill="#F59E0B" color="#F59E0B" aria-label={t('Destacado')} />}
+                    {item.isFeatured && (
+                      <Box component="span" sx={{ display: 'inline-flex', color: 'warning.main' }}>
+                        <Star size={13} fill="currentColor" color="currentColor" aria-label={t('Destacado')} />
+                      </Box>
+                    )}
                   </Stack>
                   <Typography variant="caption" color="text.secondary" noWrap component="p">
                     {[item.categoryName ?? t('Sin categoría'), item.sku].filter(Boolean).join(' · ')}
@@ -335,6 +339,7 @@ export function ItemsTable({ items: initialItems, categories, initialReview = nu
                     sx={{ display: { xs: 'none', md: 'inline-flex' } }}
                   />
                 )}
+                {/* Métricas de 30 días (secundarias): sólo desde md, y cada cifra dice qué es. */}
                 {(item.views !== null || item.units !== null) && (
                   <Stack
                     direction="row"
@@ -344,31 +349,39 @@ export function ItemsTable({ items: initialItems, categories, initialReview = nu
                     role="group"
                   >
                     {item.views !== null && (
-                      <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }} aria-hidden>
-                        <Eye size={13} />
-                        <Typography variant="caption">{item.views}</Typography>
-                      </Stack>
+                      <Tooltip title={item.views === 1 ? t('1 ficha vista en 30 días') : t('{count} fichas vistas en 30 días', { count: item.views })} disableInteractive>
+                        <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', cursor: 'default' }} aria-hidden>
+                          <Eye size={13} />
+                          <Typography variant="caption">{item.views}</Typography>
+                        </Stack>
+                      </Tooltip>
                     )}
                     {item.units !== null && (
-                      <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }} aria-hidden>
-                        <ShoppingBag size={13} />
-                        <Typography variant="caption">{item.units}</Typography>
-                      </Stack>
+                      <Tooltip title={item.units === 1 ? t('1 unidad pedida en 30 días') : t('{count} unidades pedidas en 30 días', { count: item.units })} disableInteractive>
+                        <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', cursor: 'default' }} aria-hidden>
+                          <ShoppingBag size={13} />
+                          <Typography variant="caption">{item.units}</Typography>
+                        </Stack>
+                      </Tooltip>
                     )}
                   </Stack>
                 )}
-                {item.isAvailable && item.stock === 0 && <Chip size="small" color="warning" variant="outlined" label={t('Sin existencias')} sx={{ display: { xs: 'none', sm: 'inline-flex' } }} />}
-                {item.isAvailable && item.stock !== null && item.stock > 0 && item.stock <= LOW_STOCK && (
-                  <Chip size="small" color="warning" variant="outlined" label={t('Quedan {count}', { count: item.stock })} sx={{ display: { xs: 'none', sm: 'inline-flex' } }} />
-                )}
-                {!item.isAvailable && <Chip label={t('Agotado')} variant="outlined" sx={{ display: { xs: 'none', sm: 'inline-flex' } }} />}
-                <PriceCell
-                  item={item}
-                  locale={locale}
-                  onSaved={(price, priceLabel) => setItems((list) => list.map((i) => (i.id === item.id ? { ...i, price, priceLabel, hasPrice: price !== null || i.hasPrice } : i)))}
-                />
+                {/* Precio y disponibilidad siempre a la vista; en el celular, apilados a la derecha. */}
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={{ xs: 0.25, sm: 1.5 }} sx={{ alignItems: { xs: 'flex-end', sm: 'center' }, flexShrink: 0 }}>
+                  {item.isAvailable && item.stock === 0 && <Chip size="small" color="warning" variant="outlined" label={t('Sin existencias')} />}
+                  {item.isAvailable && item.stock !== null && item.stock > 0 && item.stock <= LOW_STOCK && (
+                    <Chip size="small" color="warning" variant="outlined" label={t('Quedan {count}', { count: item.stock })} />
+                  )}
+                  {!item.isAvailable && <Chip size="small" label={t('Agotado')} variant="outlined" />}
+                  <PriceCell
+                    item={item}
+                    locale={locale}
+                    onSaved={(price, priceLabel) => setItems((list) => list.map((i) => (i.id === item.id ? { ...i, price, priceLabel, hasPrice: price !== null || i.hasPrice } : i)))}
+                  />
+                </Stack>
+                {/* En el celular el interruptor cede su lugar al precio; mostrar/ocultar queda en el menú. */}
                 <Tooltip title={item.isVisible ? t('Visible en el catálogo') : t('Oculto')}>
-                  <Switch checked={item.isVisible} onChange={(e) => toggle(item, 'is_visible', e.target.checked)} slotProps={{ input: { 'aria-label': t('Visible en el catálogo') } }} />
+                  <Switch checked={item.isVisible} onChange={(e) => toggle(item, 'is_visible', e.target.checked)} slotProps={{ input: { 'aria-label': t('Visible en el catálogo') } }} sx={{ display: { xs: 'none', sm: 'inline-flex' } }} />
                 </Tooltip>
                 <IconButton onClick={(e) => setMenu({ anchor: e.currentTarget, item })} aria-label={t('Acciones de {name}', { name: item.name })}>
                   <MoreHorizontal size={16} />
@@ -391,6 +404,9 @@ export function ItemsTable({ items: initialItems, categories, initialReview = nu
             </MenuItem>,
             <MenuItem key="avail" onClick={() => { const it = menu.item; setMenu(null); toggle(it, 'is_available', !it.isAvailable); }}>
               <ListItemIcon><PackageX size={15} /></ListItemIcon>{menu.item.isAvailable ? t('Marcar como agotado') : t('Marcar como disponible')}
+            </MenuItem>,
+            <MenuItem key="vis" onClick={() => { const it = menu.item; setMenu(null); toggle(it, 'is_visible', !it.isVisible); }}>
+              <ListItemIcon>{menu.item.isVisible ? <EyeOff size={15} /> : <Eye size={15} />}</ListItemIcon>{menu.item.isVisible ? t('Ocultar del catálogo') : t('Mostrar en el catálogo')}
             </MenuItem>,
             <MenuItem key="del" onClick={() => void handleDelete(menu.item)} sx={{ color: 'error.main' }}>
               <ListItemIcon sx={{ color: 'inherit' }}><Trash2 size={15} /></ListItemIcon>{t('Eliminar')}

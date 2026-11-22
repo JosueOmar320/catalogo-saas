@@ -2,9 +2,10 @@
 
 import { canManageCatalog, requireBusinessContext, type BusinessContext } from '@/lib/auth/session';
 import { afterCatalogChange } from '@/lib/catalog/cache';
-import { normalizeDomain, wwwCounterpart, type DnsRecord } from '@/lib/domains/domain';
+import { normalizeDomain, registrableDomain, wwwCounterpart, type DnsRecord } from '@/lib/domains/domain';
 import { addProjectDomain, checkProjectDomain, isVercelConfigured, removeProjectDomain, VercelError } from '@/lib/domains/vercel';
 import { env } from '@/lib/env';
+import { consumeRateLimit } from '@/lib/security/rate-limit';
 import { createAdminClient, isServiceRoleConfigured } from '@/lib/supabase/admin';
 import { fail, ok, type ActionResult } from '@/lib/utils/result';
 import { msg } from '@/i18n/translate';
@@ -22,6 +23,9 @@ export type DomainStatus = {
   /** La otra forma (www o sin www), que redirige a la elegida. */
   alias: string | null;
 };
+
+/** Cambios de dominio por negocio y hora (cada uno registra dominios en Vercel). */
+const DOMAIN_CHANGES_PER_HOUR = 5;
 
 const platformHost = () => {
   try {
@@ -55,6 +59,19 @@ async function save(ctx: BusinessContext, patch: { custom_domain: string | null;
   return error;
 }
 
+/**
+ * ¿Otro negocio ya tiene este dominio, su otra forma (www ↔ raíz) o cualquier
+ * dominio con la misma raíz registrable? La raíz (custom_domain_apex, migración
+ * 20261123) es la regla; si la columna aún no existe, se revisa el par exacto.
+ */
+async function domainTaken(ctx: BusinessContext, domain: string, alias: string | null): Promise<boolean> {
+  const admin = createAdminClient();
+  const byApex = await admin.from('businesses').select('id').eq('custom_domain_apex', registrableDomain(domain)).neq('id', ctx.business.id).limit(1);
+  if (!byApex.error) return (byApex.data?.length ?? 0) > 0;
+  const byPair = await admin.from('businesses').select('id').in('custom_domain', alias ? [domain, alias] : [domain]).neq('id', ctx.business.id).limit(1);
+  return (byPair.data?.length ?? 0) > 0;
+}
+
 async function statusFor(domain: string): Promise<{ status: 'pending' | 'active'; records: DnsRecord[] }> {
   const check = await checkProjectDomain(domain);
   const active = check.verified && check.configured;
@@ -67,23 +84,22 @@ export async function setCustomDomain(input: string): Promise<ActionResult<Domai
   const blocked = guard(ctx);
   if (blocked) return fail(blocked);
   const domain = typeof input === 'string' ? normalizeDomain(input, platformHost()) : null;
-  if (!domain) return fail(msg('Escribe un dominio válido, como mitienda.com o tienda.mitienda.com.'), { domain: [msg('Dominio inválido')] });
+  // Tampoco un subdominio de la plataforma (tienda.vitrina.app): la raíz registrable es de la plataforma.
+  if (!domain || platformHost().some((host) => registrableDomain(host) === registrableDomain(domain))) return fail(msg('Escribe un dominio válido, como mitienda.com o tienda.mitienda.com.'), { domain: [msg('Dominio inválido')] });
   const previous = ctx.business.custom_domain;
   if (previous === domain) return checkCustomDomain();
-
-  const admin = createAdminClient();
-  const { data: taken } = await admin.from('businesses').select('id').eq('custom_domain', domain).neq('id', ctx.business.id).maybeSingle();
-  if (taken) return fail(msg('Ese dominio ya lo usa otro negocio.'), { domain: [msg('Ya está en uso')] });
+  // Cada cambio registra dominios en Vercel: pocos por hora y por negocio (nadie «reserva» dominios a lo loco).
+  if (!(await consumeRateLimit(`domain:${ctx.business.id}`, DOMAIN_CHANGES_PER_HOUR, 3600))) return fail(msg('Cambiaste el dominio varias veces en poco tiempo. Espera una hora e intenta de nuevo.'));
 
   const alias = wwwCounterpart(domain);
+  if (await domainTaken(ctx, domain, alias?.name ?? null)) return fail(msg('Ese dominio ya lo usa otro negocio.'), { domain: [msg('Ya está en uso')] });
+
   try {
     await addProjectDomain(domain);
     if (alias) await addProjectDomain(alias.name, alias.redirectTo);
   } catch (error) {
     return fail(vercelMessage(error));
   }
-  // El dominio anterior deja de servir este sitio.
-  if (previous) await removeDomainAndAlias(previous).catch(() => undefined);
 
   let state: { status: 'pending' | 'active'; records: DnsRecord[] };
   try {
@@ -93,9 +109,13 @@ export async function setCustomDomain(input: string): Promise<ActionResult<Domai
   }
   const error = await save(ctx, { custom_domain: domain, custom_domain_status: state.status });
   if (error) {
+    // Otro negocio lo guardó en medio: el dominio en Vercel ahora es suyo, no se toca.
+    if (error.code === '23505') return fail(msg('Ese dominio ya lo usa otro negocio.'));
     await removeDomainAndAlias(domain).catch(() => undefined);
-    return fail(error.code === '23505' ? msg('Ese dominio ya lo usa otro negocio.') : msg('No se pudo guardar. Intenta de nuevo.'));
+    return fail(msg('No se pudo guardar. Intenta de nuevo.'));
   }
+  // Ya guardado el nuevo: el anterior deja de servir este sitio (antes del guardado, un fallo lo dejaba sin ninguno).
+  if (previous) await removeDomainAndAlias(previous).catch(() => undefined);
   afterCatalogChange(ctx);
   return ok(
     { domain, status: state.status, records: state.records, alias: alias?.name ?? null },

@@ -3,6 +3,8 @@
 import { Box, Button, Stack, TextField, Typography } from '@mui/material';
 import { MessageSquareReply } from 'lucide-react';
 import { useState } from 'react';
+import { useConfirm } from '@/components/feedback/ConfirmProvider';
+import { useToast } from '@/components/feedback/ToastProvider';
 import { WriteWithGarfield } from '@/features/assistant/components/WriteWithGarfield';
 import { useT } from '@/i18n/client';
 import { useAction } from '@/lib/hooks/use-action';
@@ -11,21 +13,40 @@ import type { PanelReview } from '../queries';
 
 const MAX = 1000;
 
-/** Respuesta pública del negocio debajo de una reseña: escribirla (o pedírsela a Garfield), editarla o quitarla. */
-export function ReviewReply({ review, onSaved }: { review: PanelReview; onSaved: (reply: string | null) => void }) {
+/**
+ * Respuesta pública del negocio debajo de una reseña: escribirla (o pedírsela a
+ * Garfield), editarla o quitarla. En una reseña pendiente nada es público todavía:
+ * la respuesta se «guarda» y se publica junto con la reseña al aprobarla.
+ */
+export function ReviewReply({ review, pendingReview = false, onSaved }: { review: PanelReview; pendingReview?: boolean; onSaved: (reply: string | null) => void }) {
   const t = useT();
+  const toast = useToast();
+  const confirm = useConfirm();
   const { run, pending } = useAction();
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(review.reply ?? '');
 
   const save = (value: string | null) => {
+    // El mensaje de la acción habla de «publicada»; en una reseña pendiente se dice «guardada».
     void run(() => replyToReview({ id: review.id, reply: value ?? '' }), {
+      successToast: !(pendingReview && value),
       onSuccess: () => {
+        if (pendingReview && value) toast.success(t('Respuesta guardada'));
         onSaved(value);
         setText(value ?? '');
         setEditing(false);
       },
     });
+  };
+
+  const remove = async () => {
+    const yes = await confirm({
+      title: t('¿Quitar tu respuesta?'),
+      description: pendingReview ? t('Se borra la respuesta guardada. La reseña sigue pendiente.') : t('Deja de verse en tu sitio. Puedes escribir otra cuando quieras.'),
+      confirmLabel: t('Quitar respuesta'),
+      destructive: true,
+    });
+    if (yes) save(null);
   };
 
   if (editing) {
@@ -35,7 +56,7 @@ export function ReviewReply({ review, onSaved }: { review: PanelReview; onSaved:
           multiline
           minRows={2}
           size="small"
-          label={t('Tu respuesta (pública)')}
+          label={pendingReview ? t('Tu respuesta (se publica con la reseña)') : t('Tu respuesta (pública)')}
           value={text}
           onChange={(event) => setText(event.target.value.slice(0, MAX))}
           helperText={`${text.length}/${MAX}`}
@@ -43,7 +64,7 @@ export function ReviewReply({ review, onSaved }: { review: PanelReview; onSaved:
         />
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', rowGap: 1 }}>
           <Button size="small" variant="contained" disabled={pending || !text.trim()} onClick={() => save(text.trim())}>
-            {t('Publicar respuesta')}
+            {pendingReview ? t('Guardar respuesta') : t('Publicar respuesta')}
           </Button>
           <Button size="small" color="inherit" disabled={pending} onClick={() => { setText(review.reply ?? ''); setEditing(false); }}>
             {t('Cancelar')}
@@ -60,9 +81,9 @@ export function ReviewReply({ review, onSaved }: { review: PanelReview; onSaved:
 
   if (review.reply) {
     return (
-      <Box sx={{ mt: 1.5, pl: 1.5, borderLeft: 3, borderColor: 'primary.main' }}>
+      <Box sx={{ mt: 1.5, p: 1.25, borderRadius: 1.5, bgcolor: 'action.hover' }}>
         <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-          {t('Tu respuesta')}
+          {pendingReview ? t('Tu respuesta (se publica con la reseña)') : t('Tu respuesta')}
         </Typography>
         <Typography variant="body2" sx={{ whiteSpace: 'pre-line', overflowWrap: 'anywhere' }}>
           {review.reply}
@@ -71,7 +92,7 @@ export function ReviewReply({ review, onSaved }: { review: PanelReview; onSaved:
           <Button size="small" disabled={pending} onClick={() => setEditing(true)}>
             {t('Editar respuesta')}
           </Button>
-          <Button size="small" color="inherit" disabled={pending} onClick={() => save(null)}>
+          <Button size="small" color="inherit" disabled={pending} onClick={() => void remove()}>
             {t('Quitar respuesta')}
           </Button>
         </Stack>

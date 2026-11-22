@@ -89,6 +89,34 @@ export function SiteHeader(props: HeaderProps) {
     return () => document.removeEventListener('keydown', onKey);
   }, [open]);
 
+  // Panel lateral o pantalla completa: es un diálogo modal. El resto del sitio
+  // queda inerte (sin foco ni clics), la página no se desplaza detrás y el foco
+  // entra al primer enlace; al cerrar, todo vuelve y el foco regresa al botón.
+  // Sin <dialog>: así queda dentro de la vista previa del editor.
+  const sheet = header.mobileMenu !== 'dropdown';
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const modal = open && sheet;
+  useEffect(() => {
+    const panel = dialogRef.current;
+    if (!modal || !panel) return;
+    const toggle = toggleRef.current;
+    const root = panel.closest<HTMLElement>('[data-site]') ?? document.body;
+    const made = inertOutside(panel, root);
+    const scroller = scrollContainer(root);
+    const previousOverflow = scroller.style.overflow;
+    scroller.style.overflow = 'hidden';
+    // El primer enlace del menú (no el logo de la cabecera del panel).
+    const first = Array.from(panel.querySelectorAll<HTMLElement>('a[href]')).find((a) => !a.closest('[data-head]'));
+    (first ?? panel.querySelector<HTMLElement>('nav') ?? panel).focus();
+    return () => {
+      for (const el of made) el.inert = false;
+      scroller.style.overflow = previousOverflow;
+      // El botón recién dejó de estar inerte: si el foco se quedó dentro (o se perdió), vuelve a él.
+      const active = document.activeElement;
+      if (!active || active === document.body || panel.contains(active)) toggle?.focus();
+    };
+  }, [modal]);
+
   const isActive = (href: string) => (href.split('?')[0].replace(/\/$/, '') || '/') === current;
   const centered = header.logoPosition === 'center';
   const customBg = header.background.type !== 'inherit';
@@ -191,28 +219,31 @@ export function SiteHeader(props: HeaderProps) {
   );
 
   // Lista bajo la barra, panel lateral o pantalla completa (estos dos con fondo que cierra y su propio botón de cerrar).
-  const sheet = header.mobileMenu !== 'dropdown';
-  const mobilePanel = open && (
-    <>
-      {sheet && <div className={styles.mobileBackdrop} onClick={() => setOpen(false)} aria-hidden />}
-      <nav id={menuId} className={styles.mobilePanel} data-variant={header.mobileMenu} aria-label={t('Menú móvil')}>
-        {sheet && (
-          <div className={styles.mobilePanelHead}>
-            {brandNode}
-            <button type="button" className={styles.menuToggle} aria-label={t('Cerrar menú')} onClick={() => { setOpen(false); toggleRef.current?.focus(); }}>
-              <X size={18} />
-            </button>
-          </div>
-        )}
-        {mobileLinks()}
-        {cta && (
-          <a href={cta.href} className={styles.btn} data-variant="solid" target={cta.external ? '_blank' : undefined} rel="noopener noreferrer">
-            {cta.label}
-          </a>
-        )}
-      </nav>
-    </>
+  const mobileNav = (
+    <nav id={menuId} className={styles.mobilePanel} data-variant={header.mobileMenu} aria-label={t('Menú móvil')} tabIndex={sheet ? -1 : undefined}>
+      {sheet && (
+        <div className={styles.mobilePanelHead} data-head>
+          {brandNode}
+          <button type="button" className={styles.menuToggle} aria-label={t('Cerrar menú')} onClick={() => { setOpen(false); toggleRef.current?.focus(); }}>
+            <X size={18} />
+          </button>
+        </div>
+      )}
+      {mobileLinks()}
+      {cta && (
+        <a href={cta.href} className={styles.btn} data-variant="solid" target={cta.external ? '_blank' : undefined} rel="noopener noreferrer">
+          {cta.label}
+        </a>
+      )}
+    </nav>
   );
+  // El panel lateral / pantalla completa va dentro de un diálogo modal (con su fondo que cierra); la lista bajo la barra, suelta.
+  const mobilePanel = open && (sheet ? (
+    <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={t('Menú móvil')} style={{ display: 'contents' }}>
+      <div className={styles.mobileBackdrop} onClick={() => setOpen(false)} aria-hidden />
+      {mobileNav}
+    </div>
+  ) : mobileNav);
 
   const attrs = {
     'data-style': header.style,
@@ -302,6 +333,28 @@ export function SiteHeader(props: HeaderProps) {
 }
 
 type LinkProps = (item: ResolvedNavItem) => { href: string; target?: string; rel?: string; onClick: () => void };
+
+/** Deja inertes a los hermanos de `panel` y de sus ancestros hasta `root` (el fondo que cierra va dentro del diálogo y sigue activo). Devuelve los que cambió. */
+function inertOutside(panel: HTMLElement, root: HTMLElement): HTMLElement[] {
+  const made: HTMLElement[] = [];
+  for (let node: HTMLElement | null = panel; node && node !== root; node = node.parentElement) {
+    for (const sibling of Array.from(node.parentElement?.children ?? [])) {
+      if (sibling !== node && sibling instanceof HTMLElement && !sibling.inert) {
+        sibling.inert = true;
+        made.push(sibling);
+      }
+    }
+  }
+  return made;
+}
+
+/** Quién desplaza el sitio: la vista previa del editor tiene su propio contenedor; en el sitio público, la página. */
+function scrollContainer(root: HTMLElement): HTMLElement {
+  for (let node = root.parentElement; node && node !== document.body; node = node.parentElement) {
+    if (/(auto|scroll|overlay)/.test(getComputedStyle(node).overflowY)) return node;
+  }
+  return document.body;
+}
 
 /**
  * Submenú del header (escritorio): botón con aria-expanded que abre la

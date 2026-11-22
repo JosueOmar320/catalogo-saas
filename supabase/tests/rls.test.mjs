@@ -940,10 +940,14 @@ await expectErr('the keys are not readable', () => q(`select p256dh from public.
 await expectErr('no direct inserts', () => q(`insert into public.push_subscriptions(user_id, endpoint, p256dh, auth) values ($1,$2,$3,$4)`, [A, EP(9), KEY, AUTH]), 'permission denied');
 await expectErr('an http endpoint is rejected', () => q(`select public.register_push_subscription('http://evil.test/x', $1, $2)`, [KEY, AUTH]), 'check constraint');
 await as(JUAN);
-await expectOk('the same device signed in as Juan passes to Juan', () => register(1, 'Chrome de la tienda'));
-await expectEq('Juan sees it', () => q(`select count(*)::int n from public.push_subscriptions`).then((r) => r[0].n), 1);
+await expectErr('the same device signed in as Juan is NOT taken from A (push_duplicate)', () => register(1, 'Chrome de la tienda'), 'push_duplicate');
+await expectEq('Juan has no devices', () => q(`select count(*)::int n from public.push_subscriptions`).then((r) => r[0].n), 0);
 await as(A);
-await expectEq('A no longer has it', () => q(`select count(*)::int n from public.push_subscriptions`).then((r) => r[0].n), 0);
+await expectEq('A still has it', () => q(`select count(*)::int n from public.push_subscriptions`).then((r) => r[0].n), 1);
+await expectEq('re-registering the own device renews it (same endpoint, one row)', async () => { await register(1, 'Chrome renovado'); return q(`select count(*)::int n, max(device) d from public.push_subscriptions where endpoint=$1`, [EP(1)]).then((r) => r[0]); }, { n: 1, d: 'Chrome renovado' });
+await as(JUAN);
+await expectOk('Juan registers his own device', () => register(20, 'Chrome de la tienda'));
+await as(A);
 await expectOk('A registers another device', () => register(2));
 await as(B);
 await expectEq('B does not see other users devices', () => q(`select count(*)::int n from public.push_subscriptions`).then((r) => r[0].n), 0);
@@ -951,9 +955,9 @@ await expectEq('B cannot delete them', async () => (await db.query(`delete from 
 await expectErr('members cannot claim order pushes', () => q(`select * from public.claim_order_push('tienda-a', 'K7Q2')`), 'permission denied');
 await expectErr('members cannot list push targets', () => q(`select * from public.push_targets($1)`, [bizA]), 'permission denied');
 await as(A);
-for (let n = 3; n <= 11; n++) await register(n);
+for (let n = 3; n <= 10; n++) await register(n); // A ya tiene 1 y 2
 await expectErr('at most 10 devices per user', () => register(12), 'push_limit');
-await expectOk('owner removes a device', () => q(`delete from public.push_subscriptions where endpoint=$1`, [EP(11)]));
+await expectOk('owner removes a device', () => q(`delete from public.push_subscriptions where endpoint=$1`, [EP(10)]));
 
 await db.exec('reset role');
 await setOrderSettings({ enabled: true, inbox: true, paused: false });
@@ -1087,6 +1091,166 @@ await expectEq('purge returns the demo accounts to delete from Auth', () => q(`s
 await db.exec('reset role');
 await expectEq('the business, its content and the demo profile are gone, without audit traces', () => q(`select (select count(*)::int from public.businesses where id = $1) b, (select count(*)::int from public.categories where business_id = $1) c, (select count(*)::int from public.profiles where id = $2) p, (select count(*)::int from public.audit_log where business_id = $1 or actor_id = $2) a`, [demo.business_id, DEMO_USER]), [{ b: 0, c: 0, p: 0, a: 0 }]);
 await expectEq('the demo plan is hidden', () => q(`select is_public from public.plans where id = 'demo'`), [{ is_public: false }]);
+await db.exec('reset role');
+
+/* ------------------------------------------------------------ Endurecimiento delta (20261123) */
+// 1 · Estadísticas agregadas en SQL (sin el tope de 1000 filas de PostgREST).
+await db.exec('reset role');
+let itemA2;
+await expectOk('seed: a second product and several days of per-item counters', async () => {
+  itemA2 = (await q(`insert into public.catalog_items(business_id, catalog_id, name, slug, price) values ($1,$2,'Té','te', 3) returning id`, [bizA, catA.id]))[0].id;
+  await q(`delete from public.item_view_stats_daily where business_id=$1`, [bizA]);
+  await q(`delete from public.order_item_stats_daily where business_id=$1`, [bizA]);
+  await q(`delete from public.item_cart_stats_daily where business_id=$1`, [bizA]);
+  await q(`delete from public.site_view_stats_daily where business_id=$1`, [bizA]);
+  await q(`delete from public.order_stats_daily where business_id=$1`, [bizA]);
+  await q(`delete from public.funnel_stats_daily where business_id=$1`, [bizA]);
+  // 12 días × 2 productos: vistas = día, unidades = 2, agregados = 1 (el segundo producto sólo vistas).
+  await q(`insert into public.item_view_stats_daily(business_id, day, item_id, views)
+           select $1, (now() at time zone 'utc')::date - g, $2, g from generate_series(0, 11) g`, [bizA, itemA]);
+  await q(`insert into public.item_view_stats_daily(business_id, day, item_id, views)
+           select $1, (now() at time zone 'utc')::date - g, $2, 1 from generate_series(0, 11) g`, [bizA, itemA2]);
+  await q(`insert into public.order_item_stats_daily(business_id, day, item_id, orders, units)
+           select $1, (now() at time zone 'utc')::date - g, $2, 1, 2 from generate_series(0, 11) g`, [bizA, itemA]);
+  await q(`insert into public.item_cart_stats_daily(business_id, day, item_id, adds)
+           select $1, (now() at time zone 'utc')::date - g, $2, 1 from generate_series(0, 11) g`, [bizA, itemA]);
+  await q(`insert into public.site_view_stats_daily(business_id, day, views)
+           select $1, (now() at time zone 'utc')::date - g, 10 from generate_series(0, 11) g`, [bizA]);
+  await q(`insert into public.order_stats_daily(business_id, day, orders, units, value)
+           select $1, (now() at time zone 'utc')::date - g, 1, 2, 5.50 from generate_series(0, 11) g`, [bizA]);
+  await q(`insert into public.funnel_stats_daily(business_id, day, source, sessions, viewed_product, started_cart, sent_order)
+           select $1, (now() at time zone 'utc')::date - g, s, 4, 2, 1, 1 from generate_series(0, 11) g, unnest(array['qr', 'instagram']) s`, [bizA]);
+});
+const SINCE_7 = `((now() at time zone 'utc')::date - 6)::text`;
+await as(A);
+await expectEq('item_performance: sums per product since the window start (7 days)', () =>
+  q(`select item_id, views, units, carts from public.item_performance($1, ${SINCE_7}::date) order by item_id`, [bizA]).then((r) => r.map((x) => [x.item_id === itemA ? 'A' : x.item_id === itemA2 ? 'A2' : '?', x.views, x.units, x.carts]).sort()),
+  [['A', 0 + 1 + 2 + 3 + 4 + 5 + 6, 14, 7], ['A2', 7, 0, 0]]);
+await expectEq('analytics_summary: per-day totals of both periods and per-product sums of the current one', async () => {
+  const [{ s }] = await q(`select public.analytics_summary($1, ((now() at time zone 'utc')::date - 13), null, ${SINCE_7}::date) s`, [bizA]);
+  const sum = (rows, key) => rows.reduce((n, r) => n + Number(r[key]), 0);
+  return {
+    funnelRows: s.funnel.length, sessions: sum(s.funnel, 'sessions'), orders: sum(s.orders, 'orders'), value: sum(s.orders, 'value'),
+    pageViews: sum(s.page_views, 'views'), itemViewDays: s.item_views.length, itemViews: sum(s.item_views, 'views'),
+    items: s.items.map((i) => [i.item_id === itemA ? 'A' : 'A2', i.views, i.adds, i.units]).sort(),
+  };
+}, { funnelRows: 24, sessions: 96, orders: 12, value: 66, pageViews: 120, itemViewDays: 12, itemViews: 66 + 12, items: [['A', 21, 7, 14], ['A2', 7, 0, 0]] });
+await expectEq('analytics_summary: empty lists (never null) when there is nothing', () => q(`select public.analytics_summary($1, '2000-01-01', '2000-01-31') s`, [bizA]).then((r) => Object.keys(r[0].s).sort().map((k) => [k, r[0].s[k].length])), [['funnel', 0], ['item_views', 0], ['items', 0], ['orders', 0], ['page_views', 0]]);
+await as(B);
+await expectErr('another business cannot aggregate A stats', () => q(`select public.analytics_summary($1, '2000-01-01') s`, [bizA]), 'not_allowed');
+await expectErr('nor read A item performance', () => q(`select * from public.item_performance($1, '2000-01-01')`, [bizA]), 'not_allowed');
+await as(null);
+await expectErr('anon cannot call analytics_summary', () => q(`select public.analytics_summary($1, '2000-01-01')`, [bizA]), 'permission denied');
+await expectErr('anon cannot call item_performance', () => q(`select * from public.item_performance($1, '2000-01-01')`, [bizA]), 'permission denied');
+await db.exec('reset role');
+
+// 2 · Dominios pendientes vencidos.
+await q(`update public.businesses set custom_domain='viejo-pendiente.com', custom_domain_status='pending', custom_domain_checked_at=now() - interval '20 days' where id=$1`, [bizA]);
+await q(`update public.businesses set custom_domain='nuevo-pendiente.com', custom_domain_status='pending', custom_domain_checked_at=now() - interval '2 days' where id=$1`, [bizB]);
+await as(A);
+await expectErr('members cannot list stale domains', () => q(`select * from public.stale_pending_domains()`), 'permission denied');
+await db.exec('reset role; set role service_role');
+await expectEq('stale_pending_domains: only the ones pending for 14+ days', () => q(`select business_id, custom_domain from public.stale_pending_domains()`).then((r) => r.map((x) => [x.business_id === bizA, x.custom_domain])), [[true, 'viejo-pendiente.com']]);
+await expectEq('with a shorter threshold both appear; an active domain never does', async () => {
+  const both = (await q(`select custom_domain from public.stale_pending_domains(1) order by custom_domain`)).map((x) => x.custom_domain);
+  await asSuper(() => q(`update public.businesses set custom_domain_status='active' where id=$1`, [bizA]), 'service_role');
+  const active = (await q(`select custom_domain from public.stale_pending_domains(1)`)).map((x) => x.custom_domain);
+  return [both, active];
+}, [['nuevo-pendiente.com', 'viejo-pendiente.com'], ['nuevo-pendiente.com']]);
+await db.exec('reset role');
+await q(`update public.businesses set custom_domain=null, custom_domain_status='none', custom_domain_checked_at=null where id in ($1, $2)`, [bizA, bizB]);
+
+// 3 · purge_old_data también limpia la analítica (mismo día UTC).
+await q(`insert into public.funnel_stats_daily(business_id, day, source, sessions) values ($1, (now() at time zone 'utc')::date - 401, 'direct', 1)`, [bizA]);
+await q(`insert into public.item_cart_stats_daily(business_id, day, item_id, adds) values ($1, (now() at time zone 'utc')::date - 401, $2, 1)`, [bizA, itemA]);
+await q(`insert into public.item_view_stats_daily(business_id, day, item_id, views) values ($1, (now() at time zone 'utc')::date - 401, $2, 1)`, [bizA, itemA]);
+await db.exec('set role service_role');
+await expectEq('purge_old_data: includes the analytics counts', () => q(`select (r->>'funnel_stats')::int f, (r->>'item_cart_stats')::int c, (r->>'daily_stats')::int d from public.purge_old_data() r`).then((x) => x[0]), { f: 1, c: 1, d: 1 });
+await expectEq('and the old analytics rows are gone', () => asSuper(() => q(`select (select count(*) from public.funnel_stats_daily where day < (now() at time zone 'utc')::date - 400)::int f, (select count(*) from public.item_cart_stats_daily where day < (now() at time zone 'utc')::date - 400)::int c`).then((x) => x[0]), 'service_role'), { f: 0, c: 0 });
+await db.exec('reset role');
+
+// 5 · Historial del sitio: tope total de bytes.
+await q(`delete from public.site_versions where catalog_id=$1`, [catA.id]);
+await q(`insert into public.site_versions(business_id, catalog_id, label, bytes, snapshot, created_at) values
+         ($1, $2, null, 1000, '{"v":"oldest"}', now() - interval '5 hours'),
+         ($1, $2, 'Con nombre', 1000, '{"v":"named"}', now() - interval '4 hours'),
+         ($1, $2, null, 1000, '{"v":"middle"}', now() - interval '3 hours'),
+         ($1, $2, null, 1000, '{"v":"recent"}', now() - interval '2 hours'),
+         ($1, $2, null, 1000, '{"v":"newest"}', now() - interval '1 hour')`, [bizA, catA.id]);
+await as(A);
+await expectErr('prune_site_versions is internal', () => q(`select public.prune_site_versions($1, 10)`, [catA.id]), 'permission denied');
+await db.exec('reset role');
+await expectEq('byte cap: the oldest automatic versions go first, the named one and the newest never', async () => {
+  // 5000 bytes en total, tope 2500: hay que liberar 2500 → oldest y middle (2000 no alcanzan, recent también).
+  await q(`select public.prune_site_versions($1, 2500)`, [catA.id]);
+  return q(`select snapshot->>'v' v from public.site_versions where catalog_id=$1 order by created_at`, [catA.id]).then((r) => r.map((x) => x.v));
+}, ['named', 'newest']);
+await expectEq('byte cap: nothing to free when under the cap', async () => {
+  await q(`select public.prune_site_versions($1, 2000)`, [catA.id]);
+  return q(`select count(*)::int n from public.site_versions where catalog_id=$1`, [catA.id]).then((r) => r[0].n);
+}, 2);
+await expectEq('byte cap: a snapshot without bytes is measured', async () => {
+  await q(`insert into public.site_versions(business_id, catalog_id, snapshot, created_at) values ($1, $2, $3::jsonb, now() - interval '30 minutes')`, [bizA, catA.id, JSON.stringify({ big: 'x'.repeat(3000) })]);
+  await q(`select public.prune_site_versions($1, 2500)`, [catA.id]);
+  return q(`select snapshot->>'v' v from public.site_versions where catalog_id=$1 order by created_at`, [catA.id]).then((r) => r.map((x) => x.v));
+}, ['named', null]);
+await expectOk('the one-argument prune (50 MB) still runs through record_site_version', async () => { await as(A); const id = await recordVersion(); if (!id) throw new Error('no version'); });
+await db.exec('reset role');
+
+// 6 · Dominio propio: una raíz registrable por negocio.
+await expectEq('domain_apex: root of www, subdomains and two-part endings', () => q(`select public.domain_apex('www.mitienda.com') a, public.domain_apex('tienda.mitienda.com.mx') b, public.domain_apex('mitienda.com') c, public.domain_apex('co.uk') d`).then((r) => r[0]), { a: 'mitienda.com', b: 'mitienda.com.mx', c: 'mitienda.com', d: 'co.uk' });
+await q(`update public.businesses set custom_domain='mitienda.com', custom_domain_status='pending' where id=$1`, [bizA]);
+await expectEq('custom_domain_apex is generated', () => q(`select custom_domain_apex a from public.businesses where id=$1`, [bizA]).then((r) => r[0].a), 'mitienda.com');
+await expectErr('the www form of another business domain is rejected', () => q(`update public.businesses set custom_domain='www.mitienda.com', custom_domain_status='pending' where id=$1`, [bizB]), 'businesses_custom_domain_apex_key');
+await expectErr('and so is a subdomain of it', () => q(`update public.businesses set custom_domain='tienda.mitienda.com', custom_domain_status='pending' where id=$1`, [bizB]), 'businesses_custom_domain_apex_key');
+await expectOk('a different root is fine', () => q(`update public.businesses set custom_domain='mitienda.com.mx', custom_domain_status='pending' where id=$1`, [bizB]));
+await q(`update public.businesses set custom_domain=null, custom_domain_status='none' where id in ($1, $2)`, [bizA, bizB]);
+
+// 7 · Función «Pedidos» apagada: sin copia en la bandeja, sin teléfono, sin aviso push; el sitio lo sabe.
+await db.exec('reset role');
+await q(`update public.catalogs set status='published', is_active=true, deleted_at=null where id=$1`, [catA.id]);
+await setOrderSettings({ enabled: true, inbox: true, paused: false });
+await q(`update public.businesses set feature_overrides='{"orders": false}' where id=$1`, [bizA]);
+await as(null);
+await expectEq('public catalog says orders_enabled=false', () => q(`select (public.get_public_catalog('tienda-a') -> 'business' ->> 'orders_enabled')::boolean v`).then((r) => r[0].v), false);
+await expectEq('the order is still counted but no copy (nor phone) is stored', async () => {
+  const counted = await sendOrder({ ...baseOrder, reference: 'FEAT1', customerName: 'Nadia', customerPhone: '5512345678', total: 5 });
+  const row = await orderRow('FEAT1');
+  return [counted, row];
+}, [true, null]);
+await db.exec('reset role');
+await q(`update public.businesses set feature_overrides='{}' where id=$1`, [bizA]);
+await expectEq('with the feature on the copy is stored and claimed for the push', async () => {
+  await sendOrder({ ...baseOrder, reference: 'FEAT2', customerName: 'Nora', total: 5 });
+  await db.exec('reset role; set role service_role');
+  const claimed = (await q(`select reference from public.claim_order_push('tienda-a', 'FEAT2')`)).length;
+  await db.exec('reset role');
+  return [(await orderRow('FEAT2'))?.customer_name ?? null, claimed];
+}, ['Nora', 1]);
+await expectEq('turning the feature off afterwards: pending pushes are not claimed either', async () => {
+  await q(`update public.orders set push_notified_at=null where business_id=$1 and reference='FEAT2'`, [bizA]);
+  await q(`update public.businesses set feature_overrides='{"orders": false}' where id=$1`, [bizA]);
+  await db.exec('set role service_role');
+  const n = (await q(`select reference from public.claim_order_push('tienda-a', 'FEAT2')`)).length;
+  await db.exec('reset role');
+  await q(`update public.businesses set feature_overrides='{}' where id=$1`, [bizA]);
+  return n;
+}, 0);
+await as(null);
+await expectEq('public catalog says orders_enabled=true by default', () => q(`select (public.get_public_catalog('tienda-a') -> 'business' ->> 'orders_enabled')::boolean v`).then((r) => r[0].v), true);
+await db.exec('reset role');
+
+// 8 · save_site devuelve la versión nueva.
+await as(A);
+await expectEq('save_site returns site_version() of the saved site', async () => {
+  const [{ v }] = await q(`select public.save_site($1, null, null, $2::jsonb, '{}'::uuid[]) v`, [catA.id, JSON.stringify(threePages('Versión devuelta'))]);
+  const [{ s }] = await q(`select public.site_version($1) s`, [catA.id]);
+  return [v !== null, String(v) === String(s)];
+}, [true, true]);
+await expectOk('and that version passes the next optimistic check', async () => {
+  const [{ v }] = await q(`select public.save_site($1, null, null, $2::jsonb, '{}'::uuid[]) v`, [catA.id, JSON.stringify(threePages('Otra vez'))]);
+  await saveSiteV(catA.id, threePages('Con la versión devuelta'), v);
+});
 await db.exec('reset role');
 
 console.log(`\n${pass} passed, ${fail} failed`);

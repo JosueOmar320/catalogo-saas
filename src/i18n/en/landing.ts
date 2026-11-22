@@ -14,17 +14,27 @@ const catalog: Catalog = {
   Demo: 'Demo',
   'Iniciar sesión': 'Sign in',
   'Apariencia: {mode}. Cambiar': 'Appearance: {mode}. Change',
+  // Héroe y pruebas de valor
+  'Para cafeterías, panaderías, ferreterías y estudios de servicios: un sitio con tu marca, tus productos con búsqueda y filtros, pedidos por WhatsApp y el catálogo en PDF. Con Garfield, un asistente que edita por ti.':
+    'For cafés, bakeries, hardware stores and service studios: a branded site, your products with search and filters, WhatsApp orders and the PDF catalog. With Garfield, an assistant that edits for you.',
+  'Lo que hace distinto a {app}': 'What makes {app} different',
+  'El pedido te llega por WhatsApp ya escrito, sin pasarela de pago.': 'Orders reach you on WhatsApp already written, no payment gateway.',
+  'El mismo sitio sale como catálogo PDF con el mismo diseño.': 'The same site comes out as a PDF catalog with the same design.',
+  'Garfield, el asistente, hace los cambios que le pidas.': 'Garfield, the assistant, makes the changes you ask for.',
+  'Recorrer el sitio de ejemplo': 'Browse the sample site',
+  'Ver un PDF de ejemplo': 'See a sample PDF',
+  'Un administrador crea tu cuenta y tu negocio, y te entrega el enlace para entrar.': 'An administrator creates your account and business, and hands you the link to sign in.',
+  'Pide tu acceso': 'Request access',
+  'Para quien quiera verlo por dentro: el código, la arquitectura y las pruebas están en GitHub.': 'For anyone who wants to look inside: the code, architecture and tests are on GitHub.',
+  'CI con typecheck, lint, más de 800 pruebas (unitarias, sobre Postgres real y end-to-end), CodeQL, auditoría de dependencias y búsqueda de secretos.':
+    'CI with type checking, linting, 800+ tests (unit, on real Postgres and end-to-end), CodeQL, dependency auditing and secret scanning.',
+  '¿Quieres {app} para tu negocio?': 'Want {app} for your business?',
+  'Pruébalo sin cuenta o pide tu acceso: un administrador crea tu negocio y te entrega el enlace.': 'Try it without an account or request access: an administrator creates your business and hands you the link.',
+  'Pide tu acceso: un administrador crea tu negocio y te entrega el enlace.': 'Request access: an administrator creates your business and hands you the link.',
   // Hero
-  'SaaS multi-tenant para pequeños negocios': 'Multi-tenant SaaS for small businesses',
   'Sitio web, catálogo y PDF para tu negocio, sin código': 'Website, catalog and PDF for your business, no code',
-  'Crea un sitio con tu marca, publica tus productos con búsqueda y filtros, recibe pedidos por WhatsApp y descarga un catálogo en PDF. Con un asistente de IA que edita por ti.':
-    'Build a branded site, publish your products with search and filters, take orders over WhatsApp and download a PDF catalog. With an AI assistant that edits for you.',
   'Ver la demo en vivo': 'See the live demo',
   'PDF de ejemplo': 'Sample PDF',
-  'tipos de sección': 'section types',
-  'diseños de producto': 'product layouts',
-  'plantillas de PDF': 'PDF templates',
-  idiomas: 'languages',
   'Ejemplo de sitio': 'Sample site',
   // Funciones
   'Todo lo que un negocio necesita para vender en línea': 'Everything a business needs to sell online',
@@ -43,13 +53,11 @@ const catalog: Catalog = {
   // Cómo funciona
   'Cómo funciona': 'How it works',
   'Recibe tu acceso': 'Get your access',
-  'Un administrador crea tu cuenta y tu negocio. No hay registro público.': 'An administrator creates your account and business. There is no public sign-up.',
   'Arma tu sitio y catálogo': 'Build your site and catalog',
   'Elige una plantilla, carga productos y personaliza el diseño, a mano o con Garfield.': 'Pick a template, add products and customize the design, by hand or with Garfield.',
   'Publica y comparte': 'Publish and share',
   'Un enlace para WhatsApp, redes y tu bio, y el PDF para imprimir.': 'One link for WhatsApp, social media and your bio, plus the PDF to print.',
   // Bajo el capó
-  'Bajo el capó': 'Under the hood',
   'Decisiones técnicas': 'Engineering decisions',
   'Aislamiento multi-tenant': 'Multi-tenant isolation',
   'Row Level Security en todas las tablas y en Storage: un negocio nunca ve datos de otro, aunque se llame a la API directamente.':
@@ -62,14 +70,10 @@ const catalog: Catalog = {
   'Rápido por diseño': 'Fast by design',
   'El catálogo público es estático (ISR) y hace una sola consulta por visita no cacheada.': 'The public catalog is static (ISR) and makes a single query per uncached visit.',
   'Calidad automatizada': 'Automated quality',
-  'CI con typecheck, lint, más de 300 pruebas (unitarias y sobre Postgres), CodeQL, auditoría de dependencias y búsqueda de secretos.':
-    'CI with type checking, linting, 300+ tests (unit and on Postgres), CodeQL, dependency auditing and secret scanning.',
   'Accesible e internacional': 'Accessible and international',
   'Modo claro y oscuro, interfaz en español e inglés y sitios públicos en el idioma de cada negocio.': 'Light and dark mode, an English and Spanish interface, and public sites in each business’s language.',
   Tecnologías: 'Technologies',
   // Llamado final y pie
-  '¿Quieres verlo por dentro?': 'Want to look inside?',
-  'El código, la arquitectura y las pruebas están en GitHub. El acceso al panel es por invitación.': 'The code, architecture and tests are on GitHub. Access to the dashboard is by invitation.',
   'Ver el código': 'View the code',
   'Ya tengo acceso': 'I already have access',
   Enlaces: 'Links',

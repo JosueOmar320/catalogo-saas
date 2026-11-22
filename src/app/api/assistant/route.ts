@@ -44,11 +44,13 @@ export async function POST(request: NextRequest) {
   });
   if (!guarded.ok) return guarded.response;
   const { ctx, data, t, locale } = guarded;
-  // El contexto describe SIEMPRE el negocio de la sesión (no se confía en el cliente para eso)
+  // El contexto describe SIEMPRE el negocio de la sesión (no se confía en el cliente para eso):
+  // el código propio lo decide el administrador (ctx.customCode), no el cuerpo del pedido;
   // y el servidor agrega las imágenes y productos reales.
   const messages = data.messages.slice(-16);
   const context = {
     ...data.context,
+    customCode: ctx.customCode,
     business: { name: ctx.business.name, slogan: ctx.business.slogan ?? '', description: (ctx.business.description ?? '').slice(0, 400) },
     ...(await serverContext(ctx)),
   };

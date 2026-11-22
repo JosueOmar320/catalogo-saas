@@ -4,6 +4,7 @@ import { join, relative } from 'node:path';
 import { describe, it } from 'node:test';
 import { APP_EN } from '@/i18n/en';
 import admin from '@/i18n/en/admin';
+import ux from '@/i18n/en/ux';
 import assistant from '@/i18n/en/assistant';
 import builder from '@/i18n/en/builder';
 import catalog from '@/i18n/en/catalog';
@@ -82,7 +83,7 @@ describe('i18n: catálogo inglés', () => {
   it('un mismo texto no tiene dos traducciones distintas entre áreas', () => {
     // El español es la clave: si dos áreas usan la misma palabra con sentidos distintos,
     // una pisaría a la otra en silencio. Hay que cambiar el texto fuente en una de ellas.
-    const areas = { core, landing, labels, catalog, builder, pdf, assistant, admin };
+    const areas = { core, landing, labels, catalog, builder, pdf, assistant, admin, ux };
     const first = new Map<string, { area: string; value: string }>();
     const conflicts: string[] = [];
     for (const [area, entries] of Object.entries(areas)) {

@@ -2,7 +2,7 @@
 
 import { Alert, Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Stack, TextField, Tooltip, Typography } from '@mui/material';
 import { Check, Pencil, Trash2, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useConfirm } from '@/components/feedback/ConfirmProvider';
 import { useLocale, useT } from '@/i18n/client';
 import { useAction } from '@/lib/hooks/use-action';
@@ -28,6 +28,8 @@ export function SiteVersionsDialog({ open, onClose, onRestored }: Props) {
   const { state, dispatch } = useBuilder();
   const { run, pending } = useAction();
   const [versions, setVersions] = useState<SiteVersionSummary[] | null>(null);
+  // No se pudo cargar: se ofrece reintentar en lugar de girar para siempre.
+  const [failed, setFailed] = useState(false);
   const [label, setLabel] = useState('');
   const [editing, setEditing] = useState<{ id: string; label: string } | null>(null);
   const dirty = state.dirty.theme || state.dirty.navigation || state.dirty.pages;
@@ -35,11 +37,18 @@ export function SiteVersionsDialog({ open, onClose, onRestored }: Props) {
   const when = (iso: string) => new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(iso));
   const nameOf = (version: SiteVersionSummary) => version.label ?? when(version.createdAt);
 
-  const load = () => void run(() => listSiteVersions(), { successToast: false, onSuccess: setVersions });
-  useEffect(() => {
-    if (open) load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- sólo al abrir
-  }, [open]);
+  const load = () => {
+    setFailed(false);
+    void run(() => listSiteVersions(), { successToast: false, onSuccess: setVersions }).then((result) => {
+      if (!result?.ok) setFailed(true);
+    });
+  };
+  // Al abrir: lista fresca (otra pestaña o persona pudo guardar mientras tanto) y sin edición a medias.
+  const onOpen = () => {
+    setVersions(null);
+    setEditing(null);
+    load();
+  };
 
   const restore = async (version: SiteVersionSummary) => {
     if (dirty) {
@@ -79,7 +88,7 @@ export function SiteVersionsDialog({ open, onClose, onRestored }: Props) {
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth slotProps={{ transition: { onEnter: onOpen } }}>
       <DialogTitle>{t('Historial del sitio')}</DialogTitle>
       <DialogContent>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
@@ -98,7 +107,11 @@ export function SiteVersionsDialog({ open, onClose, onRestored }: Props) {
           </Typography>
         )}
 
-        {versions === null ? (
+        {failed && versions === null ? (
+          <Alert severity="error" action={<Button color="inherit" size="small" onClick={load} disabled={pending}>{t('Reintentar')}</Button>}>
+            {t('No se pudo cargar el historial.')}
+          </Alert>
+        ) : versions === null ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
             <CircularProgress size={28} aria-label={t('Cargando…')} />
           </Box>

@@ -36,6 +36,9 @@ export function orderPushPayload(t: Translator, order: OrderPush, priceLocale = 
   return {
     title: t('Pedido nuevo #{reference} · {business}', { reference: order.reference, business: order.businessName }),
     body: parts.join(' · '),
+    // Siempre la bandeja del negocio ACTIVO (cookie): con dos negocios, el aviso de uno puede
+    // abrir la bandeja del otro. No hay ruta que cambie de negocio por URL (`switchBusiness`
+    // es una Server Action desde el menú); cuando exista, agregar aquí `?negocio=<business_id>`.
     url: '/dashboard/pedidos',
     tag: `order-${order.reference}`,
   };

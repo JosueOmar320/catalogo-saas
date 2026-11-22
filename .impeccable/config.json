@@ -1,0 +1,26 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "inter",
+        "files": [
+          "tests/lib/full-page-and-table.test.ts"
+        ],
+        "createdAt": "2026-11-22T16:25:25.713Z",
+        "reason": "test fixture: a font name inside a unit-test string for the custom-code sanitizer, not UI"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "inter",
+        "files": [
+          "tests/lib/full-page-and-table.test.ts"
+        ],
+        "createdAt": "2026-11-22T16:25:25.727Z",
+        "reason": "test fixture: a font name inside a unit-test string for the custom-code sanitizer, not UI"
+      }
+    ]
+  }
+}

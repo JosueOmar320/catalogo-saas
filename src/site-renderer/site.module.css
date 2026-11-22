@@ -158,7 +158,8 @@
   line-height: var(--ty-label-lh);
   letter-spacing: var(--ty-label-ls);
   text-transform: var(--ty-label-tt);
-  color: var(--c-accent);
+  /* El acento oscurecido/aclarado hasta leerse (≥4.5:1) sobre el fondo del sitio. */
+  color: var(--c-accent-ink);
   margin: 0 0 8px;
 }
 

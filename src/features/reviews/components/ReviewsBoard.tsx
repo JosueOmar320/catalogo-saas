@@ -73,6 +73,17 @@ export function ReviewsBoard({ status, reviews: initial, pending, enabled: initi
     });
   };
 
+  // Rechazar saca la reseña de la cola: se confirma antes (se puede publicar después desde Rechazadas).
+  const reject = async (review: PanelReview) => {
+    const yes = await confirm({
+      title: t('¿Rechazar la reseña de {name}?', { name: review.name }),
+      description: t('No se publica. Queda en Rechazadas y puedes publicarla después si cambias de opinión.'),
+      confirmLabel: t('Rechazar'),
+      destructive: true,
+    });
+    if (yes) moderate(review, 'rejected');
+  };
+
   const remove = async (review: PanelReview) => {
     const yes = await confirm({
       title: t('¿Eliminar la reseña de {name}?', { name: review.name }),
@@ -141,7 +152,7 @@ export function ReviewsBoard({ status, reviews: initial, pending, enabled: initi
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ alignItems: { sm: 'flex-start' } }}>
                   <Box sx={{ flex: 1, minWidth: 0 }}>
                     <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', rowGap: 0.5 }}>
-                      <Box component="span" role="img" aria-label={t('{rating} de 5 estrellas', { rating: review.rating })} sx={{ display: 'inline-flex', color: '#f5a524' }}>
+                      <Box component="span" role="img" aria-label={t('{rating} de 5 estrellas', { rating: review.rating })} sx={{ display: 'inline-flex', color: 'warning.main' }}>
                         {Array.from({ length: 5 }, (_, i) => (
                           <Star key={i} size={15} fill={i < review.rating ? 'currentColor' : 'none'} aria-hidden />
                         ))}
@@ -167,7 +178,7 @@ export function ReviewsBoard({ status, reviews: initial, pending, enabled: initi
                         {t('Sin comentario')}
                       </Typography>
                     )}
-                    {status !== 'rejected' && <ReviewReply key={review.reply ?? ''} review={review} onSaved={(reply) => setReply(review, reply)} />}
+                    {status !== 'rejected' && <ReviewReply key={review.reply ?? ''} review={review} pendingReview={status === 'pending'} onSaved={(reply) => setReply(review, reply)} />}
                   </Box>
                   <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
                     {status !== 'approved' && (
@@ -176,7 +187,7 @@ export function ReviewsBoard({ status, reviews: initial, pending, enabled: initi
                       </Button>
                     )}
                     {status === 'pending' && (
-                      <Button size="small" variant="outlined" color="inherit" startIcon={<X size={14} />} disabled={busy} onClick={() => moderate(review, 'rejected')}>
+                      <Button size="small" variant="outlined" color="inherit" startIcon={<X size={14} />} disabled={busy} onClick={() => void reject(review)}>
                         {t('Rechazar')}
                       </Button>
                     )}

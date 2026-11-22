@@ -13,6 +13,7 @@ import { orderSchema, PAYMENT_METHODS, type OrderSettings } from '@/lib/catalog/
 import { useT } from '@/i18n/client';
 import { msg } from '@/i18n/translate';
 import { useAction } from '@/lib/hooks/use-action';
+import { useUnsavedChangesWarning } from '@/lib/hooks/use-unsaved-changes';
 import { BranchesField } from './BranchesField';
 import { CouponsField } from './CouponsField';
 import { PromotionsField } from './PromotionsField';
@@ -48,6 +49,8 @@ export function OrderSettingsForm({ contact, order, businessName, catalogUrl }: 
   const scheduling = useWatch({ control: orderForm.control, name: 'scheduling' });
   const money = { input: { startAdornment: <InputAdornment position="start">$</InputAdornment> } };
   const dirty = orderForm.formState.isDirty;
+  // Como el resto de los formularios del panel: aviso al salir con cambios sin guardar.
+  useUnsavedChangesWarning(dirty);
 
   return (
     <Stack

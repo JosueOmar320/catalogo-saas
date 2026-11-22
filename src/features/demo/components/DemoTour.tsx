@@ -26,7 +26,7 @@ export async function DemoTour() {
               <Stack direction="row" spacing={1.5}>
                 <Icon size={18} aria-hidden style={{ flex: 'none', marginTop: 2 }} />
                 <div>
-                  <Typography variant="subtitle2">{t(title)}</Typography>
+                  <Typography variant="subtitle2" component="h3">{t(title)}</Typography>
                   <Typography variant="body2" color="text.secondary">{t(text)}</Typography>
                 </div>
               </Stack>

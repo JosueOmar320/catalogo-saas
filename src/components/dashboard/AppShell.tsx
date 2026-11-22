@@ -16,6 +16,7 @@ import { PanelGarfield } from '@/features/assistant/components/PanelGarfield';
 import { ALL_FEATURES, type BusinessFeatures } from '@/lib/plans/features';
 import { ADMIN_NAVIGATION, navigationFor } from './navigation';
 import type { SiteKind } from '@/lib/business/site-kind';
+import { useCanManage } from './DashboardContext';
 import { PublishControl } from './PublishControl';
 
 const DRAWER_WIDTH = 248;
@@ -45,11 +46,13 @@ function SideNav({ onNavigate, admin, siteKind = 'catalog', features = ALL_FEATU
   const pathname = usePathname();
   const search = useSearchParams().toString();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  // Un editor no ve lo que no puede tocar (sitio, configuración, medios, PDF).
+  const canManage = useCanManage();
 
   return (
     // <nav> y no <ul>: los enlaces van directos (una lista exige <li> como hijos).
     <List component="nav" aria-label={admin ? t('Menú de administración') : t('Menú principal')} dense sx={{ px: 1.25, py: 1 }}>
-      {(admin ? ADMIN_NAVIGATION : navigationFor(siteKind, features)).map((entry) => {
+      {(admin ? ADMIN_NAVIGATION : navigationFor(siteKind, features, canManage)).map((entry) => {
         const Icon = entry.icon;
         if (entry.href) {
           return (

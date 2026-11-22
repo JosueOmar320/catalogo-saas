@@ -32,6 +32,8 @@ type BusinessRow = Timestamps & {
   custom_domain: string | null;
   custom_domain_status: 'none' | 'pending' | 'active';
   custom_domain_checked_at: string | null;
+  /** Raíz registrable del dominio propio (columna generada, única entre negocios; migración 20261123). */
+  custom_domain_apex: string | null;
   /** Negocio de prueba de «Probar el panel»: cuándo se borra (null = negocio real). */
   demo_expires_at: string | null;
   deleted_at: string | null;
@@ -423,7 +425,8 @@ export type Database = {
           /** Versión del sitio que cargó el editor (site_version); `site_changed` si cambió. null = sin verificación. */
           p_expected_version?: string | null;
         };
-        Returns: undefined;
+        /** La versión que quedó guardada (site_version), para el siguiente guardado. */
+        Returns: string | null;
       };
       /** Registra (o reasigna al usuario actual) el dispositivo para avisos push. */
       register_push_subscription: { Args: { p_endpoint: string; p_p256dh: string; p_auth: string; p_device?: string | null }; Returns: string };
@@ -438,8 +441,17 @@ export type Database = {
       record_site_version: { Args: { p_catalog_id: string; p_label?: string | null }; Returns: string | null };
       /** Última modificación del catálogo o de sus páginas (control de concurrencia de save_site). */
       site_version: { Args: { p_catalog_id: string }; Returns: string | null };
-      /** Retención (sólo service_role): limpia datos personales viejos, rate limit, auditoría, estadísticas y avisos. */
+      /** Retención (sólo service_role): limpia datos personales viejos, rate limit, auditoría, estadísticas, avisos y analítica. */
       purge_old_data: { Args: Record<string, never>; Returns: Json };
+      /**
+       * Estadísticas agregadas en la base (miembros del negocio): funnel por día y origen, pedidos y
+       * visitas por día, fichas vistas por día y totales por producto desde p_items_since (por defecto p_since).
+       */
+      analytics_summary: { Args: { p_business: string; p_since: string; p_until?: string | null; p_items_since?: string | null }; Returns: Json };
+      /** Por producto desde p_since: fichas vistas, unidades pedidas y veces agregado (ordenar por item_id y paginar). */
+      item_performance: { Args: { p_business: string; p_since: string }; Returns: { item_id: string; views: number; units: number; carts: number }[] };
+      /** Sólo service_role: dominios propios pendientes desde hace p_days días (hasta 50). */
+      stale_pending_domains: { Args: { p_days?: number }; Returns: { business_id: string; custom_domain: string }[] };
     };
     Enums: { [_ in never]: never };
     CompositeTypes: { [_ in never]: never };

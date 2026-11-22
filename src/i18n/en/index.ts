@@ -7,6 +7,7 @@ import core from './core';
 import labels from './labels';
 import landing from './landing';
 import pdf from './pdf';
+import ux from './ux';
 
 /** Catálogo inglés de la app (panel, admin, login, landing). El sitio público usa `./site`. */
-export const APP_EN: Catalog = { ...core, ...landing, ...labels, ...catalog, ...builder, ...pdf, ...assistant, ...admin };
+export const APP_EN: Catalog = { ...core, ...landing, ...labels, ...catalog, ...builder, ...pdf, ...assistant, ...admin, ...ux };

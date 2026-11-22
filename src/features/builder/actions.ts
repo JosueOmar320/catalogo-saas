@@ -12,7 +12,7 @@ import { dbErrorMessage, fail, ok, type ActionResult } from '@/lib/utils/result'
 import { collectMediaPaths } from '@/lib/utils/storage';
 import { invalidMediaRefs } from '@/features/media/server';
 import type { Json } from '@/types/database';
-import { getSiteVersion, toSectionTemplate, type SectionTemplate } from './queries';
+import { toSectionTemplate, type SectionTemplate } from './queries';
 import { saveSiteSchema, type SaveSiteInput } from './schema';
 
 /** El HTML propio se guarda ya limpio (y se vuelve a limpiar al mostrarlo). */
@@ -50,7 +50,7 @@ export async function saveSite(input: SaveSiteInput, expectedVersion: string | n
   // Imágenes: archivos del negocio o URLs externas registradas en su biblioteca.
   if ((await invalidMediaRefs(ctx, collectMediaPaths({ theme, pages }))).length > 0) return fail(msg('Una de las imágenes no es válida. Elígela de nuevo desde la biblioteca.'));
 
-  const { error } = await ctx.supabase.rpc('save_site', {
+  const { data: saved, error } = await ctx.supabase.rpc('save_site', {
     p_catalog_id: ctx.catalog.id,
     p_theme: (theme as Json) ?? null,
     p_navigation: (navigation as Json) ?? null,
@@ -70,7 +70,9 @@ export async function saveSite(input: SaveSiteInput, expectedVersion: string | n
   if (versionError) console.error('[site-versions]', { code: versionError.code ?? null });
 
   afterCatalogChange(ctx);
-  return ok({ version: await getSiteVersion(ctx) }, msg('Sitio guardado'));
+  // La versión la devuelve save_site en la misma transacción (migración 20261123); una base
+  // sin esa migración devuelve null y el siguiente guardado va sin verificación, como antes.
+  return ok({ version: typeof saved === 'string' ? saved : null }, msg('Sitio guardado'));
 }
 
 /** "Guardar como plantilla": copia la sección para reusarla en otras páginas. */

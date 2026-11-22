@@ -76,7 +76,10 @@ export function PublishingPanel({ status, url, publishedAt, visibleItems, hidden
       {catalog && (
       <SectionCard title={t('¿Qué ven tus clientes?')}>
         <Box component="ul" sx={{ m: 0, pl: 2.5, color: 'text.secondary', fontSize: 14, '& li': { mb: 0.5 } }}>
-          <li>{hiddenItems ? t('{visible} ítem(s) visibles · {hidden} oculto(s) (sólo tú los ves).', { visible: visibleItems, hidden: hiddenItems }) : t('{count} ítem(s) visibles.', { count: visibleItems })}</li>
+          <li>
+            {visibleItems === 1 ? t('1 ítem visible') : t('{count} ítems visibles', { count: visibleItems })}
+            {hiddenItems ? ` · ${hiddenItems === 1 ? t('1 oculto (sólo tú lo ves).') : t('{count} ocultos (sólo tú los ves).', { count: hiddenItems })}` : '.'}
+          </li>
           <li>{t('Las categorías ocultas y sus ítems no se muestran.')}</li>
           <li>{t('La vista previa muestra exactamente lo que se publicará.')}</li>
         </Box>

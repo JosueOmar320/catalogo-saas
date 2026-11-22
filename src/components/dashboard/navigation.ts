@@ -7,7 +7,8 @@ import { ALL_FEATURES, type BusinessFeature, type BusinessFeatures } from '@/lib
 export type NavLink = { label: string; href: string; catalogOnly?: boolean };
 /** catalogOnly: no aparece en un sitio web (sin productos ni pedidos). */
 /** feature: se oculta si el administrador apagó esa función para el negocio. */
-export type NavEntry = { label: string; icon: LucideIcon; href?: string; children?: NavLink[]; catalogOnly?: boolean; feature?: BusinessFeature };
+/** manageOnly: sólo owner/admin (un editor mantiene catálogo, pedidos y reseñas; lo demás le daría botones grises). */
+export type NavEntry = { label: string; icon: LucideIcon; href?: string; children?: NavLink[]; catalogOnly?: boolean; feature?: BusinessFeature; manageOnly?: boolean };
 
 export const SETTINGS_SECTIONS = [
   { id: 'negocio', label: msg('Negocio') },
@@ -26,7 +27,7 @@ export const NAVIGATION: NavEntry[] = [
   { label: msg('Clientes'), icon: Contact, href: '/dashboard/clientes', catalogOnly: true, feature: 'orders' },
   { label: msg('Estadísticas'), icon: BarChart3, href: '/dashboard/estadisticas', catalogOnly: true, feature: 'analytics' },
   {
-    label: msg('Contenido'),
+    label: msg('Catálogo'),
     icon: Package,
     catalogOnly: true,
     children: [
@@ -37,21 +38,23 @@ export const NAVIGATION: NavEntry[] = [
       { label: msg('Orden'), href: '/dashboard/catalog/order' },
     ],
   },
-  { label: msg('Medios'), icon: ImageIcon, href: '/dashboard/media' },
+  { label: msg('Medios'), icon: ImageIcon, href: '/dashboard/media', manageOnly: true },
   { label: msg('Reseñas'), icon: MessageSquareText, href: '/dashboard/resenas', catalogOnly: true },
   {
     label: msg('Sitio web'),
     icon: Globe,
+    manageOnly: true,
     children: [
       { label: msg('Páginas y secciones'), href: '/dashboard/sitio' },
       { label: msg('Navegación'), href: '/dashboard/sitio?panel=navigation' },
       { label: msg('Diseño'), href: '/dashboard/sitio?panel=design' },
     ],
   },
-  { label: msg('Catálogo PDF'), icon: FileDown, href: '/dashboard/export/pdf', catalogOnly: true, feature: 'pdf_export' },
+  { label: msg('Catálogo PDF'), icon: FileDown, href: '/dashboard/export/pdf', catalogOnly: true, feature: 'pdf_export', manageOnly: true },
   {
     label: msg('Configuración'),
     icon: Settings,
+    manageOnly: true,
     children: SETTINGS_SECTIONS.map((s) => ({ label: s.label, href: `/dashboard/settings/${s.id}`, catalogOnly: 'catalogOnly' in s ? s.catalogOnly : undefined })),
   },
 ];
@@ -67,8 +70,8 @@ export const ADMIN_NAVIGATION: NavEntry[] = [
   { label: msg('Configuración'), icon: SlidersHorizontal, href: '/admin/configuracion' },
 ];
 
-/** Menú del panel según el tipo de sitio y las funciones encendidas. */
-export const navigationFor = (kind: SiteKind, features: BusinessFeatures = ALL_FEATURES): NavEntry[] =>
-  NAVIGATION.filter((entry) => !(kind === 'website' && entry.catalogOnly) && !(entry.feature && !features[entry.feature])).map((entry) =>
+/** Menú del panel según el tipo de sitio, las funciones encendidas y el rol (canManage: owner/admin). */
+export const navigationFor = (kind: SiteKind, features: BusinessFeatures = ALL_FEATURES, canManage = true): NavEntry[] =>
+  NAVIGATION.filter((entry) => !(kind === 'website' && entry.catalogOnly) && !(entry.feature && !features[entry.feature]) && !(entry.manageOnly && !canManage)).map((entry) =>
     entry.children && kind === 'website' ? { ...entry, children: entry.children.filter((child) => !child.catalogOnly) } : entry,
   );
