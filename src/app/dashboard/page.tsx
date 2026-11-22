@@ -1,6 +1,6 @@
 import { BUSINESS_FEATURE_META, BUSINESS_FEATURES, type BusinessFeature } from '@/lib/plans/features';
 import { Alert, Avatar, Box, Button, Grid, LinearProgress, Stack, Typography } from '@mui/material';
-import { AlertCircle, ArrowRight, CheckCircle2, Circle, Download, ExternalLink, FileText, FolderTree, ImageIcon, LayoutTemplate, MessageCircle, Package, Palette, Plus, Wrench } from 'lucide-react';
+import { AlertCircle, ArrowRight, CheckCircle2, Circle, Download, ExternalLink, FolderTree, ImageIcon, LayoutTemplate, MessageCircle, Package, Palette, Plus, Wrench } from 'lucide-react';
 import type { Metadata } from 'next';
 import { STATUS_LABELS } from '@/lib/catalog/status';
 import { QrCodeButton } from '@/components/dashboard/QrCodeButton';
@@ -43,7 +43,8 @@ const RECENT_COUNT = 5;
 
 export default async function DashboardHome({ searchParams }: PageProps<'/dashboard'>) {
   const ctx = await requireBusinessContext();
-  const [{ welcome, funcion }, categories, items, pages, t, locale, orderStats, viewStats, pendingReviews, searchMisses, newOrders] = await Promise.all([
+  // `bienvenida` lo pone «Probar el panel» (y la creación de negocios); `welcome` se conserva por compatibilidad.
+  const [{ bienvenida, welcome, funcion }, categories, items, pages, t, locale, orderStats, viewStats, pendingReviews, searchMisses, newOrders] = await Promise.all([
     searchParams,
     listCategories(ctx),
     listItemsWithImages(ctx),
@@ -83,6 +84,19 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
   const completed = steps.filter((s) => s.done).length;
   const setupDone = completed === steps.length;
 
+  // Bienvenida: un solo paso siguiente, el que más se nota (foto → publicar → ver).
+  const welcomeOn = Boolean(bienvenida ?? welcome);
+  const firstWithoutPhoto = items.find((i) => i.images.length === 0);
+  const nextStep = !catalog
+    ? { label: t('Elige el diseño de tu sitio'), href: '/dashboard/sitio?panel=design', external: false }
+    : items.length === 0
+      ? { label: t('Agrega tu primer producto'), href: '/dashboard/catalog/items/new?type=product', external: false }
+      : firstWithoutPhoto
+        ? { label: t('Sube una foto a tu primer producto'), href: `/dashboard/catalog/items/${firstWithoutPhoto.id}`, external: false }
+        : !published && !ctx.demoExpiresAt
+          ? { label: t('Publica tu catálogo'), href: '/dashboard/settings/publicacion', external: false }
+          : { label: t('Ver como cliente'), href: published ? url : '/preview', external: true };
+
   // Revisión: lo que conviene completar, con enlace a la lista (productos o servicios) donde hay más casos.
   const review = countReview(
     items.map((i) => ({
@@ -103,10 +117,10 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
   });
   const ISSUE_TEXT: Record<ReviewFilter, (count: number) => string> = {
     'sin-foto': (count) => t('{count} sin foto: las fotos son lo primero que miran tus clientes.', { count }),
-    'sin-precio': (count) => t('{count} producto(s) sin precio.', { count }),
+    'sin-precio': (count) => (count === 1 ? t('1 producto sin precio.') : t('{count} productos sin precio.', { count })),
     'sin-categoria': (count) => t('{count} sin categoría: no aparecen al filtrar por categoría.', { count }),
-    agotados: (count) => t('{count} marcado(s) como agotados.', { count }),
-    ocultos: (count) => t('{count} oculto(s): no se muestran al público.', { count }),
+    agotados: (count) => (count === 1 ? t('1 marcado como agotado.') : t('{count} marcados como agotados.', { count })),
+    ocultos: (count) => (count === 1 ? t('1 oculto: no se muestra al público.') : t('{count} ocultos: no se muestran al público.', { count })),
     'oferta-vencida': (count) => t('{count} con la oferta vencida: ya se muestran a su precio normal; quita el precio anterior o pon otra fecha.', { count }),
     'sin-descripcion': (count) => t('{count} sin descripción: unas líneas ayudan a decidir.', { count }),
   };
@@ -177,9 +191,24 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
           {t('«{feature}» no está disponible para tu cuenta. Si lo necesitas, pídeselo al administrador de la plataforma.', { feature: t(BUSINESS_FEATURE_META[blocked].label) })}
         </Alert>
       )}
-      {welcome && (
-        <Alert severity="success" sx={{ mb: 3 }}>
-          {catalog ? t('¡Tu negocio está listo! Sigue los pasos de abajo para completar tu catálogo.') : t('¡Tu sitio está listo! Sigue los pasos de abajo para completarlo.')}
+      {welcomeOn && (
+        <Alert
+          severity="success"
+          sx={{ mb: 3, alignItems: 'center' }}
+          action={
+            <LinkButton
+              href={nextStep.href}
+              size="small"
+              color="inherit"
+              variant="outlined"
+              endIcon={nextStep.external ? <ExternalLink size={14} /> : <ArrowRight size={14} />}
+              {...(nextStep.external && { target: '_blank', rel: 'noopener noreferrer' })}
+            >
+              {nextStep.label}
+            </LinkButton>
+          }
+        >
+          {catalog ? t('Tu negocio ya está listo. Empieza por aquí:') : t('Tu sitio ya está listo. Empieza por aquí:')}
         </Alert>
       )}
 
@@ -404,7 +433,7 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
             )}
 
             {!catalog && (
-              <SectionCard title={t('Páginas de tu sitio')} flush action={<LinkButton href="/dashboard/sitio" size="small" color="inherit">{t('Abrir el editor')}</LinkButton>}>
+              <SectionCard title={t('Páginas de tu sitio')} flush>
                 <Box component="ul" sx={{ listStyle: 'none', m: 0, p: 0 }}>
                   {pages.map((page) => (
                     <Box component="li" key={page.id} sx={{ borderBottom: 1, borderColor: 'divider', '&:last-child': { borderBottom: 0 }, py: 1.25, px: 2.5 }}>
@@ -425,11 +454,13 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
               {recent.length === 0 ? (
                 <EmptyState
                   icon={Package}
+                  level={3}
                   title={t('Aún no tienes productos ni servicios')}
                   description={t('Crear uno toma menos de un minuto: nombre, precio y una foto.')}
                   action={
-                    <Stack direction="row" spacing={1} sx={{ justifyContent: 'center' }}>
-                      <LinkButton href="/dashboard/catalog/items/new?type=product" variant="contained" startIcon={<Plus size={15} />}>{t('Nuevo producto')}</LinkButton>
+                    // El azul ya está en «Nuevo producto» del encabezado: aquí las dos salidas van en contorno.
+                    <Stack direction="row" spacing={1} useFlexGap sx={{ justifyContent: 'center', flexWrap: 'wrap' }}>
+                      <LinkButton href="/dashboard/catalog/items/new?type=product" variant="outlined" color="inherit" startIcon={<Plus size={15} />}>{t('Nuevo producto')}</LinkButton>
                       <LinkButton href="/dashboard/catalog/items/new?type=service" variant="outlined" color="inherit">{t('Nuevo servicio')}</LinkButton>
                     </Stack>
                   }
@@ -465,7 +496,12 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
 
         <Grid size={{ xs: 12, lg: 4 }}>
           <Stack spacing={2.5}>
-            <SectionCard title={catalog ? t('Tu catálogo') : t('Tu sitio')} description={t('Estado: {status}', { status: t(STATUS_LABELS[ctx.catalog.status].label) })}>
+            <SectionCard
+              title={catalog ? t('Tu catálogo') : t('Tu sitio')}
+              description={t('Estado: {status}', { status: t(STATUS_LABELS[ctx.catalog.status].label) })}
+              // Único acceso al editor desde el inicio con catálogo (en un sitio web va en el encabezado).
+              action={catalog && <LinkButton href="/dashboard/sitio" size="small" color="inherit" startIcon={<Palette size={14} />}>{t('Abrir el editor')}</LinkButton>}
+            >
               <CopyField value={url} openable={published} />
               <Box sx={{ mt: 1.5 }}>
                 <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
@@ -506,50 +542,21 @@ export default async function DashboardHome({ searchParams }: PageProps<'/dashbo
               ))}
             </Grid>
 
+            {/* El plan ya se ve en el menú del negocio: aquí sólo el uso, en una línea (y el aviso si se acerca al tope). */}
             {catalog && (
-            <SectionCard title={t('Plan {plan}', { plan: ctx.entitlements.planName })}>
-              {maxItems === null || usage === null ? (
-                <Typography variant="body2" color="text.secondary">{t('{count} productos y servicios. Sin límite en tu plan.', { count: items.length })}</Typography>
-              ) : (
-                <>
-                  <Stack direction="row" sx={{ justifyContent: 'space-between', mb: 0.75 }}>
-                    <Typography variant="body2">{t('Productos y servicios')}</Typography>
-                    <Typography variant="body2" sx={{ fontVariantNumeric: 'tabular-nums' }}>{t('{count} de {max}', { count: items.length, max: maxItems })}</Typography>
-                  </Stack>
-                  <LinearProgress
-                    variant="determinate"
-                    value={usage}
-                    color={usage >= 100 ? 'error' : usage >= 80 ? 'warning' : 'primary'}
-                    aria-label={t('Uso del plan')}
-                    sx={{ height: 6, borderRadius: 3 }}
-                  />
-                  {usage >= 80 && (
-                    <Typography variant="caption" color={usage >= 100 ? 'error.main' : 'warning.main'} component="p" sx={{ mt: 1 }}>
-                      {usage >= 100 ? t('Llegaste al límite de tu plan. Pide al administrador ampliarlo para agregar más.') : t('Te estás acercando al límite de tu plan.')}
-                    </Typography>
-                  )}
-                </>
-              )}
-            </SectionCard>
+              <Box sx={{ px: 0.5 }}>
+                <Typography variant="caption" color="text.secondary" component="p" sx={{ fontVariantNumeric: 'tabular-nums' }}>
+                  {maxItems === null || usage === null
+                    ? t('{count} productos y servicios. Sin límite en tu plan.', { count: items.length })
+                    : t('Plan {plan}: {count} de {max} productos y servicios.', { plan: ctx.entitlements.planName, count: items.length, max: maxItems })}
+                </Typography>
+                {usage !== null && usage >= 80 && (
+                  <Typography variant="caption" color={usage >= 100 ? 'error.main' : 'warning.main'} component="p" sx={{ mt: 0.5 }}>
+                    {usage >= 100 ? t('Llegaste al límite de tu plan. Pide al administrador ampliarlo para agregar más.') : t('Te estás acercando al límite de tu plan.')}
+                  </Typography>
+                )}
+              </Box>
             )}
-
-            <SectionCard title={t('Accesos rápidos')}>
-              <Stack spacing={1}>
-                <LinkButton href="/dashboard/sitio" variant="contained" startIcon={<Palette size={14} />} fullWidth>
-                  {t('Abrir el editor')}
-                </LinkButton>
-                {catalog && ctx.features.pdf_export && (
-                  <LinkButton href="/dashboard/export/pdf" variant="outlined" color="inherit" startIcon={<FileText size={14} />} fullWidth>
-                    {t('Catálogo en PDF')}
-                  </LinkButton>
-                )}
-                {catalog && (
-                  <LinkButton href="/dashboard/settings/pedidos" variant="outlined" color="inherit" startIcon={<MessageCircle size={14} />} fullWidth>
-                    {ordersOn ? t('Pedidos por WhatsApp: activos') : t('Activar pedidos por WhatsApp')}
-                  </LinkButton>
-                )}
-              </Stack>
-            </SectionCard>
           </Stack>
         </Grid>
       </Grid>

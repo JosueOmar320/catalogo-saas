@@ -2,6 +2,12 @@
 
 Historial por etapas. Cada línea enlaza al pull request donde está el detalle, las pruebas y las migraciones.
 
+## Noviembre 2026 · Auditoría de producto y diseño
+
+- Segunda auditoría integral con Impeccable (crítica de landing y panel, auditoría de seguridad y de funciones nuevas) y sus mejoras: landing sin trampa de scroll y accesible, panel con un solo patrón de guardado, menú por rol, publicación en el celular, dominios propios sin colisiones www/apex, estadísticas agregadas en SQL, Next.js 16.4.6 ([informe](docs/auditorias/AUDITORIA-NOV-2026.md)).
+- `PRODUCT.md` y `DESIGN.md`: la verdad del producto y el sistema visual del panel («La vitrina en blanco») para que las pantallas nuevas sigan la misma línea.
+- `npm run dev:local`: el panel contra un Supabase local en Docker, sin tocar la nube.
+
 ## Octubre 2026 · Plataforma
 
 - Cuenta demo pública: «Probar el panel» abre, sin registro, un negocio de prueba propio con datos de ejemplo que no se publica y se borra a las 24 horas.

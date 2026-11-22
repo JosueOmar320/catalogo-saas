@@ -45,18 +45,23 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
   return data;
 }
 
-type ProjectDomain = { name: string; verified: boolean; verification?: { type: string; domain: string; value: string; reason?: string }[] };
+type ProjectDomain = { name: string; verified: boolean; redirect?: string | null; verification?: { type: string; domain: string; value: string; reason?: string }[] };
 type DomainConfig = { misconfigured: boolean; recommendedIPv4?: { rank: number; value: string[] }[]; recommendedCNAME?: { rank: number; value: string }[] };
 
-/** Agrega el dominio al proyecto (o lo deja como está si ya era de este proyecto). `redirectTo`: la otra forma (www) redirige a la elegida. */
+/**
+ * Agrega el dominio al proyecto. `redirectTo`: la otra forma (www) redirige a
+ * la elegida. Si ya estaba en este proyecto con el MISMO papel (principal, o
+ * redirección al mismo destino) se deja como está; si estaba con otro papel
+ * (p. ej. es la redirección www de otro negocio) es un choque: `domain_taken`.
+ */
 export async function addProjectDomain(name: string, redirectTo?: string): Promise<void> {
   try {
     await call('POST', '/v10/projects/{project}/domains', redirectTo ? { name, redirect: redirectTo, redirectStatusCode: 308 } : { name });
   } catch (error) {
-    // Ya estaba en este proyecto: nada que hacer.
     if (error instanceof VercelError && error.status === 409) {
       const existing = await call<ProjectDomain>('GET', `/v9/projects/{project}/domains/${encodeURIComponent(name)}`).catch(() => null);
-      if (existing) return;
+      if (existing && existing.name.toLowerCase() === name.toLowerCase() && (existing.redirect ?? null) === (redirectTo ?? null)) return;
+      if (existing) throw new VercelError(`El dominio ${name} ya está en el proyecto con otro papel`, 'domain_taken', 409);
     }
     throw error;
   }

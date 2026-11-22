@@ -26,6 +26,18 @@ type Props = {
 };
 
 const RANGE_LABELS: Record<number, string> = { 7: msg('7 días'), 30: msg('30 días'), 90: msg('90 días') };
+
+// Los números se formatean con el idioma del panel (no el del navegador): el servidor y el
+// cliente producen el mismo texto y no hay desajuste al hidratar.
+const numberFormats = new Map<string, Intl.NumberFormat>();
+function formatNumber(value: number, locale: string): string {
+  let format = numberFormats.get(locale);
+  if (!format) {
+    format = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 });
+    numberFormats.set(locale, format);
+  }
+  return format.format(value);
+}
 const STEP_LABELS: Record<FunnelStep['key'], string> = {
   sessions: msg('Visitas'),
   viewedProduct: msg('Vieron un producto'),
@@ -43,7 +55,7 @@ const TRACKED = [
 ] as const;
 
 /** Variación contra el periodo anterior: ícono + texto (nunca sólo el color). */
-function Delta({ current, previous, range, invert = false }: { current: number | null; previous: number | null; range: number; invert?: boolean }) {
+function Delta({ current, previous, range, locale, invert = false }: { current: number | null; previous: number | null; range: number; locale: string; invert?: boolean }) {
   const t = useT();
   const value = change(current, previous);
   if (value === null) return <Typography variant="caption" color="text.secondary">{t('Sin datos del periodo anterior')}</Typography>;
@@ -53,7 +65,7 @@ function Delta({ current, previous, range, invert = false }: { current: number |
   return (
     <Typography variant="caption" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.25, color: good === null ? 'text.secondary' : good ? 'success.main' : 'error.main' }}>
       <Icon size={14} aria-hidden />
-      {t('{change} vs. los {days} días anteriores', { change: `${up ? '+' : ''}${value.toLocaleString()} %`, days: range })}
+      {t('{change} vs. los {days} días anteriores', { change: `${up ? '+' : ''}${formatNumber(value, locale)} %`, days: range })}
     </Typography>
   );
 }
@@ -69,7 +81,7 @@ function Kpi({ label, value, delta }: { label: string; value: string; delta: Rea
 }
 
 /** Barra horizontal de una sola serie: extremo redondeado de 4 px, pista tenue y el valor en texto. */
-function HBar({ label, value, max, detail }: { label: string; value: number; max: number; detail?: string }) {
+function HBar({ label, value, max, detail, locale }: { label: string; value: number; max: number; detail?: string; locale: string }) {
   return (
     <Box component="li" sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '180px minmax(0, 1fr) auto' }, gap: { xs: 0.5, sm: 1.5 }, alignItems: 'center' }}>
       <Typography variant="body2" sx={{ fontWeight: 600 }}>{label}</Typography>
@@ -77,7 +89,7 @@ function HBar({ label, value, max, detail }: { label: string; value: number; max
         <Box sx={{ height: '100%', width: `${max > 0 ? Math.max(value > 0 ? 2 : 0, (value / max) * 100) : 0}%`, bgcolor: 'primary.main', borderRadius: '0 4px 4px 0' }} />
       </Box>
       <Typography variant="body2" sx={{ fontVariantNumeric: 'tabular-nums', textAlign: { sm: 'right' } }}>
-        <strong>{value.toLocaleString()}</strong>
+        <strong>{formatNumber(value, locale)}</strong>
         {detail && <Typography component="span" variant="caption" color="text.secondary">{` · ${detail}`}</Typography>}
       </Typography>
     </Box>
@@ -151,7 +163,8 @@ export function AnalyticsBoard({ summary, products, siteUrl, published, ordersEn
   const { demo } = useDashboard();
   const { current, previous, range } = summary;
   const money = (value: number | null) => (value === null ? '—' : formatPrice(value, currency || 'MXN', priceLocale));
-  const percent = (value: number | null) => (value === null ? '—' : `${value.toLocaleString()} %`);
+  const percent = (value: number | null) => (value === null ? '—' : `${formatNumber(value, locale)} %`);
+  const count = (value: number) => formatNumber(value, locale);
   const dateFormat = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long', timeZone: 'UTC' });
   const nothing = current.sessions === 0 && current.pageViews === 0 && current.orders === 0;
   const maxSource = Math.max(0, ...summary.sources.map((s) => s.sessions));
@@ -178,11 +191,11 @@ export function AnalyticsBoard({ summary, products, siteUrl, published, ordersEn
       )}
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(5, minmax(0, 1fr))' }, gap: 1.5 }}>
-        <Kpi label={t('Visitas')} value={current.sessions.toLocaleString()} delta={<Delta current={current.sessions} previous={previous.sessions} range={range} />} />
-        <Kpi label={t('Pedidos')} value={current.orders.toLocaleString()} delta={<Delta current={current.orders} previous={previous.orders} range={range} />} />
-        <Kpi label={t('Conversión')} value={percent(summary.conversion.current)} delta={<Delta current={summary.conversion.current} previous={summary.conversion.previous} range={range} />} />
-        <Kpi label={t('Valor estimado')} value={money(current.value)} delta={<Delta current={current.value} previous={previous.value} range={range} />} />
-        <Kpi label={t('Ticket promedio')} value={money(summary.ticket.current)} delta={<Delta current={summary.ticket.current} previous={summary.ticket.previous} range={range} />} />
+        <Kpi label={t('Visitas')} value={count(current.sessions)} delta={<Delta current={current.sessions} previous={previous.sessions} range={range} locale={locale} />} />
+        <Kpi label={t('Pedidos')} value={count(current.orders)} delta={<Delta current={current.orders} previous={previous.orders} range={range} locale={locale} />} />
+        <Kpi label={t('Conversión')} value={percent(summary.conversion.current)} delta={<Delta current={summary.conversion.current} previous={summary.conversion.previous} range={range} locale={locale} />} />
+        <Kpi label={t('Valor estimado')} value={money(current.value)} delta={<Delta current={current.value} previous={previous.value} range={range} locale={locale} />} />
+        <Kpi label={t('Ticket promedio')} value={money(summary.ticket.current)} delta={<Delta current={summary.ticket.current} previous={summary.ticket.previous} range={range} locale={locale} />} />
       </Box>
 
       {nothing ? (
@@ -197,13 +210,14 @@ export function AnalyticsBoard({ summary, products, siteUrl, published, ordersEn
                   label={t(STEP_LABELS[step.key])}
                   value={step.value}
                   max={summary.funnel[0].value}
+                  locale={locale}
                   detail={index === 0 ? undefined : t('{percent} de las visitas', { percent: percent(step.ofVisits) })}
                 />
               ))}
             </Stack>
             {ordersEnabled && current.startedCart > current.sentOrder && (
               <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                {t('{count} pedidos empezados no se enviaron. Revisa el pedido mínimo, el envío y que tus precios estén claros.', { count: (current.startedCart - current.sentOrder).toLocaleString() })}
+                {t('{count} pedidos empezados no se enviaron. Revisa el pedido mínimo, el envío y que tus precios estén claros.', { count: count(current.startedCart - current.sentOrder) })}
               </Typography>
             )}
           </SectionCard>
@@ -219,6 +233,7 @@ export function AnalyticsBoard({ summary, products, siteUrl, published, ordersEn
                     label={t(SOURCE_LABELS[source.source])}
                     value={source.sessions}
                     max={maxSource}
+                    locale={locale}
                     detail={source.orders === 1 ? t('1 pedido ({percent})', { percent: percent(source.conversion) }) : t('{count} pedidos ({percent})', { count: source.orders, percent: percent(source.conversion) })}
                   />
                 ))}
@@ -263,9 +278,9 @@ export function AnalyticsBoard({ summary, products, siteUrl, published, ordersEn
               {products.top.map((row) => (
                 <tr key={row.itemId}>
                   <Typography component="td" variant="body2"><Link href={`/dashboard/catalog/items/${row.itemId}`}>{row.name}</Link></Typography>
-                  <Typography component="td" variant="body2" className="num">{row.views.toLocaleString()}</Typography>
-                  <Typography component="td" variant="body2" className="num">{row.adds.toLocaleString()}</Typography>
-                  <Typography component="td" variant="body2" className="num">{row.units.toLocaleString()}</Typography>
+                  <Typography component="td" variant="body2" className="num">{count(row.views)}</Typography>
+                  <Typography component="td" variant="body2" className="num">{count(row.adds)}</Typography>
+                  <Typography component="td" variant="body2" className="num">{count(row.units)}</Typography>
                 </tr>
               ))}
             </tbody>

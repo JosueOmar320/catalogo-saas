@@ -105,4 +105,24 @@ describe('Sección Tabla', () => {
     assert.deepEqual(removed.rows[1].cells, ['', '4']);
     assert.equal(removeTableColumn(parseTablePaste('A\n1')!, 0).columns.length, 1, 'siempre queda una columna');
   });
+
+  it('la columna destacada viaja con su columna al mover o quitar', () => {
+    const base = { ...parseTablePaste('A\tB\tC\n1\t2\t3')!, highlight: 2 };
+    assert.equal(moveTableColumn(base, 1, 2).highlight, 3, 'se movió la destacada');
+    assert.equal(moveTableColumn(base, 0, 2).highlight, 1, 'otra pasó por delante');
+    assert.equal(removeTableColumn(base, 0).highlight, 1, 'se quitó una anterior');
+    assert.equal(removeTableColumn(base, 2).highlight, 2, 'se quitó una posterior');
+    assert.equal(removeTableColumn(base, 1).highlight, 0, 'se quitó la destacada: ninguna');
+    assert.equal(moveTableColumn({ ...base, highlight: 0 }, 0, 1).highlight, 0);
+    assert.equal('highlight' in removeTableColumn(parseTablePaste('A\tB\n1\t2')!, 0), false, 'sin la propiedad, no se inventa');
+  });
+
+  it('una columna vacía en medio no corre las celdas ni la destacada (índices originales)', () => {
+    // Columna B sin título ni datos: el sitio la omite, pero C sigue leyendo cells[2] y la destacada (3 = C) sigue en C.
+    const content = { ...createSection('table').content, columns: [{ id: 'a', label: 'A', align: 'left' as const }, { id: 'b', label: '', align: 'left' as const }, { id: 'c', label: 'C', align: 'right' as const }], rows: [{ id: 'r', cells: ['1', '', '3'] }], highlight: 3 };
+    const visible = content.columns.map((column, index) => ({ column, index })).filter(({ column, index }) => column.label.trim() || content.rows.some((row) => row.cells[index]?.trim()));
+    assert.deepEqual(visible.map(({ column }) => column.id), ['a', 'c']);
+    assert.deepEqual(visible.map(({ index }) => content.rows[0].cells[index]), ['1', '3']);
+    assert.deepEqual(visible.map(({ index }) => index === content.highlight - 1), [false, true]);
+  });
 });

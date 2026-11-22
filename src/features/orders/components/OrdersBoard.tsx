@@ -4,7 +4,7 @@ import { Alert, Box, Button, Chip, IconButton, MenuItem, Stack, Tab, Tabs, TextF
 import { Download, MapPin, MessageCircle, MessageSquareText, ShoppingBag, Store, Trash2, Utensils } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useConfirm } from '@/components/feedback/ConfirmProvider';
 import { reviewInviteMessage } from '@/features/reviews/invite';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -32,6 +32,8 @@ type Props = {
   orders: PanelOrder[];
   newCount: number;
   enabled: boolean;
+  /** Fila de «Avisos en este dispositivo» (sólo con push configurado); va bajo las pestañas. */
+  alerts?: ReactNode;
   canManage: boolean;
   locale: string;
   priceLocale: string;
@@ -48,7 +50,7 @@ type Props = {
   customerOrders: Record<string, number>;
 };
 
-export function OrdersBoard({ tab, days, query, orders: initial, newCount, enabled, canManage, locale, priceLocale, now, pageSize, reviewInvite, businessName, businessWhatsapp, customerOrders }: Props) {
+export function OrdersBoard({ tab, days, query, orders: initial, newCount, enabled, alerts, canManage, locale, priceLocale, now, pageSize, reviewInvite, businessName, businessWhatsapp, customerOrders }: Props) {
   const t = useT();
   const router = useRouter();
   const pathname = usePathname();
@@ -86,6 +88,17 @@ export function OrdersBoard({ tab, days, query, orders: initial, newCount, enabl
     void run(() => changeOrderStatus(order.id, status), { onSuccess: () => router.refresh() }).then((result) => {
       if (!result?.ok) setOrders(previous);
     });
+  };
+
+  // Cancelar saca el pedido del flujo: se confirma antes (se puede volver a «nuevo» después).
+  const cancel = async (order: PanelOrder) => {
+    const ok = await confirm({
+      title: t('¿Cancelar el pedido {reference}?', { reference: order.reference }),
+      description: t('Pasa a Cancelados y deja de contar como pendiente. Si te equivocas, puedes volverlo a nuevo.'),
+      confirmLabel: t('Cancelar pedido'),
+      destructive: true,
+    });
+    if (ok) setStatus(order, 'cancelled');
   };
 
   const remove = async (order: PanelOrder) => {
@@ -128,6 +141,7 @@ export function OrdersBoard({ tab, days, query, orders: initial, newCount, enabl
           </Tooltip>
         </Stack>
       </Stack>
+      {alerts}
 
       {orders.length === 0 ? (
         <EmptyState icon={ShoppingBag} title={tab.slug === 'nuevos' ? t('No hay pedidos nuevos.') : t('No hay pedidos en este periodo.')} description={t('Cuando un cliente envíe su pedido por WhatsApp desde tu sitio, aparecerá aquí.')} />
@@ -154,7 +168,8 @@ export function OrdersBoard({ tab, days, query, orders: initial, newCount, enabl
               <SectionCard>
                 <Stack spacing={1.25}>
                   <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', rowGap: 0.5 }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>#{order.reference}</Typography>
+                    {/* Cada pedido es una sección bajo el h1 «Pedidos». */}
+                    <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>#{order.reference}</Typography>
                     <Chip size="small" color={STATUS_COLOR[order.status]} label={t(ORDER_STATUS_LABELS[order.status])} />
                     {FulfillmentIcon && <FulfillmentIcon size={15} aria-hidden />}
                     <Typography variant="body2" color="text.secondary" sx={{ flex: 1 }}>
@@ -198,7 +213,7 @@ export function OrdersBoard({ tab, days, query, orders: initial, newCount, enabl
 
                   <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', rowGap: 1 }}>
                     {next && <Button size="small" variant="contained" disabled={pending} onClick={() => setStatus(order, next.status)}>{t(next.label)}</Button>}
-                    {order.status !== 'cancelled' && order.status !== 'delivered' && <Button size="small" color="inherit" disabled={pending} onClick={() => setStatus(order, 'cancelled')}>{t('Cancelar pedido')}</Button>}
+                    {order.status !== 'cancelled' && order.status !== 'delivered' && <Button size="small" color="inherit" disabled={pending} onClick={() => void cancel(order)}>{t('Cancelar pedido')}</Button>}
                     {(order.status === 'cancelled' || order.status === 'delivered') && <Button size="small" color="inherit" disabled={pending} onClick={() => setStatus(order, 'new')}>{t('Volver a nuevo')}</Button>}
                     {notify && order.status !== 'delivered' && (
                       <Button size="small" color="inherit" startIcon={<MessageCircle size={14} />} href={notify} target="_blank" rel="noopener noreferrer">

@@ -32,6 +32,7 @@ export function themeToVars(theme: ThemeConfig): CSSProperties {
     '--c-error': c.error,
     '--c-primary-soft': c.primarySoft,
     '--c-accent-soft': c.accentSoft,
+    '--c-accent-ink': c.accentInk,
     '--c-on-primary': c.onPrimary,
     '--c-on-accent': c.onAccent,
     // Copias "de tema": las tarjetas con superficie propia las restauran

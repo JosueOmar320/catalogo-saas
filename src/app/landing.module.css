@@ -12,13 +12,19 @@
   --accent: #2f54d6;
   --accent-soft: #eef2fe;
   --button-bg: #18181b;
+  --button-bg-hover: #2b2b30;
   --button-ink: #ffffff;
+  --error: #dc2626;
   --nav-bg: rgba(255, 255, 255, 0.88);
   font-family: var(--font-app), system-ui, sans-serif;
   color: var(--ink);
   background: var(--bg);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
+}
+
+:global(.dark) .browserFade {
+  background: linear-gradient(to bottom, rgba(14, 16, 20, 0), #0e1014 72%);
 }
 
 :global(.dark) .page {
@@ -31,8 +37,36 @@
   --accent: #8fa6ff;
   --accent-soft: #1a2240;
   --button-bg: #ececef;
+  --button-bg-hover: #ffffff;
   --button-ink: #18181b;
+  --error: #f87171;
   --nav-bg: rgba(14, 16, 20, 0.85);
+}
+
+/* Enlace para teclado: aparece al enfocarlo y salta la navegación. */
+.skip {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 20;
+  padding: 8px 14px;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: none;
+  transform: translateY(-200%);
+}
+
+.skip:focus-visible {
+  transform: none;
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.main {
+  outline: none;
 }
 
 .container {
@@ -61,9 +95,22 @@
 
 .nav .container {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 16px;
-  height: 60px;
+  gap: 0 16px;
+  min-height: 60px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+@media (min-width: 760px) {
+  .nav .container {
+    flex-wrap: nowrap;
+    gap: 16px;
+    padding-top: 0;
+    padding-bottom: 0;
+    height: 60px;
+  }
 }
 
 .logo {
@@ -75,15 +122,23 @@
 }
 
 .navLinks {
-  display: none;
-  gap: 20px;
+  /* En móvil: segunda fila bajo el logo; en escritorio: junto a él. */
+  order: 3;
+  width: 100%;
+  display: flex;
+  gap: 4px 16px;
   font-size: 14px;
-  margin-left: 12px;
+  padding-top: 2px;
 }
 
 .navLinks a {
   color: var(--text);
   text-decoration: none;
+  padding: 6px 0;
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  transition: color 0.15s;
 }
 
 .navLinks a:hover {
@@ -92,8 +147,35 @@
 
 @media (min-width: 760px) {
   .navLinks {
-    display: flex;
+    order: 0;
+    width: auto;
+    gap: 20px;
+    margin-left: 12px;
+    padding-top: 0;
   }
+}
+
+/* «Iniciar sesión»: enlace de texto, no un segundo botón relleno junto al del héroe. */
+.navLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 10px;
+  border-radius: 6px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background-color 0.15s;
+}
+
+.navLink:hover {
+  background: var(--bg-soft);
+}
+
+.navLink:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .navActions {
@@ -123,8 +205,19 @@
   font: inherit;
   font-size: 12px;
   font-weight: 650;
-  padding: 5px 8px;
+  min-height: 32px;
+  padding: 0 9px;
   cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.segmented button:hover {
+  color: var(--ink);
+}
+
+.segmented button:disabled {
+  opacity: 0.5;
+  cursor: progress;
 }
 
 .segmented button[aria-pressed='true'] {
@@ -136,13 +229,19 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 34px;
+  height: 34px;
   border: 1px solid var(--line);
   border-radius: 6px;
   background: transparent;
   color: var(--ink);
   cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+.iconButton:hover {
+  border-color: var(--text);
+  background: var(--bg-soft);
 }
 
 .segmented button:focus-visible,
@@ -158,15 +257,14 @@
 
 .hero {
   text-align: center;
-  padding-top: 72px;
+  padding-top: 40px;
   padding-bottom: 48px;
 }
 
-.eyebrow {
-  font-size: 13px;
-  font-weight: 650;
-  color: var(--accent);
-  margin: 0 0 14px;
+@media (min-width: 720px) {
+  .hero {
+    padding-top: 72px;
+  }
 }
 
 .title {
@@ -178,11 +276,19 @@
 }
 
 .lead {
-  font-size: 18px;
+  font-size: 17px;
   line-height: 1.55;
   color: var(--text);
-  max-width: 660px;
-  margin: 20px auto 0;
+  max-width: 640px;
+  margin: 16px auto 0;
+  text-wrap: pretty;
+}
+
+@media (min-width: 720px) {
+  .lead {
+    font-size: 18px;
+    margin-top: 20px;
+  }
 }
 
 .ctas {
@@ -190,7 +296,7 @@
   gap: 12px;
   justify-content: center;
   flex-wrap: wrap;
-  margin-top: 32px;
+  margin-top: 28px;
 }
 
 .button,
@@ -203,20 +309,31 @@
   font-weight: 600;
   text-decoration: none;
   white-space: nowrap;
+  min-height: 44px;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
 }
 
 .button {
   background: var(--button-bg);
   color: var(--button-ink);
-  padding: 12px 20px;
+  padding: 11px 20px;
   font-size: 15px;
+}
+
+.button:hover {
+  background: var(--button-bg-hover);
 }
 
 .buttonGhost {
   border: 1px solid var(--line);
   color: var(--ink);
-  padding: 12px 20px;
+  padding: 10px 19px;
   font-size: 15px;
+}
+
+.buttonGhost:hover {
+  border-color: var(--text);
+  background: var(--bg-soft);
 }
 
 /* «Probar el panel» es un <button>: mismo aspecto que los enlaces. */
@@ -233,15 +350,17 @@ button.button:disabled {
 
 .demoNote {
   margin: 12px auto 0;
-  font-size: 13px;
-  color: var(--muted);
+  font-size: 14px;
+  color: var(--text);
+  max-width: 560px;
+  text-wrap: pretty;
 }
 
 .demoError {
   flex-basis: 100%;
   margin: 4px 0 0;
   font-size: 14px;
-  color: #b42318;
+  color: var(--error);
 }
 
 .buttonSmall {
@@ -251,41 +370,51 @@ button.button:disabled {
   font-size: 14px;
 }
 
-.stats {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  max-width: 720px;
-  margin: 44px auto 0;
+/* Tres frases de valor en vez de cifras de inventario. */
+.proofs {
+  list-style: none;
+  margin: 40px auto 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 420px;
+  text-align: left;
+  font-size: 14px;
+  color: var(--text);
 }
 
-@media (min-width: 640px) {
-  .stats {
-    grid-template-columns: repeat(4, 1fr);
+.proofs li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  line-height: 1.45;
+}
+
+.proofs svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--ink);
+}
+
+@media (min-width: 720px) {
+  .proofs {
+    flex-direction: row;
+    justify-content: center;
+    gap: 12px 32px;
+    max-width: 920px;
   }
-}
 
-.stats div {
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 14px 10px;
-}
-
-.stats dt {
-  font-size: 22px;
-  font-weight: 750;
-  letter-spacing: -0.02em;
-}
-
-.stats dd {
-  margin: 2px 0 0;
-  font-size: 13px;
-  color: var(--muted);
+  .proofs li {
+    flex: 1 1 0;
+    max-width: 280px;
+  }
 }
 
 /* -------------------------------------------------------- Vista previa del sitio */
 
 .browser {
+  position: relative;
   border: 1px solid var(--line);
   border-radius: 12px;
   overflow: hidden;
@@ -319,10 +448,35 @@ button.button:disabled {
 }
 
 .browserBody {
-  height: 560px;
-  overflow-y: auto;
+  /* Foto del producto: se recorta, no se desplaza (un scroller dentro de la landing atrapaba el gesto). */
+  max-height: 520px;
+  overflow: hidden;
   /* El sitio de ejemplo tiene su propio diseño (claro): no hereda el modo de la landing. */
   color-scheme: light;
+  pointer-events: none;
+  user-select: none;
+}
+
+@media (min-width: 720px) {
+  .browserBody {
+    max-height: 640px;
+  }
+}
+
+/* Degradado al pie del marco con el enlace a la demo completa. */
+.browserFade {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 180px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 24px;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0), #ffffff 72%);
+}
+
+.browserFade .buttonGhost {
+  background: var(--bg);
 }
 
 /* ------------------------------------------------------------------ Secciones */
@@ -378,6 +532,47 @@ button.button:disabled {
   color: var(--text);
   font-size: 14px;
   line-height: 1.55;
+  text-wrap: pretty;
+}
+
+.cardLink,
+.inlineLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 10px;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  min-height: 24px;
+}
+
+.inlineLink {
+  margin-top: 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.cardLink:hover,
+.inlineLink:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.cardLink:focus-visible,
+.inlineLink:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+.sectionLead {
+  margin: -20px 0 28px;
+  max-width: 640px;
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.55;
 }
 
 .steps {
@@ -410,7 +605,7 @@ button.button:disabled {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-weight: 700;
+  font-weight: 650;
   font-size: 14px;
 }
 
@@ -424,12 +619,22 @@ button.button:disabled {
   color: var(--text);
   font-size: 14px;
   line-height: 1.5;
+  text-wrap: pretty;
+}
+
+.stackRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 24px;
 }
 
 .stack {
   list-style: none;
   padding: 0;
-  margin: 24px 0 0;
+  margin: 0;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -463,6 +668,11 @@ button.button:disabled {
   margin: 12px auto 0;
   max-width: 540px;
   line-height: 1.55;
+  text-wrap: pretty;
+}
+
+.ctaNote {
+  font-size: 14px;
 }
 
 .footer {
@@ -483,4 +693,7 @@ button.button:disabled {
 
 .footer a {
   color: inherit;
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
 }

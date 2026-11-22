@@ -62,3 +62,52 @@ describe('Dominio propio', () => {
     assert.deepEqual(urls, ['https://mitienda.com', catalogUrl('pan'), 'https://mitienda.com/menu', 'https://mitienda.com/p/latte']);
   });
 });
+
+describe('Vercel: agregar un dominio que ya está en el proyecto', () => {
+  const withFetch = async (routes: (method: string, url: string) => { status: number; body: unknown }, run: () => Promise<void>) => {
+    const original = globalThis.fetch;
+    const env = { token: process.env.VERCEL_API_TOKEN, project: process.env.VERCEL_PROJECT_ID };
+    process.env.VERCEL_API_TOKEN = 'token-de-prueba';
+    process.env.VERCEL_PROJECT_ID = 'prj_test';
+    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+      const { status, body } = routes(init?.method ?? 'GET', String(url));
+      return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+    }) as typeof globalThis.fetch;
+    try {
+      await run();
+    } finally {
+      globalThis.fetch = original;
+      process.env.VERCEL_API_TOKEN = env.token;
+      process.env.VERCEL_PROJECT_ID = env.project;
+    }
+  };
+  const conflict = { error: { code: 'domain_already_in_use', message: 'ya está' } };
+
+  it('con el mismo papel (principal) se deja como está', async () => {
+    const { addProjectDomain } = await import('@/lib/domains/vercel');
+    await withFetch((method) => (method === 'POST' ? { status: 409, body: conflict } : { status: 200, body: { name: 'mitienda.com', verified: true, redirect: null } }), async () => {
+      await addProjectDomain('mitienda.com');
+    });
+  });
+
+  it('si ya era la redirección www de otro negocio, pedirlo como principal es un choque (domain_taken)', async () => {
+    const { addProjectDomain, VercelError } = await import('@/lib/domains/vercel');
+    await withFetch((method) => (method === 'POST' ? { status: 409, body: conflict } : { status: 200, body: { name: 'www.mitienda.com', verified: true, redirect: 'mitienda.com' } }), async () => {
+      await assert.rejects(addProjectDomain('www.mitienda.com'), (error: unknown) => error instanceof VercelError && error.code === 'domain_taken' && error.status === 409);
+    });
+  });
+
+  it('y pedirlo como redirección cuando ya es principal, también', async () => {
+    const { addProjectDomain, VercelError } = await import('@/lib/domains/vercel');
+    await withFetch((method) => (method === 'POST' ? { status: 409, body: conflict } : { status: 200, body: { name: 'mitienda.com', verified: true } }), async () => {
+      await assert.rejects(addProjectDomain('mitienda.com', 'www.mitienda.com'), (error: unknown) => error instanceof VercelError && error.code === 'domain_taken');
+    });
+  });
+
+  it('un 409 de otro proyecto (sin registro propio) sube tal cual', async () => {
+    const { addProjectDomain, VercelError } = await import('@/lib/domains/vercel');
+    await withFetch((method) => (method === 'POST' ? { status: 409, body: conflict } : { status: 404, body: { error: { code: 'not_found' } } }), async () => {
+      await assert.rejects(addProjectDomain('ajeno.com'), (error: unknown) => error instanceof VercelError && error.code === 'domain_already_in_use');
+    });
+  });
+});

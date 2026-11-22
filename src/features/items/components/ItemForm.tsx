@@ -17,12 +17,14 @@ import {
   ToggleButtonGroup,
   Typography,
 } from '@mui/material';
-import { ChevronDown, Package, Wrench } from 'lucide-react';
+import { ChevronDown, ExternalLink, Package, Wrench } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Controller, useForm, useWatch } from 'react-hook-form';
+import { useDashboard } from '@/components/dashboard/DashboardContext';
 import { GalleryField } from '@/components/form/GalleryField';
 import { SelectControl, SwitchControl, TextFieldControl } from '@/components/form/fields';
+import { LinkButton } from '@/components/ui/LinkButton';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { SaveBar } from '@/components/ui/SaveBar';
 import { SectionCard } from '@/components/ui/SectionCard';
@@ -111,6 +113,9 @@ export function ItemForm({ itemId, defaultValues, categories, previewSite }: Pro
   const labels = ITEM_TYPE_LABELS[values.type];
   const isNew = itemId === null;
   useUnsavedChangesWarning(formState.isDirty);
+  // Ficha pública del ítem, cuando el catálogo está publicado y el ítem se muestra.
+  const { catalogStatus } = useDashboard();
+  const publicItemUrl = !isNew && catalogStatus === 'published' && values.isVisible ? previewSite.items.find((item) => item.id === itemId)?.url : undefined;
 
   const submit = (addAnother: boolean) =>
     handleSubmit((data) =>
@@ -134,20 +139,16 @@ export function ItemForm({ itemId, defaultValues, categories, previewSite }: Pro
 
   return (
     <Box component="form" id={FORM_ID} onSubmit={submit(false)} noValidate>
+      {/* Guardar vive sólo en la barra inferior (un único patrón); el encabezado trae el regreso y, si existe, la ficha pública. */}
       <PageHeader
         title={isNew ? t(labels.newLabel) : values.name || t(labels.singular)}
         back={{ href: listHref, label: t(labels.plural) }}
         actions={
-          <>
-            {isNew && (
-              <Button variant="outlined" color="inherit" onClick={submit(true)} disabled={pending}>
-                {t('Guardar y agregar otro')}
-              </Button>
-            )}
-            <Button type="submit" variant="contained" disabled={pending || (!isNew && !formState.isDirty)}>
-              {pending ? t('Guardando…') : isNew ? t('Crear') : t('Guardar')}
-            </Button>
-          </>
+          publicItemUrl && (
+            <LinkButton href={publicItemUrl} target="_blank" rel="noopener noreferrer" variant="outlined" color="inherit" startIcon={<ExternalLink size={14} />}>
+              {t('Ver en el sitio')}
+            </LinkButton>
+          )
         }
       />
 
@@ -322,7 +323,7 @@ export function ItemForm({ itemId, defaultValues, categories, previewSite }: Pro
             <Accordion variant="outlined" disableGutters defaultExpanded={Boolean(defaultValues.description || defaultValues.sku || defaultValues.tags.length)} sx={{ '&:before': { display: 'none' }, borderRadius: 1.5 }}>
               <AccordionSummary expandIcon={<ChevronDown size={16} />} sx={{ px: 2.5 }}>
                 <Box>
-                  <Typography variant="h3">{t('Más detalles')}</Typography>
+                  <Typography variant="h3" component="h2">{t('Más detalles')}</Typography>
                   <Typography variant="body2" color="text.secondary">{t('Descripción completa, código y etiquetas.')}</Typography>
                 </Box>
               </AccordionSummary>
@@ -408,7 +409,7 @@ export function ItemForm({ itemId, defaultValues, categories, previewSite }: Pro
                 )}
               />
             </SectionCard>
-            <SectionCard title={t('Badges')} description={t('Etiquetas sobre la foto. Oferta y Agotado son automáticos.')}>
+            <SectionCard title={t('Insignias')} description={t('Etiquetas sobre la foto. Oferta y Agotado son automáticos.')}>
               <Controller
                 control={control}
                 name="badges"
@@ -431,9 +432,9 @@ export function ItemForm({ itemId, defaultValues, categories, previewSite }: Pro
                 )}
               />
               <Stack spacing={1.5} sx={{ mt: 2 }}>
-                <TextFieldControl control={control} name="customBadgeLabel" label={t('Badge personalizado')} placeholder={t('Ej. Sin gluten')} helperText={t('Opcional. Máximo 20 caracteres.')} />
+                <TextFieldControl control={control} name="customBadgeLabel" label={t('Insignia personalizada')} placeholder={t('Ej. Sin gluten')} helperText={t('Opcional. Máximo 20 caracteres.')} />
                 {values.customBadgeLabel && (
-                  <Controller control={control} name="customBadgeColor" render={({ field }) => <ColorField label={t('Color del badge')} value={field.value} onChange={field.onChange} />} />
+                  <Controller control={control} name="customBadgeColor" render={({ field }) => <ColorField label={t('Color de la insignia')} value={field.value} onChange={field.onChange} />} />
                 )}
               </Stack>
             </SectionCard>
@@ -472,7 +473,22 @@ export function ItemForm({ itemId, defaultValues, categories, previewSite }: Pro
         </Grid>
       </Grid>
 
-      {!isNew && <SaveBar visible={formState.isDirty} saving={pending} onDiscard={() => reset()} formId={FORM_ID} />}
+      {/* Al crear, la barra está siempre («Crear»); al editar aparece con los cambios («Guardar»). */}
+      <SaveBar
+        visible={isNew || formState.isDirty}
+        saving={pending}
+        onDiscard={formState.isDirty ? () => reset() : undefined}
+        formId={FORM_ID}
+        label={isNew ? t(labels.newLabel) : undefined}
+        saveLabel={isNew ? t('Crear') : undefined}
+        extra={
+          isNew && (
+            <Button onClick={submit(true)} disabled={pending} sx={{ color: 'secondary.contrastText', opacity: 0.8 }}>
+              {t('Guardar y agregar otro')}
+            </Button>
+          )
+        }
+      />
     </Box>
   );
 }

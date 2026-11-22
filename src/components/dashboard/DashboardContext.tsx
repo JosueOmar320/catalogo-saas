@@ -39,3 +39,8 @@ export function useDashboard(): DashboardInfo {
 export function useFeatureEnabled(feature: BusinessFeature): boolean {
   return useContext(DashboardContext)?.features[feature] ?? true;
 }
+
+/** ¿Puede administrar el negocio (owner/admin)? Fuera del panel del negocio (admin de la plataforma), sí. */
+export function useCanManage(): boolean {
+  return useContext(DashboardContext)?.canManage ?? true;
+}

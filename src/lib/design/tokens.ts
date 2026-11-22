@@ -1,4 +1,4 @@
-import { alpha, mix, readableOn } from './color';
+import { alpha, ensureContrast, mix, readableOn } from './color';
 import type { ThemeConfig } from './theme';
 import { TYPE_ROLES, type TypeRole } from './type-roles';
 
@@ -80,6 +80,8 @@ export function resolveTokens(theme: ThemeConfig) {
       accentSoft: mix(colors.accent, colors.background, 0.12),
       onPrimary: readableOn(colors.primary),
       onAccent: readableOn(colors.accent),
+      /** El acento como texto sobre el fondo del sitio (eyebrows): legible aunque el acento sea claro. */
+      accentInk: ensureContrast(colors.accent, colors.background),
       overlaySoft: alpha(colors.text, 0.04),
     },
     fonts: { body: typography.bodyFont, heading: typography.headingFont, price: typography.priceFont },

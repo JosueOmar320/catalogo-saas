@@ -19,7 +19,8 @@ export function SectionCard({ id, title, description, action, children, flush, s
       {(title || action) && (
         <Stack direction="row" spacing={2} sx={{ px: 2.5, pt: 2, pb: flush ? 2 : 0, justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: flush ? 1 : 0, borderColor: 'divider' }}>
           <Box>
-            {title && <Typography variant="h3">{title}</Typography>}
+            {/* Nivel 2 en el esquema (bajo el h1 de la página), con el estilo de título de tarjeta. */}
+            {title && <Typography variant="h3" component="h2">{title}</Typography>}
             {description && (
               <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
                 {description}

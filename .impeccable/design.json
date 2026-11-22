@@ -1,0 +1,560 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-22T16:20:34.050Z",
+  "title": "Design System: Vitrina",
+  "extensions": {
+    "colorMeta": {
+      "azul-tinta": {
+        "role": "primary",
+        "displayName": "Azul tinta",
+        "canonical": "oklch(50.3% 0.204 266.5)",
+        "tonalRamp": [
+          "oklch(15% 0.055 266.5)",
+          "oklch(27% 0.098 266.5)",
+          "oklch(39% 0.142 266.5)",
+          "oklch(51% 0.185 266.5)",
+          "oklch(63% 0.171 266.5)",
+          "oklch(75% 0.127 266.5)",
+          "oklch(86% 0.087 266.5)",
+          "oklch(95% 0.055 266.5)"
+        ]
+      },
+      "azul-tinta-oscuro": {
+        "role": "primary",
+        "displayName": "Azul tinta oscuro",
+        "canonical": "oklch(43.6% 0.181 266.5)",
+        "tonalRamp": [
+          "oklch(15% 0.049 266.5)",
+          "oklch(27% 0.089 266.5)",
+          "oklch(39% 0.128 266.5)",
+          "oklch(51% 0.168 266.5)",
+          "oklch(63% 0.155 266.5)",
+          "oklch(75% 0.115 266.5)",
+          "oklch(86% 0.079 266.5)",
+          "oklch(95% 0.049 266.5)"
+        ]
+      },
+      "azul-tinta-suave": {
+        "role": "primary",
+        "displayName": "Azul tinta suave",
+        "canonical": "oklch(94.7% 0.021 271.2)",
+        "tonalRamp": [
+          "oklch(15% 0.006 271.2)",
+          "oklch(27% 0.010 271.2)",
+          "oklch(39% 0.015 271.2)",
+          "oklch(51% 0.019 271.2)",
+          "oklch(63% 0.018 271.2)",
+          "oklch(75% 0.013 271.2)",
+          "oklch(86% 0.009 271.2)",
+          "oklch(95% 0.006 271.2)"
+        ]
+      },
+      "tinta": {
+        "role": "secondary",
+        "displayName": "Tinta",
+        "canonical": "oklch(21.0% 0.006 285.9)",
+        "tonalRamp": [
+          "oklch(15% 0.002 285.9)",
+          "oklch(27% 0.003 285.9)",
+          "oklch(39% 0.004 285.9)",
+          "oklch(51% 0.005 285.9)",
+          "oklch(63% 0.005 285.9)",
+          "oklch(75% 0.004 285.9)",
+          "oklch(86% 0.003 285.9)",
+          "oklch(95% 0.002 285.9)"
+        ]
+      },
+      "texto-secundario": {
+        "role": "neutral",
+        "displayName": "Texto secundario",
+        "canonical": "oklch(49.6% 0.016 285.8)",
+        "tonalRamp": [
+          "oklch(15% 0.004 285.8)",
+          "oklch(27% 0.008 285.8)",
+          "oklch(39% 0.011 285.8)",
+          "oklch(51% 0.015 285.8)",
+          "oklch(63% 0.013 285.8)",
+          "oklch(75% 0.010 285.8)",
+          "oklch(86% 0.007 285.8)",
+          "oklch(95% 0.004 285.8)"
+        ]
+      },
+      "gris-mudo": {
+        "role": "neutral",
+        "displayName": "Gris mudo",
+        "canonical": "oklch(55.2% 0.014 285.9)",
+        "tonalRamp": [
+          "oklch(15% 0.004 285.9)",
+          "oklch(27% 0.007 285.9)",
+          "oklch(39% 0.010 285.9)",
+          "oklch(51% 0.013 285.9)",
+          "oklch(63% 0.012 285.9)",
+          "oklch(75% 0.009 285.9)",
+          "oklch(86% 0.006 285.9)",
+          "oklch(95% 0.004 285.9)"
+        ]
+      },
+      "papel": {
+        "role": "neutral",
+        "displayName": "Papel",
+        "canonical": "oklch(100.0% 0.000 89.9)",
+        "tonalRamp": [
+          "oklch(15% 0.000 89.9)",
+          "oklch(27% 0.000 89.9)",
+          "oklch(39% 0.000 89.9)",
+          "oklch(51% 0.000 89.9)",
+          "oklch(63% 0.000 89.9)",
+          "oklch(75% 0.000 89.9)",
+          "oklch(86% 0.000 89.9)",
+          "oklch(95% 0.000 89.9)"
+        ]
+      },
+      "papel-gris": {
+        "role": "neutral",
+        "displayName": "Papel gris",
+        "canonical": "oklch(97.6% 0.001 286.4)",
+        "tonalRamp": [
+          "oklch(15% 0.000 286.4)",
+          "oklch(27% 0.001 286.4)",
+          "oklch(39% 0.001 286.4)",
+          "oklch(51% 0.001 286.4)",
+          "oklch(63% 0.001 286.4)",
+          "oklch(75% 0.001 286.4)",
+          "oklch(86% 0.001 286.4)",
+          "oklch(95% 0.000 286.4)"
+        ]
+      },
+      "linea": {
+        "role": "neutral",
+        "displayName": "Línea",
+        "canonical": "oklch(92.0% 0.004 286.3)",
+        "tonalRamp": [
+          "oklch(15% 0.001 286.3)",
+          "oklch(27% 0.002 286.3)",
+          "oklch(39% 0.003 286.3)",
+          "oklch(51% 0.004 286.3)",
+          "oklch(63% 0.003 286.3)",
+          "oklch(75% 0.003 286.3)",
+          "oklch(86% 0.002 286.3)",
+          "oklch(95% 0.001 286.3)"
+        ]
+      },
+      "verde-ok": {
+        "role": "neutral",
+        "displayName": "Verde ok",
+        "canonical": "oklch(52.7% 0.137 150.1)",
+        "tonalRamp": [
+          "oklch(15% 0.037 150.1)",
+          "oklch(27% 0.067 150.1)",
+          "oklch(39% 0.097 150.1)",
+          "oklch(51% 0.127 150.1)",
+          "oklch(63% 0.117 150.1)",
+          "oklch(75% 0.087 150.1)",
+          "oklch(86% 0.060 150.1)",
+          "oklch(95% 0.037 150.1)"
+        ]
+      },
+      "verde-ok-suave": {
+        "role": "neutral",
+        "displayName": "Verde ok suave",
+        "canonical": "oklch(96.2% 0.043 156.7)",
+        "tonalRamp": [
+          "oklch(15% 0.012 156.7)",
+          "oklch(27% 0.021 156.7)",
+          "oklch(39% 0.031 156.7)",
+          "oklch(51% 0.040 156.7)",
+          "oklch(63% 0.037 156.7)",
+          "oklch(75% 0.028 156.7)",
+          "oklch(86% 0.019 156.7)",
+          "oklch(95% 0.012 156.7)"
+        ]
+      },
+      "ambar-aviso": {
+        "role": "neutral",
+        "displayName": "Ámbar aviso",
+        "canonical": "oklch(55.5% 0.146 49.0)",
+        "tonalRamp": [
+          "oklch(15% 0.040 49.0)",
+          "oklch(27% 0.071 49.0)",
+          "oklch(39% 0.103 49.0)",
+          "oklch(51% 0.135 49.0)",
+          "oklch(63% 0.124 49.0)",
+          "oklch(75% 0.093 49.0)",
+          "oklch(86% 0.063 49.0)",
+          "oklch(95% 0.040 49.0)"
+        ]
+      },
+      "ambar-aviso-suave": {
+        "role": "neutral",
+        "displayName": "Ámbar aviso suave",
+        "canonical": "oklch(96.2% 0.058 95.6)",
+        "tonalRamp": [
+          "oklch(15% 0.016 95.6)",
+          "oklch(27% 0.028 95.6)",
+          "oklch(39% 0.041 95.6)",
+          "oklch(51% 0.054 95.6)",
+          "oklch(63% 0.050 95.6)",
+          "oklch(75% 0.037 95.6)",
+          "oklch(86% 0.025 95.6)",
+          "oklch(95% 0.016 95.6)"
+        ]
+      },
+      "rojo-error": {
+        "role": "neutral",
+        "displayName": "Rojo error",
+        "canonical": "oklch(57.7% 0.215 27.3)",
+        "tonalRamp": [
+          "oklch(15% 0.055 27.3)",
+          "oklch(27% 0.098 27.3)",
+          "oklch(39% 0.142 27.3)",
+          "oklch(51% 0.185 27.3)",
+          "oklch(63% 0.171 27.3)",
+          "oklch(75% 0.127 27.3)",
+          "oklch(86% 0.087 27.3)",
+          "oklch(95% 0.055 27.3)"
+        ]
+      },
+      "azul-tinta-noche": {
+        "role": "primary",
+        "displayName": "Azul tinta (noche)",
+        "canonical": "oklch(71.0% 0.150 269.3)",
+        "tonalRamp": [
+          "oklch(15% 0.041 269.3)",
+          "oklch(27% 0.074 269.3)",
+          "oklch(39% 0.107 269.3)",
+          "oklch(51% 0.139 269.3)",
+          "oklch(63% 0.129 269.3)",
+          "oklch(75% 0.096 269.3)",
+          "oklch(86% 0.066 269.3)",
+          "oklch(95% 0.041 269.3)"
+        ]
+      },
+      "azul-tinta-noche-oscuro": {
+        "role": "primary",
+        "displayName": "Azul tinta oscuro (noche)",
+        "canonical": "oklch(62.1% 0.178 268.8)",
+        "tonalRamp": [
+          "oklch(15% 0.048 268.8)",
+          "oklch(27% 0.087 268.8)",
+          "oklch(39% 0.126 268.8)",
+          "oklch(51% 0.165 268.8)",
+          "oklch(63% 0.152 268.8)",
+          "oklch(75% 0.113 268.8)",
+          "oklch(86% 0.078 268.8)",
+          "oklch(95% 0.048 268.8)"
+        ]
+      },
+      "azul-tinta-noche-suave": {
+        "role": "primary",
+        "displayName": "Azul tinta suave (noche)",
+        "canonical": "oklch(28.0% 0.061 268.0)",
+        "tonalRamp": [
+          "oklch(15% 0.017 268.0)",
+          "oklch(27% 0.030 268.0)",
+          "oklch(39% 0.043 268.0)",
+          "oklch(51% 0.057 268.0)",
+          "oklch(63% 0.052 268.0)",
+          "oklch(75% 0.039 268.0)",
+          "oklch(86% 0.027 268.0)",
+          "oklch(95% 0.017 268.0)"
+        ]
+      },
+      "tinta-noche": {
+        "role": "secondary",
+        "displayName": "Tinta (noche)",
+        "canonical": "oklch(94.4% 0.004 286.3)",
+        "tonalRamp": [
+          "oklch(15% 0.001 286.3)",
+          "oklch(27% 0.002 286.3)",
+          "oklch(39% 0.003 286.3)",
+          "oklch(51% 0.004 286.3)",
+          "oklch(63% 0.003 286.3)",
+          "oklch(75% 0.003 286.3)",
+          "oklch(86% 0.002 286.3)",
+          "oklch(95% 0.001 286.3)"
+        ]
+      },
+      "texto-secundario-noche": {
+        "role": "neutral",
+        "displayName": "Texto secundario (noche)",
+        "canonical": "oklch(71.2% 0.013 286.1)",
+        "tonalRamp": [
+          "oklch(15% 0.004 286.1)",
+          "oklch(27% 0.006 286.1)",
+          "oklch(39% 0.009 286.1)",
+          "oklch(51% 0.012 286.1)",
+          "oklch(63% 0.011 286.1)",
+          "oklch(75% 0.008 286.1)",
+          "oklch(86% 0.006 286.1)",
+          "oklch(95% 0.004 286.1)"
+        ]
+      },
+      "papel-noche": {
+        "role": "neutral",
+        "displayName": "Papel (noche)",
+        "canonical": "oklch(20.9% 0.010 268.2)",
+        "tonalRamp": [
+          "oklch(15% 0.003 268.2)",
+          "oklch(27% 0.005 268.2)",
+          "oklch(39% 0.007 268.2)",
+          "oklch(51% 0.010 268.2)",
+          "oklch(63% 0.009 268.2)",
+          "oklch(75% 0.007 268.2)",
+          "oklch(86% 0.005 268.2)",
+          "oklch(95% 0.003 268.2)"
+        ]
+      },
+      "papel-gris-noche": {
+        "role": "neutral",
+        "displayName": "Papel gris (noche)",
+        "canonical": "oklch(17.3% 0.009 264.3)",
+        "tonalRamp": [
+          "oklch(15% 0.002 264.3)",
+          "oklch(27% 0.004 264.3)",
+          "oklch(39% 0.006 264.3)",
+          "oklch(51% 0.008 264.3)",
+          "oklch(63% 0.008 264.3)",
+          "oklch(75% 0.006 264.3)",
+          "oklch(86% 0.004 264.3)",
+          "oklch(95% 0.002 264.3)"
+        ]
+      },
+      "linea-noche": {
+        "role": "neutral",
+        "displayName": "Línea (noche)",
+        "canonical": "oklch(29.7% 0.015 269.2)",
+        "tonalRamp": [
+          "oklch(15% 0.004 269.2)",
+          "oklch(27% 0.007 269.2)",
+          "oklch(39% 0.011 269.2)",
+          "oklch(51% 0.014 269.2)",
+          "oklch(63% 0.013 269.2)",
+          "oklch(75% 0.010 269.2)",
+          "oklch(86% 0.007 269.2)",
+          "oklch(95% 0.004 269.2)"
+        ]
+      },
+      "garfield-crema": {
+        "role": "tertiary",
+        "displayName": "Garfield crema",
+        "canonical": "oklch(96.9% 0.025 75.3)",
+        "tonalRamp": [
+          "oklch(15% 0.007 75.3)",
+          "oklch(27% 0.012 75.3)",
+          "oklch(39% 0.018 75.3)",
+          "oklch(51% 0.023 75.3)",
+          "oklch(63% 0.021 75.3)",
+          "oklch(75% 0.016 75.3)",
+          "oklch(86% 0.011 75.3)",
+          "oklch(95% 0.007 75.3)"
+        ]
+      },
+      "garfield-naranja": {
+        "role": "tertiary",
+        "displayName": "Garfield naranja",
+        "canonical": "oklch(56.6% 0.147 49.4)",
+        "tonalRamp": [
+          "oklch(15% 0.040 49.4)",
+          "oklch(27% 0.072 49.4)",
+          "oklch(39% 0.104 49.4)",
+          "oklch(51% 0.136 49.4)",
+          "oklch(63% 0.126 49.4)",
+          "oklch(75% 0.094 49.4)",
+          "oklch(86% 0.064 49.4)",
+          "oklch(95% 0.040 49.4)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Sólo el titular de la landing."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "h1 de cada página del panel (PageHeader); títulos de sección de la landing."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Títulos de tarjeta, estado vacío y diálogo."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Todo el panel a 14 px; la landing sube a 18 px sólo en el lead."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Overline en mayúsculas; botones, pestañas y nav van en 600 sin mayúsculas."
+      }
+    },
+    "shadows": [
+      {
+        "name": "vista-previa-navegador",
+        "value": "0 24px 60px -32px rgba(16, 24, 40, 0.35)",
+        "purpose": "Sólo bajo el marco que muestra el sitio de ejemplo en la landing. El panel no usa sombras en reposo."
+      }
+    ],
+    "motion": [
+      {
+        "name": "estado",
+        "value": "0.15s",
+        "purpose": "Bordes, fondos y chevrones al cambiar de estado."
+      },
+      {
+        "name": "barra-guardar",
+        "value": "slide-up (MUI Slide)",
+        "purpose": "La única entrada animada del panel."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "600px"
+      },
+      {
+        "name": "md",
+        "value": "900px"
+      },
+      {
+        "name": "lg",
+        "value": "1200px"
+      },
+      {
+        "name": "landing-2col",
+        "value": "640px"
+      },
+      {
+        "name": "landing-3col",
+        "value": "960px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Botón principal",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "La única acción azul de una tarjeta o pantalla.",
+      "html": "<button class=\"ds-btn-primary\">Guardar</button>",
+      "css": ".ds-btn-primary{font-family:'Inter Variable', 'Inter', system-ui, -apple-system, sans-serif;font-size:14px;font-weight:600;line-height:1.75;color:#fff;background:#2F54D6;border:0;border-radius:6px;min-height:34px;padding:0 12px;cursor:pointer;transition:background-color .15s}.ds-btn-primary:hover{background:#2443B3}.ds-btn-primary:focus-visible{outline:2px solid #2F54D6;outline-offset:2px}.ds-btn-primary:active{background:#2443B3}"
+    },
+    {
+      "name": "Botón secundario",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Acción secundaria con borde de línea.",
+      "html": "<button class=\"ds-btn-secondary\">Cancelar</button>",
+      "css": ".ds-btn-secondary{font-family:'Inter Variable', 'Inter', system-ui, -apple-system, sans-serif;font-size:14px;font-weight:600;line-height:1.75;color:#18181B;background:transparent;border:1px solid #E4E4E7;border-radius:6px;min-height:34px;padding:0 12px;cursor:pointer;transition:border-color .15s,background-color .15s}.ds-btn-secondary:hover{border-color:#61616B;background:rgba(24,24,27,.04)}.ds-btn-secondary:focus-visible{outline:2px solid #2F54D6;outline-offset:2px}"
+    },
+    {
+      "name": "Botón de la landing",
+      "kind": "button",
+      "refersTo": "button-ink",
+      "description": "Tinta sobre papel: la landing persuade con contraste, no con color.",
+      "html": "<a class=\"ds-btn-ink\" href=\"#\">Ver la demo en vivo <span aria-hidden=\"true\">→</span></a>",
+      "css": ".ds-btn-ink{display:inline-flex;align-items:center;gap:8px;font-family:'Inter Variable', 'Inter', system-ui, -apple-system, sans-serif;font-size:15px;font-weight:600;color:#fff;background:#18181B;border-radius:6px;padding:12px 20px;text-decoration:none;white-space:nowrap}.ds-btn-ink:hover{background:#2b2b30}.ds-btn-ink:focus-visible{outline:2px solid #2F54D6;outline-offset:2px}"
+    },
+    {
+      "name": "Campo de texto",
+      "kind": "input",
+      "refersTo": "input-text",
+      "description": "TextField outlined pequeño, a lo ancho, con etiqueta flotante y foco azul.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-field-label\">Nombre</span><input class=\"ds-input\" type=\"text\" placeholder=\"Café Aurora\"></label>",
+      "css": ".ds-field{display:block;font-family:'Inter Variable', 'Inter', system-ui, -apple-system, sans-serif}.ds-field-label{display:block;font-size:12px;font-weight:400;color:#61616B;margin:0 0 4px}.ds-input{box-sizing:border-box;width:100%;height:40px;padding:8.5px 14px;font:inherit;font-size:14px;color:#18181B;background:#fff;border:1px solid #C9C9CF;border-radius:6px;transition:border-color .15s}.ds-input:hover{border-color:#18181B}.ds-input:focus{outline:none;border:2px solid #2F54D6;padding:7.5px 13px}"
+    },
+    {
+      "name": "Ítem del menú lateral",
+      "kind": "nav",
+      "refersTo": "nav-item",
+      "description": "Entrada del menú: 14 px/600, icono de 17 px; el activo lleva azul tinta suave.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-item\" href=\"#\"><svg width=\"17\" height=\"17\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"3\" width=\"7\" height=\"7\" rx=\"1\"/><rect x=\"14\" y=\"3\" width=\"7\" height=\"7\" rx=\"1\"/><rect x=\"3\" y=\"14\" width=\"7\" height=\"7\" rx=\"1\"/><rect x=\"14\" y=\"14\" width=\"7\" height=\"7\" rx=\"1\"/></svg>Inicio</a><a class=\"ds-nav-item ds-nav-item--selected\" href=\"#\" aria-current=\"page\"><svg width=\"17\" height=\"17\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z\"/><path d=\"M3 6h18\"/><path d=\"M16 10a4 4 0 0 1-8 0\"/></svg>Productos</a><a class=\"ds-nav-item\" href=\"#\"><svg width=\"17\" height=\"17\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M12 6v6l4 2\"/></svg>Pedidos</a></nav>",
+      "css": ".ds-nav{display:flex;flex-direction:column;gap:2px;width:224px;padding:8px 10px;font-family:'Inter Variable', 'Inter', system-ui, -apple-system, sans-serif}.ds-nav-item{display:flex;align-items:center;gap:13px;min-height:36px;padding:4px 12px;border-radius:6px;font-size:14px;font-weight:600;color:#18181B;text-decoration:none;transition:background-color .15s}.ds-nav-item svg{color:#61616B}.ds-nav-item:hover{background:rgba(24,24,27,.04)}.ds-nav-item--selected{background:#E8EDFC;color:#2443B3}.ds-nav-item--selected svg{color:#2443B3}.ds-nav-item:focus-visible{outline:2px solid #2F54D6;outline-offset:-2px}"
+    },
+    {
+      "name": "Chip de estado",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Píldora pequeña con peso 500; el estado da el color.",
+      "html": "<span class=\"ds-chip\">Borrador</span> <span class=\"ds-chip ds-chip--ok\">Publicado</span> <span class=\"ds-chip ds-chip--warn\">Sin precio</span>",
+      "css": ".ds-chip{display:inline-flex;align-items:center;height:24px;padding:0 8px;border-radius:999px;font-family:'Inter Variable', 'Inter', system-ui, -apple-system, sans-serif;font-size:13px;font-weight:500;color:#18181B;background:#F7F7F8}.ds-chip--ok{color:#15803D;background:#DCFCE7}.ds-chip--warn{color:#B45309;background:#FEF3C7}"
+    },
+    {
+      "name": "Tarjeta de sección",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Paper outlined: título h3, descripción secundaria, 20 px de relleno, sin sombra.",
+      "html": "<section class=\"ds-card\"><header class=\"ds-card-head\"><div><h3 class=\"ds-card-title\">Datos del negocio</h3><p class=\"ds-card-desc\">Nombre, dirección y cómo te contactan.</p></div><button class=\"ds-card-action\">Editar</button></header><div class=\"ds-card-body\">Contenido de la tarjeta.</div></section>",
+      "css": ".ds-card{font-family:'Inter Variable', 'Inter', system-ui, -apple-system, sans-serif;background:#fff;border:1px solid #E4E4E7;border-radius:6px;color:#18181B;overflow:hidden}.ds-card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding:16px 20px 0}.ds-card-title{margin:0;font-size:16px;font-weight:650;line-height:1.3}.ds-card-desc{margin:2px 0 0;font-size:14px;color:#61616B}.ds-card-action{font:inherit;font-size:14px;font-weight:600;color:#18181B;background:transparent;border:1px solid #E4E4E7;border-radius:6px;min-height:34px;padding:0 12px;cursor:pointer}.ds-card-action:hover{border-color:#61616B}.ds-card-body{padding:20px;font-size:14px;line-height:1.5}"
+    },
+    {
+      "name": "Barra de guardar",
+      "kind": "custom",
+      "refersTo": "button-ink",
+      "description": "Fija abajo cuando hay cambios sin guardar: tinta, texto papel, Descartar en texto y Guardar relleno.",
+      "html": "<div class=\"ds-savebar\"><span class=\"ds-savebar-text\">Tienes cambios sin guardar</span><span class=\"ds-savebar-actions\"><button class=\"ds-savebar-discard\">Descartar</button><button class=\"ds-savebar-save\">Guardar</button></span></div>",
+      "css": ".ds-savebar{display:flex;align-items:center;justify-content:space-between;gap:16px;max-width:560px;padding:10px 16px;font-family:'Inter Variable', 'Inter', system-ui, -apple-system, sans-serif;background:#18181B;color:#fff;border:1px solid #18181B;border-radius:6px}.ds-savebar-text{font-size:14px;font-weight:500}.ds-savebar-actions{display:flex;gap:8px}.ds-savebar-discard{font:inherit;font-size:14px;font-weight:600;color:#fff;opacity:.8;background:transparent;border:0;border-radius:6px;min-height:34px;padding:0 12px;cursor:pointer}.ds-savebar-discard:hover{opacity:1;background:rgba(255,255,255,.08)}.ds-savebar-save{font:inherit;font-size:14px;font-weight:600;color:#fff;background:#2F54D6;border:0;border-radius:6px;min-height:34px;padding:0 12px;cursor:pointer}.ds-savebar-save:hover{background:#2443B3}"
+    },
+    {
+      "name": "Estado vacío",
+      "kind": "custom",
+      "refersTo": "card",
+      "description": "Baldosa azul suave con icono, título, descripción corta y una acción.",
+      "html": "<div class=\"ds-empty\"><span class=\"ds-empty-icon\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z\"/><path d=\"M3 6h18\"/><path d=\"M16 10a4 4 0 0 1-8 0\"/></svg></span><h3 class=\"ds-empty-title\">Aún no tienes productos</h3><p class=\"ds-empty-desc\">Agrega el primero o importa tu lista desde un CSV.</p><button class=\"ds-empty-action\">Agregar producto</button></div>",
+      "css": ".ds-empty{text-align:center;padding:48px 16px;font-family:'Inter Variable', 'Inter', system-ui, -apple-system, sans-serif;color:#18181B}.ds-empty-icon{display:inline-flex;padding:12px;border-radius:12px;background:#E8EDFC;color:#2F54D6;margin-bottom:12px}.ds-empty-title{margin:0;font-size:16px;font-weight:650}.ds-empty-desc{margin:4px auto 0;max-width:380px;font-size:14px;color:#61616B;line-height:1.5}.ds-empty-action{margin-top:16px;font:inherit;font-size:14px;font-weight:600;color:#fff;background:#2F54D6;border:0;border-radius:6px;min-height:34px;padding:0 12px;cursor:pointer}.ds-empty-action:hover{background:#2443B3}"
+    }
+  ],
+  "narrative": {
+    "northStar": "La vitrina en blanco",
+    "overview": "Vitrina es un escaparate: lo que debe lucir es el negocio y sus productos, nunca la plataforma. Por eso el panel, la landing y el login son el cristal: una interfaz neutra, compacta y casi invisible en la que el único color que habla es el azul de acción y el único protagonista es el contenido del negocio (sus fotos, sus precios, su sitio en la vista previa). Toda la expresión visual de la marca de cada negocio vive en su sitio público, que tiene su propio motor de temas; nada de eso se filtra al panel y el panel no se filtra al sitio.\n\nLa personalidad es serena y confiable, rápida y directa. Densidad de herramienta de trabajo: tipo base de 14 px, controles pequeños, bordes de 1 px en vez de sombras, fondos en dos grises apenas distintos. Las decisiones se leen en los detalles (un azul bien medido, una negrita 600, una línea divisoria) y no en la decoración. Lo que el sistema rechaza, confirmado con el usuario: el dashboard genérico (degradados, tarjetas con sombras grandes, iconos de colores por todos lados, gráficas de adorno) y el aire \"de agencia\" en el panel (animaciones vistosas, héroes gigantes); eso queda para los sitios de los negocios.",
+    "keyCharacteristics": [
+      "Un solo color de acción (azul tinta) y cuatro de estado; todo lo demás es tinta, papel y línea.",
+      "Plano: la jerarquía sale del borde, del gris suave y del tipo; las sombras no existen en reposo.",
+      "Compacto: 14 px de base, controles de 34–40 px, radio de 6 px, tarjetas con 20 px de aire.",
+      "Modo claro y oscuro gemelos, con variables CSS y la clase `light`/`dark` en `<html>`.",
+      "La vista previa del sitio del negocio es la única pieza \"a color\" del panel y siempre se enmarca como tal."
+    ],
+    "rules": [
+      {
+        "name": "La regla del cristal",
+        "body": "El panel no tiene color propio: cualquier color saturado en pantalla es una acción (azul), un estado (verde, ámbar, rojo), el asistente (crema) o contenido del negocio. Si no es ninguna de esas cosas, es un error.",
+        "section": "colors"
+      },
+      {
+        "name": "La regla del único azul",
+        "body": "Hay un solo acento y ocupa poco: botones principales, enlaces y selección. Dos azules distintos en una pantalla, o un azul usado como fondo grande, rompen el sistema.",
+        "section": "colors"
+      },
+      {
+        "name": "La regla del 14",
+        "body": "El cuerpo del panel es 14 px y no se agranda para \"respirar\": el aire viene del espaciado, no del tamaño. Un texto de 16 px en el panel es un error salvo en el lead de la landing.",
+        "section": "typography"
+      },
+      {
+        "name": "La regla de la negrita 600",
+        "body": "Lo accionable (botones, pestañas, nav, chips) pesa 600; lo que se lee pesa 400; los títulos 650. No hay 500 ni 700 salvo el logotipo (750) y el \"ADMIN\" (700).",
+        "section": "typography"
+      },
+      {
+        "name": "La regla del borde",
+        "body": "Si una superficie necesita separarse del fondo, lleva un borde de 1 px de línea; nunca una sombra. Una sombra en una tarjeta, una tabla o un botón del panel es un error.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do usar `theme.vars.palette.*` y tokens de `sx` (`'divider'`, `'text.secondary'`, `'primary.light'`) en todo el panel: nunca un hex fijo, para que claro y oscuro sigan siendo gemelos.",
+      "Do separar superficies con borde de 1 px de línea y, si hace falta otro nivel, con papel gris; la jerarquía la terminan el tipo (650 / 600 / 400) y el espaciado de 8 px.",
+      "Do reservar el azul tinta a una acción principal por tarjeta o pantalla, los enlaces, la selección y el foco.",
+      "Do mantener los controles compactos: `size: small`, 34 px de altura mínima en botones, 14 px de cuerpo, 6 px de radio.",
+      "Do enmarcar cualquier contenido del negocio (sitio, PDF, fotos) como contenido: borde, marco de navegador o lienzo con `contain: paint`.",
+      "Do dar a todo control un `aria-label` o un nombre visible, un foco de 2 px azul y un estado vacío o de carga con la forma del contenido."
+    ],
+    "donts": [
+      "Don't añadir sombras a tarjetas, tablas, botones o campos del panel; sólo las capas flotantes de MUI las tienen.",
+      "Don't introducir degradados, iconos de colores, gráficas decorativas ni \"hero\" en el panel: eso es el dashboard genérico que el sistema rechaza.",
+      "Don't usar un segundo acento o un azul como fondo grande; el color saturado siempre significa acción, estado o asistente.",
+      "Don't llevar la paleta cálida de Garfield fuera del asistente ni colores de los temas de sitios al panel.",
+      "Don't subir el cuerpo del panel por encima de 14 px ni abrir radios por encima de 6 px en controles (10–14 px sólo en piezas grandes de la landing).",
+      "Don't animar nada que no sea un cambio de estado: 0.15 s para bordes, fondos y chevrones; deslizar sólo la barra de guardar."
+    ]
+  }
+}

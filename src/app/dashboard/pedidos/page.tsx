@@ -1,4 +1,4 @@
-import { Alert, Box } from '@mui/material';
+import { Alert } from '@mui/material';
 import type { Metadata } from 'next';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { OrdersBoard } from '@/features/orders/components/OrdersBoard';
@@ -30,15 +30,13 @@ export default async function OrdersPage({ searchParams }: PageProps<'/dashboard
   const [t, locale, orders, newCount] = await Promise.all([getT(), getLocale(), listOrders(ctx, { statuses: tab.statuses, days, query }), countNewOrders(ctx)]);
   const settings = parseCatalogSettings(ctx.catalog.settings);
   const customerOrders = orders ? await orderCountsByCustomer(ctx, orders.map((order) => order.customer_key)) : {};
+  // Avisos push: sólo si la plataforma los tiene configurados (si no, no hay nada que el negocio pueda hacer aquí).
+  const vapidPublicKey = isPushConfigured() ? (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY?.trim() || null) : null;
+  const alerts = settings.order.enabled && settings.order.inbox && vapidPublicKey ? <OrderAlertsCard vapidPublicKey={vapidPublicKey} /> : null;
 
   return (
     <>
       <PageHeader title={t('Pedidos')} description={t('Cada pedido que tus clientes envían por WhatsApp desde tu sitio. Confírmalo, márcalo listo y entregado.')} />
-      {settings.order.enabled && settings.order.inbox && (
-        <Box sx={{ mb: 2 }}>
-          <OrderAlertsCard vapidPublicKey={isPushConfigured() ? (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY?.trim() ?? null) : null} />
-        </Box>
-      )}
       {orders === null ? (
         <Alert severity="warning">{t('No se pudieron cargar los pedidos. Intenta de nuevo en unos minutos.')}</Alert>
       ) : (
@@ -50,6 +48,7 @@ export default async function OrdersPage({ searchParams }: PageProps<'/dashboard
           orders={orders}
           newCount={newCount}
           enabled={settings.order.enabled && settings.order.inbox}
+          alerts={alerts}
           canManage={canManageCatalog(ctx)}
           locale={locale}
           priceLocale={settings.locale}

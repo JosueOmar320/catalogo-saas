@@ -18,6 +18,8 @@ type PublicCatalogPayload = {
     site_kind?: string;
     /** Dominio propio activo (migración custom_domains); ausente o null = sin dominio. */
     custom_domain?: string | null;
+    /** Función «Pedidos y clientes» (migración 20261123); ausente = encendida. */
+    orders_enabled?: boolean;
   };
   catalog: Tables<'catalogs'>;
   categories: Tables<'categories'>[];
@@ -75,6 +77,7 @@ export const getPublicSite = cache(async (slug: string): Promise<SiteViewModel |
     customCode: payload.business.custom_code === true,
     siteKind: parseSiteKind(payload.business.site_kind),
     customDomain: payload.business.custom_domain ?? null,
+    ordersEnabled: payload.business.orders_enabled !== false,
   }, { public: true });
   site.reviews = site.settings.reviews.enabled ? reviews : [];
   return site;

@@ -44,3 +44,19 @@ export function isDark(hex: string): boolean {
 export function readableOn(background: string, light = '#FFFFFF', dark = '#111111'): string {
   return contrastRatio(light, background) >= contrastRatio(dark, background) ? light : dark;
 }
+
+/**
+ * El mismo color (o el más parecido) que ya se lee sobre el fondo: se mezcla
+ * poco a poco con tinta o con blanco hasta alcanzar el contraste mínimo. Para
+ * acentos claros usados como texto (eyebrows, precios, enlaces) sin cambiar el
+ * color del tema donde sí funciona (botones, fondos).
+ */
+export function ensureContrast(color: string, background: string, min = MIN_READABLE_CONTRAST): string {
+  if (contrastRatio(color, background) >= min) return color;
+  const target = readableOn(background);
+  for (let step = 1; step <= 10; step++) {
+    const candidate = mix(color, target, step / 10);
+    if (contrastRatio(candidate, background) >= min) return candidate;
+  }
+  return target;
+}

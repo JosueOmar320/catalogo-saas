@@ -52,26 +52,46 @@ export function EmbedFrame({ code, title, height, vars, fullScreen = false }: { 
     const schedule = () => {
       if (!raf) raf = requestAnimationFrame(post);
     };
+    // El widget sólo puede desplazar la página si la persona acaba de interactuar con él:
+    // los eventos de dentro del iframe no llegan aquí, pero sí se nota cuando el foco
+    // entra (window pierde el foco y el iframe pasa a ser el elemento activo).
+    let interacted = 0;
+    const touch = () => {
+      interacted = Date.now();
+    };
+    const onBlur = () => {
+      if (document.activeElement === el) touch();
+    };
+    const engaged = () => document.activeElement === el || Date.now() - interacted < 1000;
     const onMessage = (event: MessageEvent) => {
       if (event.source !== el.contentWindow) return;
       if (event.data?.type === EMBED_MESSAGE) {
         const next = clampEmbedHeight(event.data.height);
         if (next !== null) setAuto(next);
         schedule();
-      } else if (event.data?.type === EMBED_SCROLL && typeof event.data.top === 'number' && Number.isFinite(event.data.top)) {
-        // Lleva ese punto del widget justo debajo del menú fijo del sitio.
+      } else if (event.data?.type === EMBED_SCROLL && typeof event.data.top === 'number' && Number.isFinite(event.data.top) && engaged()) {
+        // Lleva ese punto del widget (dentro de su alto) justo debajo del menú fijo del sitio.
         const view = viewport(el);
-        const by = view.frameTop + event.data.top - view.viewTop;
+        const top = Math.min(Math.max(0, event.data.top), el.offsetHeight);
+        const by = view.frameTop + top - view.viewTop;
         (view.root ?? window).scrollBy({ top: by, behavior: event.data.smooth ? 'smooth' : 'auto' });
       }
     };
     window.addEventListener('message', onMessage);
+    window.addEventListener('blur', onBlur);
+    el.addEventListener('pointerdown', touch);
+    el.addEventListener('keydown', touch);
+    el.addEventListener('focus', touch);
     document.addEventListener('scroll', schedule, { capture: true, passive: true });
     window.addEventListener('resize', schedule);
     el.addEventListener('load', schedule);
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener('message', onMessage);
+      window.removeEventListener('blur', onBlur);
+      el.removeEventListener('pointerdown', touch);
+      el.removeEventListener('keydown', touch);
+      el.removeEventListener('focus', touch);
       document.removeEventListener('scroll', schedule, { capture: true });
       window.removeEventListener('resize', schedule);
       el.removeEventListener('load', schedule);

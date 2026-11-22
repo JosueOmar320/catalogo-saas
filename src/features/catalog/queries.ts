@@ -79,8 +79,13 @@ export async function getItemCost(ctx: BusinessContext, itemId: string): Promise
 
 /** Costos privados de los productos del negocio (por id); vacío si aún no se pueden leer. */
 export async function listItemCosts(ctx: BusinessContext): Promise<Map<string, number>> {
-  const { data, error } = await ctx.supabase.from('item_costs').select('item_id, cost').eq('business_id', ctx.business.id).limit(10000);
-  return new Map(error ? [] : data.map((row) => [row.item_id, Number(row.cost)]));
+  try {
+    // Por páginas: PostgREST corta en 1000 filas y un `.limit` mayor no lo evita.
+    const rows = await fetchAllRows((from, to) => ctx.supabase.from('item_costs').select('item_id, cost').eq('business_id', ctx.business.id).order('item_id').range(from, to));
+    return new Map(rows.map((row) => [row.item_id, Number(row.cost)]));
+  } catch {
+    return new Map();
+  }
 }
 
 /**

@@ -46,6 +46,14 @@ npm run test:e2e:app
 
 Levantan un Supabase **local** (nunca los proyectos de la nube), reinician su base, crean un administrador con una contraseña aleatoria de esa ejecución y prueban el recorrido completo. Para apagarlo: `npx supabase@2.121.0 stop`.
 
+Para trabajar a mano contra ese mismo Supabase local (sin tocar `.env.local` ni la nube), con la base ya levantada:
+
+```bash
+npm run dev:local
+```
+
+Abre http://localhost:3200; «Probar el panel» crea un negocio de prueba en la base local. `npm run dev:local -- --start` usa un build de producción (sirve cuando ya hay otro `next dev` corriendo).
+
 Si cambiaste dependencias, verifica también el lockfile con la versión de npm del CI (npm 11 puede quitar dependencias opcionales de otras plataformas que npm 12 exige, y `npm ci` falla en CI):
 
 ```bash

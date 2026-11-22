@@ -5,6 +5,8 @@ import { TABLE_MAX_COLUMNS, TABLE_MAX_ROWS, type SectionOf } from './section-sch
  * cada fila alineadas con sus columnas al agregar o quitar una. Puro.
  */
 type Table = Pick<SectionOf<'table'>['content'], 'columns' | 'rows'>;
+/** La columna destacada (1 = la primera, 0 = ninguna) viaja con su columna al quitar o mover. */
+type TableWithHighlight = Table & Partial<Pick<SectionOf<'table'>['content'], 'highlight'>>;
 type Align = Table['columns'][number]['align'];
 
 const id = () => crypto.randomUUID();
@@ -61,20 +63,23 @@ export function addTableColumn(table: Table, label: string): Table {
   return { columns: [...table.columns, { id: id(), label, align: 'left' }], rows: table.rows.map((row) => ({ ...row, cells: [...row.cells, ''] })) };
 }
 
-/** Quita la columna `index` y su celda de cada fila (siempre queda al menos una). */
-export function removeTableColumn(table: Table, index: number): Table {
+/** Quita la columna `index` y su celda de cada fila (siempre queda al menos una). Si era la destacada, ya no hay destacada. */
+export function removeTableColumn<T extends TableWithHighlight>(table: T, index: number): T {
   if (table.columns.length <= 1) return table;
-  return { columns: table.columns.filter((_, i) => i !== index), rows: table.rows.map((row) => ({ ...row, cells: row.cells.filter((_, i) => i !== index) })) };
+  const highlight = table.highlight === undefined ? {} : { highlight: table.highlight - 1 === index ? 0 : table.highlight - 1 > index ? table.highlight - 1 : table.highlight };
+  return { ...table, ...highlight, columns: table.columns.filter((_, i) => i !== index), rows: table.rows.map((row) => ({ ...row, cells: row.cells.filter((_, i) => i !== index) })) };
 }
 
-/** Mueve la columna `from` a `to` (las celdas se mueven con ella). */
-export function moveTableColumn(table: Table, from: number, to: number): Table {
+/** Mueve la columna `from` a `to` (las celdas y la marca de destacada se mueven con ella). */
+export function moveTableColumn<T extends TableWithHighlight>(table: T, from: number, to: number): T {
   if (to < 0 || to >= table.columns.length) return table;
-  const move = <T,>(list: T[]) => {
+  const move = <I,>(list: I[]) => {
     const next = [...list];
     const [item] = next.splice(from, 1);
     next.splice(to, 0, item);
     return next;
   };
-  return { columns: move(table.columns), rows: table.rows.map((row) => ({ ...row, cells: move(Array.from({ length: table.columns.length }, (_, i) => row.cells[i] ?? '')) })) };
+  const indices = move(Array.from({ length: table.columns.length }, (_, i) => i));
+  const highlight = table.highlight === undefined || table.highlight <= 0 ? {} : { highlight: indices.indexOf(table.highlight - 1) + 1 };
+  return { ...table, ...highlight, columns: move(table.columns), rows: table.rows.map((row) => ({ ...row, cells: move(Array.from({ length: table.columns.length }, (_, i) => row.cells[i] ?? '')) })) };
 }

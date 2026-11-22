@@ -55,7 +55,7 @@ test('un producto sin foto ni precio aparece en "Revisa tu catálogo"', async ({
   await page.goto('/dashboard');
   const main = page.getByRole('main');
   await expect(main.getByText('1 sin foto: las fotos son lo primero que miran tus clientes.')).toBeVisible();
-  await expect(main.getByText('1 producto(s) sin precio.')).toBeVisible();
+  await expect(main.getByText('1 producto sin precio.')).toBeVisible();
   await expect(main.getByRole('list').getByText(productName)).toBeVisible();
 
   await page.getByRole('link', { name: 'Revisar: Sin foto' }).click();
@@ -145,8 +145,9 @@ test('bandeja de pedidos: el pedido enviado llega con su folio, se confirma y se
   await page.goto('/dashboard');
   await page.getByRole('link', { name: '1 nuevos' }).click();
   await expect(page).toHaveURL(/\/dashboard\/pedidos$/);
-  // Avisos al instante: sin claves VAPID (como en estas pruebas) la tarjeta lo dice.
-  await expect(page.getByText('Los avisos todavía no están configurados en el servidor. Pídeselo al administrador de la plataforma.')).toBeVisible();
+  // Avisos al instante: sin claves VAPID (como en estas pruebas) la fila no aparece (no hay nada que el negocio pueda hacer).
+  await expect(page.getByRole('heading', { level: 1, name: 'Pedidos' })).toBeVisible();
+  await expect(page.getByText('Avisos en este dispositivo')).toHaveCount(0);
   const card = page.getByRole('listitem', { name: `Pedido ${firstReference}` });
   await expect(card.getByText('Ana E2E', { exact: false })).toBeVisible();
   await expect(card.getByText('5512345678', { exact: false })).toBeVisible();
@@ -1557,7 +1558,7 @@ test('tipo de sitio: un sitio web nace sin catálogo y el panel no muestra produ
   const menu = page.getByRole('navigation', { name: 'Menú principal' });
   await expect(menu.getByRole('link', { name: 'Medios' })).toBeVisible();
   for (const name of ['Pedidos', 'Clientes', 'Estadísticas', 'Reseñas', 'Catálogo PDF', 'Pedidos por WhatsApp']) await expect(menu.getByRole('link', { name, exact: true })).toHaveCount(0);
-  await expect(menu.getByRole('button', { name: 'Contenido' })).toHaveCount(0);
+  await expect(menu.getByRole('button', { name: 'Catálogo' })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Páginas de tu sitio' })).toBeVisible();
   // Por URL tampoco: vuelve al inicio del panel.
   await page.goto('/dashboard/catalog/products');
@@ -1693,7 +1694,8 @@ test('dominio propio: según el plan, el administrador lo enciende y el sitio se
   const card = page.locator('#dominio-propio:visible');
   await page.goto('/dashboard/settings/publicacion');
   await expect(card.getByText('El dominio propio no está incluido en tu plan.')).toBeVisible();
-  await expect(card.getByRole('button', { name: 'Conectar' })).toBeDisabled();
+  // Con la función apagada no se ofrece el formulario (un campo deshabilitado sólo confundía).
+  await expect(card.getByRole('button', { name: 'Conectar' })).toHaveCount(0);
 
   // Lo que hace el servidor tras verificar en Vercel (en las pruebas no hay token de Vercel).
   const db = (body: Record<string, unknown>) =>
@@ -1760,7 +1762,7 @@ test('cuenta demo: «Probar el panel» entra sin registro a un negocio de prueba
   const visitor = await browser.newContext({ ...ANONYMOUS, viewport: { width: 1440, height: 900 } });
   const demo = await visitor.newPage();
   await demo.goto('/');
-  await demo.getByRole('button', { name: 'Probar el panel' }).click();
+  await demo.getByRole('button', { name: 'Probar el panel' }).first().click();
   await expect(demo).toHaveURL(/\/dashboard\?bienvenida=demo$/, { timeout: 60_000 });
   await expect(demo.getByText('Cuenta de prueba.')).toBeVisible();
   await expect(demo.getByText('Recorrido sugerido')).toBeVisible();
@@ -1784,7 +1786,7 @@ test('cuenta demo: «Probar el panel» entra sin registro a un negocio de prueba
       await demo.screenshot({ path: `docs/images/${name}.jpg`, type: 'jpeg', quality: 82 });
     }
     // Garfield en el editor (modo sin IA: el router local resuelve el pedido al instante).
-    await demo.getByRole('button', { name: /^Garfield AI/ }).click();
+    await demo.getByRole('button', { name: /^Garfield/ }).click();
     await demo.getByLabel('Mensaje para Garfield').fill('Agrega una sección de preguntas frecuentes');
     await demo.getByRole('button', { name: 'Enviar' }).click();
     await expect(demo.getByText('Garfield está pensando…')).toBeHidden({ timeout: 30_000 });
@@ -1814,7 +1816,7 @@ test('cuenta demo: «Probar el panel» entra sin registro a un negocio de prueba
 
   // Una demo vencida la borra el cron diario (con su archivos y su cuenta).
   await demo.goto('/');
-  await demo.getByRole('button', { name: 'Probar el panel' }).click();
+  await demo.getByRole('button', { name: 'Probar el panel' }).first().click();
   await expect(demo).toHaveURL(/\/dashboard\?bienvenida=demo$/, { timeout: 60_000 });
   const db = (path: string, init: RequestInit = {}) =>
     fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/${path}`, { ...init, headers: { apikey: process.env.SUPABASE_SECRET_KEY!, Authorization: `Bearer ${process.env.SUPABASE_SECRET_KEY}`, 'Content-Type': 'application/json', ...init.headers } });

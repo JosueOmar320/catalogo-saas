@@ -39,6 +39,8 @@ export function dbErrorMessage(error: PgError, fallback: string = msg('No se pud
   if (message.includes('plan_not_found')) return msg('El plan no existe.');
   if (message.includes('forbidden')) return msg('Esta acción es sólo para administradores.');
   if (error.code === '23505') return msg('Ya existe un registro con ese identificador.');
+  // Topes de tamaño o de forma de la base (p. ej. la configuración del PDF supera los 200 KB).
+  if (error.code === '23514') return msg('Los datos superan el tamaño permitido. Quita contenido (textos largos, bloques) e intenta de nuevo.');
   if (error.code === '42501') return msg('No tienes permisos para realizar esta acción.');
   return fallback;
 }

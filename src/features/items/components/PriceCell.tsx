@@ -65,7 +65,7 @@ export function PriceCell({ item, locale, onSaved }: { item: Pick<ItemRowData, '
           input: { startAdornment: <InputAdornment position="start">$</InputAdornment> },
           htmlInput: { inputMode: 'decimal', 'aria-label': t('Precio de {name}', { name: item.name }) },
         }}
-        sx={{ width: 120, display: { xs: 'none', sm: 'inline-flex' } }}
+        sx={{ width: { xs: 96, sm: 120 } }}
       />
     );
   }
@@ -74,7 +74,8 @@ export function PriceCell({ item, locale, onSaved }: { item: Pick<ItemRowData, '
       <ButtonBase
         onClick={start}
         aria-label={t('Cambiar el precio de {name}: {price}', { name: item.name, price: item.priceLabel ?? t('sin precio') })}
-        sx={{ width: 96, justifyContent: 'flex-end', display: { xs: 'none', sm: 'flex' }, borderRadius: 1, px: 0.5, py: 0.25, '&:hover': { bgcolor: 'action.hover' } }}
+        // El precio se ve también en el celular: es lo primero que se revisa entre clientes.
+        sx={{ minWidth: { xs: 0, sm: 96 }, justifyContent: 'flex-end', display: 'flex', borderRadius: 1, px: 0.5, py: 0.25, '&:hover': { bgcolor: 'action.hover' } }}
       >
         <Box component="span" sx={{ typography: 'body2', fontVariantNumeric: 'tabular-nums', borderBottom: 1, borderColor: 'divider', borderBottomStyle: 'dashed' }}>
           {item.priceLabel ?? '—'}

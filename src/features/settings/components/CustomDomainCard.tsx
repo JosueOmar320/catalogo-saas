@@ -57,11 +57,13 @@ export function CustomDomainCard({ domain, status, availability, canManage, plat
         <Typography variant="body2" color="text.secondary">
           {t('Muestra tu sitio en tu propio dominio (mitienda.com). La dirección {url} sigue funcionando.', { url: platformUrl.replace(/^https?:\/\//, '') })}
         </Typography>
-        {availability === 'plan' && <Alert severity="info">{t('El dominio propio no está incluido en tu plan.')}</Alert>}
-        {availability === 'platform' && <Alert severity="info">{t('El dominio propio todavía no está disponible en la plataforma.')}</Alert>}
+        {/* Con la función apagada no hay nada que llenar: una frase y sin campo deshabilitado. */}
+        {availability === 'plan' && <Typography variant="body2">{t('El dominio propio no está incluido en tu plan.')}</Typography>}
+        {availability === 'platform' && <Typography variant="body2">{t('El dominio propio todavía no está disponible en la plataforma.')}</Typography>}
         {!canManage && availability === 'ok' && <Alert severity="info">{t('Sólo el dueño o un administrador puede cambiar esto.')}</Alert>}
 
-        {domain ? (
+        {/* Sin la función en el plan no hay formulario (un campo deshabilitado sólo confundía); sin Vercel configurado se muestra deshabilitado. */}
+        {!domain && availability === 'plan' ? null : domain ? (
           <>
             <CopyField label={t('Tu dominio')} value={`https://${domain}`} openable={status === 'active' && !paused} />
             {alias && <Typography variant="caption" color="text.secondary">{t('{alias} también funciona y lleva a {domain}.', { alias, domain })}</Typography>}

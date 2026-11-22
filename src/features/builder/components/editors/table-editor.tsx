@@ -35,8 +35,9 @@ export function TableEditor(props: EditorProps<'table'>) {
   const set = useContent(props);
   const c = props.section.content;
   const [paste, setPaste] = useState(false);
-  const table = { columns: c.columns, rows: c.rows };
-  const setTable = (next: typeof table) => set(next);
+  const table = { columns: c.columns, rows: c.rows, highlight: c.highlight };
+  // Los ayudantes que no conocen la columna destacada (pegar, agregar) devuelven la tabla sin `highlight`: se conserva la actual.
+  const setTable = (next: { columns: typeof c.columns; rows: typeof c.rows; highlight?: number }) => set({ highlight: c.highlight, ...next });
   const columnName = (i: number) => c.columns[i]?.label || t('Columna {n}', { n: i + 1 });
 
   return (
